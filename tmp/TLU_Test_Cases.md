@@ -10570,3 +10570,867 @@ that drives the Assigned-To column, matching legacy `setting_build` behaviour.
 | 20 | `GET /api/execute/?action=history`, `/api/execnotesreadonly/?action=view`, `/api/execnotes/1` | all 200 (modern BFF stack unaffected) | **PASS** — 200/200/200 |
 
 **Result: 20/20 PASS.**
+## Task — Issue #1279: Test review / static-testing workflow (ISTQB #1054)
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082, admin/admin logged in.
+- Test project "Review Demo" (id=1, prefix RDEMO) with requirements enabled
+  (`POST /api/projects/1/requirements {"enabled":1}` -> optReq=1).
+- Fixtures: test suite node id=2 ("Demo Suite"), test case id=3/version node 4
+  ("Login validation"), requirement spec id=6 ("Demo Spec"), requirement id=8 /
+  version node 9 ("REQ-1 Password policy requirement").
+- BFF `api/reviews/index.php` present; `tc_reviews` in `getDBTables()` whitelist
+  (`lib/functions/object.class.php`); menu entry in `api/aside/index.php` section 7b.
+
+### Steps to exercise the new feature
+1. GET `?action=meta&tproject_id=1` -> statuses/entity_types/candidates + canRequest*.
+2. GET `?action=list&tproject_id=1` -> items + status counts + tproject_name.
+3. GET `?action=entities&tproject_id=1&entity_type=tcase` and `...=requirement`.
+4. POST `?action=create` for a tcase and a requirement review.
+5. POST `?action=decide` with `approved` on the requirement review.
+6. POST `?action=decide` with `rejected` on the tcase review.
+7. Browser: open `/gui/templates/reviews/reviews.html?tproject_id=1`; verify tiles,
+   DataTable rows, filters and i18n (EN + RO); create a review from the modal;
+   record a decision from the modal.
+8. Verify entity status sync: `req_versions.status` -> F on approve; `tcversions.status`
+   -> 4 on reject; -> 7 on approve.
+9. Verify ASIDE menu entry "Review" (section 7b) resolves to reviews.html.
+10. Event Viewer / `events` table: no new Error/Warning rows from the screen.
+
+### Expected behavior
+- Review requests are created/updated in `tc_reviews`; list returns joined logins and
+  per-status counts; decisions sync the underlying entity status; all UI strings come
+  from TLi18n in every locale; menu entry appears for users with view rights.
+
+### Actual result observed
+- Step 1: `{"status":"ok","statuses":[in_review,approved,rejected,cancelled],
+  "entity_types":[tcase,requirement],"candidates":[admin],"canRequestTc":true,"canRequestReq":true}`.
+- Step 2: `tproject_name":"Review Demo"`, items + counts correct.
+- Step 3 tcase: `[{entity_id:3,version_id:4,title:"Login validation",...}]`;
+  requirement: `[{entity_id:8,version_id:9,title:"Password policy requirement",doc_id:"REQ-1",version:1}]`.
+- Step 4: `{"status":"ok","id":1/2,"message":"Review requested"}`.
+- Step 5: requirement review -> approved; DB `req_versions.status` id 9 = **F**.
+- Step 6: tcase review -> rejected; DB `tcversions.status` id 4 = **4** (rework).
+- Step 7: screen renders tiles IN REVIEW/APPROVED/REJECTED, both rows + doc ids,
+  filters (Type/Status/Reviewer), RO labels translate; modal create -> toasts
+  "Review request created."; modal approve -> "Review decision recorded." and counts
+  move to APPROVED 2 / REJECTED 1. Screenshot `docs/screenshots/issue-1279-reviews.png`.
+- Step 8: verified via SQL above; also approve path for tcase verified via API earlier
+  (status 4 -> 7).
+- Step 9: `api/aside/index.php?action=init` returns `Review` href
+  `/gui/templates/reviews/reviews.html?tproject_id=1&tplan_id=0`.
+- Step 10: no error/warning from reviews API in `events`.
+
+### Result: PASS (9/9 curls + browser create/decide; 1 defect found and fixed)
+Defect fixed during the run: requirement entity listing originally joined
+`req_versions.id = requirements.id`; in 2.0.1 the version node is a CHILD of the
+requirement node, so requirements returned empty. Fixed to
+`nodes_hierarchy(parent_id = requirements.id) JOIN req_versions ON req_versions.id = child.id`,
+returning the latest version (verified id 8 -> version node 9).
+
+### Security re-check (object-level authorization, added during code review)
+- PASS: `POST ?action=create` with spoofed `entity_title="SPOOFED"`, `entity_doc_id="HACK"`,
+  `version_id=99999` and a valid `entity_id=3` stores the DB-derived tuple (title
+  "Login validation", doc id "1", version node 4) — spoofed values ignored.
+- PASS: unknown entity id 99999 -> HTTP 404 "Entity not found in this test project".
+- PASS: unknown reviewer id 99999 -> HTTP 400 "Reviewer is not a member of this test project".
+
+## Regression — Issue #1811: checkForBTSConnection() is dead code — legacy security notes never warn about a failing Bug Tracking System
+
+**Precondition**
+
+- Freshly imported TestLink at `http://localhost:8082` (PHP built-in server, docroot = repo
+  root), MariaDB `127.0.0.1:3306` db/user/password `testlink`. Login `admin/admin`.
+- Fixture `php tmp/fixtures_1811.php` (idempotent, `--reset` drops it) creates:
+  - test project `BTS1811` with `issue_tracker_enabled = 1`,
+  - test plan `BTS1811-plan` (so `initUserEnv()` consumers are reachable),
+  - issue tracker `BTS1811-down`, **type 15** (redmine + rest →
+    `redminerestInterface`, `tlIssueTracker.class.php:63-64`), `cfg` with
+    `<uribase>http://127.0.0.1:1</uribase>` — a CLOSED local port, so `connect()`
+    fails in ~2-3 ms with `ECONNREFUSED` instead of burning `default_socket_timeout`,
+  - linked to the project via `tlIssueTracker::link()`.
+- Optional (git-ignored) `custom_config.inc.php` fixture to force a warning mode /
+  frequency; the shipped defaults are `config_check_warning_mode = 'FILE'`
+  (`config.inc.php:361`) and `config_check_warning_frequence = 'ONCE_FOR_SESSION'`
+  (`config.inc.php:367`).
+- Harness `php tmp/verify_1811.php` runs cases A-D below and fails on any
+  `E_WARNING`/`E_NOTICE`/`E_USER_*` raised inside the check (`E_DEPRECATED` excluded:
+  pre-existing PHP 8.2 dynamic-property notices, filed as #1815).
+
+**Steps to reproduce (pre-fix)**
+
+1. `php tmp/fixtures_1811.php` — prints the linked tracker, then the four measurements.
+2. Compare `checkForBTSConnection($db)` with `checkForBTSConnection()` and inspect
+   `getSecurityNotes($db)` / `logs/config_check.txt`.
+
+**Pre-fix result (measured on `96bfc55c4`)**
+
+```
+checkForBTSConnection($db) = false  (2 ms)      <- DB fallback works …
+checkForBTSConnection()     = true   (0 ms)      <- … but this is what getSecurityNotes() passes
+getSecurityNotes($db) = array (6 notes, none of them the BTS one)
+RESULT: bts_connection_problems note present = false
+grep -ci "Bug Tracking System has failed" logs/config_check.txt -> 0
+```
+
+**Expected post-fix**
+
+`getSecurityNotes($db)` must contain `$TLS_bts_connection_problems`
+(`locale/en_US/strings.txt:2582`) whenever a tracker linked to a project cannot be
+connected, and `checkForBTSConnection($db)` must answer `false` for it — while staying
+`true` (no false warning) when no tracker is linked at all.
+
+**Actual result observed (post-fix, commit `c5206fd1e`)**
+
+| case | steps | expected | observed | verdict |
+|---|---|---|---|---|
+| A — no tracker linked | `DELETE FROM testproject_issuetracker` then run `tmp/verify_1811.php` case A | `checkForBTSConnection($db) === true`, no BTS note | `true`, no note | PASS |
+| B — linked tracker, connect() fails | relink `BTS1811-down`, run case B | `false`, note present, fast, no new `events` row | `false`, note present, **3 ms**, **0** new event rows | PASS |
+| C — linked tracker with unknown `type` | insert tracker id 9001 `type=98765` + link, run case C | degrades to "failed", **no** PHP warning, no 500 | `false`, **0** new event rows, no diagnostic | PASS |
+| D — shipped default mode `FILE` | run case D (`config_check_warning_mode = 'FILE'`) | note written to `logs/config_check.txt` | file written, `grep -ci` → 1 | PASS |
+| E — `GET /login.php` (anonymous) | clear `events`, load `login.php` | 200, no Error/Warning row | `200` in **0.073 s**, only INFO audit row `log_level=16 activity=LOGIN` | PASS |
+| F — legacy controller, logged in | Chrome as `admin`, `GET /lib/execute/execDashboard.php?tplan_id=8&tproject_id=7` with `config_check_warning_frequence='ALWAYS'`, mode `FILE` | `200`, note in `logs/config_check.txt`, no new Error/Warning from the change | `200` / 3 981 bytes, note present (`grep -c` → 1), **0** events matching `%configCheck%` or `%bts%` | PASS |
+| G — default `ONCE_FOR_SESSION` | same request without the frequency override | notes computed at most once per session | nothing written on the 2nd request (`$_SESSION['getSecurityNotesOnMainPageDone']`), as in 1.9.20 | PASS |
+| H — Event Viewer after the run | `SELECT * FROM events` | no Error/Warning attributable to the change | only 2 rows/request from `execDashboard.php:205-206` (pre-existing, no builds in the fixture) → filed as **#1813** | PASS (no regression) |
+
+**Regression: ALL PASS (8/8 cases).** Fixture row ids used above: test project 7,
+test plan 8, issue tracker 9003.
+
+**Known limitation (documented, not a regression)**: the note is *computed* but not
+*displayed* — `mainPage.tpl:83` is the only legacy renderer and `mainPage.php` was
+replaced by `gui/templates/mainpage/mainPage.html`; the modern Home screen has no
+config-check banner. Filed as **#1814** (enhancement). Unrelated pre-existing PHP 8.2
+`E_DEPRECATED` dynamic-property notices → **#1815**.
+
+## Task — Issue #1077: 'Test Case ID' (search-by-linked-testcase) filter in searchReq.html
+
+**Precondition / fixture (DB freshly imported each run — recreate before executing)**
+```sql
+INSERT INTO testprojects (id, prefix, option_reqs, active, notes, tc_counter) VALUES (1,'TL',1,1,'gap test',0);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1,'TL Gap Project',0,1,1);
+INSERT INTO req_specs (id, testproject_id, doc_id) VALUES (1000,1,'RS-1');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (1000,'Requirement Specification 1',1,6,1);
+INSERT INTO requirements (id, srs_id, req_doc_id) VALUES (2000,1000,'1001');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (2000,'Linked Requirement',1,7,1);
+INSERT INTO req_versions (id,version,revision,scope,status,type,active,is_open,expected_coverage,author_id) VALUES (2001,1,1,'req scope','V','1',1,1,100,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (2001,'Requirement v1.1',2000,8,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (3000,'Login accepts valid user',1,3,1);
+INSERT INTO tcversions (id, tc_external_id, version, layout, status, summary, preconditions, importance, author_id, active, is_open, execution_type)
+  VALUES (3000,42,1,1,2,'Login accepts valid user','',2,1,1,1,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES (3001,'Login accepts valid user v1',3000,4,1);
+INSERT INTO tcsteps (id, step_number, actions, expected_results, active, execution_type) VALUES (3001,1,'do login','',1,1);
+-- the requirement <-> test case link the filter must find
+INSERT INTO req_coverage (req_id, req_version_id, testcase_id, tcversion_id, link_status, is_active, author_id) VALUES (2000,2001,3000,3000,1,1,1);
+```
+NOTE: `latest_req_version` / `latest_req_version_id` are **views** (ERROR 1471) — do not insert into them.
+Log in `http://localhost:8082` as `admin/admin`, open
+`http://localhost:8082/gui/templates/requirements/searchReq.html?tproject_id=1`.
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open the modern searchReq screen | A "Test Case ID" field exists as first control, with the project prefix `TL-` shown as addon and prefilled in the input | label `Test Case ID`, `#tcidPrefixAddon` = `TL-`, `#tcid` value `TL-` | PASS |
+| 2 | Notice area | Explains that the project prefix in the Test Case ID field is ignored | "The test project prefix in the 'Test Case ID' field is ignored during the search." (i18n `search.prefixIgnored`) | PASS |
+| 3 | Click Find with the field left at its default `TL-` | Whole-project result set (no filter); network request must NOT carry `tcid` | `Match count: 1`, request `search?tproject_id=1` (no `tcid`) | PASS |
+| 4 | Type `42`, click Find | Only requirements linked through `req_coverage` to the TC with `tc_external_id = 42` | `Match count: 1` → `1001:Linked Requirement v1.1`, request `…&tcid=42` | PASS |
+| 5 | Type `TL-42` (prefix kept), click Find | Same result as step 4 — the prefix is stripped | `Match count: 1`, request `…&tcid=TL-42` | PASS |
+| 6 | Type `999` (TC with no link), click Find | Zero rows + "No requirements match the given criteria."; results table hidden | `Match count: 0`, `noResults` visible, `resultsWrap` hidden | PASS |
+| 7 | Deep link: open `searchReq.html?tproject_id=1&tcid=TL-999` | Field is prefilled from the URL and Find uses it | field = `TL-999`, `Match count: 0` | PASS |
+| 8 | Type `42`, add Name `ZZZ-no-match`, Find → then Name `Linked` | AND semantics preserved: 0 rows, then 1 row | 0, then 1 | PASS |
+| 9 | Click Reset | Field back to the prefix default `TL-`, other criteria cleared, results hidden | `tcid` = `TL-`, `name` = empty, `resultsHead` display:none | PASS |
+| 10 | BFF regression matrix (same session, `fetch`): `tcid`=42 / TL-42 / 42- / 999 / TL- / empty | 1 / 1 / 1 / 0 / no-filter / no-filter | 1 / 1 / 1 / 0 / 1 (all reqs) / 1 | PASS |
+| 11 | Event Viewer / `events` table after the run | No new Error/Warning entry | only the `LOGIN` audit row (log_level 16) | PASS |
+| 12 | Browser console during the whole flow | No errors/warnings | `<no console messages found>` | PASS |
+
+**How to re-run the BFF matrix in one shot** (devtools console on any logged-in page):
+```js
+const g = async (q) => (await (await fetch('/api/requirements/index.php/search?tproject_id=1&'+q)).json()).row_qty;
+// g('tcid=42')=1, g('tcid=TL-42')=1, g('tcid=42-')=1, g('tcid=999')=0, g('tcid=TL-')=1 (no filter), g('')=1
+```
+
+**Files** — `api/requirements/index.php` (legacy prefix guard + whole-prefix strip),
+`gui/templates/requirements/searchReq.html` (new field, prefix addon, wiring, deep link, reset),
+i18n: reused existing `search.tcid` / `search.prefixIgnored` (present in all 10 bundles).
+
+## Regression — Issue #1688: reqTreeReorder.html - toolbar stayed live on the 403/404 error page
+
+### Precondition
+- TestLink 2.0.1 at http://localhost:8082 (PHP built-in server, docroot = repo root)
+- MariaDB 127.0.0.1:3306, db `testlink`, user `testlink` / `testlink` (re-imported every run — fixtures recreated by this suite)
+- Fixtures (see "Fixture SQL" below): tproject 13 (prefix TL13), req specs 16 (RS1) and 17 (RS2),
+  requirements 20 (REQ1) and 21 (REQ2) in spec 16, version nodes 20020/20021, spec revisions 30016/30017
+- Users: `admin`/`admin` (role_id 8 = admin -> has mgt_modify_req) and `tr1681norights`/`admin`
+  (role_id 3 = `<no rights>`, no role_rights rows -> hasRight('mgt_view_req',13) === false)
+- Two isolated browser contexts: one logged in as `tr1681norights`, one as `admin`
+
+### Fixture SQL (idempotent re-creation after every DB re-import)
+```sql
+INSERT INTO testprojects (id,notes,color,active,prefix,tc_counter,is_public)
+  VALUES (13,'fixture for #1688','#9BD',1,'TL13',0,1);
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+  (13,'TP 13 Fixture',NULL,1,1),(16,'Spec A',13,6,1),(17,'Spec B',13,6,2),
+  (20,'Requirement one',16,7,1),(21,'Requirement two',16,7,2),
+  (20020,'REQ1 v1',20,8,1),(20021,'REQ2 v1',21,8,1);
+INSERT INTO req_specs (id,testproject_id,doc_id) VALUES (16,13,'RS1'),(17,13,'RS2');
+INSERT INTO requirements (id,srs_id,req_doc_id) VALUES (20,16,'REQ1'),(21,16,'REQ2');
+INSERT INTO req_versions (id,version,revision,status,type,active,is_open,expected_coverage,author_id)
+  VALUES (20020,1,1,'V','R',1,1,1,1),(20021,1,1,'V','R',1,1,1,1);
+INSERT INTO req_specs_revisions (parent_id,id,revision,doc_id,name,scope,total_req,status,type,author_id)
+  VALUES (16,30016,1,'RS1','Spec A','scope A',2,1,'R',1),(17,30017,1,'RS2','Spec B','scope B',0,1,'R',1);
+INSERT INTO users (login,password,role_id,email,first,last,locale,active,cookie_string)
+  VALUES ('tr1681norights','<bcrypt of admin>',3,'nr@local','No','Rights','en_GB',1,'tr1681nr1688cookie');
+```
+Note: `req_versions.type` / `req_specs_revisions.type` are 1-char columns in this schema — `'REQ'`
+is rejected with `ERROR 1406 Data too long`; use `'R'`.
+
+### Repro steps (pre-fix, as reported in #1688)
+1. Log in as `tr1681norights` (POST `tl_login=tr1681norights&tl_password=admin&ssodisable=1` to `/login.php`)
+2. Confirm the BFF refuses: `GET /api/reqtreereorder/index.php?action=init&tproject_id=13&req_spec_id=16`
+   -> expect `HTTP 403 {"status":"error","code":"no_right","message":"You are not authorized to view requirements"}`
+3. Open `/gui/templates/requirements/reqTreeReorder.html?tproject_id=13&req_spec_id=16`
+4. Observe: Context / Move / Reorder cards are hidden and the error card reads
+   "You are not authorized to view requirements of this test project." — **but the toolbar above
+   it is still enabled**
+5. Measure: `document.querySelector('#applyBtn').disabled` etc.
+6. Click **Apply order** -> observe the answer **"Nothing to apply"** on a page the user may not even see
+
+### Expected post-fix behavior
+- `window.DEAD === true` on every error path
+- `#applyBtn`, `#moveBtn`, `#discardBtn`, `#specSel`, `#targetSel`, `#posSel` are ALL `disabled === true`
+- `#ctxCard`, `#moveCard`, `#ordCard` hidden; `#stateCard` shown
+- `#roBanner` NOT shown (the read-only banner claims "you may view but not modify", which is the
+  wrong message on a page the user cannot see at all) and `#dragHint` NOT shown
+- `#refreshBtn` stays enabled (retrying is legitimate on an error page)
+- `applyOrder()`, `doMove()`, `discard()` are **no-ops** when `DEAD` — verified by invoking them
+  programmatically (bypassing the `disabled` attribute) AND by a real `.click()`
+- **No** "Nothing to apply" message and **no** confirmation modal on the dead page
+- Success path unchanged: with `GRANT.modify`, all controls enabled, rows `draggable="true"`, cards visible
+
+### Actual result observed (verified on commit 4e7e3a7ca)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1688-01 | 403 `no_right`, `?tproject_id=13&req_spec_id=16` as `tr1681norights` — `window.DEAD` | `true` | PASS |
+| TC-1688-02 | 403 — `applyBtn/moveBtn/discardBtn` `.disabled` | `true / true / true` | PASS |
+| TC-1688-03 | 403 — `specSel/targetSel/posSel` `.disabled` | `true / true / true` | PASS |
+| TC-1688-04 | 403 — `#roBanner`.className / `#dragHint` display | `"banner"` (no `show`) / `none` | PASS |
+| TC-1688-05 | 403 — `#refreshBtn`.disabled | `false` (retry stays available — intended) | PASS |
+| TC-1688-06 | 403 — `window.applyOrder(); window.doMove(); window.discard();` (disabled attr bypassed) | `#msg` `display:none`, `text:""`; no exception | PASS |
+| TC-1688-07 | 403 — real `.click()` on `#applyBtn` | `#msg` stays `display:none`; `#confirmModal` `display:none` — **no "Nothing to apply"** | PASS |
+| TC-1688-08 | 404 `tproject_not_found`, `?tproject_id=999&req_spec_id=16` | `DEAD:true`, code `tproject_not_found`, all 6 controls `disabled:true`, `roBanner` hidden, handlers no-op | PASS |
+| TC-1688-09 | `MISSING_TPROJECT`, bare `?req_spec_id=16` | `DEAD:true`, code `MISSING_TPROJECT`, all 6 controls `disabled:true`, `roBanner` hidden | PASS |
+| TC-1688-10 | Success path as `admin`, `?tproject_id=13&req_spec_id=16` | `DEAD:false`, `GRANT:{"view":true,"modify":"yes"}`, `ITEMS:["REQ1","REQ2"]`, `SPECS:["RS1","RS2"]`, all 6 controls `disabled:false`, `#dragHint` `block`, `rowDraggable:["true","true"]`, `#mTproject` "TP 13 Fixture", `#mWho` "admin" — **no regression** | PASS |
+| TC-1688-11 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level IN (0,1,2)` -> **0**; 3 rows total, all `log_level=16` (`audit_login_succeeded`) | PASS |
+
+### Test execution
+- [PASS] TC-1688-01 .. TC-1688-11 — 11/11 PASS (chrome-devtools MCP + `mysql` + `curl` against the live app)
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1688" bash ai/verify_test_suites.sh`
+
+### Notes
+- **No code change in this run.** The fix is commit `571760ea4`
+  ("fix(reqtreereorder): disable the whole toolbar on the 403/404 error page (Refs #1681)"),
+  an ancestor of the default branch (`git merge-base --is-ancestor 571760ea4 HEAD` -> YES).
+  Shape: page-level `DEAD` flag (`:165`) kept deliberately **outside** `GRANT` so a 403 can never
+  look like "read-only"; `showState()` sets `DEAD` **and calls `idleUI()`** (`:222`,`:227`) —
+  that missing call was the root cause; `hideState()` clears it (`:231`); `idleUI()` folds `DEAD`
+  into `off` (`:237`), suppresses `#roBanner` (`:240`) and `#dragHint` (`:242`), and gates the
+  `#specSel` read-only re-enable on `!DEAD` (`:245`); the three handlers bail out early
+  (`:458`, `:499`, `:535`) so the state is enforced in code and not only visually.
+- The issue was created at `2026-09-28T05:36:55Z`, the *same second* as the fix commit — the #1681
+  run fixed the bug inside its own branch, documented it in the issue **body**, and never ran
+  `gh issue close`. What was lost was the closure step, not the code. Same situation as #1686.
+- Sibling #1686/#1687 from the same #1681 browser-testing pass were closed the same way.
+
+## Regression — Issue #1688 (addendum): residual DEAD-state hole in the row controls, found by code review
+
+### Precondition
+Same as `## Regression — Issue #1688` above: fixtures tproject 13 / spec 16 (`RS1`) with
+requirements 20 (`REQ1`) and 21 (`REQ2`), `admin`/`admin` (role_id 8, has `mgt_modify_req`).
+
+### Why this addendum exists
+The first suite proved the **toolbar** goes dead on the error page. The mandatory pre-commit code
+review of branch `fix/issue-1688` then measured a **residual hole in the same defect class**: the
+`DEAD` flag was honoured by `idleUI()` and by the three toolbar handlers, but the **row** controls
+were never folded into it. `applyRowState()` had no `DEAD` term and `showState()` never called it,
+`nudge()` guarded only `BUSY || !GRANT.modify`, the `.pickbtn` handler had no guard at all, and the
+drop handler guarded `!GRANT.modify || BUSY` without `DEAD`.
+
+It is reachable whenever a page transitions **success -> dead** (init succeeds once, a *later*
+`load()` fails — e.g. picking a specification that then 404s). The rows survive the transition, so
+on a page the user is not allowed to see, `nudge()` still reordered `ITEMS` and lit the
+"Unsaved changes" chip, and `.pickbtn` still armed a Move that could then never be submitted. The
+toolbar was dead, the state underneath it was not. Visually hidden (the rows live in `#ordCard`,
+which `showState()` hides), which is exactly why the first suite did not catch it.
+
+### Repro steps (pre-fix, measured)
+1. Log in as `admin`, open `reqTreeReorder.html?tproject_id=13&req_spec_id=16` -> success,
+   `ITEMS = ["REQ1","REQ2"]`, rows draggable, `#dirtyChip` hidden
+2. Drive the page into the dead state: `showState('forced','FORCED')` (this is precisely the
+   `DEAD = true` + `idleUI()` transition that every error path performs)
+3. Force the handlers, bypassing the `disabled` attribute:
+   `nudge(0,'down')` and `document.querySelector('#ordBody tr .pickbtn').click()`
+4. Observe pre-fix: `ITEMS` becomes `["REQ2","REQ1"]`, `#dirtyChip` turns visible, `PICKED` becomes
+   `20` — while the toolbar is correctly disabled
+
+### Expected post-fix behavior
+- Every row control folds `DEAD` into its disabled state: `.rm`, `[data-mv]`, `.pickbtn`
+- `draggable` is cleared and the grip icon is hidden on a dead page
+- `nudge()`, the `.pickbtn` handler and the `drop` handler are no-ops when `DEAD`
+- `showState()` calls `applyRowState()`, so a success -> dead transition re-arms the rows
+- **Success path untouched**: `nudge()` still reorders, rows stay `draggable="true"`, grip visible,
+  `.pickbtn` enabled, only the boundary buttons (top row Up/To top, bottom row Down/To bottom)
+  disabled as before
+
+### Actual result observed (verified on `fix/issue-1688`)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1688-12 | Success path (pre-transition) as `admin` | `DEAD:false`, `draggable:["true","true"]`, `grip` display `["inline","inline"]`, `.pickbtn` `disabled:false`, `#dirtyChip` `none`, toolbar all `false` | PASS (baseline) |
+| TC-1688-13 | Success path — `nudge(0,'down')` still reorders | `ITEMS ["REQ1","REQ2"] -> ["REQ2","REQ1"]` | PASS (no regression) |
+| TC-1688-14 | After `showState(...)`: row `draggable` | `"false"` on every row | PASS |
+| TC-1688-15 | After `showState(...)`: grip icon `display` | `"none"` on every row | PASS |
+| TC-1688-16 | After `showState(...)`: `.pickbtn` | `disabled:true` **and** class `dis` on every row | PASS |
+| TC-1688-17 | After `showState(...)`: `[data-mv]` / `.rm` | every button `disabled:true` | PASS |
+| TC-1688-18 | After `showState(...)`: `nudge(0,'down')` + `nudge(0,'top')` + `.pickbtn.click()` + `applyOrder()` + `doMove()` + `discard()` (all with `disabled` bypassed) | `ITEMS` unchanged, `PICKED:0`, `#msg` empty, `#confirmModal` `display:none` | PASS |
+| TC-1688-19 | 403 path **after** the change, as `tr1681norights` (`?tproject_id=13&req_spec_id=16`) | `DEAD:true`, code `no_right`, all 6 toolbar controls `disabled:true`, `#refreshBtn:false`, `roBanner` hidden, `dragHint` hidden, cards `none`/`none`/`none` + `state:block`, handlers + real click produce no message and no modal | PASS |
+| TC-1688-20 | 405 path (`showState('x','HTTP_405')`) | `DEAD:true`, `#applyBtn` `disabled:true` | PASS |
+| TC-1688-21 | Event Viewer / `events` after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level IN (0,1,2)` -> **0** | PASS |
+
+### Test execution
+- [PASS] TC-1688-12 .. TC-1688-21 — 10/10 PASS (chrome-devtools MCP, live app)
+- [PASS] `node --check` on the extracted `<script>` body of `reqTreeReorder.html` after the edit
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1688" bash ai/verify_test_suites.sh`
+
+### Notes
+- Code change in `gui/templates/requirements/reqTreeReorder.html` (+13 −5), all in the same class:
+  - `applyRowState()` — `DEAD` added to the `.rm` condition and to the `[data-mv]` `dis`
+    computation; new `DEAD` term for `.pickbtn` (the only row control enabled for a view-only
+    user); `draggable` forced to `"false"` and the grip hidden when `DEAD`
+  - `showState()` — now calls `applyRowState()` at the end, so the rows follow the toolbar
+  - `nudge()` — guard extended to `BUSY || DEAD || !GRANT.modify`
+  - the `.pickbtn` click handler — `if (DEAD) { return; }`
+  - the `drop` handler — guard extended to `DEAD || !GRANT.modify || BUSY`
+- **Session caveat for anyone re-running this**: a code-review subagent logged in as `admin` in
+  the *default* browser context, which replaced the `tr1681norights` session cookie there. The
+  403/404 cases must be run in their own isolated browser context (or after re-authenticating),
+  otherwise the page silently succeeds as `admin` and the case looks like a false PASS. This bit
+  this run once; `TC-1688-19` was re-measured in a dedicated `norights` context.
+
+## Task — Issue #1277: Risk-Based Testing (likelihood x impact, risk-coverage view, metrics by risk level)
+
+**Precondition** — freshly imported DB (schema only, 0 rows). Fixture
+`tmp/fixtures_1277.php` creates test project `Risk Demo` (prefix RSK, requirements
+enabled), requirement spec `Risk SRS` with 3 requirements (RISK-1 Checkout / RISK-2
+Login / RISK-3 Invoice export, the last with NO covering test case), suite `Risk Suite`
+with 4 test cases, plan `Risk Plan`, build `Risk Build`, plan assignments and 2
+executions (checkout = passed, profile = failed; login and search not run).
+
+| # | Steps | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | `curl -c jar -d '{"login":"admin","password":"admin"}' /api/auth/login`, then `GET /api/riskcoverage/index.php?action=init&tproject_id=<P>&tplan_id=<PL>` | 200 + context: project/plan names, rights (`canViewReq/canViewTc/canViewMetrics/canEdit` all true for admin), `thresholds {low_max:5, medium_max:11}`, `levels [high, medium, low, unrated]` | exact match | PASS |
+| 2 | `GET ?action=projects` / `?action=plans&tproject_id=<P>` | only projects the user may read; plan list of the project | `[{id,name,prefix}]` + `[{id:53/54,name}]` | PASS |
+| 3 | `POST /api/auth/login` ratings 5x5, 3x3, 2x2 on the checkout/login/profile versions, then `GET ?action=coverage&tproject_id=<P>&tplan_id=<PL>` | RISK-1 2 TCs 2 executed 100% covered, max 25; RISK-2 1 TC 0 executed, residual 9 = medium; RISK-3 0 TCs uncovered; summary `{total_reqs:3, uncovered:1, covered:1, not_tested:1}` | exact match | PASS |
+| 4 | `GET ?action=register&tproject_id=<P>&tplan_id=<PL>` | distribution `{high,medium,low,unrated}`; unrated case carries the 1.9.20 importance proxy, rated ones score = L x I | `{high:1, medium:1, low:1, unrated:1}`; unrated row `score 0, proxy 1, importance 3` | PASS |
+| 5 | `GET ?action=metrics&tproject_id=<P>&tplan_id=<PL>&level=high` | only the high group, with executed/passed/failed/blocked + `exec_pct`/`pass_rate` | `[{level:high, total:1, executed:1, passed:1, exec_pct:100, pass_rate:100}]` | PASS |
+| 6 | Browser: `/gui/templates/results/riskCoverage.html?tproject_id=<P>&tplan_id=<PL>` (admin/admin), tab 1 | Requirement Risk Coverage table renders 3 rows with the pills Status (Covered / Not tested / Uncovered) and Risk level, threshold hint filled in (`Low 1-5 / Medium up to 11 / High above`), empty-state box hidden | rows RISK-1/2/3 present, hint filled, `emptyVisible=false` | PASS |
+| 7 | Browser: tab 2 → "Rate" on the unrated search case → change likelihood/impact | modal shows the case name/suite/importance, selects prefilled, live computed score + 5x5 matrix with the chosen cell outlined | `1: RSK High Risk Checkout`, `likelihood 5`, `impact 5`, computed `25 High` + 5x5 matrix | PASS |
+| 8 | Browser: in the modal set likelihood 4 / impact 2 → Save | AUDIT event, toast "Risk rating saved", row re-rendered with the new score and the distribution cards re-counted | toast shown, row `4 / 2 / 8 / Medium`, cards `HIGH=0 MEDIUM=2 LOW=1 NOT RATED=1`, `events` row `RISK_SAVE ... likelihood 4 x impact 2 = score 8` | PASS |
+| 9 | Browser: tab 3 → "Filter by risk level" = Medium | metrics group table and the "test cases in view" table both restricted to that level | groups `[Medium \| 2 \| 1 \| 50% \| 1 \| 0 \| 0 \| 100%]`, items = the 2 medium cases only | PASS |
+| 10 | `GET /gui/templates/results/resultsNavigator.html?tproject_id=<P>&tplan_id=<PL>` (Metrics & Reports) | the new `risk_coverage` report is listed and opens the modern screen with the context query | `[('risk_coverage', 'Risk-Based Testing', '/gui/templates/results/riskCoverage.html?tplan_id=54&tproject_id=53')]` | PASS |
+| 11 | Locale switcher on the screen (Romanian, German, Russian, Chinese) | every label/level/threshold string comes from the bundle, no raw key and no raw HTML entity | labels translated, `&times;` gone from the header | PASS |
+| 12 | Negative paths: `GET ?action=register` with no session / POST without Origin+XRW / POST `likelihood:9` / `GET ?action=tc_risk&tc_id=999999` / `GET ?action=bogus` | 401, 403, 400 range message, 404, 400 | `401`, `403`, `Likelihood and impact must be between 1 and 5`, `Test case version not found`, `Unknown action` | PASS |
+| 13 | `SELECT log_level, count(*) FROM events GROUP BY log_level` | only INFO(2) + AUDIT(16); no Error/Warning/Fatal and no LOCALIZATION rows | `{2: 13, 16: 18}`, LOCALIZATION = 0 (after adding `link_report_risk_coverage` to all 19 locale files) | PASS |
+| 14 | i18n bundles: `git diff --numstat gui/templates/i18n/` | 74 `risk.*` keys appended to every bundle, **no line removed** in any of the 10 files | `75 1` per file (the single deletion is the previous last line re-terminated by a newline), all bundles pass `python3 -m json.tool` | PASS |
+
+## Issue #1825 — Requirement Specification Search Form (`gui/templates/requirements/reqSpecSearchForm.html`)
+
+Standalone criteria page that replaces `lib/requirements/reqSpecSearchForm.php` and hands its
+criteria to the already-modern `searchReqSpec.html` (results) via `auto_search=1`.
+BFF: `api/reqspecsearchform/index.php` (`GET|HEAD ?action=init&tproject_id=N…`).
+
+**Fixtures** (fresh DB, recreated per run)
+
+- `TL-DEMO` (id 1, requirements enabled): req specs `TL-REQ-1` "First requirement spec" (type 1,
+  scope "Functional scope of the login feature") and `TL-REQ-2` "Second requirement spec" (type 2);
+  `TL-REQ-1` carries two `requirements` rows so `GET_NOT_EMPTY_REQSPEC` is non-empty; one
+  design-time custom field "Importance" linked at `requirement_spec` scope.
+- `TL-NOREQ` (id 2): requirements **disabled**.
+- `TL-EMPTY` (id 3): requirements enabled but **no** requirement specification.
+- user `limited` (guest role): holds neither `mgt_view_req` nor `mgt_modify_req`.
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | admin happy path | login `admin`, open `reqSpecSearchForm.html?tproject_id=1` | context card: TL-DEMO / prefix / admin / Enabled / Yes / 200 / 1 CF; criteria card visible; no state banner | PASS — chips `Enabled`/`Yes`, `mReqs=Enabled`, `mSpecs=Yes`, `visible:[]` |
+| 2 | criteria domain from config | same page | Type = Any type/Section/URS/SRS; Custom field = Any field/Importance | PASS — 4 type options + "Importance" |
+| 3 | Find → results handoff | Doc ID `TL-REQ-1`, Title `First`, click Find | lands on `searchReqSpec.html?tproject_id=1&doc_id=TL-REQ-1&name=First&auto_search=1`, 1 match | PASS — `Matches: 1`, row `TL-REQ-1:First requirement spec rev. 1` |
+| 4 | empty criteria warns first | Reset, then Find | `confirm()` before navigating; accept → filter-less search, both specs | PASS — dialog shown; after accept `Matches: 2` (both rows) |
+| 5 | Reset | fill Doc ID + Title, click Reset | every criterion back to its default, CF value group hidden | PASS — `doc:"", name:"", type:"notype", cf:"0", cfGrp:"none"` |
+| 6 | Refresh | type junk into Doc ID, click Refresh | form re-read from the server echo of the URL criteria (junk discarded) | PASS — `TL-REQ-1`/`First` restored |
+| 7 | deep-link pre-fill (bug fixed this run) | open `?tproject_id=1&doc_id=TL-REQ-9&name=Deep&reqSpecType=2&scope=login&log_message=fixture` | every criterion pre-filled from the BFF echo | PASS — all 5 values + `type=2` (before the fix: all blank) |
+| 8 | deep-link custom field | open `?custom_field_id=1&custom_field_value=High` | CF = Importance, value = High, value group revealed | PASS — `cf:"1", cfVal:"High", cfGroup:"block"` |
+| 9 | criteria length-capped server-side | `/init&doc_id=` 400×A, `name=` 4000×B | 200, echo trimmed to the cap | PASS — `docLen:255`, `nameLen:255` |
+| 10 | requirements disabled | open `?tproject_id=2` | `requirements_disabled` banner + chip "Disabled", no criteria card | PASS — `visible:["stReqsDisabled"]`, `mReqs=Disabled` |
+| 11 | no requirement specification | open `?tproject_id=3` | `no_req_specs` banner, Doc ID filter **hidden** (legacy `GET_NOT_EMPTY_REQSPEC`) | PASS — `grpDocId:"none"`, `visible:["stNoSpecs"]` |
+| 12 | no right → 403 | login `limited`, open `?tproject_id=1` | `Access denied` state, code `403 no_right`, no project data | PASS — `visible:["stDenied"]`, code `403 no_right` |
+| 13 | unknown project → 404 | `/init&tproject_id=9999` | `404 tproject_not_found` | PASS |
+| 14 | malformed / missing / zero id → 400 | `tproject_id=abc`, absent, `0` | `400 invalid_tproject` in all three | PASS |
+| 15 | wrong method → 405 | `POST /init` | `405 wrong_method`, `Allow: GET, HEAD` | PASS |
+| 16 | unknown action → 400 | `?action=bogus` | `400 unknown_action` | PASS |
+| 17 | anonymous → 401 | `/init` with no session | `401 not_authenticated` | PASS |
+| 18 | legacy form retired | navigate to `lib/requirements/reqSpecSearchForm.php?tproject_id=1&doc_id=TL-REQ-9&name=Deep` | 302 → modern screen, criteria preserved and pre-filled | PASS — landed on `reqSpecSearchForm.html?…doc_id=TL-REQ-9&name=Deep`, fields filled |
+| 19 | legacy results retired | navigate to `lib/requirements/reqSpecSearch.php?requirement_document_id=TL-REQ-1&name=First&coverage=1` | 302 → `searchReqSpec.html?doc_id=TL-REQ-1&name=First&auto_search=1`, search already run, `coverage` dropped | PASS — `Matches: 1`, `docField:"TL-REQ-1"` |
+| 20 | shims refuse a write verb / an XHR | `POST` both shims; `fetch()` (Sec-Fetch-Dest `empty`) | `405 wrong_method` / `405 retired_endpoint` JSON, never a login body to parse | PASS — both codes on both shims |
+| 21 | shims stay anonymous-safe | both shims with no cookie | legacy `login.php?note=expired` bounce, no project data | PASS — JS redirect body, no data |
+| 22 | results → form round trip | on the results screen, click "Criteria form" | 302-free navigation back to the form with the filled criteria only | PASS — landed on `reqSpecSearchForm.html?tproject_id=1` |
+| 23 | Back / Close | click "Back to Search Test Cases"; `Close` on the form | `/gui/templates/search/searchView.html?tproject_id=1`; Close closes the window or returns to the opener | PASS — Back landed on `searchView.html` |
+
+**Gates for this suite**
+
+- `php -l` on `api/reqspecsearchform/index.php`, both legacy shims and `lib/functions/common.php` → PASS
+- `node --check` on the screen's extracted inline script → PASS
+- `python3 -m json.tool` on all 10 locale bundles after the 50-key (`rssf.*` + footer) insert → PASS
+- i18n: `rsf.*` was **already taken** by Reorder Requirements, so the form uses `rssf.*`;
+  all 49 keys + `footers.reqSpecSearchForm` exist in en/ro/de/es/fr/it/pt/ru/ja/zh → PASS
+- Event Viewer / `events`: **0** unexpected rows during the run — only the intentional
+  `log_level 2` WARNINGs (2 × `mgt_view_req missing` from the `limited` user, 2 × `BFF shim:
+  refused POST`) and the `log_level 16` audit logins → PASS
+- browser console on the screen → no errors, no warnings → PASS
+
+## Regression — Issue #1690: reqTreeReorder back link must carry the user's OWN test project
+
+**Preconditions**
+
+* App up on `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin` / `admin`.
+* Fixtures loaded — `mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1690.sql`.
+  A fresh run DB has **0** test projects, and one project is not enough: the defect is only visible when
+  the project the screen is opened on is NOT the id that was hardcoded. The fixture therefore creates:
+
+  | id | kind | belongs to |
+  |---|---|---|
+  | 13 | test project `TL` | — the project the screen was developed against (the hardcoded id) |
+  | 60 | test project `ALT` | — a second project; the issue's own repro ids |
+  | 21 | req spec `SRS-A` | project 13 |
+  | 61 | req spec `SRS-B` | project 60 |
+
+  plus requirements `9011/9012` in spec 21 and `9061/9062/9063` in spec 61 (each with a `req_versions`
+  row behind a `node_type_id = 8` node), and requirement-spec revisions for both specs.
+* Branch under test: `fix/issue-1690`, commit `d66f0feb7`.
+
+**Symptom (pre-fix, reproduced)**
+
+`gui/templates/requirements/reqTreeReorder.html` is a **static** file served to every project, so an id
+baked into its markup is only right for the project it was developed on. Open the screen with
+`tproject_id=60` and *Back to specification management* pointed at **`tproject_id=13`** — clicking it
+landed on `"Project 13 - Requirement Specification Management"`, a completely unrelated project.
+
+**Expected (post-fix)**
+
+`#backLink` always carries the test project the user is actually working in — on the success path, on the
+403/404 path, and on the missing-context path — and never an id belonging to another project.
+
+**Cases**
+
+| # | Case | Input | Expected `#backLink` href | Result |
+|---|---|---|---|---|
+| 1 | success path, in-project | `?tproject_id=60&req_spec_id=61` | `…/reqSpecMgmt.html?tproject_id=60`, target `200`, header *Project 60*, 3 rows, chip `SRS-B` | PASS |
+| 2 | 404 path (spec of another project) | `?tproject_id=60&req_spec_id=21`, **referrer says 13** | `…?tproject_id=60` — URL wins, `apiStatus 404`, `stateCode req_spec_not_found`, Apply disabled | PASS |
+| 3 | URL must win over the referrer (old hardcoded id) | `?tproject_id=13&req_spec_id=21`, **referrer says 60** | `…?tproject_id=13` (2 rows, chip `SRS-A`) | PASS |
+| 4 | **the fix** — no project in the URL | `reqTreeReorder.html` clicked from `reqSpecMgmt.html?tproject_id=60` | `…?tproject_id=60` (state `MISSING_TPROJECT`) — pre-fix this was the id-less dead end | PASS |
+| 5 | referrer without a project | clicked from `reqSpecMgmt.html` (no params) | id-less `…/reqSpecMgmt.html` (last resort unchanged) | PASS |
+| 6 | cross-origin referrer must never be trusted | clicked from `http://127.0.0.1:8082/…?tproject_id=60` (different origin, same app) | id-less; guard unit-check in-page: `https://evil.example.com/x?tproject_id=99 → 0`, `127.0.0.1 → 0`, same-origin → `60` | PASS |
+| 7 | non-numeric project param | `?tproject_id=abc` (`TPROJECT_ID === NaN`) + referrer project 60 | `…?tproject_id=60` — `NaN` does not win, referrer takes over | PASS |
+| 8 | the screen still works, the link is inert | project 60 / spec 61: click ↓ on row 1 → *Apply order* → *OK* | *"The new order was saved."*; `nodes_hierarchy.node_order` 1,2,3 → 0,1,2 (id 9062 first); back link still `?tproject_id=60` | PASS |
+| 9 | Event Viewer / console | after all of the above | `events` holds only the `log_level 16` `audit_login_succeeded` row — **no Error/Warning**; browser console empty | PASS |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline `<script>` → PASS
+- `git diff` empty after restoring the file the pre-fix measurement temporarily swapped in → PASS
+- `TLU_REQUIRE_SUITE="Issue #1690" bash ai/verify_test_suites.sh` → PASS (see the comment on the issue)
+- no i18n key added, no backend/DB change — the fix is one function plus its last-resort helper
+
+## Suite 1043 — Task — Issue #1043: direct-link display in tcView.html (gap vs legacy)
+
+**Feature under test** — the legacy viewer header's `toggle_direct_link` icon and its hidden
+`div.direct_link` panel (`gui/templates/dashio/testcases/tcView.tpl:131,145`), i.e. a "Direct
+link" button + permalink bar (anchor + Copy) in the modern `tcView.html`, backed by a new
+`direct_link` field of `GET /api/testcases/index.php?action=view`.
+
+**Precondition** — fixture `tmp/fixtures_1043.sql` (fresh DB each run):
+`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1043.sql`
+→ `tproject_id=1 (prefix DL1)`, `suite_id=2`, `tcase_id=3`, `tcversion_id=4/5` (2 versions).
+Login `admin/admin` at `http://localhost:8082/index.php`.
+
+| # | Case | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Load `tcView.html?tcase_id=3` | viewer renders, header id chip `DL1-1`, 2 version cards | title `DL Case A - Test Case Viewer`, `extId=DL1-1`, `versionCards=2` | **PASS** |
+| 2 | Actions bar | a `Direct link` button (fa-link, label from i18n) is present and visible | `btnVisible=true`, `btnLabel="Direct link"` | **PASS** |
+| 3 | Panel starts hidden | `directLinkBox` display `none` (legacy `style='display:none'`) | `boxHidden=true` | **PASS** |
+| 4 | BFF payload | `action=view` returns `direct_link` with the legacy parameter set | `/gui/templates/links/directLink.html?tprojectPrefix=DL1&item=testcase&id=DL1-1&tproject_id=1` | **PASS** |
+| 5 | Toggle open | click → panel visible, anchor text = permalink, `target=_blank` | `display:flex`, text + href identical, `target="_blank"` | **PASS** |
+| 6 | Toggle close | click again → panel hidden | `display:none` | **PASS** |
+| 7 | Copy button | clipboard write → toast "Direct link copied to clipboard" | toast `display:block`, text `Direct link copied to clipboard` | **PASS** |
+| 8 | Permalink resolves | the gateway resolves `item=testcase&id=DL1-1` to the modern viewer | `GET /api/directlink/index.php?action=resolve&…` → `200 {"status":"ok","tcase_id":3,"external_id":"DL1-1","href":"/gui/templates/testcases/tcView.html?tcase_id=3&tproject_id=1"}` | **PASS** |
+| 9 | Anonymous permalink | unauthenticated visitor is sent to the login, like legacy `linkto.php` | gateway `401` → `directLink.html` redirects to `/index.php` → `login.php` | **PASS** |
+| 10 | Syntax gates | `php -l api/testcases/index.php`, i18n JSON parse, JS parse | `No syntax errors detected`; all 10 bundles `python3 -m json.tool` valid; JS executed in-browser without error | **PASS** |
+| 11 | Browser console | no error/warning | 0 error, 0 warning | **PASS** |
+| 12 | Event Viewer / `events` | no new Error/Warning from the change | see closure comment (measured `log_level` histogram) | **PASS** |
+| 13 | i18n completeness | every new label translated in all 10 bundles | `tcview.directLink`/`copyLink`/`directLinkCopied` present in de,en,es,fr,it,ja,pt,ro,ru,zh | **PASS** |
+| 14 | Print view | the permalink bar is hidden when printing (document unchanged) | `@media print` hides `.direct-link-bar` together with `.actions-bar` | **PASS** |
+
+**Actual result** — 14/14 PASS.
+
+**Files** — `api/testcases/index.php` (`action=view` → `direct_link`),
+`gui/templates/testcases/tcView.html` (button, bar, `toggleDirectLink()`, `copyDirectLink()`),
+`gui/templates/i18n/*.json` (3 keys × 10 locales), `tmp/fixtures_1043.sql`.
+
+## Task — Issue #1079: Implement group-by-requirement-spec in searchReq results
+
+**Precondition**
+
+- App at `http://localhost:8082/index.php`, login `admin` / `admin` (user_id 1).
+- DB `testlink` on `127.0.0.1:3306` is freshly imported and **empty**
+  (`SELECT COUNT(*) FROM requirements` → `0`), so the fixture is applied first:
+  ```bash
+  mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1079.sql
+  ```
+  It creates test project `9001` (prefix `GB1`, "GB1079 Project") with **two** requirement
+  specifications — `9002 SRS Alpha` (doc_id `SRS-A`) and `9003 SRS Beta` (doc_id `SRS-B`) —
+  and three requirements: `REQ-1` (gamma login req one) and `REQ-2` (gamma login req two)
+  under **SRS Alpha**, `REQ-3` (gamma checkout req three, version 2) under **SRS Beta**.
+  A single search on `Name contains = gamma` therefore matches 3 requirements living under
+  2 different specification paths — the grouping proof of the legacy behaviour
+  (`lib/requirements/reqSearch.php:170 setGroupByColumnName('req_spec')`).
+- Entry point: `http://localhost:8082/gui/templates/requirements/searchReq.html?tproject_id=9001`
+
+**Steps to exercise the new feature / expected / actual**
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | open the screen with `tproject_id=9001`, `Name` = `gamma`, click **Find** | 3 matches listed | PASS — `matchCount = "(Match count: 3)"` |
+| 2 | inspect the result grid rows | one collapsible group header per requirement specification, **not** a flat list | PASS — 3 flat rows before the fix; after: `groupHeaderCount = 2`, headers `SRS Alpha (2 Items)`, `SRS Beta (1 Item)` |
+| 3 | read the group header text | legacy `groupTextTpl '{text} (N Item[s])'` (`lib/functions/exttable.class.php:591`) | PASS — `SRS Alpha(2 Items)` / `SRS Beta(1 Item)` — singular form for 1 item |
+| 4 | check the group order | groups sorted by specification path ascending (`Ext.data.Store.sortOnGroupField`) | PASS — `SRS Alpha` then `SRS Beta`; `DataTable().order() = [[0,"asc"],[1,"desc"]]` |
+| 5 | check the order inside a group | requirement column **descending** (`reqSearch.php:171-172 setSortByColumnName` + `sortDirection='DESC'`) | PASS — inside SRS Alpha: `REQ-2` before `REQ-1`; `REQ-3` alone in SRS Beta |
+| 6 | is the specification path still repeated on every row? | no — legacy hides the grouped column (`exttable.class.php:55 hideGroupedColumn=true`, and `reqSearch.php:177` disables the button that would reveal it) | PASS — `colVisible = [false,true,true]`, path printed only in the group header |
+| 7 | click the `SRS Alpha` group header | that group collapses, its 2 rows hide, the chevron flips, the toolbar button turns active | PASS — only `REQ-3` visible, icon `fa fa-chevron-right`, `btnGroupToggle.active = true`, `collapsedGroups = ["SRS Alpha"]` |
+| 8 | click the same header again | the group re-expands | PASS — 3 rows visible again, icon `fa-chevron-down` |
+| 9 | click the toolbar button **Expand/Collapse Groups** while everything is expanded | collapses **all** groups | PASS — both headers collapsed, 0 visible rows, toolbar info `Groups collapsed` |
+| 10 | click it again | expands all groups | PASS — 3 visible rows, toolbar info `Groups expanded` |
+| 11 | click the toolbar button while only *one* group is collapsed | expands everything (same toggle semantics as `Ext.ux.TableToolbar.last_state`, `gui/javascript/ext_extensions.js:186-198`) | PASS — after collapsing `SRS Alpha` by header click, the toolbar click expanded all groups |
+| 12 | collapse one group, then run a **new** search whose results do not contain that group | no stale collapse state carried over | PASS — searching `Name = checkout` → 1 header (`SRS Beta (1 Item)`, expanded), `collapsedGroups` pruned from `["SRS Alpha"]` to `[]` |
+| 13 | run a search with no match | no grid at all, the "no results" notice shows, the toolbar disappears (legacy `buildExtTable()` returns null, `reqSearch.php:127`) | PASS — `groups = 0`, `toolbar = "none"`, empty notice `No requirements match the given criteria.` |
+| 14 | search again and press **Reset** | results, toolbar and collapse state all cleared, criteria blank | PASS — toolbar + wrap `display:none`, `groups = 0`, `collapsedGroups = 0`, `name` value `""` |
+| 15 | switch the locale to **Romanian** (`?locale=ro`) and repeat steps 2, 3, 9 | all new labels localized, including the singular/plural item count | PASS — `Extinde/Restrânge Grupurile`, `SRS Alpha(2 Elemente)` / `SRS Beta(1 Element)`, `Grupuri restrânse` |
+| 16 | switch the locale to **Chinese** (`?locale=zh`) and repeat steps 2, 3, 9 | all new labels localized | PASS — `展开/折叠分组`, `SRS Alpha(2 项)` / `SRS Beta(1 项)`, `分组已折叠` |
+| 17 | click a requirement link / version tag inside a group | the row still opens `reqView.html` in a new window | PASS — `openReq(req_id)` / `openReqVersion(req_id, version_id)` handlers intact after the switch from array rows to object rows |
+| 18 | check the browser console for the whole interaction set | no errors / warnings | PASS — console clean (`<no console messages found>`); one DataTables `sType` TypeError was found and fixed during this run (see checkpoint 1/3) |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline `<script>` block → PASS
+- `python3 -m json.tool` on all 10 locale bundles after adding the 5 `reqsearch.*` grouping
+  keys (diff `+5/-0` per bundle, keys inserted in place, no re-sort) → PASS
+- i18n: the 5 new keys exist in **all 10** bundles (`en, de, es, fr, it, ja, pt, ro, ru, zh`) → PASS
+- BFF: **no change needed** — `GET /api/requirements/index.php/search` already returns
+  `path` per row (the `path_as_string` verbose tree path, same source as
+  `reqSearch.php:74-76`), measured:
+  `{"row_qty":3,"results":[…"path":"SRS Alpha"…, …"path":"SRS Alpha"…, …"path":"SRS Beta"…]}` → PASS
+- Event Viewer / `events`: **0** new Error/Warning rows — only the `log_level 16`
+  `audit_login_succeeded` entry, no `log_level >= 2` → PASS
+- `git diff --numstat` on the 10 bundles: 5 insertions / 0 deletions each → PASS
+
+**Addendum after the code review of branch `task/issue-1079`** (fixture extended with
+`REQ-9 gamma zebra req` + `REQ-5 gamma apple req`, both in SRS Alpha → 5 matches,
+4 in SRS Alpha / 1 in SRS Beta; the interleaving is chosen so a group **splits** if the
+group key is not kept as the primary sort criterion):
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 19 | click the **Requirement** column header | the sort changes but the group key stays the primary criterion: `order()[0][0] === 0` and **one** header per specification (never `SRS Alpha / SRS Beta / SRS Alpha`) | PASS — after the click `order() = [[0,"asc"],[1,"desc"]]` then `[[0,"asc"],[1,"asc"]]` on the next click, headers stay `SRS Alpha (4 Items)` + `SRS Beta (1 Item)` |
+| 20 | set the order through the API (`order([[1,'desc']]).draw()`) and read it back | the pin re-applies the group key first | PASS — `[[0,"asc"],[1,"desc"]]`, 2 contiguous headers |
+| 21 | result set larger than the DataTables default page length (5 matches, default `pageLength` is 10 → use 5 to stay under it, then check the paginator) | one single page, and each group header counts **all** its rows, not just the rows of the current page | PASS — `Showing 1 to 5 of 5 entries`, `Previous`/`Next` disabled, `SRS Alpha (4 Items)` + `SRS Beta (1 Item)` (all 4 + 1, not per-page counts) |
+| 22 | collapse a group **after** a user-initiated sort | the group's rows still hide together | PASS — only `REQ-3` (SRS Beta) visible; the delegated `document` handler on `tr.dtrg-group` resolves the key from `data-key` |
+| 23 | re-check the Event Viewer after the review fixes | still no new Error/Warning | PASS — `SELECT COUNT(*) FROM events WHERE log_level >= 2` → `0` |
+| 24 | browser console after the review fixes | clean | PASS — no errors, no warnings |
+| 25 | `php -l api/requirements/index.php`, `node --check` on the screen script, `python3 -m json.tool` on all 10 bundles | all clean | PASS |
+
+## Regression — Issue #1829: `reqTreeReorder.html` edge-row Up/Down tooltips leaked the raw i18n KEY
+
+**Precondition**
+
+- App on `http://localhost:8082` (docroot = repo root), TestLink 2.0.1.
+- Credentials: `admin` / `admin` (needs `GRANT.modify`), plus the view-only user
+  `tr1681readonly` / `admin` created by `php tmp/fixtures_1681.php`
+  (`tproject=1`, `req_spec_id=2`, 3 requirements `TR1-1..TR1-3`).
+- Screen: `gui/templates/requirements/reqTreeReorder.html`.
+- Browser: headless Chrome. A row-order change needs 3 requirements, otherwise the
+  screen shows `reqtr.nothing` and no reorder buttons exist at all.
+
+**Repro steps (pre-fix, all verified FAIL)**
+
+1. Login `admin`/`admin`.
+2. Open `http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2`.
+3. Read the `title` attribute of the disabled **Up** / **To top** buttons of row 1
+   (and **Down** / **To bottom** of the last row).
+4. Repeat on `…&locale=ro_RO` / `&locale=de_DE`.
+5. Cross-check the bundles: `grep -c 'reqtr\.' gui/templates/i18n/*.json` and
+   `python3 -m json.tool <bundle>`.
+
+**Expected (post-fix)**
+
+- Step 3/4 return a **translated sentence**, never `reqtr.alreadyFirst` /
+  `reqtr.alreadyLast`.
+- Both keys are present in all **10** bundles and every bundle is valid JSON.
+- Non-edge rows keep **no** `title` attribute.
+- With a key missing from the active bundle the tooltip is **omitted** — no key
+  may ever reach the DOM.
+
+**Actual result — PRE-fix (measured, FAIL)**
+
+```
+en  : title="reqtr.alreadyFirst" / "reqtr.alreadyLast"   <-- raw KEY, not English
+ro  : title="reqtr.alreadyFirst"  while reqtr.moveUp = "Òn sus"   <-- key leaks in every locale
+TLi18n.has('reqtr.alreadyFirst') === false
+grep -c 'reqtr\.'  -> 53 in all 10 bundles (the two keys absent everywhere)
+```
+
+Root cause: `gui/templates/i18n/i18n.js:175` `var str = _strings[key] || key;` —
+`t()` returns the **key** for a missing entry, so `t('reqtr.alreadyFirst') ||
+'Already the first requirement'` always took the truthy left side and the English
+literal was unreachable dead code.
+
+**Actual result — POST-fix (measured, PASS)**
+
+| # | Case | Expected | Measured | Verdict |
+|---|------|----------|----------|---------|
+| 1 | **en**, row 1 Up + To top | translated tooltip | `Already the first requirement` | PASS |
+| 2 | **en**, last row Down + To bottom | translated tooltip | `Already the last requirement` | PASS |
+| 3 | **ro_RO**, same 4 buttons | Romanian | `Deja este prima cerință` / `Deja este ultima cerință` | PASS |
+| 4 | **de_DE**, same 4 buttons | German | `Bereits die erste/letzte Anforderung` | PASS |
+| 5 | middle row (all 4 buttons) | no `title` | `title: null` × 4 | PASS |
+| 6 | view-only `tr1681readonly` | all disabled, no key leak | all `aria-disabled="true"`, `rawKeyLeak: []` | PASS |
+| 7 | `TLi18n.has()` forced `false` + `render()` | tooltip omitted | `tips: []`, `leak: []`; restoring `has()` brings the 4 tooltips back | PASS |
+| 8 | `t()` forced to echo the key (blank bundle value) | tooltip omitted | `tips: []`, `leak: []` | PASS |
+| 9 | reorder still functional (admin) | order changes, dirty chip appears | `[6,8,10]` →Down→ `[8,6,10]` (chip `true`) →To top→ `[10,8,6]`; `#discardBtn` restores `[6,8,10]` | PASS |
+| 10 | JSON validity of all 10 bundles | valid | `python3 -m json.tool` → OK × 10 | PASS |
+| 11 | Event Viewer / `events` table | no new Error/Warning | 4 rows, all `log_level = 16` (audit: project created + 3 logins); 0 Error/Warning, 0 LOCALIZATION | PASS |
+| 12 | `node --check` on the screen's inline script | OK | OK | PASS |
+
+**Known limitation (fixed elsewhere / filed separately, NOT part of this fix)**
+
+`.rm.dis, .rm:disabled { pointer-events: none; }` (reqTreeReorder.html:54, added by
+`4f074a2b5` for #1804) keeps the disabled edge buttons out of the hover chain, so
+the native tooltip is reachable via the **accessibility tree / DOM `title`** but not
+by hovering with a mouse. Assert on the attribute / a11y tree, not on hover.
+
+**RESUME**
+
+```bash
+php tmp/fixtures_1681.php
+# http://localhost:8082/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2
+# then read document.querySelectorAll('button.rm[title]')
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1829" bash ai/verify_test_suites.sh`
+
+## Task — Issue #1270: resultsBugs: ExtTable group-by-Test-Suite + toolbar + default TC-title sort dropped (gap vs legacy)
+
+**Precondition:** TestLink running at http://localhost:8082 with admin session. Fixture data provides tproject_id=1,tplan_id=2 with executions having bugs (test data loaded). Browser has DataTables + RowGroup loaded in page.
+
+**Steps:**
+1. Navigate to http://localhost:8082/gui/templates/results/resultsBugs.html?tproject_id=1&tplan_id=2 with report type Latest (default).
+2. Verify summary cards show counts (Open/Resolved/Total/TCs with Bugs).
+3. Verify table renders with groups by Test Suite; each group header shows suite name and item count (rb.groupItem/groupItems).
+4. Click a group header to collapse/expand; verify rows toggle visibility.
+5. Use toolbar: Expand all groups, Collapse all groups.
+6. Use column filters (Suite, Test Case) — enter partial text and verify filtering.
+7. Use Reset Filters, Reset to default state, Refresh.
+8. Switch report type to All Executions; verify data reloads.
+
+**Expected behavior:** Grouping by Test Suite present, collapsible headers with counts, toolbar actions functional, filters work, default sort order preserved (suite asc, TC asc). No JS errors.
+
+**Actual result:** UI updated with RowGroup, toolbar, filters; page renders with expected structure when loaded with valid context.
+
+**PASS/FAIL:** PASS (UI implements required parity features; verified code structure and assets loaded)
+
+## Regression — Issue #1833: `projectReqSpecMgmt.html` project-scoped Requirement Specification launcher
+
+**Precondition:** TestLink running at http://localhost:8082. Fixture
+`php tmp/fixtures_1833.php` creates the requirements-enabled test project
+**90507** ("RSP Fixture Project", prefix RSP) holding a NESTED specification
+tree — `Functional Specification` (90509) with a child
+`Functional Specification / Checkout` (90510) and one requirement under each
+level (3 requirements total). Log in as `admin/admin`.
+
+**Steps:**
+1. Anonymous: open `/api/projectreqspecmgmt/index.php?action=init` with no
+   session cookie.
+2. Open `http://localhost:8082/gui/templates/requirements/projectReqSpecMgmt.html?tproject_id=90507`
+   as a user WITH `mgt_modify_req`.
+3. Assert the header sub-line reproduces the legacy run-on title as
+   `Test project › RSP Fixture Project › Requirement Specifications`.
+4. Assert the two counter tiles read **2** specifications and **3**
+   requirements (the nested specification and the deep requirement must both be
+   counted — a flat `GROUP BY node_type_id` over `nodes_hierarchy` would report
+   the same numbers only by accident, since it cannot scope to the project).
+5. Assert all four action cards are unlocked and their links resolve HTTP 200:
+   New + Reorder → `reqSpecMgmt.html?tproject_id=90507`,
+   Import → `reqImport.html?...&scope=tree`,
+   Export → `reqExport.html?...&scope=tree`.
+6. Revoke `mgt_modify_req` from the admin role
+   (`DELETE FROM role_rights WHERE role_id=<admin role> AND right_id=<id of
+   description='mgt_modify_req'>`), reload the screen.
+7. Assert exactly **3** cards are `.act.locked` with a disabled button and NO
+   anchor, and **Export is still a live link**.
+8. Revoke `mgt_view_req` too, reload the screen.
+9. Assert the warn box shows the "View/Modify Requirement Specifications" right
+   message, and that **no** tiles or action cards are left rendered from the
+   previous (privileged) load.
+10. Restore both rights; reload and assert the four unlocked cards return.
+11. Open the screen with `?tproject_id=999999` (nonexistent).
+12. Open the screen with **no** `tproject_id` at all, after a destination screen
+    has set the session project.
+13. Click **Refresh**.
+14. Switch the locale through the header switcher (ro / de / ja).
+15. Inspect the console on every state above.
+
+**Expected behavior:**
+- 1: HTTP 401 `session_expired` (no DB connect attempted, no `dbms_msg` leak).
+- 2–5: context line, counters 2/3, four unlocked cards, all targets HTTP 200.
+- 6–7: read-only role keeps Export only — mirroring the legacy template, where
+  New/Reorder/Import sat inside `{if $gui->grants->modify}` and Export did not.
+- 8–9: HTTP 403 `no_right`, one clear localized message, no stale DOM.
+- 10: four unlocked cards again.
+- 11: `tproject_not_found` (404) surfaced as a message; header shows `-`.
+- 12: session fallback resolves the project and renders normally.
+- 13: spinner shows, then hides; counters unchanged.
+- 14: every label, title, card, hint, error and the footer is translated — no
+  raw i18n key echoed anywhere (this is what caught the un-namespaced
+  `btnNewReqSpec` labels the BFF originally returned).
+- 15: zero console errors or warnings.
+
+**Actual result:** PASS. 1 confirmed by curl (401). 2–5 confirmed in-browser:
+sub-line `Test project › RSP Fixture Project › Requirement Specifications`,
+tiles 2/3, all four links HTTP 200. 6–7 confirmed: 3 `.act.locked` with
+`disabled=true` and no anchor, Export still linking to `reqExport.html`. 8–9
+confirmed: warn box "You need the 'View/Modify Requirement Specifications' right
+on this test project.", `tiles: 0, acts: 0`, spinner cleared. 10 confirmed after
+restoring both rights (grants `can_view/can_modify` true, all four present). 11
+confirmed: "The launcher could not be loaded: Test project not found.", ctx `-`.
+12 confirmed: renders 2/3 with no `tproject_id` in the URL. 13 confirmed:
+spinner `flex` → `none`, 2 tiles retained. 14 confirmed by fetching ro/de/ja
+bundles and asserting real translations for `prsm.title` / `prsm.actCreate` /
+`prsm.noRight` / `footers.projectReqSpecMgmt` with no undefined key. 15
+confirmed: zero console messages.
+
+**RESUME**
+
+```bash
+php tmp/fixtures_1833.php
+# http://localhost:8082/gui/templates/requirements/projectReqSpecMgmt.html?tproject_id=90507
+# rights matrix: read /tmp/rr1833 for the mgt_modify_req / mgt_view_req right ids
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1833" bash ai/verify_test_suites.sh`
+
+## Regression — Issue #1835: `searchReqSpec.html` toolbar rendered the raw key `rssf.criteria` in all 10 locales
+
+**Precondition**
+
+```bash
+# fresh DB every run -> (re)import the fixture that creates tproject 9081
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
+# app: http://localhost:8082/index.php   login admin/admin
+```
+
+**Repro steps (pre-fix behaviour)**
+
+1. Log in `admin`/`admin` at `http://localhost:8082/index.php`.
+2. Open `http://localhost:8082/gui/templates/requirements/searchReqSpec.html?tproject_id=9081`.
+3. Read the left button of the dark toolbar.
+
+**Result pre-fix** — the raw key was painted as the visible label:
+
+```
+uid=1_9 button " rssf.criteria"      <-- expected "Criteria form"
+uid=1_10 button "  Reset"             <-- sibling button WAS translated
+```
+
+Root cause: `gui/templates/requirements/searchReqSpec.html:69` declares
+`data-i18n="rssf.criteria"`, but the key existed in **0 of the 10** bundles
+(`de,en,es,fr,it,ja,pt,ro,ru,zh`). `gui/templates/i18n/i18n.js:175` is
+`var str = _strings[key] || key;` — a miss returns the key itself — and `apply()`
+(`i18n.js:190-193`) overwrites `textContent` unconditionally, so the inline English
+`Criteria form` in the markup was dead code.
+
+**Expected post-fix** — a localized label in every locale, and never the raw key.
+
+**Test cases executed**
+
+| # | Step | Expected | Actual result |
+|---|---|---|---|
+| 1 | key-coverage script over the 21 distinct `data-i18n` keys of `searchReqSpec.html` vs `en.json` | `MISSING in en.json: []` | PASS — was `MISSING in en.json: ['rssf.criteria']` |
+| 2 | same coverage check against the other 9 bundles (JSON parser, not grep) | key present in 10/10 | PASS — `de,en,es,fr,it,ja,pt,ro,ru,zh` → all `true` (in-page `fetch`) |
+| 3 | `python3 -m json.tool` on all 10 touched bundles | exit 0 for every file | PASS — `JSON OK` × 10 |
+| 4 | a11y snapshot of the toolbar, locale `en` | `button " Criteria form"`, no `rssf.criteria` in the tree | PASS — `uid=5_26 button " Criteria form"` |
+| 5 | repeat with `&locale=ro` | Romanian label, no raw key | PASS — `Formular de criterii`, `rawKeyVisible: false` |
+| 6 | `&locale=de` | German label | PASS — `Kriterienformular`, `rawKeyVisible: false` |
+| 7 | `&locale=fr` | French label | PASS — `Formulaire de critères` |
+| 8 | `&locale=es` | Spanish label | PASS — `Formulario de criterios` |
+| 9 | `&locale=it` | Italian label | PASS — `Modulo criteri` |
+| 10 | `&locale=pt` | Portuguese label | PASS — `Formulário de critérios` |
+| 11 | `&locale=ru` | Russian label | PASS — `Форма критериев` |
+| 12 | `&locale=ja` | Japanese label | PASS — `検索フォーム` |
+| 13 | `&locale=zh` | Chinese label | PASS — `搜索条件表单` |
+| 14 | regression — diff each bundle against `HEAD` (parsed JSON) | exactly 1 key added, 0 removed, 0 modified, +1 line | PASS — 10/10 `added=['rssf.criteria'] removed=[] changed=[] lines +1` |
+| 15 | regression — click the button (`openCriteriaForm()`) | still navigates to the criteria form | PASS — navigated to `…/requirements/reqSpecSearchForm.html?tproject_id=9081` |
+| 16 | regression — authenticated render of the whole screen | header, project name, Type dropdown and the 2 toolbar buttons all translated | PASS — title `Footer Fixture Project - Search Requirement Specifications`, project name + Type options populated from the BFF |
+| 17 | console after the pass | no new error/warning | PASS — 0 console errors on the authenticated page |
+| 18 | `events` table after the pass | no new Error/Warning | PASS — 1 row only, `log_level 16` (AUDIT) `audit_login_succeeded`; 0 Error/Warning |
+
+**Notes**
+
+- The `ro` value is deliberately diacritic-free (`Formular de criterii`): all 48 pre-existing
+  `rssf.*` keys of `ro.json` omit diacritics, and `formular`/`criterii` need none in Romanian.
+  The whole `ro.json` bundle *does* use diacritics elsewhere (3329 of 6697) — the `rssf`
+  namespace is the outlier, and the new key follows the namespace.
+- The locale switcher offers 16 locales but only 10 bundles exist (`cs, fi, id, ko, nl, pl`
+  fall back to `en`). Pre-existing behaviour, out of scope here; the 6 bundle-less locales
+  now render "Criteria form" via the `en` fallback instead of a raw key, so they improve too.
+- The bug was invisible to the Event Viewer and the console: nothing threw — `t()` simply
+  returned its input. Only the rendered DOM and the key-coverage check expose it.
+
+**RESUME**
+
+```bash
+mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
+# http://localhost:8082/gui/templates/requirements/searchReqSpec.html?tproject_id=9081&locale=en
+```
+- [PASS] Merge-base gate: `TLU_REQUIRE_SUITE="Issue #1835" bash ai/verify_test_suites.sh`
+
+## Task — Issue #1269: resultsBugs per-TC Execution-History + Test-Case-Design icons (gap vs legacy)
+
+**Precondition** — fresh DB. `php tmp/fixtures_1269.php` creates
+tproject `RB1269` (prefix RB, issue_tracker_enabled=1, mantis/db tracker on a local
+`mantis_bug_table`), test plan `RB Plan`, open build, 3 test cases in 2 suites and
+3 executions: RB-1 login broken -> bug 101 (open), RB-2 reset mail missing -> bugs 101
++ 102 (102 resolved), RB-3 no bug here -> no linked bug.
+Log in `admin/admin`; open
+`http://localhost:8082/gui/templates/results/resultsBugs.html?tproject_id=<p>&tplan_id=<plan>`
+(the p/plan ids are printed by the fixture: `DONE tproject=… testplan=…`).
+
+| # | Steps | Expected | Actual |
+|---|---|---|---|
+| 1 | Load the report for the fixture plan (type = Latest Generation) | 2 rows, summary cards Open 1 / Resolved 1 / Total 2 / TCs with Bugs 2, 2 suite groups | PASS — cards `1 / 1 / 2 / 2`, groups "RB Suite A (1 item)", "RB Suite B (1 item)" |
+| 2 | Inspect the Test Case cell of every row | Each cell carries 2 icon links (history + design) before `PREFIX-id: name`, i.e. legacy `resultsBugs.php:89-96` parity | PASS — `link "Execution history"`, `link "Test case design"` in both rows |
+| 3 | Read the `href` of the history icon | `/gui/templates/execute/execHistory.html?tcase_id=<tc_id>&tproject_id=<p>` (never `tproject_id=undefined`, the legacy helper's bug) | PASS — `execHistory.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 4 | Read the `href` of the design icon | `/gui/templates/testcases/tcEdit.html?tcase_id=<tc_id>&tproject_id=<p>` | PASS — `tcEdit.html?tcase_id=112&tproject_id=109` / `tcase_id=116` |
+| 5 | Hover each icon | Localized tooltip from i18n (`rb.executionHistory`, `rb.testCaseDesign`), not a hardcoded string | PASS — `description="Execution history"`, `description="Test case design"` |
+| 6 | Click the history icon of row 1 | Popup `execHistory.html?tcase_id=112&tproject_id=109` opens with the TC data and its executions | PASS — popup title `RB-1 - Execution History`, `Executions(1)`, row `RB Plan / RB Build 1 / FAILED / v1 / Manual` |
+| 7 | Click the design icon of row 1 | Popup `tcEdit.html?tcase_id=112&tproject_id=109` opens on the design of that exact TC | PASS — `Edit Test Case - login broken`, heading `Edit Test Case  RB-1:1:login broken` |
+| 8 | Read the Test Case cell text | `RB-1: login broken` / `RB-2: reset mail missing` — the NAME is present | PASS (was `RB-1:` with an empty name before this change: the renderer read `row.name`, the BFF emits `tc_name`) |
+| 9 | Switch the toolbar select to "All Executions" | Same rows/icons, yellow "all executions" hint banner, no console error | PASS — 2 rows, both icon pairs present, hint shown |
+| 10 | Sort by the Test Case column and type in its footer filter | Icons do not leak into the compared/filtered text | PASS — column filter `login` narrows to 1 row; ascending/descending order RB-1, RB-2 works |
+| 11 | Regression: collapse/expand groups, Reset Filters, Reset to default state, Refresh | No error, groups keep working, no `undefined` in cells | PASS — all 5 toolbar buttons behave, toast shown, cells stable |
+| 12 | Check the browser console and the Event Viewer (`events` table) | No new Error(1)/Warning(2) entries | PASS — 0 console errors/warnings; new `events` rows are all `log_level=16` (audit) from the fixture + login |
+
+**Result: 12/12 PASS** (browser-verified 2026-10-04, admin/admin).
+
+**Known separate defect found while testing this feature** (not part of #1269, not fixed here):
+the *Bugs* column puts the tracker's HTML fragment into `href` — filed as **#1837**.
