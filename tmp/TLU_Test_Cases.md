@@ -13508,3 +13508,23 @@ the screen, and all labels resolve from the locale bundles.
 header) so `?tproject_id=9` alone also returns 200. Bug found & fixed during testing:
 7 keys (`strat.secTooling`/`secTeam`/`trackerIssue`/`trackerCode`/`colUser`/`colName`/
 `colRole`) were missing from all 10 bundles and rendered raw → added in `27a1930e1`.
+
+## Regression — Issue #1925: Test Strategy Report code-review fixes (importance mapping + `strat.loading`)
+
+Fixes from the mandatory code review of the #1925 screen (`api/strategyreport/index.php`,
+`gui/templates/results/strategyReport.html`).
+
+| # | Case | Action | Expected | Observed |
+|---|---|---|---|---|
+| 1925-25 | importance mapping not inverted | set all linked `tcversions.importance=3`, `?action=init&tproject_id=9` | `types.high=3, low=0` | PASS |
+| 1925-26 | low importance maps to low | set all `importance=1` | `types.high=0, low=3` | PASS |
+| 1925-27 | no raw `strat.loading` | open screen, `document.body.innerText` | does not contain `strat.loading` | PASS |
+| 1925-28 | `invalid_parameter` mapped | `stateFor('invalid_parameter',400)` | warn card, badRequest copy | PASS |
+| 1925-29 | i18n gate still green | `bash ai/verify_i18n_coverage.sh` | 9/9 PASS, 0 missing (8096 keys) | PASS |
+
+**Root causes.** (1) TestLink canonicity is `HIGH=3, MEDIUM=2, LOW=1` (`cfg/const.inc.php:87-89`)
+but the BFF emitted `high => importance['1']` / `low => importance['3']`, inverting the split (the
+fixture used one of each so the equal counts hid it). (2) `strategyReport.html:275` called
+`TLi18n.t('strat.loading')` for the spinner but the key existed in no bundle, so the raw key flashed
+on every load; the `[data-i18n]` sweep in case 1925-17 could not see it. (3) `invalid_parameter`
+was unmapped in `stateFor` (`_guard.php` can emit it).
