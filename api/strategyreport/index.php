@@ -28,7 +28,7 @@
  *   environments  platforms linked to the project's plans
  *   tooling   issue tracker + code tracker enabled state
  *   team      users + roles assigned on the project
- *   related   test plans (id/name/active/builds) and requirement specs
+ *   related   test plans (id/name/active)
  *   signals   coverage of requirements, execution readiness ratio
  *
  * SECURITY
@@ -435,9 +435,9 @@ srOut(array(
     'types' => array(
         'manual' => $manual,
         'automated' => $automated,
-        'high' => $importance['1'],
+        'high' => $importance['3'],
         'medium' => $importance['2'],
-        'low' => $importance['3'],
+        'low' => $importance['1'],
     ),
     'levels' => $levels,
     'environments' => $environments,

@@ -254,6 +254,7 @@ function stateFor(code, httpStatus, rawMessage) {
     no_right:          { cls: 'deny', title: 'strat.deniedTitle', body: 'strat.noRightBody' },
     tproject_not_found:{ cls: 'warn', title: 'strat.notFoundTitle', body: 'strat.notFoundBody' },
     invalid_request:   { cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' },
     method_not_allowed:{ cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' }
   };
   var m = map[code];

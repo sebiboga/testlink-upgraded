@@ -8096,5 +8096,6 @@
   "strat.secTeam": "7. Team e responsabilità",
   "strat.colUser": "Login",
   "strat.colName": "Nome",
-  "strat.colRole": "Ruolo"
+  "strat.colRole": "Ruolo",
+  "strat.loading": "Caricamento del report…"
 }

@@ -8096,5 +8096,6 @@
   "strat.secTeam": "7. チームと役割",
   "strat.colUser": "ログイン",
   "strat.colName": "名前",
-  "strat.colRole": "ロール"
+  "strat.colRole": "ロール",
+  "strat.loading": "レポートを読み込み中…"
 }

@@ -8096,5 +8096,6 @@
   "strat.secTeam": "7. Команда и обязанности",
   "strat.colUser": "Логин",
   "strat.colName": "Имя",
-  "strat.colRole": "Роль"
+  "strat.colRole": "Роль",
+  "strat.loading": "Загрузка отчёта…"
 }

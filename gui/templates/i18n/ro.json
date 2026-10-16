@@ -8096,5 +8096,6 @@
   "strat.secTeam": "7. Echipa și responsabilități",
   "strat.colUser": "Login",
   "strat.colName": "Nume",
-  "strat.colRole": "Rol"
+  "strat.colRole": "Rol",
+  "strat.loading": "Se încarcă raportul…"
 }
