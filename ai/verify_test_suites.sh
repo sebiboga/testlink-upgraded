@@ -21,16 +21,41 @@
 # heading that existed before this run must still exist afterwards. That is what
 # this script computes.
 #
+# AND, SINCE #1849, A SECOND INVARIANT — a merge-base baseline is MOVABLE, so it
+# cannot see a loss an ancestor already made. Commit 136fc4426, titled "append
+# suite for #1089", was a +12/-6332 REPLACEMENT of the suite file (88 suite
+# headings -> 1) and check 2a reported "PASS" on the result, because the
+# merge-base carried the damage. Check 3 therefore anchors the baseline to the
+# newest commit that REPLACED the file and requires the candidate to contain that
+# commit's parent's headings — a baseline that cannot move. Only the NEWEST
+# replacement is enforced; older ones belong to the retired
+# '## N. Name (Suite ID: M)' heading scheme and would be unsatisfiable.
+#
+# CONTRACT — a suite is identified by its EXACT '^## ' heading line. Appending is
+# always allowed; RENAMING or reformatting a heading is reported as a loss
+# (conservative FAIL). Rule 9 makes the file append-only, so a rename is a
+# violation anyway: append a new suite instead of editing an old heading.
+#
 # USAGE
 #   bash ai/verify_test_suites.sh [--allow-skip] [<candidate-file>]
 #
 #   <candidate-file>  file to check (default: the working copy of
 #                     tmp/TLU_Test_Cases.md, falling back to the version staged
-#                     in the index). Pass a path to check a saved copy.
+#                     in the index). Pass a path to check a saved copy. It must
+#                     be a real file — process substitution yields a fifo and is
+#                     rejected as unreadable.
 #   --allow-skip      exit 0 when a check cannot run (no git clone / no usable
-#                     baseline / file absent). Without it an unrunnable check
-#                     is a FAIL, so the gate can never report a success it did
-#                     not verify.
+#                     baseline / file absent / no readable history). Without it
+#                     an unrunnable check is a FAIL, so the gate can never
+#                     report a success it did not verify.
+#
+# ENVIRONMENT
+#   TLU_REQUIRE_SUITE      e.g. "Issue #1849" — the suite heading this run must
+#                          have added (checked against the headings only).
+#   TLU_DEFAULT_BRANCH     default branch name; default: origin/HEAD, else
+#                          "sebiboga".
+#   TLU_HIST_MIN_HEADINGS  minimum suite headings a commit's parent must have
+#                          for check 3 to consider it a replacement (default 20).
 #
 # The script never writes, moves or deletes the suite file. It does create and
 # remove scratch directories under $TMPDIR while resolving the baseline.
@@ -49,7 +74,7 @@ CANDIDATE=""
 for arg in "$@"; do
   case "$arg" in
     --allow-skip) ALLOW_SKIP=1 ;;
-    -h|--help) sed -n '2,41p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,66p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) printf 'unknown option: %s (see --help)\n' "$arg" >&2; exit 1 ;;
     *) CANDIDATE="$arg" ;;
   esac
@@ -280,6 +305,134 @@ else
       fi
     else
       skip "own suite not checked (set TLU_REQUIRE_SUITE=\"Issue #<n>\" to check it)"
+    fi
+  fi
+fi
+
+# --- 3. history-wide clobber detection (issue #1849) -------------------------
+# Check 2a proves "nothing was lost SINCE the merge-base". It is structurally
+# blind to a loss that is ALREADY INSIDE the merge-base: once a clobbering
+# commit has landed on the default branch, the merge-base carries the damage, so
+# baseline == candidate and the comparison reports nothing missing. Measured on
+# #1849: `6 PASS / 0 FAIL / EXIT=0` on a file that had lost 87 of its 88 suites,
+# because 136fc4426 ("+12/-6332", 88 suite headings -> 1) was an ancestor of the
+# merge-base.
+#
+# This check anchors the baseline to the NEWEST commit that REPLACED the suite
+# file instead of editing it, and requires the candidate to still contain that
+# commit's PARENT suite headings. A whole-file overwrite has an unmistakable
+# signature in --numstat (many deletions, few additions), so it can be located
+# in one pass:
+#
+#     git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
+#
+# Only the NEWEST confirmed destructive commit is enforced. Older destructive
+# commits belong to the retired '## N. Name (Suite ID: M)' heading scheme:
+# demanding their headings back would be unsatisfiable and would leave the gate
+# permanently red, which is how gates get ignored. Measured on #1849: the union
+# of EVERY historical heading is 844, of which 831 are not losses at all.
+#
+# Only the newest is enforced, and the file is append-only by rule 9, so the
+# newest destructive commit's pre-image is exactly the set the file must hold.
+if ! in_git_repo; then
+  unrunnable "clobber check: not inside a git clone"
+else
+  HIST_MIN_HEADINGS="${TLU_HIST_MIN_HEADINGS:-20}"
+  db3="${TLU_DEFAULT_BRANCH:-}"
+  if [ -z "$db3" ]; then
+    db3="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
+  fi
+  [ -n "$db3" ] || db3="sebiboga"
+
+  # Raw history of the suite file as `git log` prints it: a "C <sha>" marker line
+  # before each commit's numstat block. Kept in a variable so the parse below can be
+  # sanity-checked against the same input — an extractor that silently yields nothing
+  # would turn this check into a permanent false PASS.
+  hist_raw=""
+  for r in HEAD "origin/$db3"; do
+    git rev-parse --verify --quiet "$r" >/dev/null 2>&1 || continue
+    hist_raw="$hist_raw$(git log --format='C %H' --numstat "$r" -- "$SUITE_RELPATH" 2>/dev/null)
+"
+  done
+  hist_nostat="$(printf '%s\n' "$hist_raw" | grep -c $'^[0-9][0-9]*\t' 2>/dev/null)"
+  hist_nostat="${hist_nostat:-0}"
+
+  # Newest-first, deduplicated shas of every commit that REPLACED the file
+  # (del >= N and add*2 < del). Ordinary suite edits are incremental and do not
+  # match, which is what keeps the candidate list short. Parsed with `read` and
+  # explicit digit guards: awk's field separator cannot serve both the space in
+  # the "C <sha>" marker and the tabs of a numstat line.
+  clob_cands=""
+  if [ "$hist_nostat" -gt 0 ]; then
+    clob_cands="$(printf '%s\n' "$hist_raw" | {
+      sha=""
+      while IFS=$'\t' read -r a b p; do
+        case "$a" in
+          "C "*) sha="${a#C }"; continue ;;
+          "") continue ;;
+          *[!0-9]*) continue ;;
+        esac
+        case "$b" in ''|*[!0-9]*) continue ;; esac
+        if [ "$b" -ge "$HIST_MIN_HEADINGS" ] && [ $((a * 2)) -lt "$b" ]; then
+          printf '%s\n' "$sha"
+        fi
+      done
+    } | awk 'NF && !seen[$0]++')"
+  fi
+
+  hist_head=""
+  hist_parent=""
+  hist_before=0
+  hist_after=0
+  hist_commits="$(git rev-list --count HEAD -- "$SUITE_RELPATH" 2>/dev/null)"
+  hist_commits="${hist_commits:-0}"
+  for c in $clob_cands; do
+    par="$(git rev-parse --verify --quiet "$c^" 2>/dev/null)"
+    [ -n "$par" ] || continue
+    # A REPLACEMENT still contains the file. A commit that DELETED it (measured:
+    # a572b8c75, 0/+0/-15157) is not a clobber — restoring its pre-image would
+    # resurrect a file that was removed on purpose, so it must be skipped.
+    git cat-file -e "$c:$SUITE_RELPATH" 2>/dev/null || continue
+    git cat-file -e "$par:$SUITE_RELPATH" 2>/dev/null || continue
+    hb="$(git show "$par:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
+    ha="$(git show "$c:$SUITE_RELPATH" 2>/dev/null | grep -cE "$H")"
+    hb="${hb:-0}"; ha="${ha:-0}"
+    # Confirm with real heading counts, not the numstat heuristic.
+    if [ "$hb" -ge "$HIST_MIN_HEADINGS" ] && [ "$ha" -lt $((hb / 2)) ]; then
+      hist_head="$c"; hist_parent="$par"; hist_before="$hb"; hist_after="$ha"
+      break
+    fi
+  done
+
+  if [ "$hist_nostat" -eq 0 ]; then
+    # No numstat block could be read: either the file has no history here (fresh
+    # shallow clone) or the extractor is broken. Either way this check did not
+    # run, and an unrun check must not be reported as a PASS.
+    unrunnable "clobber check: no suite-file history readable ($SUITE_RELPATH, $hist_commits commits on HEAD)"
+  elif [ -z "$hist_head" ]; then
+    ok "no destructive commit in the suite-file history (nothing to re-append)"
+  else
+    printf 'clobber baseline: %s^ (%s headings) -> %s (%s headings)\n' \
+      "$(git rev-parse --short "$hist_parent")" "$hist_before" \
+      "$(git rev-parse --short "$hist_head")" "$hist_after"
+    htmp="$(new_tmpdir)" || { bad "cannot create a scratch directory"; summary; exit 1; }
+    if ! git show "$hist_parent:$SUITE_RELPATH" > "$htmp/hist.md" 2>/dev/null; then
+      bad "cannot read $hist_parent:$SUITE_RELPATH"
+    else
+      hist_lost="$(comm -23 \
+        <(grep -E "$H" "$htmp/hist.md" | LC_ALL=C sort) \
+        <(grep -E "$H" "$CANDIDATE" | LC_ALL=C sort))"
+      if [ -z "$hist_lost" ]; then
+        ok "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") (= 0)"
+      else
+        hn=$(printf '%s\n' "$hist_lost" | grep -c .)
+        bad "no suite lost vs the pre-image of the newest destructive commit $(git rev-parse --short "$hist_head") ($hn lost)"
+        printf '%s\n' "$hist_lost" | head -20 | sed 's/^/          LOST: /'
+        printf '          that commit replaced the file (%s -> %s headings); APPEND the blocks, never rewrite the file:\n' \
+          "$hist_before" "$hist_after"
+        printf '            git show %s^:%s >> %s\n' \
+          "$(git rev-parse --short "$hist_head")" "$SUITE_RELPATH" "$SUITE_RELPATH"
+      fi
     fi
   fi
 fi
