@@ -40892,3 +40892,1418 @@ valid configurations. `php -l` clean on the changed file; Event Viewer gained no
 3. `issueTrackerInterface::setCfg()` itself still re-binds `$this->cfg` to a `stdClass`
    (`:165`); hardening that shared base class would change behaviour for **every** tracker
    type, so the read is guarded at the call site instead.
+
+
+## Regression — Issue #1824: reqTreeReorder affordances stay live while a save/move request is in flight
+
+**Precondition**
+
+- App at `http://localhost:8082` (PHP built-in server, docroot = repo root), login `admin` / `admin`.
+- Dataset (fresh DB per run): `php tmp/fixtures_1681.php` → `tproject=1` (TREE1681 / prefix TR1),
+  `specA=2` (TR1-SPEC-A, 3 requirements), `specB=4` (TR1-SPEC-B, empty), plus the permission-path
+  users `tr1681readonly` (view-only role) and `tr1681norights` (role 3, no rights).
+- Entry point (mandatory): the screen must be opened **inside the shell iframe** —
+  `document.getElementById('mainframe').src = '/gui/templates/requirements/reqTreeReorder.html?tproject_id=1&req_spec_id=2'`.
+  A top-level tab navigation of the same URL bounces to `login.php?note=expired` on this build.
+- Instrumented probe used for every in-flight case (make the window observable and provable):
+  wrap `contentWindow.jQuery.ajax` to count `dispatch` / `complete` for `?action=reorder` / `?action=move`,
+  trigger the action and read the DOM **in the same synchronous tick as the click** (jQuery returns
+  before the response, so the read is inside the window). Assert `dispatched:1, completed:0, BUSY:true`
+  together with every snapshot — a snapshot without that triple is not evidence.
+
+**Repro (pre-fix)**
+
+1. Load the screen as admin; baseline rows 6 / 8 / 10: `draggable="true"`, grip on every row,
+   arrows disabled by position only (`[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`), toolbar enabled.
+2. Click **Up** on the last row → `Unsaved changes` chip appears.
+3. Click **Apply order** → confirm modal → **OK**.
+4. Read the state inside the request window:
+   `BUSY:true`, `drag ["true","true","true"]`, `dragover` defaultPrevented = true,
+   enabled arrows per row `[2,4,2]`, toolbar `applyBtn/moveBtn/discardBtn = true`.
+   → **the rows still advertise drag & drop and still show live arrow buttons while the request is in flight.**
+5. Prove they are inert: click an enabled arrow → `ITEMS` unchanged (`6,10,8` → `6,10,8`);
+   dispatch a real `DragEvent('drop')` → `ITEMS` unchanged.
+   → **dead affordances**, and `dragstart` still adds `.dragging` (OS drag ghost appears).
+6. Same after a **Move requirement** (select a row, target `TR1-SPEC-B`, confirm).
+
+**Expected post-fix**
+
+The affordances disappear for the whole duration of the request, exactly like `.rm` / Apply /
+Discard / Move already do, and come back when it settles (ok **and** error).
+
+**Actual result — FIXED, all 16 cases PASS (measured 2026-10-04, commit `fix/issue-1824`)**
+
+| # | case | measured | verdict |
+|---|---|---|---|
+| 1 | idle baseline (admin, 3 rows) | `drag ["true","true","true"]`, grip visible, arrows `[[T,F,T,F],[F,F,F,F],[F,T,F,T]]`, toolbar enabled | PASS |
+| 2 | mid-Apply in flight | `BUSY:true` + `dispatched:1/completed:0`; `drag ["false","false","false"]`, grip `display:none`, enabled arrows `[0,0,0]`, toolbar disabled | PASS |
+| 3 | mid-Move in flight | same, on `?action=move` | PASS |
+| 4 | after Apply resolves OK | order reloaded from the server `8,6,10`, drag restored, grip visible, arrows position-only, dirty chip `none`, toolbar enabled | PASS |
+| 5 | after Apply fails (forced HTTP 500) | `BUSY:false`, `.msg.err` "forced 500", drag restored, grip visible, toolbar enabled | PASS |
+| 6 | `dragstart` + `drop` while BUSY | `dragstart` defaultPrevented, `.dragging` **not** applied, `ITEMS` unchanged | PASS |
+| 7 | `dragover` while BUSY / while idle | defaultPrevented `false` / `true` — the drop-target painting now follows the guard | PASS |
+| 8 | arrow click while BUSY | `ITEMS` unchanged (still refused by `nudge()`) | PASS |
+| 9 | arrow click while idle | `8,10,6` → `8,6,10` + dirty chip | PASS |
+| 10 | real drop while idle | → `10,8,6` + dirty chip, `.dragging` ghost fired | PASS |
+| 11 | read-only user `tr1681readonly` | ro-banner shown, drag hint hidden, `drag ["false","false"]`, no grip, arrows disabled, toolbar disabled | PASS |
+| 12 | no-rights user `tr1681norights` | `DEAD:true`, state card `no_right`, 3 cards hidden, toolbar disabled, no ro-banner | PASS |
+| 13 | DEAD mid-session (rows on screen, later `init` 404) | `DEAD:true`, state card shown, rows survive but `drag ["false"]`, pick button + toolbar disabled | PASS |
+| 14 | persistence end-to-end | `nodes_hierarchy` `node_order` for `parent_id=2,node_type_id=7` = **8, 6, 10** (matches the screen); move path lands on `SPEC_ID=4` with "The requirement was moved." | PASS |
+| 15 | **`render()` while BUSY must not destroy the grip** (regression found by the mandatory code review of the first version of this patch, then fixed) | idle: grips in DOM `[1,1]` `display:inline`; mid-flight `[1,1]` `display:none`; after clicking **Select** while busy (Select calls `render()`) still `[1,1]`; after the **error** edge `[1,1]` `display:inline` again | PASS |
+| 16 | drag hint follows the guard (also from the review) | shown idle -> **hidden** mid-flight -> shown after the settle; read-only user: still hidden, grips in DOM `[0,0]` (#1689 measurement preserved) | PASS |
+
+**Gates for this suite**
+
+- `node --check` on the screen's extracted inline script → PASS
+- no i18n key added (no new user-facing string in the fix) → all 10 locale bundles untouched
+- browser console: no new errors → PASS (one pre-existing 404 for `dashio-template/img/favicon.png`,
+  present before the change as well)
+- Event Viewer / `events`: 4 rows only — 1 `CREATE` (fixture) + 3 `LOGIN` audit (`log_level 16`);
+  **no Error/Warning** → PASS
+- `TLU_REQUIRE_SUITE="Issue #1824" bash ai/verify_test_suites.sh` → **7 PASS / 0 FAIL**
+
+
+## Modernize — Issue #1816: cfieldsTprojectAssign (Custom Fields -> Test Project)
+
+**Screen.** `gui/templates/cfields/cfieldsTprojectAssign.html` (Dashio, standalone HTML+JS) backed by
+`api/cfieldstproject/index.php` (session-based PHP REST BFF, JSON I/O).
+
+**Fixture.** `php tmp/fixtures_1816.php` -> `tproject_main=7`, `tproject_other=8`,
+cfields `16` plain string, `17` execution-only, `18` requirement-spec, `19` test-plan, `20` assigned to
+project 8 only; users `cfp1816mgr` (global role 3 = no rights, project role **Admin on 7 only**),
+`cfp1816none` (no rights anywhere), `admin` (global admin).
+
+**Baseline this suite had to defend.** The legacy 1.9.20 controller allowed a project-role manager on
+project A to read/assign/unassign/save project B whenever the global role was `testproject_manager` or
+higher (roles 5/9/10 only - role 7/3 leaked), never validated that a submitted `cfield_id` existed,
+never verified the addressed project existed, and performed every state change on a `GET`. The BFF
+closes all four: project-scoped `cfield_management` on **every** route including the switcher, `cfpaSanitizeIds()`
+intersection, `get_node_hierarchy_info()` existence check, `POST`-only writes + same-origin CSRF proof.
+
+### Setup
+| Step | Action | Expected |
+|---|---|---|
+| S1 | `php tmp/fixtures_1816.php` | prints the ids above |
+| S2 | login `admin`/`admin`, land on any screen so the session carries a test project | session has `TESTLINK1920_PROJ_ID_USER_ID_*` |
+| S3 | open `/gui/templates/cfields/cfieldsTprojectAssign.html?tproject_id=7` | two Dashio cards render |
+
+### BFF contract
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-01 | anonymous `GET ?action=init&tproject_id=7` | `401` + JSON `status:error` | PASS |
+| TC-1816-02 | `GET ?action=init&tproject_id=7` as admin | `200`, `counts.linked=2`, `counts.available=3`, both tables + `locations` present | PASS |
+| TC-1816-03 | `GET ?action=projects` as admin | `200`, `[{id:7,"CFP Main","CFPM"},{id:8,"CFP Other","CFPO"}]`, `count:2` | PASS |
+| TC-1816-04 | `GET ?action=assign` (wrong verb) | `405` `method_not_allowed` | PASS |
+| TC-1816-05 | `GET ?action=init&tproject_id=4242` (nonexistent project) | `404 tproject_not_found`, **no** DB Access Error page | PASS |
+| TC-1816-06 | `POST ?action=assign` with no session and no `Origin` | `403` CSRF, no write | PASS |
+| TC-1816-07 | `POST ?action=assign`, `Origin: https://evil.example` | `403` CSRF, no write | PASS |
+| TC-1816-08 | `POST ?action=assign` matching `Origin`, valid body | `200 {"count":N}` | PASS |
+
+### Rights matrix
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-09 | `cfp1816mgr` -> `?action=init&tproject_id=7` (owns it) | `200` | PASS |
+| TC-1816-10 | `cfp1816mgr` -> `?action=init&tproject_id=8` (foreign) | `403 no_right` | PASS |
+| TC-1816-11 | `cfp1816mgr` -> `?action=projects` | `count:1` - **project 8 filtered out of the switcher** | PASS |
+| TC-1816-12 | `cfp1816mgr` -> `POST assign/unassign/save` on `tproject_id:8` | all three `403 no_right`; `cfield_testprojects` unchanged | PASS |
+| TC-1816-13 | `cfp1816none` -> `?action=init&tproject_id=7` | `403 no_right` | PASS |
+| TC-1816-14 | `cfp1816none` -> `?action=projects` | `200 {"projects":[],"count":0}` | PASS |
+| TC-1816-15 | `admin` -> `?action=init&tproject_id=8` | `200`, `linked` contains field `20` | PASS |
+
+### Input validation
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-16 | `assign` `ids:[9999]` (no such cfield) | `400 unknown_cfield` | PASS |
+| TC-1816-17 | `assign` `ids:["abc"]` | `400 unknown_cfield` | PASS |
+| TC-1816-18 | `assign` `ids:[]` | `400 nothing_selected` | PASS |
+| TC-1816-19 | `unassign` of a field not linked here (`ids:[17]` while linked=`16`) | `400 unknown_cfield`, link row of the **other** project untouched | PASS |
+| TC-1816-20 | `assign` a field already linked here (`ids:[17]` twice) | `409 already_assigned` — **regression guard for #1822** | PASS |
+| TC-1816-21 | `assign` mixed `ids:[17,19]` with `17` already linked | `200 {"count":1}` — only `19` attached | PASS |
+| TC-1816-22 | `save` rows `[{id:9999}]` | `400`, no write | PASS |
+
+### Screen behaviour (chrome-devtools MCP, live app)
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-23 | initial render | header `Custom Fields — Test Project`, project switcher `CFP Main (CFPM)` / `CFP Other (CFPO)`, linked card badge `2`, available card badge `3` | PASS |
+| TC-1816-24 | both tables | every column present: NAME, LABEL, TYPE, AVAILABLE ON, DISPLAY ORDER, LOCATION, ACTIVE, REQUIRED, MONITORABLE | PASS |
+| TC-1816-25 | `Location` cell | `<select>` only for design-time test-case fields; `—` for the execution-only field (`17`) — matches tpl:91-98 | PASS |
+| TC-1816-26 | nothing ticked | `Assign` and `Unassign` both `disabled:true` | PASS |
+| TC-1816-27 | **Check/uncheck all**, linked table | all 3 rows `checked:true`, master `checked:true`/`indeterminate:false`, `#selLinked` `(3)`, `Unassign` enabled — **regression guard for #1821** | PASS |
+| TC-1816-28 | **Check/uncheck all** again | all cleared, `Unassign` `disabled:true` | PASS |
+| TC-1816-29 | tick 1 of 3 rows | master `indeterminate:true` | PASS |
+| TC-1816-30 | **Check/uncheck all**, available table | all rows ticked, `#selAvailable` `(2)`, `Assign` enabled | PASS |
+| TC-1816-31 | **Assign** (1 row) | toast `1 custom field(s) assigned.` — interpolated, **not** `{count}` (regression guard for #1819); linked `4 -> 5`, available `2 -> 1` | PASS |
+| TC-1816-32 | **Refresh** / **Back** buttons **immediately after** that Assign | both `disabled:false` — **regression guard for #1818** | PASS |
+| TC-1816-33 | change DISPLAY ORDER `-> 5`, LOCATION `-> After Summary`, tick REQUIRED, tick MONITORABLE, **Save** | toast `3 change(s) saved.`; after reload `order=5`, location index `5`, `required=true`, `monitorable=true` | PASS |
+| TC-1816-34 | DB cross-check of TC-1816-33 | `cfield_testprojects` row `18|7|5|...|1|0|...|1` — matches the UI exactly | PASS |
+| TC-1816-35 | **Unassign** with 1 row ticked | modal shows, title `Unassign custom fields`, body `Unassign 1 selected custom field(s) from this test project?` | PASS |
+| TC-1816-36 | **Cancel** in that modal | modal hidden, linked count unchanged, available count unchanged — no partial write | PASS |
+| TC-1816-37 | **Unassign** -> **confirm** | toast `1 custom field(s) unassigned.`, linked `-1`, available `+1` | PASS |
+| TC-1816-38 | toolbar state after the unassign | `Refresh:false`, `Back:false`, `btnSave:false` | PASS |
+| TC-1816-39 | DataTables length selector `40` | `#linkedTable_info` `Showing 1 to 3 of 3 entries` | PASS |
+| TC-1816-40 | click the NAME header twice | row order reverses both times | PASS |
+| TC-1816-41 | locale switcher -> Romanian | full reload with `?locale=ro`; toolbar `Reîmprospătare` / `Înapoi la Câmpuri personalizate` / `Salvează atributele de afișare`; header `Proiect de test: CFP Main`; column heads `NUME`/`ETICHETĂ`/`LOCAȚIE`/`OBLIGATORIU`/`MONITORIZABIL`; checkbox tooltip `Selectează / deselectează tot` | PASS |
+| TC-1816-42 | console after the whole pass | **0** errors (was 5 `invalidateSearch` TypeErrors before #1821) | PASS |
+| TC-1816-43 | legacy URL `/lib/cfields/cfieldsTprojectAssign.php`, session | `302` -> `cfieldsTprojectAssign.html?tproject_id=7` (session project carried over) | PASS |
+| TC-1816-43b | same URL, **no session** | `302` -> `login.php?note=expired&destination=...` — the shim never leaks the target project | PASS |
+| TC-1816-44 | legacy `do_action=assign` write on the old URL | `302` to the modern screen, **no write** — the shim never reaches the old controller, so the GET-mutates-state hole is unreachable | PASS |
+| TC-1816-45 | `gui/templates/cfields/cfieldsView.html` -> *Assign to Test Project* | lands on the new screen with the current project | PASS |
+| TC-1816-46 | `/api/cfieldstproject/index.php?action=projects` in a **fresh** session (regression guard for #1817) | `200` JSON with the project list — never the empty `500` | PASS |
+| TC-1816-47 | Event Viewer after the whole pass | `SELECT COUNT(*) FROM events WHERE activity='LOCALIZATION'` for the `audit_cfield_*` keys -> **0** — regression guard for #1820 | PASS |
+| TC-1816-48 | Event Viewer error levels after the whole pass | `SELECT COUNT(*) FROM events WHERE log_level<=4` -> **0** | PASS |
+
+### Test execution
+- [PASS] TC-1816-01 .. TC-1816-48 (+ TC-1816-43b) — 49/49 PASS (chrome-devtools MCP + `curl` matrix + direct SQL cross-checks, live app)
+- [PASS] `php -l` on `api/cfieldstproject/index.php`
+- [PASS] `node --check` on the extracted `<script>` body of `cfieldsTprojectAssign.html`
+- [PASS] `python3 -m json.tool` on all 10 `gui/templates/i18n/*.json`
+- [PASS] `php -l` on all 19 `locale/*/strings.txt` touched by #1820, except the pre-existing
+  `fr_FR` parse error (present at HEAD, unrelated — that file is not loaded as PHP)
+
+### Notes
+- **Bugs this suite found and fixed** (each filed with `--label bug` and fixed in its own commit):
+  - **#1817** `testproject::get_list()` does not exist -> `GET ?action=projects` answered HTTP 500 with an
+    **empty body**. Only reproducible with a session carrying a test project, which is exactly why a bare
+    `curl` login looked like a 200. `TC-1816-46` guards it.
+  - **#1818** `guard()` set `busy=true` but only `saveAll()` released it, so after one Assign **every**
+    button became a silent no-op — the dangerous part being that a discarded **Save** leaves the edited
+    values in the inputs and so looks identical to a successful one. `TC-1816-32/38` guard it.
+  - **#1819** the assign/unassign toast printed the raw `{count}` placeholder; `saveAll` was unaffected
+    because it passed the params, which is what made it easy to miss. `TC-1816-31/37` guard it.
+  - **#1820** `audit_cfield_location_changed` (15/19 locales) and `audit_cfield_monitorable_on/_off`
+    (15/19, key built from a variable so grep misses it) -> two `LOCALIZATION` warnings per save.
+    `TC-1816-47` guards it.
+  - **#1821** `toggleAll()` called `invalidateSearch()` on an object that has no such method in
+    DataTables 1.13.7, throwing **before** the rows were ticked — *Check/uncheck all* was completely
+    dead. `TC-1816-27/28/30` guard it.
+  - **#1822** `link_to_testproject()` does an unconditional `INSERT` against PK
+    `(field_id,testproject_id)`, so a duplicate assign served a **DB Access Error HTML page as HTTP 200**.
+    `TC-1816-20/21` guard it.
+- **Pre-existing, reported not fixed** — **#1823**: `ro_RO` and most other locales lack the node-type
+  (`testcase`/`testplan`/`requirement`/`requirement_spec`) and custom-field location labels
+  (`before_summary` is in only 5/19 locales, `hide_because_is_used_as_variable` in 4/19). The BFF calls
+  `lang_get()` correctly and falls back to `en_GB` as designed, so this is missing translation *data*,
+  not a screen defect — authoring ~8 keys x 14 locales is a translation task, not a screen fix.
+- **Assertion style that caught the real bugs.** TC-1816-27/28/30 and TC-1816-31/32 assert the resulting
+  *state* (`checked`, `indeterminate`, the `(n)` counter, `disabled`) rather than "did it not crash".
+  Every one of #1818/#1819/#1821 *looked* fine on click — the master checkbox still flipped natively in
+  #1821 — and would have passed an eyeball check.
+- **Session caveat.** Run TC-1816-09..TC-1816-22 against per-role cookie jars (`curl -c/-b`), not in the
+  admin browser context: a shared context silently answers every rights case as `admin`.
+
+
+## Regression — Issue #1816 (addendum): the save route wrote a `location` the screen could not have produced, found by the mandatory code review
+
+The review that closes out screen #1816 reported no BLOCKER and exactly one MINOR. It is recorded here
+rather than folded silently into the suite above, because the first half of it is the more interesting
+half: **the change counter and the write disagreed.**
+
+### The defect
+
+`POST ?action=save` validated the submitted location in the wrong place:
+
+```php
+$v = intval($row['location']);
+if (isset($locationCodes[$v]) && intval($linkedRaw[$id]['location'] ?? 0) != $v) {
+    $changed['location']++;          // <- membership tested HERE
+}
+$location[$id] = $v;                 // <- ...and the WRITE happened unconditionally
+```
+
+`cfield_mgr::setDisplayLocation()` just does `intval()` and an `UPDATE`, so the membership test
+gated only the *count*, never the *write*. A crafted `{"rows":[{"id":16,"location":99}]}` answered
+`{"changed":{"location":0}}` — a truthful "nothing changed" — **and persisted `99` anyway**.
+
+A second half was missing entirely: `supports_location`. The UI renders a LOCATION dropdown only for
+design-time test case fields (`node_description === 'testcase' && enable_on_execution == 0`, tpl:91-98),
+so `{"rows":[{"id":17,"location":5}]}` could set a location on the **execution-only** field, which has
+no dropdown at all.
+
+| Case | Probe | Measured | Verdict |
+|---|---|---|---|
+| TC-1816-49 | `save` `{"id":16,"location":6}` — valid code, design-time field | `200 {"changed":{"location":1}}`, DB `16 -> 6` | PASS |
+| TC-1816-50 | `save` `{"id":16,"location":99}` — code outside `cfield_mgr::$locations['testcase']` | `200 {"changed":{"location":0}}`, DB **still `6`** — ignored, and the count no longer lies about it | PASS |
+| TC-1816-51 | `save` `{"id":17,"location":5}` — valid code, **execution-only** field (no dropdown in the UI) | `200 {"changed":{"location":0}}`, DB **still `1`** | PASS |
+| TC-1816-52 | browser: dropdown on field `16` -> `Before Summary` (code 3) -> Save | toast `1 change(s) saved.`, reloaded `loc_16 === "3"`, DB `16 -> 3` | PASS |
+| TC-1816-53 | browser: execution-only field `17` still renders `—`, **no** `#loc_17` element | `document.getElementById('loc_17') === null` | PASS |
+| TC-1816-54 | `php -l api/cfieldstproject/index.php` after the edit | no syntax errors | PASS |
+| TC-1816-55 | `SELECT COUNT(*) FROM events WHERE id > <max> AND log_level<=4` after the whole addendum | **0** | PASS |
+
+### Test execution
+- [PASS] TC-1816-49 .. TC-1816-55 — 7/7 PASS (live DB assertions + browser)
+- [PASS] `php -l` clean; 0 new Event Viewer error rows
+
+### Notes
+- The general lesson, and the reason this addendum exists rather than a one-line edit: **a validator
+  that only guards a counter is not a validator.** The same shape — compute the check, use a different
+  variable for the effect — is worth grepping for in the other 100+ BFFs, where a mismatch between
+  "what I counted" and "what I wrote" is silent by construction.
+- `supportsLocation` is now derived in the BFF from the same two conditions `locationSelect()` uses on
+  the client, so the server cannot be talked into a write the UI does not offer.
+
+
+## Modernize — Issue #1807: read-only Execution Notes viewer (`gui/templates/execute/execNotesReadonly.html`)
+
+Environment: `http://localhost:8082`, `admin/admin`, plus a role-3 `<no rights>`
+user `norights1807`. Fixture `tmp/fixtures_1807.php` (transient — the DB is
+recreated per run): test project 35 `ENRO1807`, test plan 36 `ENRO Plan`, build 8
+`ENRO Build 1`, platform 5 `Linux`; executions **9** (RichEdit notes),
+**10** (no notes), **11** (stored XSS payload), **12** (plain notes).
+
+### BFF — `api/execnotesreadonly/index.php`
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 1 | `GET ?action=view&exec_id=9` (rich note) | 200, notes flattened to plain text, full context | PASS — `Step one passed.\nRetried after a "flaky" DNS & it worked.\nThird block with bold text.` |
+| 2 | `GET ?action=view&exec_id=10` (empty) | 200, `notes_empty: true`, `notes: ""` | PASS |
+| 3 | `GET ?action=view&exec_id=12` (plain) | 200, note returned verbatim | PASS |
+| 4 | `GET ?action=view&exec_id=11` (stored XSS) | 200, payload inert text | PASS — no `<img>`/`<script>` survives flattening |
+| 5 | `GET ?action=view&exec_id=999999` | 404 `exec_not_found` | PASS |
+| 6 | `GET ?action=view&exec_id=abc` | 400 `invalid_exec_id` | PASS |
+| 7 | `GET ?action=bogus&exec_id=9` | 400 `unknown_action` | PASS |
+| 8 | anonymous `GET ?action=view` | 401 `not_authenticated` | PASS |
+| 9 | plain `POST`, no Origin/Referer/XRW | 405, `Allow: GET, HEAD` | PASS after the code review moved the verb check **above** `bffSameOriginGuard()`, which had been swallowing it as 403 |
+| 10 | role-3 user, `GET ?action=view&exec_id=9` | 404 `exec_not_found` — byte-identical to a missing execution | PASS after the code review closed the 403/404 existence oracle (the #1792 class): the two refusals are now one opaque answer |
+| 11 | role-3 user, legacy fragment path | 404, note NOT leaked | PASS — `leaked:false` |
+| 12 | role-3 user, `exec_id=999999` vs `exec_id=9` | the two answers must be **identical**, so no existence oracle | PASS — both `404 {"status":"error","code":"exec_not_found","message":"Execution not found"}` |
+| 13 | execution whose tcversion lives in another project | 404 (fail closed) | PASS — `enro_tc_node()` walks `parent_id` to the root and compares it with the owning project, and the first node walked must be `node_type_id = 3` |
+| 14 | note stored as invalid UTF-8 (Latin-1 byte) | the note must NOT read as empty | PASS after the code review: the byte-mode BOM strip replaced a `/u` `preg_replace()` that returned **NULL** for invalid UTF-8 and blanked the whole note; `json_encode` now uses `JSON_INVALID_UTF8_SUBSTITUTE` (without the flag the same payload encoded to **0 bytes**) |
+
+### Legacy shim — `lib/execute/getExecNotes.php`
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 13 | browser navigation `?readonly=1&exec_id=9` | 302 → `execNotesReadonly.html?exec_id=9` | PASS |
+| 14 | XHR (legacy `url2load`) `exec_id=9` | 200 `text/html`, escaped `<pre>` | PASS |
+| 15 | XHR with foreign `Origin` | 403 + a JSON machine code (the fragment goes into `innerHTML`) | PASS — `{"status":"error","code":"cross_origin",...}`, added by the code review so a refusal is never an empty 200-shaped page |
+| 16 | XHR with same-origin `Origin` | 200 | PASS |
+| 17 | no session | 401 | PASS |
+| 18 | `POST` | 405 | PASS |
+| 19 | `?exec_id=abc` | 400 + empty escaped fragment | PASS |
+| 20 | XHR `?exec_id=999999` | 404 | PASS |
+| 21 | XHR `exec_id=11` (XSS) | payload escaped, inert | PASS — `<pre>hello\nwindow.__enro_xss = 1;</pre>` |
+
+### Screen — `gui/templates/execute/execNotesReadonly.html`
+
+| # | Case | Expected | Result |
+|---|------|----------|--------|
+| 22 | load `?exec_id=9` as admin | context grid + note rendered; "Open editable notes" ENABLED | PASS after fix `774abca0f` (was disabled: `can_edit` was read off `r.execution`) |
+| 23 | load `?exec_id=10` | "No execution notes recorded." | PASS |
+| 24 | load `?exec_id=11` | `window.__enro_xss` undefined, `#notesBox` has 0 child elements | PASS |
+| 25 | load with **no** `exec_id` | "No execution selected" card; edit button disabled | PASS after fix `774abca0f` |
+| 26 | load `?exec_id=999999` | "Execution not found" card; edit button disabled | PASS after fix `774abca0f` |
+| 27 | load `?exec_id=9` as role-3 user | opaque "Execution not found" card; edit button disabled | PASS — the BFF answers the same 404 as for a missing row, so the screen cannot tell the two apart. The 403 "Access denied" card is kept in the client as a permanent safety net for a future grant split. |
+| 28 | locale switch → Romanian | every chrome label translated, note text untouched | PASS |
+| 29 | all 10 locale bundles | parse as JSON and carry the 29 `enro.*` keys | PASS |
+| 30 | Event Viewer after the whole run | no new Error/Warning entries | PASS — only AUDIT rows (level 16) for the deliberate refusals |
+
+### Findings
+- #1808 filed (`bug`): the legacy controller authorized nothing beyond a session,
+  dereferenced `$map[0]` unguarded and rendered the stored RichEdit blob as
+  markup. Fixed by this branch.
+- The mandatory **code review** (subagent) reported no blockers and 2 MAJOR items,
+  both fixed and both now regression cases 9-15 above: the 403-vs-404 existence
+  oracle (same class as #1792) and the silent note-erasure on invalid UTF-8.
+  It also confirmed SQL injection clean (every interpolated id is `intval()`ed or
+  regex-validated), XSS clean (the note reaches the DOM only via `.text()`, the
+  fragment only through `htmlspecialchars`), the shim unable to smuggle a write
+  (`$_GET['action']`/`exec_id` unconditionally overwritten, no write SQL anywhere),
+  and `doSessionStart()` idempotent under the double call.
+- The review corrected a claim in both file headers: there are **5** distinct
+  legacy call sites (six files carry the line; `tl-classic/.../execSetResultsJS.inc.tpl`
+  does not exist), not 4.
+- No ASIDE entry was added: with no `exec_id` the screen can only render a
+  "pick an execution" state, so a menu link would be a dead end. The screen is
+  deep-linked instead (`$actions->execNotesReadonly`); an execution-picker route
+  is a follow-up.
+
+
+## Task — Issue #1285: forum link in install/installView.html (gap vs legacy)
+
+**Precondition** — TestLink 2.0.1 running at http://localhost:8082, logged in as
+admin/admin, DB schema at latest version (freshly imported `testlink` DB), working tree
+at commit 4e429c963 on branch `task/issue-1285`.
+
+**Legacy reference** — install/index.php:25 (`$forum_url = 'forum.testlink.org'`),
+:45 (forum named inside the migration notice), :49-50 (standalone forum link beside the
+manual / README / CHANGELOG links).
+
+**Steps & results**
+
+| # | Step | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 1 | Open http://localhost:8082/gui/templates/install/installView.html | Actions box lists the legacy forum link next to manual / README / CHANGELOG | Actions box shows 5 buttons: Open installer wizard, Installation manual, README, CHANGELOG, **Forum** | PASS |
+| 2 | Inspect the Forum button href / target / rel (DOM read via DevTools) | href = the forum URL from the BFF, `target=_blank`, `rel="noopener noreferrer"` | href=`http://forum.testlink.org`, target=`_blank`, rel=`noopener noreferrer`, class `action-btn blue`, icon `fa-comments` | PASS |
+| 3 | GET /api/install/index.php with a logged-in session and read `links` | `links.forum` exposed by the BFF, no URL hardcoded in the front-end | `linkKeys: ["installer","manual","readme","changelog","forum"]`, `links.forum = http://forum.testlink.org` | PASS |
+| 4 | Force an upgrade state (re-render `renderStatus()` with `schemaStatus:'upgrade'`, i.e. what the DB reports when a migration is pending) | Upgrade panel shows the message **plus** the forum sentence with a clickable forum link (legacy :45) | Panel innerText: `Upgrade Required / You need to upgrade your TestLink database… / Forum (Forum: TestLink 1.9.4 and greater - news, changes, etc.)`; anchor href `http://forum.testlink.org`, target `_blank`, rel `noopener noreferrer`, title = URL | PASS |
+| 5 | Re-render with the real (schema OK) payload | Upgrade panel hidden, so the forum sentence is not shown | Panel `display:none` again (`restoredHidden: true`) | PASS |
+| 6 | Load the screen with `?locale=ro_RO`, `?locale=ja_JP`, `?locale=en_GB` | Forum label + hint localised, no raw key | ro → `Forum / (Forum: TestLink 1.9.4 si mai noi - noutati, modificari etc.)`; ja → `フォーラム / (フォーラム: TestLink 1.9.4 以降のお知らせ、変更点など)`; button label follows the locale | PASS |
+| 7 | Fetch all 10 locale bundles client-side and read `install.forum` / `install.forumHint` | Both keys present and translated in every bundle | en/ro/de/fr/it=`Forum`, es=`Foro`, pt=`Fórum`, ja=`フォーラム`, ru=`Форум`, zh=`论坛`; all 10 hints localised | PASS |
+| 8 | `python3 -m json.tool gui/templates/i18n/*.json` | 10/10 valid | 10/10 valid; `git diff --numstat` = 2 insertions / 0 deletions per bundle (no key loss) | PASS |
+| 9 | `node --check` on the screen's inline script + `php -l api/install/index.php`; browser console; Event Viewer / `events` table | No syntax error, no console error/warning, no new Error/Warning event | `JS SYNTAX OK`; `No syntax errors detected`; console: *no console messages found*; `SELECT COUNT(*),SUM(log_level>=2) FROM events` → 1 row total, log_level 16 (audit login succeeded) — no new Error/Warning | PASS |
+
+**Screenshots**
+- `docs/screenshots/issue-1285-install-forum-link.png` — Actions box with the new Forum button
+- `docs/screenshots/issue-1285-install-forum-notice.png` — forum sentence inside the upgrade/migration panel
+
+**Note on scope** — legacy offered the forum twice, so the port covers both places (button
+next to the doc links and the sentence inside the migration notice), not just the button.
+
+PASS/FAIL: PASS (9/9)
+
+### Addendum — post code-review hardening (same suite, Issue #1285)
+
+| # | Step | Expected | Actual | Result |
+|---|------|----------|--------|--------|
+| 10 | `renderActions()` with `links.forum = 'http://x" onmouseover="window.__PWNED=1'` | Attribute injection impossible | Button href set via `.attr()`, `hasAttribute('onmouseover') === false`, no handler in the DOM, `window.__PWNED` undefined | PASS |
+| 11 | `renderActions()` with `links.forum = 'javascript:alert(1)'` and with `'ftp://x'` | Non-http(s) URL rejected, button not rendered | `/^https?:\/\//i` allow-list drops both; Actions box shows only the 4 legacy buttons | PASS |
+| 12 | Same allow-list probe on `renderForumNotice()` (`links.forum = 'javascript:alert(1)'`) | Notice link rejected, hint text not appended | `#upgradeForum` empty (0 chars) | PASS |
+| 13 | Schema flips back to OK after an upgrade state was rendered | No stale markup left behind in `#upgradeForum` | `#upgradeForum` cleared to 0 chars when the panel is hidden | PASS |
+| 14 | Re-check the rendered notice text after the hint rewording | No duplicated word ("Forum (Forum: …)") | Panel innerText: `… / Forum (TestLink 1.9.4 and greater - news, changes, etc.)` | PASS |
+| 15 | `python3 -m json.tool` on all 10 bundles + `php -l api/install/index.php` + `node --check` on the screen script | All green after the hardening | 10/10 valid JSON; `No syntax errors detected`; `JS SYNTAX OK` | PASS |
+| 16 | Browser console + Event Viewer after the hardening reload | No new error/warning | Console: *no console messages found*; `events` still holds 1 row (log_level 16, audit login) | PASS |
+
+PASS/FAIL (addendum): PASS (7/7)
+
+**Note (post-review wording fix)** — `install.forumHint` no longer repeats the label: the notice
+renders `Forum (TestLink 1.9.4 and greater - news, changes, etc.)` (10/10 bundles reworded,
+parentheses restored, still valid JSON), matching legacy `:45` where the anchor and the
+parenthetical were two different things.
+
+
+## Regression Suite 1806 - Execution History popup (execHistory)
+
+### Precondition
+- Project 'WALK' (id 3) exists with test plan 'WALK-Plan' (id 4); test case 'Walk Me' id 1/PREFIX1-WM-1 present
+- Login as admin/admin
+
+### Test Cases
+| ID | Action | Expected Result | PASS/FAIL |
+|---|---|---|---|
+| 1 | Direct navigation: gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | Screen loads, header shows "Execution History", API call ?action=history returns 200 | TBD |
+| 2 | With onlyActiveTestPlans=1: append &onlyActiveTestPlans=1 | URL honored, history filtered (no errors in console) | TBD |
+| 3 | Anonymous access to lib/execute/execHistory.php redirects to login (destination preserved) | Redirects to login.php with destination containing execHistory.html | TBD |
+| 4 | JS caller openExecHistoryWindow(1, 0, 3) opens popup targeting modern HTML | Popup URL is gui/templates/execute/execHistory.html?tcase_id=1&tproject_id=3 | TBD |
+| 5 | Browser console - no JS errors on load | Clean console | TBD |
+| 6 | Event Viewer - no new ERROR/WARNING rows after test | No new errors | TBD |
+
+
+## Task — Issue #1288: document the first computer bug (9 September 1947)
+
+**Precondition** — repo checkout on `task/issue-1288`; wiki clone `tmp/wiki-repo/` with a
+reachable authenticated origin; app at `http://localhost:8082` (login `admin/admin`) for the
+Event Viewer illustration; no DB fixture needed (documentation-only change).
+
+**Scope** — issue #1288 (*"Add in documentation of TestLink upgraded about first bug ever found
+on Sept 9, 1947"*), the newest open `task` issue that is not a `Delete legacy …` cleanup. The
+deliverable is documentation: a wiki page + cross-links + `docs/` mirror + CHANGELOG. No screen,
+BFF, DB or i18n change is in scope (declared in the CHANGELOG entry).
+
+### A. Gap measurement (before)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| A1 | `grep -rniE "1947\|Mark II\|moth\|Hopper" docs/ tmp/wiki-repo/*.md README.md CHANGELOG --include=*.md` | corpus tells the story | **0 hits in 1277 files** — gap confirmed |
+| A2 | Read `tmp/wiki-repo/Ce-este-TestLink.md` §Istoric | history documented | starts at "Lansat: 2004 - SourceForge", nothing before it |
+| A3 | `grep -rniE "first bug" …` | no confusion with a modern screen bug | 2 hits, both `"first bug found in-browser"` in `Fix-Test-Plans-Modernized.md` (unrelated) |
+
+### B. Wiki page (`tmp/wiki-repo/Prima-Bug-Istorica.md`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| B1 | Page exists, Romanian (wiki language) | 1 H1 + TOC + numbered sections | PASS (198 lines, 9 numbered `##` sections + `## Cuprins`) |
+| B2 | Content covers the incident | date, machine, team, log entry, cause, retest | PASS (§1 timeline table, §2 log, §3 diagnosis, §4 QA relevance) |
+| B3 | Accuracy guard | does not claim "the very first defect ever" | PASS (§1 *Notă de corectitudine*, §5 Edison/`buggy`/`glitch`) |
+| B4 | Product tie-in | connects history to 2.0.1 | PASS (§6 Mark II ↔ 2.0.1 table, §7 chronology to 2.0.1, §8 5-step "log a real bug in TestLink") |
+| B5 | Sources | verifiable references | PASS (§9 Wikipedia ×3, Smithsonian NMAH, Computer History Museum) |
+| B6 | Internal links | every `](Page)` resolves to a file in the wiki clone | PASS **6/6** (`Home`, `Ce-este-TestLink`, `Event-Viewer`, `Gestionarea-Bug-urilor-si-Problema`, `Utilizatori-și-Roluri`, `Bug-Severity`) |
+| B7 | TOC anchors | every `](#…)` matches a heading slug | PASS **9/9** |
+| B8 | Image | references a committed file | PASS (`issue-1288-eventviewer-audit-trail.png`, PNG 1113×1164, 122 551 B, `file` verified) |
+| B9 | Rendered page (chrome-devtools MCP) | GitHub renders 9 sections + tables + image | PASS — page 200, all 9 permalinks present, `img.naturalWidth = 1113` (not a broken image) |
+
+### C. Cross-links
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| C1 | `Ce-este-TestLink.md` §Istoric | new first entry + link | PASS (lines 17-20, live page shows 2 anchors to `Prima-Bug-Istorica`: 1 content + 1 sidebar) |
+| C2 | `Home.md` index | page listed, count corrected | PASS (`32 Pagini`, item **32.**, live HTTP 200, HTML contains `wiki/Prima-Bug-Istorica`) |
+| C3 | `Home.md` Features Coverage | coverage row | PASS (row `Istoric / Originele termenului *bug*`) |
+| C4 | `README.md` §Documentation | "History & fun" bullet → wiki page + `docs/` twin | PASS (lines 177-179) |
+
+### D. `docs/` mirror (`docs/first-bug-1947.md`)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| D1 | English twin of the wiki page | 9 sections, same order | PASS (**9/9** 1:1, wiki has the extra `## Cuprins`) |
+| D2 | Rule 6 — no image lines | 0 `![` lines | PASS (**0**) |
+| D3 | Table inventory parity | same tables | PASS (**28** table rows wiki vs **28** docs) |
+| D4 | Balanced code fences | no broken markdown | PASS (0 fences in both files) |
+
+### E. CHANGELOG (rule 22)
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| E1 | Entry inside the 2.0.1 block | one line, issue reference | PASS (`CHANGELOG:20-41`, `- [TASK] - #1288:`, tag from the existing vocabulary) |
+| E2 | Content | gap + what landed + no-code-change declaration | PASS |
+
+### F. Hygiene
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| F1 | Event Viewer (`gui/templates/eventviewer/eventviewer.html`) as admin | no new Error/Warning | PASS — DEBUG 0 / INFO 0 / **WARNING 0 (0%)** / **ERROR 0 (0%)** / AUDIT 1 (100%) / L18N 0; the single row is my own login |
+| F2 | Repo commit + push | branch `task/issue-1288` only | PASS (`9ae34e585`, `git push origin HEAD:task/issue-1288`) |
+| F3 | Wiki commit + push | `master` on `sebiboga/testlink-upgraded.wiki` | PASS (`2453e52`, `e92bec3..2453e52 master -> master` after `git pull --rebase`) |
+| F4 | `tmp/TLU_Test_Cases.md` append-only | additions only | PASS (this suite appended with `>>`; `git diff --cached --numstat` gate run before committing) |
+| F5 | No pull request created, nothing merged by me | — | PASS (branch pushed only; CI lands it) |
+
+**Actual result — 27/27 PASS.** No product defect was discovered while testing this task
+(documentation-only change, no runtime code path touched), so no `bug` issue was filed
+(rule 11 not triggered).
+
+
+## Suite: Task — Issue #1609: public/private access-type indicator on Assign Test Project Roles
+
+**Precondition** — freshly imported DB (no test projects), so the fixtures below are created first;
+app on `http://localhost:8082`, login `admin/admin`:
+
+```sql
+INSERT INTO testprojects (id,prefix,is_public,active,api_key,notes)
+ VALUES (1,'MM-PUB',1,1,'k1pub',''),(2,'MM-PRI',0,1,'k2pri','');
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order)
+ VALUES (1,'Public Alpha Project',NULL,1,1),(2,'Private Bravo Project',NULL,1,2);
+```
+
+Project **1 = public** (`is_public=1`), project **2 = private** (`is_public=0`).
+Legacy reference: `usersAssign.php:129-135` + `usersAssign.tpl:159-162` (`ab387af72^`).
+
+| # | Step | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Open `gui/templates/usermanagement/usersAssignProject.html?tproject_id=2&tplan_id=0` | amber `fa-lock` icon between the `Test Project` label and the combo; tooltip `Private - User need specific role assignment` | `class="access-icon access-private"`, `<i class="fa fa-lock">`, `title="Private - User need specific role assignment"` | **PASS** |
+| 2 | Same URL with `?tproject_id=1` | teal `fa-globe` icon, tooltip `Public` | `class="access-icon access-public"`, `title="Public"` | **PASS** |
+| 3 | Select project 1 in the combo, sample the DOM **synchronously** (before the XHR resolves) | icon already switched — it can never describe the previously selected project | `access-public` / `Public` immediately, and unchanged after the response | **PASS** |
+| 4 | Switch back to project 2 | lock returns, caption follows (`Test Project Role (Private Bravo Project)`) | `access-private`, caption correct | **PASS** |
+| 5 | Select the `-- select project --` placeholder | icon disappears entirely (legacy: no context, no icon) | `class="access-icon"`, `innerHTML=""`, `title=null` | **PASS** |
+| 6 | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=99` (id outside the assignable set) | `accessType = -1` → red `fa-exclamation-triangle`, tooltip `Attention internal error` | API `-1`; `renderAccessIcon(-1)` → `access-vorsicht`, `fa-exclamation-triangle` | **PASS** |
+| 7 | Call `showSessionExpired()` (dead-session neutralise) | icon cleared with the rest of the context | `class="access-icon"`, `innerHTML=""` | **PASS** |
+| 8 | Open the screen with **no** `tproject_id` | session-project precedence (#1613) — lands on the session project with a correct icon | project 2 selected, `access-private`, grid renders 1 row | **PASS** |
+| 9 | Same screen with `&locale=ro` | Romanian tooltip, no English leak | `title="Privat - utilizatorul necesită o atribuire de rol specifică"`, label `Proiect:` | **PASS** |
+| 10 | `GET /meta/tproject-roles?tproject_id=0/1/2/99` — BFF contract | `null` / `1` / `0` / `-1`, and every pre-existing payload key intact | exactly that; `projects` now carries `isPublic` per option | **PASS** |
+
+**Automated part** — `tmp/verify_1609.sh` (14 checks: BFF tri-state, additive payload, per-project
+`isPublic`, indicator markup/CSS/helper/wiring, all-10-bundle key presence, legacy wording):
+
+```
+$ BASE=http://localhost:8082 CK=/tmp/tlck.txt bash tmp/verify_1609.sh
+... 14 passed, 0 failed =====
+```
+
+**No side effects** — 0 console errors/warnings on the screen; Event Viewer `events` table holds
+3 rows after the whole run, all `log_level=16` LOGIN audit rows from the test logins —
+**0 ERROR, 0 WARNING**.
+
+
+## Suite 954 — Task — Forbid type/node-type change of custom fields already holding values in cfieldsView (gap vs legacy)
+
+Precondition: fixture `php tmp/fixtures_954.php` run — custom field **Tier** (id depends, is_used=1 via a row in `cfield_design_values`) and control **TierEmpty** (is_used=0), both testcase node type, linked to tproject 1; admin/admin session.
+
+### Test 1 — legacy parity: modern modal locks Type + Node Type for a used field (cfieldsView)
+1. Open `gui/templates/cfields/cfieldsView.html?tproject_id=1&tplan_id=0`, click the edit pencil on the **Tier** row.
+2. Inspect `#editType`/`#editNodeType` display and `#editTypeText`/`#editNodeTypeText` text.
+- **Expected:** selects `display:none`; static texts `string` / `testcase` `display:block`; `#typeLockWarning` visible with the localized `cf.msg.warningNoTypeChange` text (legacy `cfieldsEdit.tpl:105-141` shows "Available for: Test Case" + "Type: string" as plain text).
+- **Actual:** typeSelect `none`, typeText `string` (block), nodeSelect `none`, nodeText `testcase` (block), warning `block`. PASS.
+
+### Test 2 — control: value-less field stays editable (cfieldsView)
+1. Open the edit modal for **TierEmpty**.
+- **Expected:** both selects `display:block` (editable), no warning.
+- **Actual:** typeSelect `block`, value `0`, nodeSelect `block`, value `testcase`, warning `none`. PASS.
+
+### Test 3 — normal save on a used field still works and cannot re-type it
+1. In the **Tier** modal change the Label, click Save.
+- **Expected:** toast "Custom field saved"; label persisted; type + node_type_id unchanged; no modal error.
+- **Actual:** label→`Tier UI-SAVED`, type `0`, is_used `1`, toast shown, modal error hidden. PASS. (Label reset to `Tier` afterwards.)
+
+### Test 4 — BFF backstop: PUT re-type of a used field returns the legacy warning
+1. Raw same-origin fetch `PUT /api/cfields/index.php/3` with `{type:4, node_type:'testcase'}`.
+2. Raw fetch with `{type:0, node_type:'build'}`.
+- **Expected:** both HTTP 400, body `{code:'warning_no_type_change', message: <legacy EN text>}`; stored type/node unchanged.
+- **Actual:** 400 + `code:"warning_no_type_change"` for both; field left unchanged. PASS.
+
+### Test 5 — BFF exposes is_used in all read payloads
+1. `GET /api/cfields/index.php` and `GET /api/cfields/index.php/{id}` and `GET /api/cfields/index.php/assignment?tproject_id=1`.
+- **Expected:** every item carries `is_used` (Tier=1, TierEmpty=0) in list, detail and assignment lists.
+- **Actual:** list/detail `is_used:1` for Tier, `0` for TierEmpty; assignment rows expose it too. PASS.
+
+### Test 6 — assign screen: used field locked in BOTH tables
+1. Assigned table: click **Tier** name → modal shows static Type `string`, Node Type `testcase`, warning visible.
+2. Temporarily `POST /assignment/unlink` Tier, reload → click **Tier** name in the *Available* table → same lock. Re-link Tier.
+- **Expected:** identical read-only lock + warning in both tables.
+- **Actual:** Assigned table locked; after unlink the Available-table link also shows `typeSelect:none`/`warning:block`; re-link restored 2 linked fields. PASS.
+
+### Test 7 — value-less field re-type still allowed (no scope regression)
+1. Raw `PUT /api/cfields/index.php/4` `{type:3,...}` then restore `{type:0,...}` (TierEmpty, unused).
+- **Expected:** both 200; type toggles 0→3→0.
+- **Actual:** 200 both, typeNow `3`, restored 200. PASS.
+
+### Test 8 — i18n: key present in all 10 bundles + German UI
+1. `python3 -m json.tool` on each `gui/templates/i18n/*.json`; grep key presence.
+2. Open `cfieldsView.html?...&locale=de`, edit **Tier**.
+- **Expected:** all 10 bundles valid JSON and contain `cf.msg.warningNoTypeChange`; German modal warning text localised.
+- **Actual:** 10/10 bundles valid + key present (`de.json` value verified); German modal shows `Dieses benutzerdefinierte Feld enthält bereits Werte; Typ und Knotentyp können nicht geändert werden.` PASS.
+
+### Test 9 — Event Viewer hygiene
+1. `SELECT log_level, COUNT(*) FROM events GROUP BY log_level` after all tests.
+- **Expected:** no new Error/Warning rows (all log_level=16 INFO; no entries >16).
+- **Actual:** 18 events, all `log_level 16`; zero events >16. PASS.
+
+**Result: 9/9 PASS.** (Refs #954)
+
+
+## Suite 1575 — Task — Issue #1319: tcAssign2Tplan Cancel button always visible (gap vs legacy) (Refs #1319)
+
+Feature: on the modern `gui/templates/testcases/tcAssign2Tplan.html`, the Cancel
+button must stay visible whenever test plans exist, exactly like legacy
+`dashio/testcases/tcAssign2Tplan.tpl:86` (which renders the Cancel button
+OUTSIDE the `{if $gui->can_do}` block). Only the Add button is gated on
+`can_do`. Also regression-verifies the BFF grid can_do computation.
+
+**Precondition:** run `php tmp/fixtures_1319.php` from the repo root (re-runnable).
+Produces A2PDemo (tproject), Plan A (tplan), Win10 (platform), A2P-1 v1 (unlinked
+→ can_do=true), A2P-2 v1+v2 with v1 linked to Plan A (viewing v2 → can_do=false).
+Login admin/admin on http://localhost:8082.
+
+### Test 1 — BFF: can_do=false grid for the linked-to-different-version tcversion
+1. `curl -b <session> "http://localhost:8082/api/tcassign2tplan/?action=init&tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>"`
+- **Expected:** `status=ok`, `can_do=false`, plans[0].platforms[0].already_linked=true,
+  draw_checkbox=false.
+- **Actual:** exactly that (measured: can_do=false, already_linked=true, draw_checkbox=false). PASS.
+
+### Test 2 — BFF: can_do=true grid for the unlinked tcversion
+1. Same request for `<A2P-1>/<v1>`.
+- **Expected:** `can_do=true`, draw_checkbox=true, already_linked=false.
+- **Actual:** can_do=true, draw_checkbox=true, already_linked=false. PASS.
+
+### Test 3 — browser can_do=false: Cancel visible, Add hidden (no dead-end)
+1. Open `gui/templates/testcases/tcAssign2Tplan.html?tcase_id=<A2P-2>&tcversion_id=<v2>&tproject_id=<pid>`.
+2. Inspect grid + buttons.
+- **Expected:** rows read-only (`checked disabled` + "(already linked)" note);
+  Add button absent; **Cancel button visible**; `#actionsBar` display none,
+  `#cancelBar` display flex (measured via getComputedStyle).
+- **Actual:** Cancel visible (snapshot uid=button "Cancel"); `actionsBar=none`,
+  `cancelBar=flex`; checkbox `checked="" disabled=""`. PASS.
+- Compare legacy: `gui/templates/dashio/testcases/tcAssign2Tplan.tpl:86` Cancel is
+  unconditional when `$gui->tplans` is set.
+
+### Test 4 — browser can_do=true: Add + Cancel both visible
+1. Open the screen for `<A2P-1>/<v1>`.
+- **Expected:** addable checkbox; "+ Add" and "Cancel" both visible.
+- **Actual:** "+ Add" and "Cancel" both present. PASS.
+
+### Test 5 — Add-flow regression: assign still works and Cancel survives the re-render
+1. On the A2P-1 view tick the Plan A checkbox, click **+ Add**.
+- **Expected:** okBox 'Added to 1 test plan(s)'; after re-render `can_do=false`
+  with Add hidden and Cancel visible.
+- **Actual:** okBox shown; re-rendered grid has Add hidden, Cancel visible,
+  `ctx.info.can_do=false`, `already_linked=true`. PASS.
+- NOTE: a separate stale-row render bug (checkbox not disabled until reload)
+  was observed here and filed as GitHub **#1566** (label `bug`) — NOT part of
+  this issue's scope; full-page reload renders the row correctly.
+
+### Test 6 — Event Viewer hygiene
+1. After the tests, query `events` table / Event Viewer screen.
+- **Expected:** no new Error/Warning entries; only INFO audit rows.
+- **Actual:** 11 events, all log_level=16 (INFO audit: CREATE/ASSIGN/LOGIN),
+  zero Error/Warning. PASS.
+
+**Result: 6/6 PASS.** (Refs #1319; screenshots in docs/screenshots/issue-1319-can-do-false-cancel-visible.png, issue-1319-can-do-true-add-and-cancel.png, issue-1319-post-add-can-do-false-cancel-only.png.)
+
+
+## Suite 950 — Task — Issue #950: cfield_view read right in cfieldsView (gap vs legacy) (Refs #950)
+
+Fixture (this run, fresh DB): role `cf_viewer` (role_id 10) holding ONLY right id 17 (`cfield_view`), user `cviewer`/`tester` global role 10; user `cfnouser`/`tester` global role 3 (`<no rights>`); custom fields `priority_cf`, `env_cf` inserted.
+
+### Test 1 — View-only user: BFF read routes return 200, list renders
+1. Login `cviewer` → open `gui/templates/cfields/cfieldsView.html`.
+2. Inspect network: `GET /api/cfields/index.php`, `/meta/types`, `/meta/nodes`.
+- **Expected:** all three 200; table shows `env_cf` + `priority_cf` rows.
+- **Actual:** 200/200/200, 2 rows shown. PASS.
+
+### Test 2 — View-only user: write routes still denied server-side
+1. From the cviewer session: `fetch` POST create, PUT /1, DELETE /3, GET `/assignment?tproject_id=1`.
+- **Expected:** 403 `No permission` on all four.
+- **Actual:** create 403, put 403, delete 403, assignment 403. PASS.
+
+### Test 3 — View-only user: read-only UI (no Create/Upload/Edit/Delete, Export stays)
+1. As `cviewer`, look at the toolbar + row actions + footer info.
+- **Expected:** Create + Upload hidden; Export present; no per-row Edit/Delete icons; footer info `Read-only: you can view and export custom fields, but not create, edit or assign them.`
+- **Actual:** all present, action column empty, hint shown. PASS.
+
+### Test 4 — No-rights user: localized denial instead of silent empty table
+1. Login `cfnouser` → open the same screen.
+- **Expected:** toolbar+table hidden; only `You do not have permission to view custom fields. Contact your administrator.` rendered; BFF 403.
+- **Actual:** denial message rendered, no table, 403. PASS.
+
+### Test 5 — Admin regression: full UI + write path works
+1. Login `admin` → open the screen.
+- **Expected:** Create/Export/Upload visible; Edit+Delete icons per row; Create modal → Save → new row appears.
+- **Actual:** all buttons + icons present; created `test_field` (POST 200), list reload showed 3 rows; fixture cleaned up after. PASS.
+
+### Test 6 — i18n coverage + syntax gates
+1. Validate `cf.msg.noPermissionLog` + `cf.msg.readOnly` in ALL 10 bundles with `python3 -m json.tool`.
+2. `php -l api/cfields/index.php`; `node --check` on `cfieldsView.html` inline JS.
+- **Expected:** 10/10 valid bundles with both keys; PHP + JS syntax clean.
+- **Actual:** all valid; syntax gates pass. PASS.
+
+### Test 7 — Event Viewer hygiene
+1. Inspect `events` after the suite.
+- **Expected:** only log_level 16 audit INFO rows (login, custom field created); no Error/Warning rows.
+- **Actual:** events all log_level 16 INFO; no 20/30/40/50 rows. PASS.
+
+### Test 8 — Stored-XSS hardening on field name/label cells + delete action
+1. Insert custom field id 99 with hostile name `"> <img src=x onerror=alert(73)> 'x` (BFF accepts it). 2. Reload the screen (cache bypass). 3. Click the row trash icon → the native confirm shows the hostile name as inert text; confirm.
+- **Expected:** no `alert(73)` on load (name/label cells escaped via `escAttr()` before DataTables `html()` rendering, and the delete icon uses `data-delete-*` + a delegated handler); DELETE 200 removes the row and the `custom_fields` row.
+- **Actual:** no alert after reload; name cell rendered as literal text; confirm shows literal name; DB `SELECT COUNT(*) ... WHERE id=99` = 0 after confirm. PASS.
+
+**Result: 8/8 PASS.** (Refs #950. Changes: `api/cfields/index.php` read vs write permission split + `can_manage` in GET / payload; `gui/templates/cfields/cfieldsView.html` `.fail` handlers + read-only rendering + stored-XSS hardening of the name/label/actions cells (escAttr + data-* delegated delete; bug #1561); i18n `cf.msg.noPermissionLog`/`cf.msg.readOnly` in all 10 bundles; screenshots `docs/screenshots/issue-950-*.png`.)
+
+
+## Regression — Issue #1561: cfieldsView stored-XSS hardening (name/label + delete action)
+
+**Precond:** DB fresh (last custom_fields row ids 2/3 deleted during verification); admin/admin session; BFF accepts hostile markup (matches legacy, render-time-only escaping strategy).
+
+### Test 1 — Hostile field name/label render as inert text in DataTables cells
+1. `POST /api/cfields/index.php` with `name = "> <img src=x onerror=alert(73)>`, `label = evil <b>bold</b>`.
+2. Open `gui/templates/cfields/cfieldsView.html` as admin; wait for table render.
+3. Measure with DevTools: `td.cell[1].innerHTML` and `td.cell[1].querySelector('img')`; watch for a native `alert` dialog.
+- **Expected:** no `alert(73)`; name cell innerHTML is the HTML-escaped literal (`"&gt; &lt;img src=x onerror=alert(73)&gt;`), label cell `evil &lt;b&gt;bold&lt;/b&gt;`, and `querySelector('img')` returns `null`.
+- **Actual:** confirmed — escaped literals, `has_img:false`, no dialog fired. PASS.
+
+### Test 2 — Delete action not injectable (delegated data-* handler)
+1. Inspect the row Actions cell HTML and click the trash icon.
+- **Expected:** Actions cell = `data-delete-id` + `data-delete-name` (escaped) and NO inline `onclick` carrying the raw name; confirm() shows the raw name as plain text; DELETE returns `{"status":"ok"}` and the `custom_fields` row is gone.
+- **Actual:** measured Actions HTML contains `data-delete-name="&quot;&gt; ..."`, confirm showed raw text, row deleted from table + DB. PASS.
+
+### Test 3 — Type/Node select options escaped and still populate (post-fix regression)
+1. Click "Create Custom Field" (modal uses `loadMeta()`).
+2. Read `#editType` / `#editNodeType` option lists.
+- **Expected:** options unchanged (string/numeric/float/... / build/testsuite/testplan/testcase/...); the two `<option>` builders escape `t.name`/`n.name` via `escAttr()` (previously raw).
+- **Actual:** full option lists present and identical. PASS.
+
+### Test 4 — Edit modal + create flow unaffected
+1. Click the row edit icon of the hostile field → read `#modalTitle` (`.text()`) and `#editName`/`#editLabel` (`.val()`).
+2. Cancel; create a normal field via the modal and Save.
+- **Expected:** title = `Edit Custom Field: "> <img src=x onerror=alert(73)>` as inert text; inputs carry raw values; new field row appears.
+- **Actual:** title/inputs verified, `verified_cf` created (POST 200) and listed, fixture deleted after. PASS.
+
+### Test 5 — Event Viewer hygiene + cleanup
+1. Inspect `events` rows fired during the suite.
+- **Expected:** only log_level 16 (NOTICE) audit rows (LOGIN/CREATE/DELETE); no Error/Warning rows; fixtures removed.
+- **Actual:** 8 rows all log_level 16, zero Error/Warning; `custom_fields` empty at end. PASS.
+
+**Result: 5/5 PASS.** (Fix branch `fix/issue-1561`. Changes: `gui/templates/cfields/cfieldsView.html` line 159 `escAttr(t.name)` and line 169 `escAttr(n.name)` in the meta `<option>` builders; primary cells/actions hardening was already landed via `b7aaee02e` (Refs #950).)
+
+---
+
+
+## Task — Issue #1320: tcAssign2Tplan — execution-history & design navigation icons in toolbar
+
+**Target:** `gui/templates/testcases/tcAssign2Tplan.html` — legacy `gui/templates/dashio/testcases/tcAssign2Tplan.tpl:47-51` (`openExecHistoryWindow` / `openTCaseWindow` icons).
+
+**Precondition:** fixture `tmp/fixtures_1320.php` run (A2P project id=7, tplan id=8, tcase id=10, tcversion id=11, platforms Win10/Linux linked to the plan). Login admin/admin.
+
+### Test 1 — Icons render next to the test-case identity
+1. Open `http://localhost:8082/gui/templates/testcases/tcAssign2Tplan.html?tcase_id=10&tcversion_id=11&tproject_id=7`.
+- **Expected:** toolbar shows `Test Case: Nav Icon Case (#10 v1)` plus a clock icon (title "Execution history") and a pencil icon (title "Test Spec Design"); plan grid shows the 2 platform rows.
+- **Actual:** both icons + tooltips rendered, grid shows Win10/Linux rows. PASS.
+
+### Test 2 — History icon opens the Execution History screen for the same test case
+1. Click the clock icon.
+- **Expected:** popup `execHistory.html?tcase_id=10&tproject_id=7` titled "A2P-1 - Execution History".
+- **Actual:** new tab opened exactly at that URL with that title. PASS.
+
+### Test 3 — Design icon opens the Test Case Viewer for the same test case
+1. Close the history tab; click the pencil icon.
+- **Expected:** popup `tcView.html?tcase_id=10&tproject_id=7` titled "Nav Icon Case - Test Case Viewer", viewer read-only.
+- **Actual:** new tab opened exactly at that URL; viewer shown. PASS.
+
+### Test 4 — Tooltips are localized
+1. Reload with `?locale=ro` (and inspect `#linkHistory.title` / `#linkDesign.title` via DOM).
+- **Expected:** "Istoricul execuțiilor" / "Proiectarea cazului de test"; all 10 bundles carry `ta2p.execHistory` + `ta2p.design` and validate with `python3 -m json.tool`.
+- **Actual:** ro tooltips rendered; 10/10 bundles valid (git diff = +2 lines each). PASS.
+
+### Test 5 — Add flow regression (link a platform row)
+1. After Test 1, check the "Win10" row checkbox → click `+ Add`.
+- **Expected:** success box "Added to 1 test plan(s)"; row becomes checked + read-only "already linked"; icons remain visible.
+- **Actual:** success box shown, row readonly, icons still present. PASS.
+
+### Test 6 — Event Viewer hygiene
+1. Inspect `events` after the suite.
+- **Expected:** only log_level 16 audit INFO rows (login, project created, tc added to testplan); no Error/Warning rows.
+- **Actual:** all rows level 16; no higher-level entries. PASS.
+
+**Result: 6/6 PASS.** (Refs #1320. Changes: `gui/templates/testcases/tcAssign2Tplan.html` toolbar nav icons + `openHistory()`/`openDesign()`; i18n keys `ta2p.design`/`ta2p.execHistory` in all 10 bundles; fixture `tmp/fixtures_1320.php`; screenshot `docs/screenshots/issue-1320-toolbar-icons.png`.)
+
+
+## Regression — Issue #1513: 2x E_WARNING 'Undefined property stdClass::$freezeLinkOnNewReqVersion' in requirement_mgr::copy_version
+
+**Screen:** `copy_version()` path inside `lib/functions/requirement_mgr.class.php` (`create_new_version()`), exercised via CLI harness replicating the BFF bootstrap and via the modern `gui/templates/requirements/reqEdit.html`.
+**Precondition:** TestLink 2.0.1 at http://localhost:8082; MariaDB 127.0.0.1:3306; fixtures: project 1000/PROJ (option_reqs), reqs specs 1001, requirement 1002/REQ-001 with versions; browser login admin/admin. Branch `fix/issue-1513`.
+
+**Pre-fix repro (bug):** CLI `requirement_mgr::create_new_version(1002)` → `copy_version()` reads `$reqTCLinksCfg->freezeLinkOnNewReqVersion` (config key is `freezeLinkOnNewREQVersion`, config.inc.php:1415) → PHP 8 E_WARNING, `events` row `log_level=2 E_WARNING\nUndefined property: stdClass::$freezeLinkOnNewReqVersion ... Line 2477`. Second, masked warning (`requirement_mgr::$debugMsg`, line 2498) appears once the freeze option is honoured. Link-freeze option never ran (null).
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | CLI `create_new_version(1002)` with config `freezeLinkOnNewREQVersion=TRUE` | new req_version created, `events` table gains **0** log_level=2 rows | **PASS** |
+| 2 | Repeat (any number of invocations) | still 0 warnings, 0 errors | **PASS** |
+| 3 | With an OPEN `req_coverage` link on the source version, run `create_new_version` | source-version link flipped `link_status 1 → 4` (LINK_TC_REQ_CLOSED_BY_NEW_REQVERSION) and `is_active → 0` — option now honoured | **PASS** |
+| 4 | CLI runs while source version has NO link | no TypeError/warning; is_open=0 applied to source version (freezeSourceVersion default) | **PASS** |
+| 5 | Browser `reqEdit.html?id=1002&tproject_id=1000` → Create New Version | version bump OK (16), `events` 0 rows, console has no JS errors | **PASS** |
+| 6 | `php -l lib/functions/requirement_mgr.class.php` | No syntax errors | **PASS** |
+| 7 | `grep freezeLinkOnNewReqVersion` repo-wide | 0 hits (typo gone); `freezeLinkOnNewREQVersion` used consistently | **PASS** |
+| 8 | Event Viewer / `events` table after the whole run | no new Error/Warning entries (only the OK audit log_level=16 from login) | **PASS** |
+
+Result: **PASS — 8/8 PASS** — Root cause: legacy typo `0d10acc5e` read `freezeLinkOnNewReqVersion`
+instead of config key `freezeLinkOnNewREQVersion`; null eval also masked `requirement_mgr::$debugMsg`
+(`$this->debugMsg` typo since `cb365cd5e`, 1.9.18). Fix renamed the 3 reads (2477/2478/2487) to the real
+key and aligned `closeOpenTCVersionOnOpenLinks()` with the class-local `$debugMsg` pattern keeping the
+`/* */` SQL comment. Verified error-free, Event Viewer clean. Refs #1513.
+
+
+## Task — Issue #895: Dashboard "My Assigned Test Cases" widget (assigned-to-me data on mainPage)
+
+> STATUS: `PASS` — 12/12 PASS, verified 2026-09-13 @ http://localhost:8082 (branch `task/issue-895`, Refs #895).
+
+**Screen:** `gui/templates/mainpage/mainPage.html` new `#secAssigned` card (DataTable: Test case w/ suite path + version, Build, Platform*, Test Plan, Priority*, Assigned on, Due, Status, Actions). **BFF:** `api/mainpage/index.php` route `GET /assigned` (port of legacy `lib/testcases/tcAssignedToUser.php` personal view via `testcase::get_assigned_to_user()`, active plans + open builds, last-execution status per build/platform) + `platform_id` always emitted; quick p/f/b icons post to `api/reports/index.php?action=quick_exec`. **i18n:** 29 new `dash.assigned*` / `dash.status*` keys in all 10 bundles.
+
+**Precondition (fresh DB, fixture `tmp/fixtures_895.php`):** project ASG895 (tproject=1, prefix A895, priority enabled) → suite "ASG Suite" → TCs "Dashboard TC One/Two/Three"; plan "ASG Dashboard Plan" (id 12) links all three; open build B895 Open (id 1), closed build B895 Closed (id 2). admin (user 1) assigned TC One + TC Two on the OPEN build, TC Three on the CLOSED build; TC Two deadline yesterday (overdue); TC One has a pre-inserted PASSED execution. Login admin/admin.
+
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 895.1 | Open Dashboard with project ASG895 selected | `#secAssigned` card "My Assigned Test Cases" renders with summary chips "2 assigned · 1 pending · 1 executed · 1 overdue" | **PASS** |
+| 895.2 | Rows content | Exactly 2 rows: "A895-1: Dashboard TC One (v.1)" + "A895-2: Dashboard TC Two (v.1)", each showing suite path "ASG Suite", build "B895 Open", plan "ASG Dashboard Plan", priority "High", assigned date | **PASS** |
+| 895.3 | TC Three (assigned on the CLOSED build) is hidden | Closed-build assignment excluded by `build_status=open` filter (legacy parity) — not in the table | **PASS** |
+| 895.4 | Status badges | TC One → "Passed", TC Two → "Not run" (colors #4ECDC4 / #8f8f8f) | **PASS** |
+| 895.5 | Due/overdue | TC Two Due column shows `9/12/2026` + red "overdue" badge; TC One shows `-` (no deadline) | **PASS** |
+| 895.6 | Quick-exec icon "Mark as Failed" on TC Two (confirm dialog accepted) | POST `action=quick_exec` → toast "Result saved"; widget reloads: TC Two status "Failed", summary "0 pending · 2 executed"; DB gains executions row (tcversion 7, status f, tester 1, build 1) | **PASS** |
+| 895.7 | Execute link (play icon) | Targets `execSetResults.html?tcase_id=6&tcversion_id=7&tplan_id=12&setting_build=1&setting_platform=0&caller=mainPage` and opens the modern Set-Results screen | **PASS** |
+| 895.8 | History + Test-case links carry the resolved project | tcView / execHistory links contain `tproject_id=1` even though the dashboard URL stays `tproject_id=0` (session-backed `g_proj_id`) | **PASS** |
+| 895.9 | BFF hardening: no project selected | `GET /assigned?tproject_id=0` → `200 {has_data:false, total:0, plans:[]}`; widget hides (`#secAssigned` display none) | **PASS** |
+| 895.10 | i18n render | All new card/labels/status strings resolve (no literal `dash.assigned*` keys); locale switch to ro translates title/summary/statuses | **PASS** |
+| 895.11 | i18n bundle validity | `python3 -m json.tool` passes on all 10 bundles; diff is add-only (no reordering) | **PASS** |
+| 895.12 | Event Viewer hygiene | `events` table shows NO new ERROR/WARNING rows after load + quick-exec; browser console has no errors | **PASS** |
+
+Result: **PASS — 12/12 PASS** — #895 implemented: dashboard now shows the logged-in user's assigned test cases (active plans, open builds) with status, priority, build/platform, due date, quick-exec and execute links, backed by the `/assigned` BFF route and 29 i18n keys in all 10 bundles.
+
+# Regression — Issue #1441: Test Strategy "Quality Objectives" chapter (tracking issue, feature verified complete)
+
+> STATUS: `**PASS**` — 6/6 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
+
+**Screen:** `gui/templates/strategy/objectives.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 2 card). **Wiring:** `gui/templates/dashio/aside.tpl:142`, `lib/functions/common.php:2110`, `locale/en_US+en_GB+ro_RO/strings.txt` (`href_test_strategy_objectives`). **i18n:** `ts.objectives*` (10 keys) in all 10 bundles.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1441.1 | `GET /gui/templates/strategy/objectives.html` | HTTP 200, contains `data-i18n="ts.objectivesHeader"`, `fa-bullseye` icon, "Back to Test Strategy" link, TLi18n init | **PASS** |
+| 1441.2 | ASIDE → Test Strategy → **Objectives** | Chapter opens in mainframe, header + both cards ("Quality objectives" 3 bullets, "Service levels" 3 bullets) render in English | **PASS** |
+| 1441.3 | General Overview (`testStrategy.html`) chapter card #2 | Card "Quality Objectives" with bullseye icon + **Open chapter** button; click navigates mainframe to `objectives.html` | **PASS** |
+| 1441.4 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 2 `{icon:"fa-bullseye", key:"ts.chapterObjectives", url:".../objectives.html"}`; footer keys present; anonymous → 401 | **PASS** |
+| 1441.5 | Locale switching: switcher → Română (and direct `?locale=de`) | `Obiective Calitative` / `Qualitätsziele` headers + translated sub/cards/bullets; no literal `ts.objectives*` keys; all 10 bundles contain all 10 keys and pass `python3 -m json.tool` | **PASS** |
+| 1441.6 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only login AUDIT info); browser console: 0 messages across EN/RO/DE loads | **PASS** |
+
+Result: **PASS — 6/6 PASS** — Issue #1441 spec fully satisfied; no code change required (stale tracking issue).
+
+
+## Regression — Issue #1505: requirement_mgr.class.php E_WARNING "array offset on null" on version-less requirement hit
+
+**Screen:** `api/reqfromissues/index.php` (POST `?action=import`) → legacy
+`lib/functions/requirement_mgr.class.php` `createFromMap()` (import path shared with
+`api/reqimport` — CSV/DocBook/XML requirement import).
+**Bug:** importing a Mantis XML whose issue docid hits an existing requirement with
+**no** `req_versions` child row (`get_last_child_info()` returns null) dereferenced the
+null result — `E_WARNING Trying to access array offset on null` (`requirement_mgr.class.php:1624`)
+logged to the Event Viewer / `events` table on every import (observed events 34/35 testing #1503).
+**Root cause:** `requirement_mgr.class.php:1620-1624` — `get_last_child_info($reqID,['child_type'=>'version',...])`
+returns `null` when `SELECT COALESCE(MAX(version),-1) FROM req_versions ... WHERE NH.parent_id={reqID}`
+(SQL at lines 2911-2917) has no row (MAX=-1 → 2919 branch skipped); pre-fix code read `$last_version['is_open']`
+unconditionally.
+**Fix (minimal, landed on the default branch with 681d39dbc):** line 1624 now guards the
+dereference — `(is_array($last_version) && isset($last_version['is_open']) && $last_version['is_open'] == 1)
+|| !$my['options']['skipFrozenReq']` — a null/version-less hit short-circuits to the "is FROZEN" skip
+path with zero warnings; open-version hits keep exact previous semantics.
+**Precondition:** app @ http://localhost:8082, DB fresh, admin/admin session (BFF writes need header
+`X-Requested-With: XMLHttpRequest`). Fixture: testproject id=1, req spec id=2 (nodes: spec node 2 type 6,
+spec-revision node 3 type 11 + `req_specs_revisions` row id=3), version-less requirement id=4 (node 4 type 7
+under spec 2, `requirements` row `req_doc_id='Mantis Task ID:20'`, **no** `req_versions` child — SQL to
+rebuild: the three INSERTs in the INVESTIGATION comment of issue #1505).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1505.1 | POST `/api/reqfromissues/?action=import&req_spec_id=2` with Mantis XML containing `<issue><id>20</id>` (multipart `uploadedFile`) | HTTP 200 `status:ok`, result row Doc ID `Mantis Task ID:20` → message `Skipped - Requirement - Doc ID:Mantis Task ID:20 - is FROZEN` | **PASS** |
+| 1505.2 | `mysql ... SELECT id,log_level,description FROM events` after the import | **0 new** ERROR/WARNING rows (no `E_WARNING ... array offset on null ... requirement_mgr.class.php`) | **PASS** |
+| 1505.3 | Re-import the same XML (second hit) | Identical graceful skip, still 0 new event rows | **PASS** |
+| 1505.4 | `php -l lib/functions/requirement_mgr.class.php`; `grep -n "is_array(\$last_version)" lib/functions/requirement_mgr.class.php` | No syntax errors; guard present at line 1624 | **PASS** |
+| 1505.5 | A/B: temporarily revert line 1624 to `$last_version['is_open'] == 1 || ...`, re-import, then restore guard | events gains `E_WARNING Trying to access array offset on null ... Line 1624` (reproduces pre-fix bug); restore + re-import adds nothing | **PASS** |
+| 1505.6 | Event Viewer screen (`events` table) after all steps | No new Error/Warning entries (only the login audit + the deliberately-captured PRE-FIX repro row) | **PASS** |
+
+Result: **PASS — 6/6 PASS** — the version-less requirement hit through
+`createFromMap()` is handled with a clean "is FROZEN" skip and zero E_WARNING; the
+open-version branch (`is_open==1`) keeps legacy behavior verbatim. The fix was
+already shipped on the default branch (commit `681d39dbc`, `Fixes #1504, #1505`);
+this suite locks the regression. Refs #1505.
+
+
+## 71. Modernization — Create Requirements from Issues (Mantis) — `reqFromIssues.html` (Suite ID: 71)
+
+**Refs:** #1503 · **BFF:** `api/reqfromissues/index.php` · **Screen:** `gui/templates/requirements/reqFromIssues.html`
+**Modernizes:** legacy `reqCreateFromIssueMantisXML.php` + `.tpl` (Requirements ▸ Create from Issues (XML), reached from `reqSpecView`). Sibling of suite 70's `tcCreateFromIssues`.
+
+**Precondition:** app @ http://localhost:8082, DB fresh, privileged fixture project **WALK1503** (tproject id=25) with req specs: id=31 (has legacy docids `Mantis Task ID:20/21`), id=36 (clean, gets fresh ids 100/101), id=38 (clean cross-branch probe). Admin/admin session. BFF POST needs header `X-Requested-With: XMLHttpRequest` (same-origin guard, `api/_guard.php`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 71.1 | GET `/api/reqfromissues/?action=init&req_spec_id=31&locale=en` | 200; `tproject.id=25,name=WALK1503`; `req_spec.id,name,path`; `maxUploadBytes=10485760`; `fieldSize.req_title=100, req_docid=64`; `grants.mgt_view_req=1, mgt_modify_req=1`; localized `labels.issue_issue="Issue/Task"` | **PASS** |
+| 71.2 | Init without session cookie (no auth) | HTTP 401, JSON `Not authenticated` | **PASS** |
+| 71.3 | Init with `req_spec_id=0` / missing | HTTP 400 JSON error | **PASS** |
+| 71.4 | Init with an unknown spec id (e.g. 99999) | HTTP 404 JSON error | **PASS** |
+| 71.5 | POST `action=import` with valid Mantis XML (`<mantis><issue>…</issue>`) into **spec 31** | HTTP 200 `status:ok`; issue 20 → `Created - Requirement - Doc ID:Mantis Task ID:20`; issue 21 → row skipped (its dangling node from the pre-fix fatal run is FROZEN) | **PASS** |
+| 71.6 | DB check: `SELECT id,srs_id,req_doc_id FROM requirements` (schema uses **srs_id/req_doc_id** — NOT `testproject_id/doc_id`) | Requirement rows created for the imported docids; `req_versions` carries the scope/description; `nodes_hierarchy` has node_type 7 children under the spec | **PASS** |
+| 71.7 | Re-import the same XML into the **same spec** | Both rows `Skipped - Requirement - Doc ID:… - is FROZEN` (same-spec hit on last version) | **PASS** |
+| 71.8 | Import the same XML into a **different spec** (cross-branch) | Both rows `Skipped - … - Already exists on other branch` | **PASS** |
+| 71.9 | Import an XML rooted at something else (`<foo>`) | HTTP 422 JSON error | **PASS** |
+| 71.10 | Import a malformed/unparseable XML file | HTTP 422 JSON error (no PHP fatal) | **PASS** |
+| 71.11 | POST `action=import` with no file part | HTTP 400 JSON error | **PASS** |
+| 71.12 | POST `action=import` over `import_file_max_size_bytes` (set cap; note php `upload_max_filesize=2M` floors the practical path → UPLOAD_ERR_INI_SIZE maps to 400 with error code) | HTTP 413 for pre-check-surpassing files; 400 'File upload failed (error code: 1)' for INI_SIZE-rejected ones — both clean JSON | **PASS** |
+| 71.13 | Anon POST import; and GET `action=import` | 401 anon; 405 for GET import | **PASS** |
+| 71.14 | POST `action=import` with `locale=de` into spec 38 | Skip messages localize to German (`Wurde übersprungen - Anforderung…`), proving the session-locale swap path | **PASS** |
+| 71.15 | `events` table after all imports | **0 new** Error/Warning/'not localized' rows (the pre-#1504/#1505 typo keys + 1624 warning now fixed) | **PASS** |
+| 71.16 | Browser: open `reqFromIssues.html?req_spec_id=36&tproject_id=25` as admin | Header/ctx line `WALK1503 / WALK1503 Requirements 2`, toolbar spec/project names, upload card + mapping note, `max file size: 10240 KB`, Import button disabled until a file is picked | **PASS** |
+| 71.17 | Browser: upload `mantis_test2.xml` (new ids 100/101) → Import | Result card: 2 rows `Created - Requirement - Doc ID:Mantis Task ID:100/101`; green success styling; toast+feedback | **PASS** |
+| 71.18 | Browser: re-import same file | Rows flip to amber warn styling. `Skipped - … - is FROZEN` | **PASS** |
+| 71.19 | Browser: `?locale=ro` variant renders Romanian chrome ('Creare Cerințe din Probleme', 'Cerințele au fost importate cu succes'), server message falls back to English (ro_RO is a short partial bundle — same as legacy) | UI Romanian, results English fallback, no JS errors | **PASS** |
+| 71.20 | `reqSpecView.html?id=36&tproject_id=25` as admin | Toolbar shows new link **Create Requirements from Issues** → `reqFromIssues.html?req_spec_id=36&tproject_id=25`; imported 100/101 listed under Requirements | **PASS** |
+| 71.21 | Browser: no-rights user (`guest900`, no project roles) opens `reqFromIssues.html?req_spec_id=36&tproject_id=25` | BFF 403 → localized ban banner 'You do not have permission to modify requirements in this project.'; work area hidden | **PASS** |
+| 71.22 | Client i18n: verify `reqfi.*` + `footers.reqFromIssues` exist in all 10 `gui/templates/i18n/*.json` bundles; `python3 -m json.tool` each | All bundles valid JSON; keys present (en + 9 translations) | **PASS** |
+
+Result: **PASS — 22/22 PASS** — full legacy parity for the Mantis XML requirement import
+(created / same-spec FROZEN / cross-branch / 400/401/403/404/405/413/422/500 / locale hint),
+Event-Viewer clean after the #1504/#1505 fixes. Refs #1503.
+
+
+## 72. Regression — ro_RO requirement-import message keys (#1506)
+
+**Screen:** `api/reqfromissues/index.php` POST import → legacy
+`requirement_mgr::createFromMap()` result templates (`locale/ro_RO/strings.txt`,
+short partial bundle). **Bug:** a Romanian-session import logged 6 L18N "not
+localized" WARNING events per import (`requirement`, `frozen_req_unable_to_import`,
+`import_req_skipped_plain`, `import_req_new_version_created`,
+`import_req_new_version_failed`, `import_req_update_last_version_failed`).
+**Fix:** the 9 result-template keys added to `locale/ro_RO/strings.txt`.
+**Precondition:** DB fresh, WALK1503 fixture (project 25, spec 36 already holds
+docids 100/101/500), admin session set to Romanian (`?locale=ro`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 72.1 | Import a Mantis XML with the existing docids 100/500 into spec 36 (`?locale=ro`) | Result table rows localized: `Omisă - Cerință - ID document:Mantis Task ID:100 - este ÎNGHEȚATĂ` (and 500) | **PASS** |
+| 72.2 | `SELECT ... FROM events WHERE log_level IN (2,32) AND id > <pre-import max>` | **0 new** 'not localized'/ERROR/WARNING rows for the import | **PASS** |
+| 72.3 | `php -l locale/ro_RO/strings.txt` | No syntax errors; the 9 keys present | **PASS** |
+
+Result: **PASS — 3/3 PASS** — Romanian requirement-import session renders the
+result messages in Romanian with zero 'not localized' events. Refs #1506.
+
+
+## Task — Issue #909: Implement edit-mode filter panel in Test Specification tree
+
+- **Precondition**: fixture project FT909 present (`php tmp/fixtures_909.php`), logged in as admin.
+- **Steps**:
+  1. Open Test Specification for FT909
+  2. Toggle the Filters panel and apply filters
+  3. Exercise every field (TC id, title, suite, keywords Or/And/Not, platforms, active/inactive, importance, execution type, workflow status, custom field)
+  4. Apply, Reset, reload the page, expand/collapse tree
+- **Expected**:
+  - No filter → full tree (3 suites · 6 cases) is rendered
+  - importance=High → 2 suites · 2 cases
+  - keywords Smoke+Regression AND → only the case carrying both keywords
+  - keywords Smoke NOT → complement (no case with Smoke)
+  - platforms Linux → 2 cases
+  - active only → 4 cases; inactive only → 2 cases
+  - title 'Alpha' → 3 cases, excludes sub-suite-only content
+  - tc id '3' → the case with external id 3
+  - top-level suite Beta → only Beta Suite remains
+  - custom field Tier=High → 2 cases
+  - filters persist across page reload; Reset returns to 3 suites · 6 cases
+  - reduced tree counters (`N suites · M cases`) and "filters applied" badge
+- **Actual result**: all above verified via API (curl) and browser (chrome-devtools); PASS.
+
+
+## Screen: Test Plan with Custom Fields (#739)
+
+### Test Suite: tplanWithCF — Data Display
+
+| # | Step | Expected | Status |
+|---|------|----------|--------|
+| 1 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=10 (plan with CF data) | Header shows "Test Plan with Custom Fields", table displays with CF column "CF TP Design", 2 rows with Option A and Option B | PASS |
+| 2 | Verify DataTable shows columns: Test Suite, Test Case, CF TP Design | All columns rendered, CF column shows custom field values | PASS |
+| 3 | Verify test case IDs display correctly (TPCF--1, TPCF--2) | External IDs built with project prefix and separator | PASS |
+| 4 | Verify match count badge shows correct count | "Match count: 2" shown | PASS |
+| 5 | Verify elapsed time shown in footer | "Elapsed: 0.01s" | PASS |
+
+### Test Suite: tplanWithCF — Edit Link
+
+| # | Step | Expected | Status |
+|---|------|----------|--------|
+| 6 | Click the edit icon next to TPCF--1 | Opens test case editor in new window with TPCF-1 : Test Case CF 1 | PASS |
+| 7 | Close the editor popup, return to report | Report still visible, data intact | PASS |
+
+### Test Suite: tplanWithCF — Locale Switching
+
+| # | Step | Expected | Status |
+|---|------|----------|--------|
+| 8 | Switch locale to Română via dropdown | Column headers translate ("Suita de testare", "Caz de testare"), DataTable pagination translates ("Afiseaza", "Filtru", "Anterior", "Urmatorul"), toast "Încărcat" | PASS |
+| 9 | Switch back to English | All labels return to English | PASS |
+
+### Test Suite: tplanWithCF — Empty / Warning State
+
+| # | Step | Expected | Status |
+|---|------|----------|--------|
+| 10 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=20 (plan with TCs but no CF values) | Warning message "There are no test cases on this test plan, with custom fields ENABLED ON Test Plan Design" displayed, no DataTable rendered | PASS |
+| 11 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=999 (invalid plan) | Error message "Invalid test plan id" displayed | PASS |
+
+### Test Suite: tplanWithCF — Filter / Search
+
+| # | Step | Expected | Status |
+|---|------|----------|--------|
+| 12 | Type "CF 1" in the DataTable filter box | Table filters to show only TPCF--1 row | PENDING |
+| 13 | Clear filter, all rows reappear | Both rows visible again | PENDING |
+
+
+## 18. Test Plan with Custom Fields — Modernized (Suite ID: 739)
+
+> **Run 2026-08-26 (browser):** 13/13 PASS. Event Viewer: only pre-existing legacy
+> warnings (cfield_mgr type key 3 missing, testcase.class.php null array). No new
+> errors introduced by this screen.
+
+**Screen:** `gui/templates/results/tplanWithCF.html` · **API:** `/api/reports/index.php`  
+**Path:** Reports > Test Plan with Custom Fields  
+**Tracking Issue:** #739
+
+### TC-18.1: Screen Loads Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in as admin. Test plan with CF data exists (tplan_id=10).
+- **Steps:**
+  1. Navigate to Reports > Test Plan with Custom Fields via aside menu.
+     *Expected:* tplanWithCF.html loads in mainframe, no PHP warnings or JS console errors.
+  2. Verify header shows "Test Plan with Custom Fields — <plan name>" + locale switcher.
+  3. Verify toolbar shows current Test Project name and test case count badge.
+
+### TC-18.2: Data Displays With CF Columns
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan has TCs with testplan_design CF values.
+- **Steps:**
+  1. Navigate to screen with plan_id=10.
+     *Expected:* DataTable displays with columns: Test Suite, Test Case, <CF Label>.
+  2. Verify test case IDs (TPCF--1, TPCF--2) with correct names.
+  3. Verify CF values (Option A, Option B) displayed in CF column.
+  4. Verify match count badge shows correct count.
+  5. Verify elapsed time in footer.
+
+### TC-18.3: Edit Link Opens Test Case Editor
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click edit icon next to TPCF--1.
+     *Expected:* Opens archiveData.php in new window with TC editor for TPCF-1.
+  2. Close editor popup, return to report.
+     *Expected:* Report still visible, data intact.
+
+### TC-18.4: Locale Switching Translates Labels
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Switch locale to Română.
+     *Expected:* Column headers translate (Suita de testare, Caz de testare), DataTable pagination translates, toast shows translated message.
+  2. Switch back to English.
+     *Expected:* All labels return to English.
+
+### TC-18.5: Empty State — No CF Values
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Navigate with plan_id=20 (TCs exist but no CF values).
+     *Expected:* Warning message displayed, no DataTable rendered.
+
+### TC-18.6: Error State — Invalid Plan
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Navigate with plan_id=999 (non-existent).
+     *Expected:* Error message "Invalid test plan id".
+
+### TC-18.7: Filter/Search Works
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Type "CF 1" in DataTable filter.
+     *Expected:* Table filters to show only matching row, status shows "(filtered from N total)".
+  2. Clear filter.
+     *Expected:* All rows reappear.
+
+### TC-18.8: Aside Menu Links to Modernized Screen
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Check asideMenu.php for link_report_tplans_with_cf.
+     *Expected:* Routes to gui/templates/results/tplanWithCF.html, not legacy testPlanWithCF.php.
+
+### TC-18.9: i18n Keys Present in All Locales
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Check en.json for tpwcf.* keys.
+     *Expected:* All 8 keys present (header, forPlan, testProject, testCases, matchCount, editTC, elapsed, noData).
+  2. Check ro.json for Romanian translations.
+     *Expected:* Keys translated (Plan de testare cu campuri personalizate, etc.).
+
+
+## 36. Regression — Issue #714: Expand .dockerignore (critically incomplete)
+
+### TC-36.1: .dockerignore Excludes Non-Essential Paths
+- **Priority:** Major
+- **Importance:** High
+- **Preconditions:** Repository cloned, Docker available.
+- **Steps:**
+  1. Check current `.dockerignore` content.
+     *Expected:* Contains 17 entries including `.env`, `.env.example`, `docker-compose.yml`, `Dockerfile`, `vendor/`, `node_modules/`, `tl200/`, `.git/`, `.gitignore`, `logs/`, `upload_area/`, `*.phar`, `tmp/`, `composer.phar`, `php.ini`, `.squash.yml`, `docs/`.
+  2. Verify excluded paths exist in repository.
+     *Expected:* `.git/` (114M), `vendor/` (28M), `tmp/` (29M), `docs/` (11M), `composer.phar` (2.2M) present.
+  3. Verify Dockerfile uses `COPY . .` (line 20).
+     *Expected:* Line exists, confirming .dockerignore is critical.
+  4. Run `docker build .` (if Docker available).
+     *Expected:* Build completes successfully, excluded files not in context.
+  5. Verify image contents with `docker run --rm <image> ls /var/www/testlink`.
+     *Expected:* `vendor/`, `.git/`, `tmp/`, `docs/` NOT present; `api/`, `gui/`, `config.inc.php` present.
+
+### Result: 5/5 PASS — Issue #714 fixed (2026-08-25)
+
+---
+
+
+## Suite 529 — Regression — Issue #529: Undefined config option `testCaseStatusDisplayHintOnTestDesign` warning on every tcView render
+
+**Precondition:** Fresh DB import, TestProject + TestSuite + TestCase (id=3) created, admin/admin logged in.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Pre-fix repro | Query events after tcView render | Event with `description` containing `testCaseStatusDisplayHintOnTestDesign` at level 2 (WARNING) | PASS (event #13 confirmed pre-fix) |
+| 2 | Post-fix: config option defined | After fix: clear events, render tcView (`archiveData.php?edit=testcase&id=3&show_mode=show&tproject_id=1`), query `events WHERE description LIKE '%testCaseStatusDisplayHintOnTestDesign%'` | 0 rows | PASS |
+| 3 | Post-fix: tcView still renders | After fix: tcView loads without crash | HTTP 200, page renders correctly | PASS |
+| 4 | Post-fix: no new warning types | After fix: query all events from tcView render | Same event categories as before (fixture-data warnings only), no new WARNING types | PASS |
+| 5 | Post-fix: config_get resolves | PHP: `config_get('testCaseStatusDisplayHintOnTestDesign')` returns empty array | Returns `array()`, no WARNING logged | PASS |
+
+**Result: 5/5 PASS** (2026-08-25, curl + mysql against http://localhost:8082)
+
+
+## Regression — Issue #678: sysinfo.php fatal 'Cannot redeclare checkPhpExtensions()' — screen 500s (collides case-insensitively with configCheck.php)
+
+**Environment:** repo root @ fix/issue-678, PHP 8.3.33, MariaDB 127.0.0.1:3306.
+**Root cause:** `sysinfo.php` defines `checkPHPVersion()` and `checkPHPExtensions()` which collide case-insensitively with `configCheck.php:858` and `configCheck.php:608` respectively (PHP function names are case-insensitive). The include chain `sysinfo.php:26` → `config.inc.php` → `configCheck.php` triggers a Fatal error before any output.
+**Fix:** Renamed to `sysinfo_checkPHPVersion()` and `sysinfo_checkPHPExtensions()` in `install/util/sysinfo.php`.
+
+| # | Test Case | Steps | Expected Result | Actual Result |
+|---|-----------|-------|-----------------|---------------|
+| 1 | HTTP status code | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/install/util/sysinfo.php` | 200 | PASS |
+| 2 | PHP syntax gate | `php -l install/util/sysinfo.php` | No syntax errors | PASS |
+| 3 | All sections render | `curl -s http://localhost:8082/install/util/sysinfo.php \| grep -o '<h2>[^<]*</h2>'` | All 7 sections present (PHP Information, PHP Extensions, Memory & Execution Limits, Database Connection, Server Environment, File Permissions, footer) | PASS |
+| 4 | PHP Information section shows version | Check "PHP Information" section contains version row | Version table row present with "8.3.33" or similar | PASS |
+| 5 | PHP Extensions section lists extensions | Check "PHP Extensions" section lists at least mysqli, gd, mbstring | Extension table rows present | PASS |
+| 6 | Memory & Execution Limits section | Check limits section has memory_limit, max_execution_time rows | Limit rows present with values | PASS |
+| 7 | Server Environment section | Check server info section has OS, Server Software rows | Environment rows present | PASS |
+| 8 | File Permissions section | Check file permissions table has config.inc.php, gui/templates, lib, install rows | Permission rows present | PASS |
+| 9 | No new PHP errors | `php -l install/util/sysinfo.php` and check no FATAL in output | No errors | PASS |
+| 10 | configCheck.php functions still work | Verify `checkPhpExtensions()` and `checkPhpVersion()` still defined in configCheck.php | Both functions present at expected lines | PASS |
+
+**Result: Regression Suite #678 — 10/10 PASS**
+
+
+## Suite 618 — Modernized General Test Plan Metrics screen (generalMetrics.html + api/reports metrics_general)
+
+**Screen**: `gui/templates/results/generalMetrics.html` — Reports → "General Test Plan Metrics"
+(replaces legacy `lib/results/resultsGeneral.php` HTML view; mail/XLS generation stays on the
+legacy controller endpoints). BFF: `api/reports/index.php?action=metrics_general` reusing the very
+same `tlTestPlanMetrics` render methods as legacy. Right gate: `testplan_metrics` (403 otherwise).
+
+**Precondition**: fixtures via SQL — project 6001 MetricsProj (`testPriorityEnabled=1`),
+plan 6100 MP Plan, platforms P1/P2, builds B1/B2, suites SuiteAlpha/SuiteBeta, 12 TCs ×
+2 platforms = 24 links, 17 executions spread p/f/b/n across builds+platforms, keywords
+smoke(2)/regression(3), milestone Sprint M1 (goals 40/50/60), tester assignments for
+build sections; empty plan 6102 Empty Plan; users noinv(guest), norights(<no rights>).
+Session: admin/admin via browser; curl cookie jars for API paths.
+
+**Execution matrix (live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 618.T1 | BFF happy path admin | status ok, hasData true, all section payloads present, platform_set natsorted | ok; suites/keywords/platform/priorities/overall_build_status/build_by_platform/milestones all present | PASS |
+| 618.T2 | Screen render via direct URL | header + ctx names; 7 sections: by Platform / Overall Build Status / Build per Platform / Top Level Suites / Priority / Keyword / Milestones(prio variant) | all 7 rendered with correct rows (P1 12=3n+6p+2f+1b; B1 8; Alpha P1 7 …) | PASS |
+| 618.T3 | Numbers parity vs legacy HTML view | same totals/statuses as resultsGeneral.php?format=0 | spot-checked: platform/suite/build figures identical (B1→8, B2→4) | PASS |
+| 618.T4 | Milestones priority variant | High/Med/Low columns with result/goal pairs + overall; medium_incomplete flagged red | 80.0% (8/10)/60%, 25.0% (1/4)/50% red, 50.0% (5/10)/40%, 58.3% | PASS |
+| 618.T5 | Priority section gated by project option | renders only when testPriorityEnabled | absent when options NULL (first run), present after enabling | PASS |
+| 618.T6 | Refresh button | reloads metrics without page nav | 7 sections rebuilt | PASS |
+| 618.T7 | Locale switcher → ro | all labels from ro bundle | header "Metrici generale pentru Planul de Testare", 7 sections translated | PASS |
+| 618.T8 | XLS export button (legacy POST) | valid .xls download, correct mime/filename | 200 application/vnd.ms-excel, Composite Document File 10240 bytes | PASS |
+| 618.T9 | Send-by-e-mail button (legacy POST) | HTTP 200 legacy flow preserved | 200, empty body (displayReport mail path) | PASS |
+| 618.T10 | ASIDE integration | Reports menu entry href → generalMetrics.html?tproject_id=&tplan_id=; loads in mainframe | link live, screen loads inside iframe with full context | PASS |
+| 618.T11 | Empty plan state (6102) | hasData false → rgm.noTsuites message, no sections | empty box shown, 0 sections | PASS |
+| 618.T12 | Missing ids | 400 Missing test plan id (tplan_id=0) | 400 + JSON error | PASS |
+| 618.T13 | Rights gate — user without right (norights, <no rights>) | 403 No permission | 403 {"message":"No permission"} | PASS |
+| 618.T14 | Guest user WITH testplan_metrics (noinv) allowed | 200 full report (same right set as legacy grants guest here) | 200 ok | PASS |
+| 618.T15 | i18n completeness | rgm.* keys ×43 in ALL 10 bundles; python3 -m json.tool valid each | en/ro/de/fr/es/it/pt/ru/ja/zh +43 each, all valid | PASS |
+| 618.T16 | Event Viewer delta during testing | no new Error/Warning from modern screen/BFF | only audit logins; found pre-existing legacy bug #670 (fixed separately, see below) | PASS |
+
+**Bug surfaced & fixed during this suite**: E_WARNING `Undefined array key "total_tc"`
+in legacy `inc_results_show_table.tpl` build tables — issue **#670**, fixed in commit
+"fix(legacy): inc_results_show_table honors args_column_for_total…" (Fixes #670);
+post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
+
+**Result: PASS**
+
+### Suite 618 addendum — code review fixes re-verification (commit 81a2957cc)
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 618.R1 | platform-less plan (6103, builds present) | suites/priority/keyword tables render under implicit key 0; no platform notice | 3 sections rendered, SuiteAlpha row correct | PASS |
+| 618.R2 | platform-less plan without builds | hasData=false → empty state (legacy #634 parity) | empty box shown | PASS |
+| 618.R3 | mail/XLS form actions | resolve to /lib/results/resultsGeneral.php (not /gui/templates/results/lib/...) | absolute URLs correct in DOM | PASS |
+| 618.R4 | Completed [%] final column | appended on every table carrying percentage_completed | header + 75.0% cell for P1 | PASS |
+| 618.R5 | build feedback note per section | exactly ONE note after per-platform block | 1 note in "Results by Build" | PASS |
+| 618.R6 | contextual rights re-check (hasRight w/ tproject+tplan context) | admin still 200; norights still 403 | 200 / 403 confirmed post-change | PASS |
+| 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
+
+**Result: PASS (addendum 7/7)**
+
+---
+
+
+## Suite 481 — Regression — Issue #481: PHP 8.4+ E_DEPRECATED "Implicitly marking parameter $domain as nullable" in vendor/symfony/translation on every page load
+
+**Precondition**: symfony/translation v6.4.0 committed under `vendor/`; the deprecation fires only on **PHP ≥ 8.4**, so verification uses a static scanner (`tmp/repro-issue-481.php`) that applies exactly the engine's condition (parameter type not explicitly nullable + default null) and emits the byte-identical E_DEPRECATED message; local runtime is PHP 8.3.33.
+
+**Repro steps (pre-fix)**:
+1. `php tmp/repro-issue-481.php vendor/symfony/translation/Resources/functions.php`
+   → `Deprecated: Implicitly marking parameter $domain as nullable is deprecated, the explicit nullable type must be used instead in vendor/symfony/translation/Resources/functions.php on line 18` (exit=1).
+2. Structural: `vendor/composer/autoload_files.php:15` includes that functions file on EVERY request → warning printed on every page load for PHP 8.4 users.
+
+**Fix**: explicit nullable (`?string`) at three signatures — `Resources/functions.php:18` (`t()` $domain), `TranslatableMessage.php:26` (`__construct()` $domain), `TranslatableMessage.php:53` (`trans()` $locale; the direct callee chain of t(), caught by code review + rescan) — plus composer-overwrite guard `tools/patch_vendor_php84.php` hooked into `composer.json` post-install-cmd/post-update-cmd (idempotent re-application of all three after any `composer install/update`).
+
+**Execution matrix (post-fix, live server http://localhost:8082, branch fix/issue-481)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 481.R1 | scanner on the 3 patched signatures (functions.php + TranslatableMessage.php) | exit 0, 0 findings | `0 implicitly-nullable parameter(s)` exit=0 | PASS |
+| 481.R2 | `php -l` on patched file | No syntax errors | No syntax errors detected | PASS |
+| 481.R3 | behavioral: require autoload, call `\Symfony\Component\Translation\t('hello %name%', [...], 'messages')` | TranslatableMessage returned, domain kept | `TranslatableMessage: hello %name% / domain=messages` | PASS |
+| 481.R4 | overwrite simulation: sed all 3 signatures back to broken form → run guard → rescan; run guard again | guard re-patches all 3; second run no-op; scanner clean | 3× `patched …` lines, scanner exit=0, then 3× `already patched — nothing to do`; behavioral re-check `t()->trans()` via IdentityTranslator → `hello World` | PASS |
+| 481.R5 | app boots: GET /login.php (HTTP) + browser login admin/admin through index.php shell (navBar / asideMenu / mainframe iframes) | HTTP 200, all frames render, zero "Deprecated" text | HTTP 200 in 0.07s; login OK; navBar+asideMenu+mainframe rendered; no Deprecated strings | PASS |
+| 481.R6 | Event Viewer delta across full matrix | no new Error/Warning rows | events table: only row id=1 log_level=16 (audit login_succeeded); console shows only pre-existing Chrome/jQuery-2.2.4 unload-deprecation issue, unrelated to PHP | PASS |
+
+**Notes**: wider blast radius measured but intentionally out of scope per minimal-fix rule: scanner reports 51 further implicit-nullables across symfony translation(+contracts), e.g. TranslatorBagInterface.php:28 — they surface lazily and would be fixed wholesale by upgrading the dependency (~v6.4.8+). Guard script fail-safe branches verified by code path: missing package → skip exit 0; upstream signature changed → skip exit 0.
+
+**Result: Suite 481 — 6/6 PASS**
+
+
+## 63. Execute Tests screen modernization (Refs #662) (Suite ID: 63)
+
+**Screen:** `gui/templates/execute/execTest.html` · **BFF:** `api/execute/index.php`
+(init / tcList / tcDetails / save) · **Right:** `testplan_execute` (write),
+`exec_ro_access` (read-only variant) · **Date:** 2026-08-24
+
+Fixtures: project `ExecTest Project` (id1, prefix ETP), plan `Exec Plan` (id2,
+public), suite `Alpha Suite`, TC-Alpha ETP-1 v1 (2 steps), TC-Beta ETP-2 v1,
+build B1 id1 active+open, build B2-closed id2 inactive-open, platform Linux
+linked to plan. Users: admin (admin role), rotester (role `RO Exec Viewer`
+with only `exec_ro_access`).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 63.1 | BFF init context | GET `?action=init&tplan_id=2` with admin session | status ok; tproject/tplan names, builds w/ executable flag, default_build_id=1, platforms=[Linux], grants.can_execute=1 | PASS |
+| 63.2 | tcList latest versions + prior status | GET `?action=tcList&tplan_id=2&build_id=1&platform_id=1` | 2 items, full external ids ETP-1/ETP-2, suite path resolved, last_execution null before save | PASS |
+| 63.3 | tcDetails steps + summary | GET `?action=tcDetails&...tcase_id=4&tcversion_id=5` | version block (summary/preconditions/importance/external id), 2 ordered steps with actions+expected | PASS |
+| 63.4 | Save execution incl. step results | POST save {status:'p', notes, steps:{6:p+note,7:n}} | execution row written via write_execution (executions + execution_tcsteps); not_run step NOT stored | PASS |
+| 63.5 | Screen boot + context | open execTest.html?tproject_id=1&tplan_id=2 logged as admin | header shows plan/project, toolbar filled, list renders 2 rows w/ statuses, no console errors | PASS |
+| 63.6 | Case selection → form | click TC-Beta row | form shows meta (ETP-2/v1/importance), summary, preconditions, status buttons from config vocabulary (Not Run default), notes, step table w/ per-step result+notes, Save/Reset | PASS |
+| 63.7 | Full UI save flow | select Failed + step Passed w/ note + notes → Save | toast "Execution saved.", list auto-refresh shows Failed badge + new timestamp; DB rows correct | PASS |
+| 63.8 | Status filter | Result = Never executed → only unexecuted rows; clear → all | filtering correct incl. empty-state message | PASS |
+| 63.9 | Text search | type "beta" | only ETP-2 listed; clearing restores both rows | PASS |
+| 63.10 | Not-run guard | set status Not Run → Save | info toast "not recorded", no new executions row (count unchanged) — legacy parity | PASS |
+| 63.11 | Closed-build guard | pick B2-closed ("(closed)" suffix) → save attempt | error toast "Invalid or non-executable build for this plan"; nothing written | PASS |
+| 63.12 | Read-only path | login rotester (only exec_ro_access) → same URL | RO banner shown, inputs+Save disabled; direct API POST save returns 403 | PASS |
+| 63.13 | i18n switch | switch locale to Română | header "Execută teste", closed-build label "(închis)" from exe.* keys | PASS |
+| 63.14 | Forged step-ID rejection (review fix) | POST save with steps {9999:f, 6:b} | only step 6 written; foreign id silently dropped; no DB error page | PASS |
+| 63.15 | Prior step-results restore (review fix) | reopen a case that has prior execution w/ step results + notes | form prefills prior step status/notes and prior execution notes; Reset clears them | PASS |
+| 63.16 | Event Viewer after testing | events table delta during session | NO new Error/Warning entries after fixes 662-a/662-b/review round | PASS |
+
+**Result: Suite 63 — 16/16 PASS**
+
+**Bugs found & fixed during this suite**
+- #662-a: init read vestigial `$tprojInfo['option_platforms']` column →
+  E_WARNING in Event Viewer on every load. Fixed by reading the serialized
+  options blob (`platformsEnabled`) defensively.
+- (#621 surfaced again): every step-level save emitted
+  `file_upload_step_exec_ok/ko is not localized for en_GB`. Added
+  `locale/en_GB/custom_strings.txt` defining both keys — then extended to all
+  server locales missing them after code review.
+- Review-round regression caught in verification: step-ID ownership query
+  initially used nonexistent `tcsteps.parent_id`; corrected to join
+  `nodes_hierarchy` (DB Access Error page otherwise).
+
+**Known scope decisions (v1)**: attachments-at-execution and bug linking are
+not part of the first cut of the execution form; execution custom fields render
+in Execution History but not yet in the form. Tracked as follow-up work on
+issue #662.
+
+
+## Suite 429 — Regression — Issue #429: login page fatal `property_exists(): Argument #1 ($object_or_class) must be of type object|string, null given` (inc_head.tpl)
+
+**Refs:** #429 · branch `fix/issue-429` · fix landed pre-verification in commit `01b11e300`
+**Files under test:** `gui/templates/dashio/include/inc_head.tpl` (lines 58, 62 — `isset($gui) &&` guards)
+**Precondition:** fresh DB import; PHP 8.3.33; app at http://localhost:8082.
+This is a VERIFICATION suite: the fix was already on the default branch but the issue was never
+verified/closed. Suite proves both the failure mechanism and that the landed guard eliminates it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Mechanism repro on this PHP build (pre-fix code shape) | `php -r 'property_exists(null,"x");'` wrapped in try/catch | TypeError with byte-identical message to issue report | PASS |
+| 2 | Smarty harness — unguarded pattern (pre-fix inc_head.tpl:66) | render tpl `{if property_exists($gui,"tproject_id")}…{/if}` with no `$gui` assigned via repo's vendor/smarty | FATAL TypeError property_exists … null given | PASS |
+| 3 | Smarty harness — guarded pattern (post-fix inc_head.tpl:58/62) | render tpl `{if isset($gui) && property_exists($gui,"tproject_id")}…{/if}` with no `$gui` | renders OK, no error | PASS |
+| 4 | Landed fix present on default branch | `git show 01b11e300 -- gui/templates/dashio/include/inc_head.tpl`; grep current file | `isset($gui) &&` present at lines 58 and 62 | PASS |
+| 5 | Login GET clean post-fix | curl `/login.php` | HTTP 200, complete form HTML, 0 matches for fatal/TypeError/Uncaught | PASS |
+| 6 | Login POST flow (browser) | navigate /login.php, fill admin/admin, click Log in | redirect to index.php main frame; navBar + asideMenu + mainframe all load | PASS |
+| 7 | inc_head-consuming screen still renders with real gui object | open projectEdit.php?doAction=create post-login | "Create a new project" page fully rendered | PASS |
+| 8 | Session-expired render path | GET `/login.php?note=expired` | HTTP 200, clean page, 0 fatal strings | PASS |
+| 9 | Logout → login page cycle (browser) | click Logout from navBar | clean login form (`note=logout`) | PASS |
+| 10 | Event Viewer clean for whole matrix | `SELECT id,log_level FROM events ORDER BY id` after all tests | only AUDIT entries (16): login succeeded + user logout; zero Error/Warning rows | PASS |
+
+**Residual risk documented (not a defect):** ~40 further unguarded `property_exists($gui,…)`
+sites across dashio/tl-classic templates are unreachable with null `$gui` — each template also
+dereferences `$gui->…` unconditionally elsewhere and all current controllers assign a gui object
+(see issue #429 root-cause comment for full list).
+
+
+## Suite 643 — Show Newest Test Case Versions screen (showNewestTcVersions.html) modernization
+
+**Refs:** #643 · branch `sebiboga` · commits 9d1da3f7c (BFF), 2d494e1e5 (screen), 104fecdd3 (i18n+link switch)
+**Files under test:** `api/plans/index.php` (GET /newest-versions), `gui/templates/plans/showNewestTcVersions.html`, `lib/functions/common.php` (link switch)
+**Precondition:** fresh DB; admin/admin session at http://localhost:8082.
+Fixtures: project id=1 "NTCV Demo Project" (prefix NTCV); plan id=2 "Plan Alpha"; plan id=19 "Plan Beta" (empty);
+MD-imported suite "Login Suite" with TC-1.1 Valid login (tc_id=4, v1 tcv=5, fixture-added v2 tcv=18 active),
+TC-1.2 Invalid password (id=9), TC-1.3 Logout (id=14) — all linked to Plan Alpha at v1, platform_id=0.
+User `noinv`/`noinv123` with global role guest.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF happy path | GET `/api/plans/index.php/newest-versions?tproject_id=1&tplan_id=2` (admin fetch) | HTTP 200, status ok, state "ok", linked_count 3, one item: tc_id 4, linked version 1, newest version 2, path "Login Suite / ", tcprefix "NTCV-" | PASS |
+| 2 | Screen renders table | open showNewestTcVersions.html?tproject_id=1&tplan_id=2 | header + toolbar + 1 row: history/design icons, path, NTCV-1 + name, ver-tag 1 vs newest-tag 2, Compare button with legacy tcCompareVersions URL (version_left=1&version_right=2) | PASS |
+| 3 | All-current state | unlink tc4 v1 (planaddtc/save remove), reload screen | state box "All linked Test Case Versions are already the newest available!", no PHP warning (legacy count(null) fatal #528 parity) | PASS |
+| 4 | Restore link | re-add {4:{'0':5}}, reload | state back to "ok", row visible again | PASS |
+| 5 | No-linked state | select Plan Beta in dropdown | "There are no Test Cases linked to this Test Plan!", URL syncs tplan_id=19 | PASS |
+| 6 | Pick mode (no tplan_id) | open screen without tplan_id / API tplan_id=0 | state "Please select a test plan.", dropdown lists both accessible plans; API state=pick | PASS |
+| 7 | Invalid contexts | API tplan_id=999 → HTTP 400 BAD_TPLAN; tproject_id=999 → HTTP 400 NO_TPROJECT | both rejected before any data access | PASS |
+| 8 | Permission denied (BFF) | same GET as noinv (guest) in isolated session | HTTP 403 error_code NO_RIGHTS | PASS |
+| 9 | Permission denied (UI) | noinv opens the screen URL | error stateBox "Insufficient rights" with red icon; aside menu does NOT contain the Show Newest Versions link for guest | PASS |
+| 10 | Aside integration | admin shell → Test Plan Management section click "Show Test Cases Newest Versions" | loads showNewestTcVersions.html inside mainframe iframe with correct context params | PASS |
+| 11 | Popup links live | HEAD/fetch compare + design + history targets from the rendered row | tcCompareVersions.php 200, archiveData.php readonly 200, execHistory.html 200 (switched from legacy execHistory.php for consistency with tcView.html) | PASS |
+| 12 | Locale switch | locale switcher → Română | labels become "Afișează cele mai noi versiuni de cazuri de test"/"Versiune legată"/"Compară"; switched back en OK | PASS |
+| 13 | i18n completeness | ntcv.* keys present in all 9 bundles (en ro de fr ru pt es ja zh), python3 -m json.tool each bundle | 9/9 valid JSON, identical key sets | PASS |
+| 14 | NaN hardening | change handler with missing option value | tplanId guarded (isFinite, >=0) — commit included | PASS |
+| 15 | Event Viewer | inspect events fired during test window (log_level >= 2) | NO new errors from this screen; 3 pre-existing L18N warnings found from legacy platforms.inc.tpl include → filed as issue **#644** (bug label) | PASS |
+
+**Result: 15/15 PASS** — screen complete. Independent legacy bug filed: #644.
+
+
+## 43. Modernization — Assign Keywords to Test Cases screen (keywordsAssign) (Suite ID: 50)
+
+**Screen:** `gui/templates/keywords/keywordsAssign.html` + `api/keywords/assign.php`
+(REST routes `/context`, `/suites`, `/tcases`, `/keywords`, POST `/case`, POST `/suite`).
+Mirrors legacy `lib/keywords/keywordsAssign.php`: option-transfer assignment on the
+latest active version; case level = replace semantics (`setKeywords`); suite level =
+add/remove/removeAll over deep subtree or direct children with executed-version skip;
+executed guard driven by `testproject_add_remove_keywords_executed_tcversions`
+/ `testproject_edit_executed_testcases`; right gate `keyword_assignment`.
+
+**Fixtures:** test project `KWA Demo Project` (prefix KWA, id=2); keywords
+alpha/beta/gamma/delta; `Suite A` (id 3) → `Suite B` (id 4, nested); cases
+Case A1 (5, alpha pre-assigned), Case A2 (8), Case B1 (13); test plan
+`KWA Test Plan` (16) + Build 1 + Platform 1; execution row for tcversion 14
+(Case B1 v1) to trigger the executed guard; users `kwauser/kwapass`
+(role "KWA Assigner" = keyword_assignment only) and `norights/norights`
+(role "<no rights>" on project).
+
+| # | Step / verification | Result |
+|---|---------------------|--------|
+| 1 | BFF `/context`: returns tproject_id/name, canAssign (`keyword_assignment`), canEditExecuted (both executed-edit rights OR-ed) — admin true/true, kwauser true/false, norights false/false | PASS |
+| 2 | BFF `/suites` flat dotted-path list; `/tcases?scope=deep` includes nested Case B1 under Suite A, `&scope=direct` returns only direct children | PASS |
+| 3 | BFF `/keywords?tcase_id=`: available = all project kws sorted, assigned = latest active version map, hasBeenExecuted=true for Case B1 after fixture execution | PASS |
+| 4 | Aside link integration: asideMenu emits `/gui/templates/keywords/keywordsAssign.html?tproject_id=2&tplan_id=16` for "Assign Keywords" (common.php switch after workArea loop overrides launcher URL) | PASS |
+| 5 | Case mode: suite select loads cases, first case auto-selected and its assigned keywords render in right box immediately (bug found during testing: auto-select previously left boxes empty — fixed in ad429bae7) | PASS |
+| 6 | Transfer arrows > >> < << move options between boxes with sorted re-render; hint text tracks target count ("N keyword(s) will replace...") | PASS |
+| 7 | Save (case): POST `/case` replaces full set — moved beta+delta right, Save → DB `testcase_keywords` rows match exactly; toast "Keywords updated"; boxes re-rendered from server state | PASS |
+| 8 | Remove via move-left + Save: gamma moved left then Save → row deleted from DB (replace semantics parity with legacy `setKeywords`) | PASS |
+| 9 | Suite mode Add: Suite B deep + delta staged → "Keywords added to 1 test case(s)", DB row created for Case B1 | PASS |
+| 10 | Suite mode Remove All: Suite A deep → "All keywords removed from 3 test case(s)" (deep scope correctly includes nested B1); table empty afterwards | PASS |
+| 11 | Suite mode Remove selected: whole right box is the removal payload (legacy opt-transfer semantics — selection inside the box is irrelevant); gamma+delta removed from Case B1 as staged; hint box documents this behavior | PASS |
+| 12 | Scope radio reflected in subtitle ("Test Suite :: ...Suite B (direct)" vs "(deep)") | PASS |
+| 13 | Executed-block path (kwauser): Case B1 shows "executed" badge, blocked note rendered, Save disabled; admin (with edit-executed rights) sees no block — matches legacy canAddRemoveKWFromExecuted | PASS |
+| 14 | No-rights path (norights): note "You do not have the right..." shown; pickers, transfer boxes and all action buttons hidden | PASS |
+| 15 | i18n EN runtime: header/subtitle/hints/toasts resolved from en.json `kwa.*` (26 keys); keys present in all 10 bundles after restore (concurrent bot rewrite clobbered them once — re-applied in 29991d3c6); `python3 -m json.tool` valid on all bundles | PASS |
+| 16 | Known race note for testers: post-operation both boxes reset (modernized convenience); staging a set then clicking another action before re-staging yields "Select at least one keyword first" — stale-note cosmetic issue fixed in 620bd5269 | PASS |
+
+**Actual result:** 18/18 PASS after 3 fixes applied during testing (public-link handler;
+tproject_id param honoring; null guards #559/#561). Issues filed: #559 (fixed here),
+#561 (fixed here).
+
+**Files changed:** `api/metrics/index.php`,
+`gui/templates/results/metricsDashboard.html`,
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+21 `md.*`),
+`lib/functions/common.php` (aside link switch),
+`lib/functions/tlTestPlanMetrics.class.php` (issues #559/#561).
+
+
+## 43. Modernization — Assign Requirements to Test Cases screen (assignReqs) (Suite ID: 50)
+
+**Screen:** `gui/templates/requirements/assignReqs.html` · **BFF:** `api/requirements/index.php`
+(shared requirements router; routes `/context`, `/assign-reqspecs`, `/assign-testcases`,
+`/assign-testsuites`, `/assign-tcase-info`, `/assign-reqs`, `/unassign-reqs`,
+`/assign-suite-tcases`, `/assign-bulk`)
+**Fixtures:** project ReqProj (id 6), suites Suite A / A1 / B, TCs Alpha..Epsilon (RP-1..5),
+req specs RS-1 (REQ-1..3), RS-2 (REQ-9).
+
+| # | Step / verification | Result |
+|---|---------------------|--------|
+| 1 | BFF auth: unauthenticated `GET /context?tproject_id=6` → 401 JSON `{status:error}` | PASS |
+| 2 | BFF rights: admin `GET /context` → `rights.req_tcase_link_management=true`; shared router gate accepts `mgt_view_req` OR `req_tcase_link_management` so legacy overview screens keep working | PASS |
+| 3 | BFF data: `/assign-testcases?tproject_id=6` returns 5 TCs with dotted suite paths and full external ids (RP-1..RP-5), sorted by path+name | PASS |
+| 4 | BFF data: `/assign-reqspecs` mirrors legacy `genComboReqSpec()` — [RS-1] Spec One, [RS-2] Spec Two | PASS |
+| 5 | TC mode render: picker lists all TCs; clicking Alpha loads title + "v. 1" badge via `/assign-tcase-info`; spec combo defaults to first spec | PASS |
+| 6 | Free list: `/assign-reqs?req_spec_id=31&tcase_id=10` returns all(3)/assigned(0)/unassigned(3) exactly like legacy processTestCase (`get_requirements` + `getReqsOnSpecForLatestTCV` + `array_diff_byId`) | PASS |
+| 7 | Assign: select REQ-1+REQ-2 → `>> Assign` → toast "2 requirement(s) assigned."; lists refresh; DB shows 2 rows in req_coverage (tcversion_id = latest TCV 11) | PASS |
+| 8 | Unassign: select REQ-2 row → `<< Unassign` by link id → toast "1 link(s) removed."; req_coverage row deleted; REQ-2 back in free list | PASS |
+| 9 | No selection guards: Assign/Unassign with empty selection → localized warning toast, no request fired | PASS |
+| 10 | Spec switch: choose RS-2 → panel reloads, only REQ-9 listed (per-spec isolation like legacy) | PASS |
+| 11 | Executed badge: after inserting an execution for tcversion 11 the red "executed" badge + warning box appear on Alpha (legacy tcaseHasBeenExecuted parity) | PASS |
+| 12 | Search filter: typing "delta" in picker search narrows list to Delta [RP-4]; clearing restores 5 items | PASS |
+| 13 | Bulk mode: tab switch loads suites picker; selecting Suite A → `/assign-suite-tcases` reports qty=3 (deep: Alpha, Beta, Gamma incl. sub-suite A1 empty), warning "All 3 test cases under 'Suite A'…", targets preview filled, button enabled | PASS |
+| 14 | Bulk assign: REQ-1+REQ-3 + confirm dialog → toast "5 link(s) created."; DB shows links for Alpha/Beta/Gamma × both reqs; counter counts INSERTS only (Alpha+REQ-1 already linked → 5 not 6), same semantics as legacy `bulkAssignLatestREQVTCV` | PASS |
+| 15 | Empty suite: Suite A1 selected → "contains no test cases" info, bulk button disabled | PASS |
+| 16 | i18n EN: all labels resolved from en.json `reqAssign.*` (37 keys); no hardcoded strings in HTML | PASS |
+| 17 | i18n DE runtime: `?locale=de` renders "Anforderungen Testfällen zuweisen", "Testsuite (Sammelzuweisung)", ">> Zuweisen" | PASS |
+| 18 | Locale bundles: `reqAssign.*` appended to ALL 10 bundles (en,de,es,fr,it,ja,pt,ro,ru,zh); `python3 -m json.tool` valid for each | PASS |
+| 19 | Permission path (API level): route right check `arNeedManageRight` enforces per-project `req_tcase_link_management`; invalid/foreign ids → 400/404 before any write | PASS |
+| 20 | Aside integration: `common.php` `$actions->assignReq` now points to `/gui/templates/requirements/assignReqs.html?{ctx}` (aside.tpl untouched, uses same URI) | PASS |
+| 21 | Bugs found while testing (all fixed in-run): shared-router unconditional `http_response_code(404)` poisoned every success response; `tcversions.open` column does not exist (is_open); `req_versions.req_id` column does not exist (derive via nodes_hierarchy parent); `req_coverage.testcase_id` misread as `tcase_id`; latent fatal `needTprojectId()` undefined in shared router (guarded with function_exists) | PASS (after fixes) |
+
+**Actual result:** 21/21 PASS after 5 fixes applied during testing.
+
+**Files changed:** `api/requirements/index.php`, `gui/templates/requirements/assignReqs.html`,
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+37 `reqAssign.*`),
+`lib/functions/common.php` (aside link switch).
