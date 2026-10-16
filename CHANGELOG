@@ -17,6 +17,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #1843: `locale/fr_FR/strings.txt` was missing 90 of the 2796 `$TLS_*` keys defined in
+  `locale/en_GB/strings.txt`, so the legacy `lang_get()` layer silently fell back to English and wrote
+  a `LOCALIZATION` Warning per key per session into `events`. 29 of them render in the ASIDE **Test
+  Strategy** section (`title_test_strategy` + the 28 `href_test_strategy_*` chapter labels — the label
+  showed `Test Strategy` inside an otherwise French menu); the other 61 (print-document errors, Alien
+  References fields, `severityConfig_saved`, tcView relations tooltip, plan activate/deactivate, custom-field
+  location labels, …) fired whenever their code path ran. All 90 French translations added in one tagged
+  block (fr 2716 → 2806 keys, `en − fr` = 0); `php -l` clean, the `Test Strategy` ASIDE entry now reads
+  `Stratégie de test` and a fresh `fr_FR` session writes zero new LOCALIZATION rows. Refs #1843.
+
 - [SCREEN] - #1062: the **Automation Test Reports** screen
   (`gui/templates/results/automationReports.html`, BFF `api/automationreports/index.php`) is
   added under the Reports menu. Net-new for 2.0.1: 1.9.20 shipped no automation reporting (automated
