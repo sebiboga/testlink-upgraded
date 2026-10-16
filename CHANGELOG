@@ -17,6 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1849: **`tmp/TLU_Test_Cases.md` — the shared regression-suite file
+  silently lost whole suites to whole-file overwrites and the mandated gate could not see it.**
+  Commit `136fc4426` ("append suite for #1089") was in fact a `+12/-6332` replacement (88 suite
+  headings → 1) and `a2f83249f` ("suite 1878 …") a `+27/-2524` one (49 → 1). `ai/verify_test_suites.sh`
+  anchored its baseline to the merge-base with the default branch, so a clobber already inside that
+  merge-base was invisible (measured: `PASS` on a file missing 35 suites). Added **check 3 — history-wide
+  clobber detection**: it locates the newest commit that REPLACED the file (`--numstat`: many deletions,
+  few additions) and requires the candidate to contain its parent's suite headings, printing the
+  `git show <sha>^:…>>` recovery command; it never fails open (unrunnable outside a git clone is a FAIL,
+  not a PASS). Restored the 15 (`136fc4426`-era) and 35 (`a2f83249f`-era) suites still absent from
+  `sebiboga`, append-only (no line removed). Suite 14 cases, gate `8 PASS / 0 FAIL`. Refs #1849.
+
 - [KEY BUGFIX] - #1920: the modern **Add/Remove Test Cases** save
   (`api/plans/index.php` `POST /planaddtc/save` with `send_mail:true`) logged an
   `E_WARNING require_once(.../api/plans/../lib/plan/planAddTC.php): Failed to open stream` into the
