@@ -290,6 +290,20 @@ $tlCfg->reports_list['automation_reports'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1068 - Defect Intelligence dashboard (enhancement screen, no legacy
+// lib/results counterpart). Backed by the api/defectintelligence BFF, which
+// turns the plan's execution_bugs links into analytics: unaddressed failures
+// (evidence gate), defect density per top-level suite, recurring failures
+// across builds and distinct defect references, enforcing testplan_metrics on
+// the owning project. Available for every plan ('all').
+$tlCfg->reports_list['defect_intelligence'] = array( 
+	'title' => 'link_report_defect_intelligence',
+	'url' => 'gui/templates/results/defectIntelligence.html',
+	'enabled' => 'all',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',

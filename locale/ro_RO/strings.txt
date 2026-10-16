@@ -185,6 +185,7 @@ $TLS_title_execution_notes = "Note de execuție"; // "Execution notes" (Refs #18
 $TLS_reqmgrsystem_interface_not_implemented = "Exemplu de configurare indisponibil: interfața '%s' nu este implementată";
 $TLS_reqmgrsystem_invalid_type = 'Tip invalid de sistem de gestionare a cerințelor: %s';
 $TLS_link_report_quality_gates = "Porți de calitate ale versiunii"; // Refs #1067
+$TLS_link_report_defect_intelligence = "Inteligența defectelor"; // Refs #1068
 $TLS_link_report_performance_reports = "Rapoarte de performanță"; // Refs #1063
 $TLS_link_report_automation_reports = "Rapoarte de teste automatizate"; // Refs #1062
 $TLS_title_learn_testing = "Învață testarea"; // Learn Testing hub (Refs #1060)

@@ -2618,6 +2618,13 @@ function getActions(&$gui,$baseURL) {
     // release_quality_gates.
     $actions->qualityGate =
       "/gui/templates/results/qualityGate.html?{$ctx}";
+    // Refs #1068: Defect Intelligence dashboard (failure & defect analytics -
+    // unaddressed failures, defect density per top-level suite, recurring
+    // failures, distinct defect refs). Backed by api/defectintelligence, which
+    // enforces testplan_metrics on the OWNING project. Also reachable from the
+    // Reports ASIDE entry via the reports_list entry defect_intelligence.
+    $actions->defectIntelligence =
+      "/gui/templates/results/defectIntelligence.html?{$ctx}";
     // Refs #1905: Top Level Suites Bar Chart report (legacy
     // lib/results/topLevelSuitesBarChart.php: the last orphan pChart PNG
     // endpoint - charts_data covers overall/platforms/by_keyword but NOT this

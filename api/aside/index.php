@@ -228,6 +228,11 @@ if ($tplan_id > 0) {
                 // automated execution aggregation).
                 $hrefR = '/gui/templates/results/automationReports.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_defect_intelligence') {
+                // Refs #1068: Defect Intelligence dashboard (failure & defect
+                // analytics from execution_bugs links).
+                $hrefR = '/gui/templates/results/defectIntelligence.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .
