@@ -13457,3 +13457,54 @@ heading `## Task — Issue #1134` already present on `sebiboga`. Enforcing only 
 NEWEST replacement is intentional — older ones use the retired `## N. Name (Suite ID: M)`
 scheme and a history-wide union baseline is unsatisfiable (measured 844 historical
 headings, 831 not losses).
+
+## Modernize — Issue #1925: Test Strategy Report (`gui/templates/results/strategyReport.html` + `api/strategyreport/index.php`) — Refs #1061
+
+**Screen.** `gui/templates/results/strategyReport.html` — generated project-specific
+Test Strategy document (10 panels: project context + sections 1–9). **BFF.**
+`api/strategyreport/index.php` (`?action=init&tproject_id=P`, GET/HEAD, session auth,
+right `testplan_metrics` on the owning project). **Fixture.** `tmp/fixtures_1925.php`
+→ project `STRAT1925` (id 9), plan `SR Plan` (id 10), suites 11/12, cases 13/17/21,
+req spec 25, reqs 27/29, member `srtester` (x`leader`).
+
+**Environment.** http://localhost:8082, admin/admin; re-run `php tmp/fixtures_1925.php`
+after each DB import. Admin cookie `/tmp/ck.txt`; no-right user `srnorights/admin`
+(role 3) cookie `/tmp/ck2.txt`.
+
+| # | Case | Command / action | Expected | Observed |
+|---|---|---|---|---|
+| 1925-01 | BFF happy path | `curl -b /tmp/ck.txt ".../api/strategyreport/index.php?action=init&tproject_id=9"` | 200, json code ok | PASS (200, `code:ok`) |
+| 1925-02 | BFF context block | same response `.context` | name STRAT1925, prefix SR, active 1, is_public 1, req_enabled 1, priority_enabled 1, automation_enabled 1 | PASS |
+| 1925-03 | BFF scope block | `.scope` | req_specs 1, requirements 2, test_suites 2, test_cases 3, test_plans 1, builds 1, platforms 1, keywords 1, custom_fields 0, top_level_suites 2 | PASS |
+| 1925-04 | BFF types block | `.types` | manual 1, automated 2, high 1, medium 1, low 1 | PASS |
+| 1925-05 | BFF levels block | `.levels` | 2 rows: SR Functional(2), SR Non-Functional(1) | PASS |
+| 1925-06 | BFF environments block | `.environments` | 1 row: SR Chrome active 1 | PASS |
+| 1925-07 | BFF team block | `.team` | 1 row: srtester, role leader | PASS |
+| 1925-08 | BFF signals block | `.signals` | covered_requirements 1, automation_pct 66.7 | PASS |
+| 1925-09 | BFF anonymous | `curl ".../strategyreport/index.php?action=init&tproject_id=9"` (no cookie) | 401 `not_authenticated` | PASS (401) |
+| 1925-10 | BFF no-right user | `curl -b /tmp/ck2.txt` (role 3) | 403 `no_right` | PASS (403) |
+| 1925-11 | BFF unknown project | `?tproject_id=999999` | 404 `tproject_not_found` | PASS (404) |
+| 1925-12 | BFF missing project | `?action=init` (no tproject_id) | 400 `invalid_request` | PASS (400) |
+| 1925-13 | BFF unknown action | `?action=bogus&tproject_id=9` | 400 `invalid_request` | PASS (400) |
+| 1925-14 | BFF wrong method | `POST` | 405 + `Allow: GET, HEAD` | PASS (405) |
+| 1925-15 | Screen renders all panels | open `strategyReport.html?tproject_id=9&tplan_id=10` | 10 `h3` panels: context + 1..9 | PASS |
+| 1925-16 | Screen draws scope counts | panel 1 | 3 cases / 2 suites / 2 reqs etc. | PASS |
+| 1925-17 | No raw i18n keys | walk `[data-i18n]`, text !== key | 0 raw keys | PASS (0) |
+| 1925-18 | Locale switcher | select `ro` + change | title «Raport de strategie de testare», section 1 translated, `&locale=ro` | PASS |
+| 1925-19 | 404 screen state | open with `?tproject_id=999999` | `tproject_not_found` box, report hidden | PASS |
+| 1925-20 | 400 screen state | open with no `tproject_id` | "no project selected" box, report hidden | PASS |
+| 1925-21 | Reports aside link | `curl -b /tmp/ck.txt ".../api/aside/index.php?action=init&tproject_id=9&tplan_id=10"` | href `…/strategyReport.html?tproject_id=9&tplan_id=10` present | PASS |
+| 1925-22 | Export Markdown | `buildMarkdown()` in page | non-empty doc incl. plan + team | PASS (1693 chars) |
+| 1925-23 | Console clean | `list_console_messages` | no errors | PASS |
+| 1925-24 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 9/9 PASS, 0 missing | PASS |
+
+**Expected.** All 24 cases PASS; the generated document reflects the fixture project
+exactly, every error/auth path returns the documented code, the Reports menu exposes
+the screen, and all labels resolve from the locale bundles.
+
+**Actual.** All 24 cases PASS (`28b34f16e` wiring+i18n, `27a1930e1` missing keys).
+
+**Notes.** `?action` defaults to `init` (lenient default, documented in the BFF
+header) so `?tproject_id=9` alone also returns 200. Bug found & fixed during testing:
+7 keys (`strat.secTooling`/`secTeam`/`trackerIssue`/`trackerCode`/`colUser`/`colName`/
+`colRole`) were missing from all 10 bundles and rendered raw → added in `27a1930e1`.
