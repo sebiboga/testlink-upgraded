@@ -150,6 +150,10 @@ $(function () {
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   buildId = parseInt(p.get('build_id') || '0', 10);
   platformId = parseInt(p.get('platform_id') || '0', 10);
+  var fqParts = [];
+  var fp = ['form_token','testcases','testcases_to_show','filter_tc_id','filter_testcase_name','filter_toplevel_testsuite','filter_keywords','filter_workflow_status','filter_importance','filter_priority','filter_execution_type','filter_assigned_user','filter_custom_fields','filter_platforms','filter_result','filter_keywords_filter_type'];
+  fp.forEach(function(k){ if (p.has(k)) { var v = p.get(k); if (v !== null) { fqParts.push(k + '=' + encodeURIComponent(v)); } } });
+  window._urgFilterQs = fqParts.length ? '&' + fqParts.join('&') : '';
 
   TLi18n.load(function () {
     TLi18n.apply();
@@ -209,6 +213,9 @@ function syncUrl() {
   url.searchParams.set('tplan_id', String(tplanId || ''));
   url.searchParams.set('build_id', String(buildId || ''));
   url.searchParams.set('platform_id', String(platformId || ''));
+  var p2 = new URLSearchParams(window.location.search);
+  var fp2 = ['form_token','testcases','testcases_to_show','filter_tc_id','filter_testcase_name','filter_toplevel_testsuite','filter_keywords','filter_workflow_status','filter_importance','filter_priority','filter_execution_type','filter_assigned_user','filter_custom_fields','filter_platforms','filter_result','filter_keywords_filter_type'];
+  fp2.forEach(function(k){ if (p2.has(k)) { var v = p2.get(k); if (v !== null) { url.searchParams.set(k, v); } } });
   window.history.replaceState({}, '', url);
 }
 
@@ -233,8 +240,9 @@ function load() {
     }).fail(function () { apiFail.apply(null, arguments); });
     return;
   }
+  var fq = window._urgFilterQs || '';
   $.get(API + '/urgency?tproject_id=' + tprojectId + '&tplan_id=' + tplanId
-        + '&build_id=' + buildId + '&platform_id=' + platformId)
+        + '&build_id=' + buildId + '&platform_id=' + platformId + fq)
     .done(render)
     .fail(function (xhr) { apiFail(xhr); });
 }
@@ -326,9 +334,10 @@ function selectSuite(suiteId) {
   var $name = $('#suiteList li[data-id=' + suiteId + '] span:first');
   $('#selSuiteName').text($name.length ? $name.text() : '-');
 
+  var fq = window._urgFilterQs || '';
   $.get(API + '/urgency/suite?tplan_id=' + tplanId + '&tproject_id=' + tprojectId
         + '&tsuite_id=' + suiteId + '&build_id=' + buildId
-        + '&platform_id=' + platformId)
+        + '&platform_id=' + platformId + fq)
     .done(function (r) {
       if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
       currentItems = r.items || [];
