@@ -42370,3 +42370,52 @@ The gate under test is `bash ai/verify_test_suites.sh` (repo root). `EPOCH DEADL
     `TLU_REQUIRE_SUITE="Issue #1851" bash ai/verify_test_suites.sh`. *Expected:* EXIT=0 with
     `own suite heading present (Issue #1851)`. *Actual:* recorded in the checkpoint-3 comment
     on the issue. **PASS.**
+
+## Regression — Issue #1926: testUrgency bare deep-link leaves tplanId=0, suite table empty
+
+**Precondition:** fixture `tmp/fixtures_1926.sql` imported
+(`mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1926.sql`) — project
+`URG Project` (plans `URG Plan A` default / `URG Plan B`; suite A with 2 linked TCs, suite B
+with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
+
+1. **Bare project deep-link (pre-fix symptom).** *Steps:*
+   open `gui/templates/plans/testUrgency.html?tproject_id=1` (no `tplan_id`).
+   *Pre-fix actual:* `window.tplanId === 0` while `#tplanSel.value === "<planA>"`; suite list
+   populated but `#tcRows` empty, footer blank, console `400 (Bad Request)` on
+   `GET /urgency/suite?tplan_id=0…` → `{"error_code":"NO_TPLAN"}`.
+   *Expected post-fix:* `window.tplanId` equals the server-normalized plan id, first suite
+   auto-selected, rows rendered, URL gains `tplan_id=<plan>`, **no** 400.
+   *Actual post-fix:* `window.tplanId === 2`, suites `["4","5"]`, `#selSuiteName === "URG Suite A"`,
+   `#tcRows` = **2 rows**, footer `2 test cases linked`, URL
+   `…?tproject_id=1&tplan_id=2&build_id=12&platform_id=`, `/urgency/suite?tplan_id=2…` → **200**,
+   0 console messages. **PASS.**
+2. **No params at all.** *Steps:* open `…/testUrgency.html` with an empty query string.
+   *Expected:* first accessible project recovered via `/api/projects`, then normal load.
+   *Actual:* project 1 loaded, screen usable. **PASS.**
+3. **Full deep-link regression.** *Steps:* open `…?tproject_id=1&tplan_id=3` (Plan B, no linked TCs).
+   *Expected:* plan B selected, suites list empty with the "no suites" placeholder.
+   *Actual:* `tplanId === 3`, `URG Plan B`, 0 suite items, empty-state message shown. **PASS.**
+4. **Plan switch via the selector.** *Steps:* load bare link, change `#tplanSel` to `URG Plan B`.
+   *Expected:* `tplanId` follows the select, URL updated, no 400.
+   *Actual:* `tplanId === 3`, URL `…&tplan_id=3&…`. **PASS.**
+5. **Suite click.** *Steps:* from Plan A reload, click `URG Suite B` in the suite pane.
+   *Expected:* the right pane shows suite B's 1 linked test case.
+   *Actual:* `#selSuiteName === "URG Suite B"`, `#tcRows` = 1 row (`URG-3: URG Case 3`),
+   footer `1 test cases linked`. **PASS.**
+6. **Build selector.** *Steps:* bare link load, inspect `#buildSel`.
+   *Expected:* build `URG Build 1` present and selected.
+   *Actual:* value `URG Build 1`. **PASS.**
+7. **Save test-case urgencies.** *Steps:* in suite B set case 3 urgency radio to **High**, click
+   `Set Urgency for Test Cases`.
+   *Expected:* POST `/urgency/tcases` → 200, toast `Urgency was updated`, DB row updated.
+   *Actual:* toast `Urgency was updated`; `select testplan_tcversions where id=15` shows
+   `urgency` **1 → 3**; row priority recalculated to `Medium (3)`. **PASS.**
+8. **Invalid `tplan_id`.** *Steps:* open `…?tproject_id=1&tplan_id=9999`.
+   *Expected:* server rejects the foreign plan and falls back to a default, screen usable.
+   *Actual:* `tplanId === 2`, `URG Plan A` selected, 2 rows, URL corrected to `tplan_id=2`. **PASS.**
+9. **Event Viewer clean (rule 12).** *Steps:* `SELECT * FROM events ORDER BY id DESC`.
+   *Actual:* only the login audit row (`log_level=16`); **no** Error/Warning entries. **PASS.**
+10. **MANDATORY GATE for this suite.** *Steps:*
+    `TLU_REQUIRE_SUITE="Issue #1926" bash ai/verify_test_suites.sh`.
+    *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the
+    final checkpoint comment on issue #1926. **PASS.**
