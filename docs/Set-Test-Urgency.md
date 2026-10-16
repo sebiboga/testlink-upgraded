@@ -73,10 +73,30 @@ All routes under `/api/plans/index.php`, session auth + CSRF guard:
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/urgency?tproject_id=&tplan_id=` | GET | context: accessible plans selector, active plan, suites w/ TC counts + urgency summary |
-| `/urgency/suite?tplan_id=&tsuite_id=[&platform_id=]` | GET | test cases under one suite: ids, names, importance, urgency, computed priority, assigned testers |
+| `/urgency?tproject_id=&tplan_id=[&build_id=]` | GET | context: accessible plans selector, active plan, suites w/ TC counts + urgency summary, plan builds + default/current build |
+| `/urgency/suite?tplan_id=&tsuite_id=[&platform_id=][&build_id=]` | GET | test cases under one suite: ids, names, importance, urgency, computed priority, assigned testers (for the selected build) |
 | `/urgency/suite` | POST | `{tplan_id, tsuite_id, urgency}` → `setSuiteUrgency()` |
 | `/urgency/tcases` | POST | `{tplan_id, items:{tcversion_id:urgency}}` → `setTestUrgency()` loop |
+
+## 4b. Build Selector (Assigned To column) — Issue #1140
+
+The Assigned To column is resolved from `user_assignments` for a particular
+build. Legacy (`lib/plan/planUrgency.php:114` +
+`tlTestCaseFilterControl::init_setting_build`) used the navigator's
+`setting_build` session value; the port initially hard-coded the
+alphabetically-first active build. The toolbar now has a **Build** selector
+(`#buildSel`):
+
+* all builds of the plan are listed (inactive/closed included, closed ones
+  labelled `(closed)` — legacy `plan_mode` keeps them in the list);
+* choosing a build re-fetches the current suite with `&build_id=` and the
+  column reflects that build's assignments; the choice is persisted in the URL
+  (`build_id`);
+* server default order: navigator-stored `<tplan_id>_stored_setting_build`
+  session value → alphabetically-first active+open build (pre-#1140
+  behaviour) → first build; an invalid `build_id` falls back to the default;
+* a plan with no builds shows the `-` placeholder and an empty Assigned To
+  column.
 
 ## 5. i18n Keys
 
@@ -90,9 +110,9 @@ text, empty states.
 ## 6. Legacy Divergences
 
 * The ExtJS execution-tree navigation is replaced by the suites pane; the
-  tree-session build/platform filters are gone. Tester assignments are now
-  resolved against the latest **active** build of the plan (legacy resolved
-  them against the build chosen in the tree session).
+  tree-session build/platform filters are gone. A dedicated **Build** selector
+  (Issue #1140) now drives the Assigned To column with the same `setting_build`
+  semantics (legacy resolved it against the build chosen in the tree session).
 * Exec-history / design popups became links to the modern standalone screens.
 * Per-platform rows are merged into one row per test case version (the write
   path always updated all platform rows of a tcversion anyway).

@@ -76,6 +76,8 @@ table.tcs tr:hover td { background: #f7fdfd; }
   <span class="ctx"><span data-i18n="turg.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span class="ctx"><label for="tplanSel" data-i18n="turg.testPlan">Test Plan</label>:</span>
   <select id="tplanSel"></select>
+  <span class="ctx"><label for="buildSel" data-i18n="turg.build">Build</label>:</span>
+  <select id="buildSel" data-i18n-title="turg.buildTitle"></select>
   <span style="flex:1"></span>
   <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
 </div>
@@ -132,6 +134,8 @@ table.tcs tr:hover td { background: #f7fdfd; }
 var API = '/api/plans/index.php';
 var tplanId = 0;
 var tprojectId = 0;
+var buildId = 0;
+var builds = [];
 var selSuiteId = 0;
 var currentItems = [];
 var busy = false;
@@ -140,6 +144,7 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  buildId = parseInt(p.get('build_id') || '0', 10);
 
   TLi18n.load(function () {
     TLi18n.apply();
@@ -149,8 +154,15 @@ $(function () {
 
   $('#tplanSel').on('change', function () {
     tplanId = parseInt($(this).val() || '0', 10);
+    buildId = 0;
     syncUrl();
     load();
+  });
+  $('#buildSel').on('change', function () {
+    buildId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    if (selSuiteId > 0) { selectSuite(selSuiteId); }
+    else { load(); }
   });
   $('#btnReload').on('click', load);
 
@@ -183,6 +195,7 @@ function syncUrl() {
   var url = new URL(window.location.href);
   url.searchParams.set('tproject_id', String(tprojectId || ''));
   url.searchParams.set('tplan_id', String(tplanId || ''));
+  url.searchParams.set('build_id', String(buildId || ''));
   window.history.replaceState({}, '', url);
 }
 
@@ -207,7 +220,8 @@ function load() {
     }).fail(function () { apiFail.apply(null, arguments); });
     return;
   }
-  $.get(API + '/urgency?tproject_id=' + tprojectId + '&tplan_id=' + tplanId)
+  $.get(API + '/urgency?tproject_id=' + tprojectId + '&tplan_id=' + tplanId
+        + '&build_id=' + buildId)
     .done(render)
     .fail(function (xhr) { apiFail(xhr); });
 }
@@ -223,6 +237,16 @@ function render(r) {
   });
   if (r.tplan && r.tplan.id > 0) { $sel.val(String(r.tplan.id)); }
   else { tplanId = parseInt($sel.val() || '0', 10); }
+
+  builds = r.builds || [];
+  buildId = parseInt(r.build_id || 0, 10);
+  var $bs = $('#buildSel').empty();
+  (builds.length ? builds : [{id:0, name:'-'}]).forEach(function (b) {
+    var label = b.name + (b.closed ? ' (' + TLi18n.t('turg.buildClosed') + ')' : '');
+    $bs.append('<option value="' + b.id + '">' + esc(label) + '</option>');
+  });
+  if (builds.length) { $bs.val(String(buildId)); }
+  else { $bs.val('0'); buildId = 0; }
 
   var hasPlan = !!(r.tplan && r.tplan.id > 0);
   $('#noTplan').toggle(!hasPlan);
@@ -279,7 +303,7 @@ function selectSuite(suiteId) {
   $('#selSuiteName').text($name.length ? $name.text() : '-');
 
   $.get(API + '/urgency/suite?tplan_id=' + tplanId + '&tproject_id=' + tprojectId
-        + '&tsuite_id=' + suiteId)
+        + '&tsuite_id=' + suiteId + '&build_id=' + buildId)
     .done(function (r) {
       if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
       currentItems = r.items || [];

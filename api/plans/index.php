@@ -2248,6 +2248,67 @@ function urgencyNeedCtx($body, $tplanMgr) {
     return [$tproject_id, $tplan_id];
 }
 
+/**
+ * Issue #1140: builds offered by the testUrgency "Assigned To" selector and
+ * the build driving the user_assignments join.
+ *
+ * Legacy (lib/plan/planUrgency.php:114 + tlTestCaseFilterControl::init_setting_build)
+ * offered ALL builds of the plan (plan_mode config keeps inactive/closed in,
+ * config.inc.php:1933-1934), honoured a navigator-chosen build from
+ * $_SESSION["<tplan_id>_stored_setting_build"] and fell back to the newest
+ * build id when nothing was stored.
+ *
+ * Returns ['items' => [id, name, closed, active], 'default' => id,
+ *          'current' => id] — current = requested id when it is a build of
+ * this plan, else default. Default order: navigator-stored selection (legacy)
+ * -> previous modern behaviour (alphabetically-first ACTIVE+OPEN build,
+ * api/plans/index.php pre-#1140) -> first build. Build ids are scoped to the
+ * plan's project (issue #503: builds.testproject_id).
+ */
+function urgencyBuilds(&$db, $tplan_id, $requested = 0) {
+    $tplanMgr = new testplan($db);
+    $raw = $tplanMgr->get_builds($tplan_id);
+    $items = [];
+    $ids = [];
+    foreach ((array)$raw as $bid => $binfo) {
+        $bid = intval($bid);
+        if ($bid <= 0) { continue; }
+        $ids[$bid] = $bid;
+        $items[] = [
+            'id' => $bid,
+            'name' => (string)($binfo['name'] ?? ''),
+            'active' => intval($binfo['active'] ?? 0),
+            // get_builds() exposes 'is_open'; closed == !is_open
+            'closed' => intval(empty($binfo['is_open'])),
+        ];
+    }
+
+    // legacy navigator-stored selection (same key tlTestCaseFilterControl writes)
+    $default = 0;
+    $stored = intval($_SESSION[$tplan_id . '_stored_setting_build'] ?? 0);
+    if ($stored > 0 && isset($ids[$stored])) {
+        $default = $stored;
+    }
+    if ($default <= 0) {
+        // pre-#1140 modern behaviour: alphabetically-first active+open build
+        $actOpen = $tplanMgr->get_builds($tplan_id, 1, 1);
+        foreach ((array)$actOpen as $bid => $binfo) {
+            $bid = intval($bid);
+            if ($bid > 0 && isset($ids[$bid])) { $default = $bid; break; }
+        }
+    }
+    if ($default <= 0 && count($ids) > 0) {
+        $default = intval(reset($ids));
+    }
+
+    $current = intval($requested);
+    if ($current <= 0 || !isset($ids[$current])) {
+        $current = $default;
+    }
+
+    return ['items' => $items, 'default' => $default, 'current' => $current];
+}
+
 // GET /urgency?tproject_id=&tplan_id=
 // context for the screen: accessible plans selector + suites of the active
 // plan that have directly-linked test cases (setSuiteUrgency scope), with
@@ -2343,21 +2404,30 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
         $tproject_name = testproject::getName($db, $tproject_id);
     }
 
+    // Issue #1140: build selector for the Assigned-To column.
+    $buildSel = $tplan_id > 0 ?
+        urgencyBuilds($db, $tplan_id, intval($_GET['build_id'] ?? 0))
+        : ['items' => [], 'default' => 0, 'current' => 0];
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
         'tplans' => $tplans,
         'tplan' => $tplanInfo,
         'suites' => $suites,
+        'builds' => $buildSel['items'],
+        'default_build_id' => $buildSel['default'],
+        'build_id' => $buildSel['current'],
         'rights' => ['canManage' => true],
     ]);
 }
 
-// GET /urgency/suite?tplan_id=&tsuite_id=[&platform_id=]
+// GET /urgency/suite?tplan_id=&tsuite_id=[&platform_id=][&build_id=]
 // test cases directly under one suite with their per-plan urgency,
 // importance, computed priority level and tester assignments.
-// Assignments are resolved against the latest ACTIVE build of the plan
-// (legacy resolved them from the execution-tree session build setting).
+// Assignments are resolved against the build chosen by the screen's build
+// selector (Issue #1140; legacy resolved them from the execution-tree
+// session build setting - see urgencyBuilds()).
 if ($method === 'GET' && count($segments) === 2 &&
     $segments[0] === 'urgency' && $segments[1] === 'suite') {
     list($tproject_id, $tplan_id) =
@@ -2376,13 +2446,11 @@ if ($method === 'GET' && count($segments) === 2 &&
     $tplanMgr = new testPlanUrgency($db);
     $platform_id = intval($_GET['platform_id'] ?? 0);
 
-    // latest active build drives the tester-assignment join (build4testers)
-    $build4testers = 0;
-    $bset = $tplanMgr->get_builds($tplan_id, 1, 1);
-    if (!is_null($bset) && count($bset) > 0) {
-        $bk = array_keys($bset);
-        $build4testers = intval($bk[0]);
-    }
+    // Issue #1140: build4testers comes from the screen's build selector
+    // (an invalid/absent build_id falls back to the plan default - legacy
+    // tlTestCaseFilterControl::init_setting_build behaves the same way).
+    $buildSel = urgencyBuilds($db, $tplan_id, intval($_GET['build_id'] ?? 0));
+    $build4testers = $buildSel['current'];
 
     $context = new stdClass();
     $context->tplan_id = $tplan_id;

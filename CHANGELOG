@@ -47,6 +47,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   executed-removal confirmation still fires, `ai/verify_i18n_coverage.sh` 9/9 PASS, console
   clean). A pre-existing save-path warning was filed as #1919. Refs #1135.
 
+- [FEATURE] - #1140: the modern **Set Test Urgency** screen
+  (`gui/templates/plans/testUrgency.html`, BFF `api/plans/index.php`) regains the legacy
+  build selector that drives the **Assigned To** column. Legacy
+  (`lib/plan/planUrgency.php:114`, `tlTestCaseFilterControl::init_setting_build`) resolved the
+  `user_assignments` join against the user-chosen `setting_build`; the port hard-coded the
+  alphabetically-first active build, so a test leader could not see who is assigned on the build
+  they care about. `GET /urgency` now returns `builds`/`default_build_id`/`build_id`
+  (`urgencyBuilds()`), `GET /urgency/suite` honours `&build_id=` (invalid ids fall back to the
+  plan default), and the toolbar gains a `#buildSel` select (closed builds kept and labelled
+  "(closed)", legacy plan_mode parity). i18n `turg.build/buildClosed/buildTitle` in all 10
+  bundles. Verified with `tmp/fixtures_1140.php` (UR40-1 assigned on Build One, UR40-2 on
+  Build Two: selecting Build Two flips the column to UR40-2=admin — the legacy result).
+  Refs #1140.
+
 - [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
   by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
   date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string

@@ -10377,3 +10377,64 @@ mysql -h 127.0.0.1 -utestlink -ptestlink testlink < tmp/fixtures_1081.sql
 **Result: see below**
 
 **Actual (summary):** all 9 cases PASS; no JS console errors (only a pre-existing i18n.js `issue` about the locale `<select>` lacking an id, unrelated to this screen).
+
+## Task — Issue #1140: build selector for the Assigned-To column in testUrgency (gap vs legacy)
+
+**Precondition** — `php tmp/fixtures_1140.php`: project URG1140 (prefix UR40), plan
+"Plan URG1140", suite "Urgency Suite", cases UR40-1 / UR40-2, two active+open builds
+"Build One" / "Build Two", `user_assignments` type=1 (tcversion_execution):
+UR40-1→Build One, UR40-2→Build Two (both admin). Login admin/admin.
+
+**Case 1 — builds list exposed by the BFF**
+1. `GET /api/plans/index.php/urgency?tproject_id=19&tplan_id=20`.
+2. Expected: response has `builds` (id/name/active/closed per plan build),
+   `default_build_id`, `build_id`. Actual: `builds=[{id:6,'Build One'},{id:7,'Build Two'}]`,
+   `default_build_id=6`, `build_id=6`. **PASS**
+
+**Case 2 — build_id drives the Assigned-To join**
+1. `GET /api/plans/index.php/urgency/suite?tplan_id=20&tproject_id=19&tsuite_id=21&build_id=6`.
+   Actual: `build4testers=6`, UR40-1='admin', UR40-2=''. **PASS**
+2. Same with `&build_id=7`. Actual: `build4testers=7`, UR40-1='', UR40-2='admin'
+   (this is the exact legacy `setting_build=Build Two` result the issue reports). **PASS**
+3. Same with `&build_id=999` (not a build of the plan). Actual: falls back to
+   `build4testers=6` (legacy `init_setting_build` also validates against the plan). **PASS**
+
+**Case 3 — toolbar build selector (browser)**
+1. Open `/gui/templates/plans/testUrgency.html?tproject_id=19&tplan_id=20` (chrome-devtools).
+2. Expected: toolbar shows "Test Project / Test Plan / **Build** / reload"; the Build
+   select offers "Build One", "Build Two", default "Build One".
+   Actual: matched. **PASS**
+3. Select "Build Two". Actual: URL becomes `...&build_id=7`, Assigned To column becomes
+   UR40-1='' / UR40-2='admin'. **PASS**
+
+**Case 4 — closed builds listed and labelled**
+1. Insert a closed build (`is_open=0`, DB `builds`) and reload.
+2. Expected (legacy plan_mode keeps closed builds in the selector): option list contains
+   "Build Zero (closed)"; default stays the alphabetically-first active+open build.
+   Actual: options `Build One=3, Build Two=4, Build Zero (closed)=5`, default Build One,
+   `(closed)` resolves via i18n key `turg.buildClosed` (no raw key). **PASS**
+3. Select "Build Zero (closed)" → both rows blank (no assignments on that build). **PASS**
+
+**Case 5 — deep link**
+1. Open `...testUrgency.html?tproject_id=19&tplan_id=20&build_id=7`.
+2. Expected: selector pre-selected "Build Two", UR40-2='admin'. Actual: matched. **PASS**
+
+**Case 6 — no-build plan (regression)**
+1. Point the screen at a plan whose project has no builds.
+2. Expected: selector falls back to the single "-" placeholder, `build4testers=0`,
+   Assigned To column empty, no JS error. Actual: matched (BFF returns `builds=[]`,
+   `build_id=0`; no console error). **PASS**
+
+**Case 7 — i18n**
+1. `bash ai/verify_i18n_coverage.sh` → PASS, 0 missing across the 9 non-en bundles.
+2. Keys `turg.build`, `turg.buildClosed`, `turg.buildTitle` present in all 10 bundles;
+   switching locale re-renders the Build label/tooltip without raw keys. **PASS**
+
+**Case 8 — Event Viewer**
+1. `events` table after the browser run: no new Error/Warning rows attributable to the
+   urgency screen/BFF. The only E_WARNING rows (ids 2-4, 07:26:35) come from the first,
+   superseded fixture run (`link_tcversions` path + empty `testplan_tcversions`), not
+   from the product; the final fixture re-run adds only audit (level 16) rows. **PASS**
+
+**Actual (summary):** all 8 cases PASS. Gap closed: a test leader can now pick the build
+that drives the Assigned-To column, matching legacy `setting_build` behaviour.
