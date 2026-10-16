@@ -248,7 +248,7 @@ function render(r) {
   ((r.tplans || []).length ? r.tplans : [{id:0,name:'-'}]).forEach(function (tp) {
     $sel.append('<option value="' + tp.id + '">' + esc(tp.name) + '</option>');
   });
-  if (r.tplan && r.tplan.id > 0) { $sel.val(String(r.tplan.id)); }
+  if (r.tplan && r.tplan.id > 0) { tplanId = parseInt(r.tplan.id, 10); $sel.val(String(r.tplan.id)); }
   else { tplanId = parseInt($sel.val() || '0', 10); }
 
   builds = r.builds || [];
