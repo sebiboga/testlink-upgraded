@@ -42307,3 +42307,66 @@ req specs RS-1 (REQ-1..3), RS-2 (REQ-9).
 **Files changed:** `api/requirements/index.php`, `gui/templates/requirements/assignReqs.html`,
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+37 `reqAssign.*`),
 `lib/functions/common.php` (aside link switch).
+
+## Regression — Issue #1851: tmp/TLU_Test_Cases.md 595→1 whole-file clobber — era restored, gate check 3 anchored to every destructive commit
+
+**Precondition** — fresh clone of `sebiboga` (DB re-imported; app at `http://localhost:8082`,
+login `admin/admin`, untouched by this fix), branch `fix/issue-1851` cut from `8c3f864d1`.
+The gate under test is `bash ai/verify_test_suites.sh` (repo root). `EPOCH DEADLINE` in
+`.ci_deadline_epoch`.
+
+1. **Pre-fix repro — the destructive commit exists and was uncovered.**
+   *Steps (pre-fix):* `git show 30aeecd0d^:tmp/TLU_Test_Cases.md | grep -cE '^## '` → **595**;
+   `git show 30aeecd0d:tmp/TLU_Test_Cases.md | grep -cE '^## '` → **1**;
+   `comm` of those headings vs the working file → **593 missing**; run the then-current gate.
+   *Expected post-fix:* the 593 headings are present and the gate names `30aeecd0d` as an
+   enforced anchor. *Actual (post-fix):* `comm … | wc -l` → **0**; working file **891** headings;
+   gate prints `clobber baseline: ad15fe633^ (595 headings) -> 30aeecd0d (1 headings)` +
+   `PASS … (= 0)`. **PASS.**
+2. **Restore is append-only (rule 9).** *Steps:* `git diff --numstat origin/sebiboga...HEAD --
+   tmp/TLU_Test_Cases.md`. *Expected:* zero removed lines. *Actual:* **`+28695 / -0`** (593
+   blocks + 31 blocks + this suite). **PASS.**
+3. **Gate green on the repaired tree, all anchors enforced.** *Steps:* run the gate on the
+   working copy. *Expected:* EXIT=0, one `clobber baseline:` line PER destructive commit.
+   *Actual:* **`32 PASS / 0 FAIL / 1 SKIP`, EXIT=0**, **26** anchor lines
+   (`a2f83249f`, `136fc4426`, `69441b1ff`, `6a463220a`, `ac9360b96`, `12b892317`,
+   `c196737f8`, `ac2da9755`, `a2df484a8`, `30aeecd0d`, `3ad1ee95c`, `31c12b48d`,
+   `516eb88cc`, `d60e0e6c1`, `8ef9694d3`, `bebcbe7e1`, `05d67b914`, `f2fe3f477`,
+   `9e163c910`, `72dc1c826`, `4af5e1e59`, `9ef06fe4a`, `d21717ed7`, `9eab58245`,
+   `7af4c4215`, `d5721c8df`) all PASS. **PASS.**
+4. **The hole is closed — the file the OLD gate certified now fails.** *Steps:* save
+   `git show origin/sebiboga:tmp/TLU_Test_Cases.md` to a temp file; run the NEW gate against it.
+   *Expected:* FAIL naming the `30aeecd0d` anchor (the old gate passed this content: measured
+   `7 PASS / 0 FAIL / EXIT=0`). *Actual:* **EXIT=1**, 24 FAIL lines including
+   `FAIL no suite lost vs the pre-image of destructive commit 30aeecd0d (593 lost)` with the
+   recovery hint. **PASS.**
+5. **Isolation — the new detection is check 3, not the merge-base checks.** *Steps:* copy the
+   repaired file, delete exactly one restored 593-era block
+   (`## Regression — Issue #570: document/report generation 60s self-fetch deadlock`), gate it.
+   *Expected:* checks 1/2a/2b PASS (heading is not in the merge-base), check 3 FAIL, EXIT=1.
+   *Actual:* structural + `no suite lost vs merge-base (= 0)` + `no line removed … (= 0)` all
+   PASS; FAIL only under `pre-image of destructive commit …` anchors; **EXIT=1**. **PASS.**
+6. **Delete-only history stays out of the anchors.** *Steps:* scan gate output for
+   `a572b8c75` (419→0 deliberate file deletion). *Expected:* absent (existence guard).
+   *Actual:* absent from all 26 anchor lines. **PASS.**
+7. **`--help` documents the new contract.** *Steps:* `bash ai/verify_test_suites.sh --help`.
+   *Expected:* full header incl. the #1851 premise correction, no truncation. *Actual:*
+   **74 lines**, ends with the `Refs …, #1851 (every destructive commit anchored …)` line. **PASS.**
+8. **Never fails open outside a git clone.** *Steps:* run the gate from `/tmp/opencode`
+   (no `.git`). *Expected:* FAIL (unrunnable), never PASS. *Actual:* `FAIL cannot compute a
+   baseline: not inside a git clone` + `FAIL clobber check: not inside a git clone`,
+   `4 PASS / 2 FAIL / 0 SKIP`, **EXIT=1**. **PASS.**
+9. **Structural invariants after the 624 restored blocks.** *Expected:* every `^## ` heading
+   has a body, fences balanced, no NEW duplicate headings (the pre-existing
+   `## Task — Issue #1134 …` duplicate is untouched). *Actual:* `no suite heading left without
+   a body (= 0)`, `markdown code fences balanced (= 266)`, duplicate heading lines = **1 both
+   before and after the run** (pre-existing). The 4 source-born empty blocks carry a one-line
+   provenance body. **PASS.**
+10. **Event Viewer clean (rule 12) + no app surface touched.** *Steps:*
+    `SELECT COUNT(*) FROM events;`. *Actual:* **0 rows**. Only `tmp/TLU_Test_Cases.md`,
+    `ai/verify_test_suites.sh`, `CHANGELOG`, docs/wiki changed — no PHP, template, API or
+    locale bundle (i18n bundles untouched, `verify_i18n_coverage.sh` not in scope). **PASS.**
+11. **MANDATORY GATE for this suite.** *Steps:*
+    `TLU_REQUIRE_SUITE="Issue #1851" bash ai/verify_test_suites.sh`. *Expected:* EXIT=0 with
+    `own suite heading present (Issue #1851)`. *Actual:* recorded in the checkpoint-3 comment
+    on the issue. **PASS.**
