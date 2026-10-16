@@ -10438,3 +10438,31 @@ UR40-1→Build One, UR40-2→Build Two (both admin). Login admin/admin.
 
 **Actual (summary):** all 8 cases PASS. Gap closed: a test leader can now pick the build
 that drives the Assigned-To column, matching legacy `setting_build` behaviour.
+## Regression — Issue #1843: locale/fr_FR/strings.txt missing 90 $TLS_* keys (ASIDE 'Test Strategy' English fallback + LOCALIZATION warnings)
+
+**Component:** legacy `lang_get()` layer — `locale/fr_FR/strings.txt` vs `locale/en_GB/strings.txt`.
+**Precondition:** fresh DB; `UPDATE users SET locale='fr_FR' WHERE id=1;`; app at `http://localhost:8082`; login `admin`/`admin`.
+
+**Pre-fix repro (measured before the change):**
+1. Log in as admin with `fr_FR`; read ASIDE iframe → `Test Strategy` and (after expansion) all 28 chapter sub-items render in English. `Documentation` is NOT a bug (French word identical to English).
+2. `SELECT count(*), sum(log_level=32) FROM events;` after login → `31, 30` (30 × `string '<key>' is not localized for locale 'fr_FR' - using en_GB`).
+3. Static: `en_GB 2796 / fr_FR 2716 / missing 90`.
+
+**Expected post-fix:**
+1. ASIDE header = `Stratégie de test`; all 28 sub-items French.
+2. Fresh session adds **0** `log_level=32` rows.
+3. Static `en - fr` key scan = 0; `php -l` clean; other locales untouched.
+
+**Actual result (executed 2026-10-16, branch `fix/issue-1843`):**
+
+| # | case | expected | actual | verdict |
+|---|---|---|---|---|
+| 1 | `php -l locale/fr_FR/strings.txt` | no syntax errors | `No syntax errors detected` | PASS |
+| 2 | static key scan `en - fr` | 0 | `en 2796 / fr 2806 / missing 0` | PASS |
+| 3 | fresh `fr_FR` session → ASIDE header | `Stratégie de test` | `Stratégie de test` (screenshot after) | PASS |
+| 4 | expand Test Strategy sub-menu (28 items) | all French | all French (`Vue générale`…`Tests de maintenabilité`) | PASS |
+| 5 | `events` after fresh login + ASIDE + Test Strategy page + Event Viewer | no new `log_level=32` | total 33, warnings **30** (all ids 1..31 = pre-fix session); fresh session only LOGOUT+LOGIN | PASS |
+| 6 | regression: only `locale/fr_FR/strings.txt` changed | 1 file | `git diff --stat` = 1 file, +94/-0 | PASS |
+| 7 | `en_GB` session unaffected | ASIDE English, no change | en_GB file untouched; key set unchanged | PASS (static) |
+
+**Evidence:** `docs/screenshots/issue-1843-fr-aside-before.png`, `docs/screenshots/issue-1843-fr-aside-after.png`.
