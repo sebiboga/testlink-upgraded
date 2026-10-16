@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Defect Intelligence</title>
+<!--
+  Defect Intelligence dashboard screen (Refs #1068).
+
+  Net-new modern Reports-menu screen: TestLink 1.9.20 shipped no defect
+  analytics at all. Executions can carry external BTS bug links
+  (execution_bugs) but nothing turned those links into intelligence: which
+  failures are still unaddressed (no bug evidence), where defects concentrate
+  per test suite (defect density), which cases fail repeatedly across builds
+  (recurring failures) and how many distinct defect references a plan carries.
+
+  Numbers come from api/defectintelligence/index.php; see that file for the
+  documented semantics (latest execution per test-case version, addressed =
+  >=1 execution_bugs row on the filter, top-level suite climb via
+  nodes_hierarchy).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 130px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.ok { border-left: 4px solid #2f9e44; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.teal { border-left: 4px solid #4ECDC4; }
+table.dataTable thead th { font-size: 12px; color: #555; }
+table.dataTable tbody td { font-size: 13px; color: #22242a; vertical-align: middle; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; color: #fff; }
+.badge.yes { background: #2f9e44; }
+.badge.no { background: #e05c5c; }
+.badge.rec { background: #e6b34d; color: #4a3700; }
+.refs { font-family: monospace; font-size: 12px; color: #444; }
+.state { margin: 40px 24px; background: #fff; border-radius: 8px; padding: 26px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state h4 { margin: 0 0 8px; font-size: 17px; font-weight: 700; color: #22242a; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; }
+.state .code { display: inline-block; margin-top: 10px; font-family: monospace; font-size: 12px; color: #888; background: #f2f2f2; border-radius: 4px; padding: 3px 8px; }
+.spinner { width: 34px; height: 34px; margin: 0 auto 12px; border: 4px solid #d7f4f1; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { display: none; position: fixed; right: 22px; bottom: 22px; background: #22242a; color: #fff; padding: 12px 18px; border-radius: 6px; font-size: 13px; z-index: 9999; box-shadow: 0 3px 12px rgba(0,0,0,.25); }
+.toast.ok { background: #2f9e44; }
+.toast.err { background: #e05c5c; }
+.footer { margin: 10px 24px 26px; color: #999; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+.footer #localeSwitcher select { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-bug"></i>
+  <span data-i18n="dintel.title">Defect Intelligence</span>
+  <span class="sub" data-i18n="dintel.subtitle">failure & defect analytics</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="dintel.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="dintel.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="dintel.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="dintel.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="dintel.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="dintel.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="dintel.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="dintel.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="dintel.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="dintel.ctxScope">Scope</span><span class="v" id="ctxScope">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-chart-pie"></i><span data-i18n="dintel.summaryTitle">Failure & defect signals</span></h3>
+    <div class="cards">
+      <div class="card"><div class="k" data-i18n="dintel.assigned">Assigned</div><div class="v" id="sAssigned">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="dintel.failedCases">Failed cases</div><div class="v" id="sFailed">0</div></div>
+      <div class="card ok"><div class="k" data-i18n="dintel.addressed">Addressed</div><div class="v" id="sAddressed">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="dintel.unaddressed">Unaddressed</div><div class="v" id="sUnaddressed">0</div></div>
+      <div class="card teal"><div class="k" data-i18n="dintel.distinctDefects">Distinct defects</div><div class="v" id="sDefects">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="dintel.recurring">Recurring failures</div><div class="v" id="sRecurring">0</div></div>
+      <div class="card"><div class="k" data-i18n="dintel.density">Defect density</div><div class="v" id="sDensity">0</div></div>
+      <div class="card"><div class="k" data-i18n="dintel.progress">Progress</div><div class="v" id="sProgress">0%</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-layer-group"></i><span data-i18n="dintel.suiteTitle">Defect density by top-level test suite</span></h3>
+    <table class="table table-striped" id="tblSuites" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="dintel.colSuite">Top-level suite</th>
+          <th data-i18n="dintel.colFailed">Failed</th>
+          <th data-i18n="dintel.colAddressed">Addressed</th>
+          <th data-i18n="dintel.colUnaddressed">Unaddressed</th>
+          <th data-i18n="dintel.colDefects">Defects</th>
+          <th data-i18n="dintel.colDensity">Density</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-list-ul"></i><span data-i18n="dintel.failuresTitle">Failed test cases & defect evidence</span></h3>
+    <table class="table table-striped" id="tblFail" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="dintel.colId">ID</th>
+          <th data-i18n="dintel.colName">Test case</th>
+          <th data-i18n="dintel.colSuiteName">Suite</th>
+          <th data-i18n="dintel.colStatus">Status</th>
+          <th data-i18n="dintel.colDefects">Defects</th>
+          <th data-i18n="dintel.colBuildsFailed">Builds failed</th>
+          <th data-i18n="dintel.colAddressed">Addressed</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer"><span data-i18n="footers.defectIntelligence"></span><span id="localeSwitcher"></span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/defectintelligence/index.php';
+var currentData = null;
+var dtSuites = null, dtFail = null;
+var filtersFilled = false;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'dintel.deniedTitle',  body: 'dintel.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'dintel.deniedTitle',  body: 'dintel.expiredBody' },
+    no_right:          { cls: 'deny', title: 'dintel.deniedTitle',  body: 'dintel.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'dintel.notFoundTitle', body: 'dintel.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'dintel.notFoundTitle', body: 'dintel.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'dintel.badRequestTitle', body: 'dintel.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'dintel.serverErrorTitle', body: 'dintel.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) { $('#report').hide(); $('#stateBox').html(html); }
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('dintel.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function fillFilters(ctx) {
+  var b = '<option value="0">' + esc(TLi18n.t('dintel.allBuilds')) + '</option>';
+  $.each(ctx.builds || [], function (i, x) {
+    b += '<option value="' + x.id + '">' + esc(x.name) + '</option>';
+  });
+  $('#selBuild').html(b);
+  var p = '<option value="0">' + esc(TLi18n.t('dintel.allPlatforms')) + '</option>';
+  $.each(ctx.platforms || [], function (i, x) {
+    p += '<option value="' + x.id + '">' + esc(x.name) + '</option>';
+  });
+  $('#selPlatform').html(p);
+  var bsel = q('build_id'); if (bsel) { $('#selBuild').val(bsel); }
+  var psel = q('platform_id'); if (psel) { $('#selPlatform').val(psel); }
+}
+
+function renderSummary(s) {
+  $('#sAssigned').text(s.assigned);
+  $('#sFailed').text(s.failed_cases);
+  $('#sAddressed').text(s.addressed);
+  $('#sUnaddressed').text(s.unaddressed);
+  $('#sDefects').text(s.distinct_defects);
+  $('#sRecurring').text(s.recurring_failures);
+  $('#sDensity').text(s.defect_density);
+  $('#sProgress').text(s.progress + '%');
+}
+
+function renderContext(ctx) {
+  $('#ctxProject').text(ctx.project_name || ('#' + ctx.tproject_id));
+  $('#ctxPlan').text(ctx.tplan_name || ('#' + ctx.tplan_id));
+  var parts = [];
+  parts.push(ctx.build_id > 0
+    ? TLi18n.t('dintel.build') + ': ' + (ctx.build_name || ('#' + ctx.build_id))
+    : TLi18n.t('dintel.allBuilds'));
+  parts.push(ctx.platform_id > 0
+    ? TLi18n.t('dintel.platform') + ': ' + (ctx.platform_name || ('#' + ctx.platform_id))
+    : TLi18n.t('dintel.allPlatforms'));
+  $('#ctxScope').text(parts.join('  \u00b7  '));
+}
+
+function renderSuites(rows) {
+  if (dtSuites) { dtSuites.destroy(); }
+  var body = '';
+  $.each(rows, function (i, r) {
+    body += '<tr><td>' + esc(r.suite_name) + '</td>'
+      + '<td>' + r.failed + '</td>'
+      + '<td>' + r.addressed + '</td>'
+      + '<td>' + r.unaddressed + '</td>'
+      + '<td>' + r.defects + '</td>'
+      + '<td>' + r.density + '</td></tr>';
+  });
+  $('#tblSuites tbody').html(body);
+  dtSuites = $('#tblSuites').DataTable({
+    paging: false, info: false, searching: false,
+    order: [[1, 'desc']],
+    language: { emptyTable: TLi18n.t('dintel.emptySuites') }
+  });
+}
+
+function renderFailures(rows) {
+  if (dtFail) { dtFail.destroy(); }
+  var body = '';
+  $.each(rows, function (i, r) {
+    var refs = (r.defect_refs && r.defect_refs.length)
+      ? '<span class="refs">' + esc(r.defect_refs.join(', ')) + '</span>'
+      : '<span style="color:#999;">&mdash;</span>';
+    var addr = r.addressed
+      ? '<span class="badge yes">' + esc(TLi18n.t('dintel.yes')) + '</span>'
+      : '<span class="badge no">' + esc(TLi18n.t('dintel.no')) + '</span>';
+    var rec = r.builds_failed >= 2
+      ? ' <span class="badge rec">' + esc(TLi18n.t('dintel.recurringShort')) + '</span>' : '';
+    body += '<tr>'
+      + '<td>' + r.tc_external_id + '</td>'
+      + '<td>' + esc(r.tc_name) + (r.tc_version ? ' <span style="color:#999;">v' + r.tc_version + '</span>' : '') + '</td>'
+      + '<td>' + esc(r.suite_name) + (r.top_suite && r.top_suite !== r.suite_name ? ' <span style="color:#999;">(' + esc(r.top_suite) + ')</span>' : '') + '</td>'
+      + '<td><span class="badge no">' + esc(TLi18n.t('dintel.statusFailed')) + '</span></td>'
+      + '<td>' + (refs) + '</td>'
+      + '<td>' + r.builds_failed + rec + '</td>'
+      + '<td>' + addr + '</td></tr>';
+  });
+  $('#tblFail tbody').html(body);
+  dtFail = $('#tblFail').DataTable({
+    pageLength: 25, lengthChange: false,
+    order: [[5, 'desc'], [0, 'asc']],
+    language: { emptyTable: TLi18n.t('dintel.emptyFailures') }
+  });
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('dintel.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('dintel.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = new URLSearchParams({ action: 'init', tplan_id: tplanId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.set('build_id', b); }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.set('platform_id', p); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    if (!filtersFilled) { fillFilters(data.context); filtersFilled = true; }
+    renderContext(data.context);
+    renderSummary(data.summary);
+    renderSuites(data.suites || []);
+    renderFailures(data.failures || []);
+    $('#stateBox').html('');
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.failures || currentData.failures.length === 0) {
+    toast(TLi18n.t('dintel.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('dintel.colId'), TLi18n.t('dintel.colName'),
+    TLi18n.t('dintel.colSuite'), TLi18n.t('dintel.colDefects'),
+    TLi18n.t('dintel.colBuildsFailed'), TLi18n.t('dintel.colAddressed')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.failures, function (i, r) {
+    lines.push($.map([r.tc_external_id, r.tc_name, r.suite_name,
+      (r.defect_refs || []).join(' '), r.builds_failed,
+      r.addressed ? TLi18n.t('dintel.yes') : TLi18n.t('dintel.no')], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'defect-intelligence-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('dintel.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+<div class="toast" id="toast"></div>
+</body>
+</html>
