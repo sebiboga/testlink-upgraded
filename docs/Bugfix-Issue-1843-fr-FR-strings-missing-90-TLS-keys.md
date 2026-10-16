@@ -36,7 +36,7 @@ project/plan needed (reproduces at `tproject_id=0`).
 |---|---|---|
 | ASIDE render | a11y snapshot of `gui/templates/aside/aside.html?locale=fr_FR` | header `Test Strategy` English (all 28 sub-items English when expanded); `Tableau de bord`/`Système`/`Projets` French |
 | `events` table | after login + ASIDE render | **31 rows** = 1 `LOGIN` + **30 `log_level=32` LOCALIZATION** |
-| event text | `SELECT DISTINCT description` | 30 distinct `string '<key>' is not localized for locale 'fr_FR'  - using en_GB` (`title_test_strategy`, the 28 `href_test_strategy_*`, …) |
+| event text | `SELECT DISTINCT description` | 30 distinct `string '<key>' is not localized for locale 'fr_FR'  - using en_GB` (`title_test_strategy`, the 28 `href_test_strategy_*`, `install_header`) |
 | browser console | `list_console_messages` | **no JS errors** (only 1 pre-existing a11y lint) — pure translation gap |
 | static key scan | `locale/en_GB/strings.txt` vs `locale/fr_FR/strings.txt` | **en 2796 / fr 2716 / missing 90** (the report said 89/2783 — the default branch moved; today's truth is **90**) |
 
@@ -52,7 +52,7 @@ Refinements over the filed report:
 
 | # | file:line | what happens |
 |---|---|---|
-| 1 | `api/aside/index.php:402-429` | ASIDE builds the Test Strategy section: 28 × `lang_get('href_test_strategy_*')`. |
+| 1 | `api/aside/index.php:402-429` (keys), `:447-451` (`lang_get($lblKey)` loop) | ASIDE builds the Test Strategy section: 28 × `lang_get('href_test_strategy_*')`. |
 | 2 | `api/aside/index.php:456` | plus `lang_get('title_test_strategy')` → the visible `Test Strategy`. |
 | 3 | `lib/functions/lang_api.php:65-68` | `lang_get('…','fr_FR')`: key absent from `$g_lang_strings['fr_FR']` — never written to `locale/fr_FR/strings.txt`. |
 | 4 | `lib/functions/lang_api.php:78-88` | falls back to `en_GB` (`$englishSolutionFound = true`), returns the English text. |
@@ -71,16 +71,19 @@ Refinements over the filed report:
 
 ## Blast radius
 
-- **fr_FR**: 90 keys — 29 on the ASIDE (visible), 61 dormant until their code
-  path runs: `printDocument.php` error branches, tcView relations tooltip
-  (`tc_has_relations`), Alien References table (7 labels),
+- **fr_FR**: 90 keys — 30 on the ASIDE (visible), 60 dormant until their code
+  path runs: the 29 Test Strategy keys (`title_test_strategy` + 28
+  `href_test_strategy_*`) plus `install_header` (System section,
+  `api/aside/index.php:349`, GECO-gated `$gm('configuration')`); the remaining
+  60 fire only when their path runs: `printDocument.php` error branches, tcView
+  relations tooltip (`tc_has_relations`), Alien References table (7 labels),
   `api/severityconfig/index.php:244` (`severityConfig_saved`), tc-edit
   custom-field location labels (`after_life`/`after_seconditore`), navBar
   tooltip (`toggle_navigation`), platform/keyword dialogs, monthly test-growth
   metric titles, …
 - **Cross-locale (out of scope, noted)**: the `href_test_strategy_*` family is
-  missing from **16 of 19** locales (present only in en_GB/en_US/ro_RO). This
-  fix covers `fr_FR` only, as filed.
+  missing from **15 of 19** locales (present only in en_GB/en_US/ro_RO and, after
+  this fix, fr_FR). This fix covers `fr_FR` only, as filed.
 
 ## The fix (minimal, 1 file, +94/-0)
 
