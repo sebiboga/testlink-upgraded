@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Strategy Report</title>
+<!--
+  Test Strategy Report screen (Refs #1061, #1925).
+
+  Net-new modern Reports-menu screen: TestLink 1.9.20 shipped a static Test
+  Strategy reference (strategy/testStrategy.html, Refs #1052) but no way to
+  GENERATE a consolidated, project-specific Test Strategy document from the
+  artifacts a project already holds. This screen renders that document from
+  api/strategyreport/index.php and offers Markdown / HTML export and printing.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; color: #22242a; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.doc { max-width: 1080px; margin: 22px auto 40px; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 22px; margin-bottom: 16px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.lead { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 22px 24px; margin-bottom: 16px; border-top: 4px solid #4ECDC4; }
+.lead h1 { font-size: 22px; margin: 0 0 4px; }
+.lead .meta { color: #777; font-size: 13px; }
+.lead .meta .k { color: #999; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 130px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.teal { border-left: 4px solid #4ECDC4; }
+.card.ok { border-left: 4px solid #2f9e44; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.bar { height: 12px; border-radius: 6px; background: #eceef2; overflow: hidden; display: flex; margin-top: 8px; }
+.bar .seg { height: 100%; }
+.bar .seg.man { background: #4ECDC4; }
+.bar .seg.auto { background: #2b3a55; }
+.feat { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 10px; background: #eef6f5; color: #0d6e68; border: 1px solid #cfe9e6; }
+.chip.off { background: #f2f2f4; color: #999; border-color: #e6e6ea; }
+table.dataTable thead th { font-size: 12px; color: #555; }
+table.dataTable tbody td { font-size: 13px; color: #22242a; vertical-align: middle; }
+.crit { list-style: none; padding: 0; margin: 0; }
+.crit li { padding: 8px 0; border-bottom: 1px dashed #eceef2; font-size: 13px; line-height: 1.5; }
+.crit li:last-child { border-bottom: none; }
+.crit li b { color: #0d6e68; }
+.assume { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.7; color: #444; }
+.state { max-width: 720px; margin: 40px auto; background: #fff; border-radius: 8px; padding: 26px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state h4 { margin: 0 0 8px; font-size: 17px; font-weight: 700; color: #22242a; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; }
+.state .code { display: inline-block; margin-top: 10px; font-family: monospace; font-size: 12px; color: #888; background: #f2f2f2; border-radius: 4px; padding: 3px 8px; }
+.spinner { width: 34px; height: 34px; margin: 0 auto 12px; border: 4px solid #d7f4f1; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.toast { display: none; position: fixed; right: 22px; bottom: 22px; background: #22242a; color: #fff; padding: 12px 18px; border-radius: 6px; font-size: 13px; z-index: 9999; box-shadow: 0 3px 12px rgba(0,0,0,.25); }
+.toast.ok { background: #2f9e44; }
+.toast.err { background: #e05c5c; }
+.footer { max-width: 1080px; margin: 10px auto 26px; color: #999; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+.footer #localeSwitcher select { font-size: 12px; }
+@media print {
+  .toolbar, .footer, .header, .footer #localeSwitcher { display: none !important; }
+  body { background: #fff; }
+  .panel, .lead { box-shadow: none; border: 1px solid #ddd; }
+}
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-file-lines"></i>
+  <span data-i18n="strat.title">Test Strategy Report</span>
+  <span class="sub" data-i18n="strat.subtitle">generated test strategy document</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="strat.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnExportMd"><i class="fa fa-file-code"></i> <span data-i18n="strat.exportMd">Export Markdown</span></button>
+  <button class="btn-dark" id="btnExportHtml"><i class="fa fa-file-export"></i> <span data-i18n="strat.exportHtml">Export HTML</span></button>
+  <button class="btn-dark" id="btnPrint"><i class="fa fa-print"></i> <span data-i18n="strat.print">Print</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="strat.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div class="doc" id="report" style="display:none;">
+
+  <div class="lead">
+    <h1 id="docTitle">&mdash;</h1>
+    <div class="meta"><span class="k" data-i18n="strat.ctxPrefix">Prefix</span>: <b id="docPrefix">&mdash;</b>
+      &nbsp;&middot;&nbsp; <span class="k" data-i18n="strat.generatedOn">Generated on</span>: <span id="docGenerated">&mdash;</span></div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-circle-info"></i><span data-i18n="strat.contextTitle">Project context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="strat.ctxStatus">Status</span><span class="v" id="ctxStatus">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="strat.ctxVisibility">Visibility</span><span class="v" id="ctxVisibility">&mdash;</span></div>
+      <div class="ctx-item" style="flex:1 1 320px;"><span class="k" data-i18n="strat.ctxNotes">Notes</span><span class="v" id="ctxNotes">&mdash;</span></div>
+    </div>
+    <div style="margin-top:12px;"><span class="k" data-i18n="strat.ctxFeatures" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;">Features</span>
+      <div class="feat" id="ctxFeatures"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-crosshairs"></i><span data-i18n="strat.secScope">1. Quality objectives &amp; scope</span></h3>
+    <div class="cards">
+      <div class="card teal"><div class="k" data-i18n="strat.scCases">Test cases</div><div class="v" id="scCases">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scSuites">Test suites</div><div class="v" id="scSuites">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scTopSuites">Top-level suites</div><div class="v" id="scTopSuites">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scReqs">Requirements</div><div class="v" id="scReqs">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scReqSpecs">Requirement specs</div><div class="v" id="scReqSpecs">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scPlans">Test plans</div><div class="v" id="scPlans">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scBuilds">Builds</div><div class="v" id="scBuilds">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scPlatforms">Platforms</div><div class="v" id="scPlatforms">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scKeywords">Keywords</div><div class="v" id="scKeywords">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.scCfields">Custom fields</div><div class="v" id="scCfields">0</div></div>
+    </div>
+    <p style="font-size:13px;color:#555;margin:14px 0 0;" id="objectiveText"></p>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-flask"></i><span data-i18n="strat.secTypes">2. Test types &amp; approaches</span></h3>
+    <div class="cards">
+      <div class="card teal"><div class="k" data-i18n="strat.manual">Manual cases</div><div class="v" id="tyManual">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.automated">Automated cases</div><div class="v" id="tyAuto">0</div></div>
+      <div class="card ok"><div class="k" data-i18n="strat.automationPct">Automation coverage</div><div class="v" id="tyAutoPct">0%</div></div>
+    </div>
+    <div class="bar" id="typeBar"></div>
+    <div class="cards" style="margin-top:14px;">
+      <div class="card"><div class="k" data-i18n="strat.high">High priority</div><div class="v" id="prHigh">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.medium">Medium priority</div><div class="v" id="prMedium">0</div></div>
+      <div class="card"><div class="k" data-i18n="strat.low">Low priority</div><div class="v" id="prLow">0</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-layer-group"></i><span data-i18n="strat.secLevels">3. Test levels &amp; planned activities</span></h3>
+    <table class="table table-striped" id="tblLevels" style="width:100%">
+      <thead><tr>
+        <th data-i18n="strat.colLevel">Test level (top-level suite)</th>
+        <th data-i18n="strat.colCases">Test cases</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-flag-checkered"></i><span data-i18n="strat.secCriteria">4. Entry, exit &amp; completion criteria</span></h3>
+    <ul class="crit">
+      <li><b data-i18n="strat.criteriaEntry">Entry</b> &mdash; <span id="critEntry"></span></li>
+      <li><b data-i18n="strat.criteriaExit">Exit</b> &mdash; <span id="critExit"></span></li>
+      <li><b data-i18n="strat.criteriaCompletion">Completion</b> &mdash; <span id="critCompletion"></span></li>
+    </ul>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-server"></i><span data-i18n="strat.secEnv">5. Test environments &amp; data</span></h3>
+    <table class="table table-striped" id="tblEnv" style="width:100%">
+      <thead><tr>
+        <th data-i18n="strat.colEnvironment">Environment / platform</th>
+        <th data-i18n="strat.colState">State</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-screwdriver-wrench"></i><span data-i18n="strat.secTooling">6. Tooling</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item" style="flex:1 1 320px;"><span class="k" data-i18n="strat.trackerIssue">Issue tracker</span><span class="v" id="toolIssue">&mdash;</span></div>
+      <div class="ctx-item" style="flex:1 1 320px;"><span class="k" data-i18n="strat.trackerCode">Code tracker</span><span class="v" id="toolCode">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-users"></i><span data-i18n="strat.secTeam">7. Team roles &amp; responsibilities</span></h3>
+    <table class="table table-striped" id="tblTeam" style="width:100%">
+      <thead><tr>
+        <th data-i18n="strat.colUser">Login</th>
+        <th data-i18n="strat.colName">Name</th>
+        <th data-i18n="strat.colRole">Role</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-diagram-project"></i><span data-i18n="strat.secRelated">8. Related test plans &amp; artifacts</span></h3>
+    <table class="table table-striped" id="tblPlans" style="width:100%">
+      <thead><tr>
+        <th data-i18n="strat.colPlanId">Plan ID</th>
+        <th data-i18n="strat.colPlanName">Test plan</th>
+        <th data-i18n="strat.colPlanStatus">Status</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-triangle-exclamation"></i><span data-i18n="strat.secAssumptions">9. Assumptions, constraints &amp; dependencies</span></h3>
+    <ul class="assume">
+      <li data-i18n="strat.ass1"></li>
+      <li data-i18n="strat.ass2"></li>
+      <li data-i18n="strat.ass3"></li>
+      <li data-i18n="strat.ass4"></li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="footer"><span data-i18n="footers.strategyReport"></span><span id="localeSwitcher"></span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script>
+var API = '/api/strategyreport/index.php';
+var currentData = null;
+var dtLevels = null, dtEnv = null, dtTeam = null, dtPlans = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'strat.deniedTitle', body: 'strat.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'strat.deniedTitle', body: 'strat.expiredBody' },
+    no_right:          { cls: 'deny', title: 'strat.deniedTitle', body: 'strat.noRightBody' },
+    tproject_not_found:{ cls: 'warn', title: 'strat.notFoundTitle', body: 'strat.notFoundBody' },
+    invalid_request:   { cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    if (httpStatus === 403) { m = { cls: 'deny', title: 'strat.deniedTitle', body: 'strat.noRightBody' }; }
+    else if (httpStatus === 400 || httpStatus === 404) { m = { cls: 'warn', title: 'strat.badRequestTitle', body: 'strat.badRequestBody' }; }
+    else { m = { cls: 'warn', title: 'strat.serverErrorTitle', body: 'strat.serverErrorBody' }; }
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) { currentData = null; $('#report').hide(); $('#stateBox').html(html); }
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('strat.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function pct(part, whole) { return whole > 0 ? Math.round(100 * part / whole) : 0; }
+
+function renderDoc(d) {
+  var ctx = d.context, sc = d.scope, ty = d.types, sig = d.signals;
+
+  $('#docTitle').text(ctx.name || ('#' + ctx.project_id));
+  $('#docPrefix').text(ctx.prefix || '\u2014');
+  $('#docGenerated').text(new Date().toLocaleString());
+
+  $('#ctxStatus').text(ctx.active ? TLi18n.t('strat.active') : TLi18n.t('strat.inactive'));
+  $('#ctxVisibility').text(ctx.is_public ? TLi18n.t('strat.public') : TLi18n.t('strat.private'));
+  $('#ctxNotes').text(ctx.notes || TLi18n.t('strat.none'));
+
+  var feats = [
+    ['strat.featReqs', ctx.req_enabled],
+    ['strat.featPriority', ctx.priority_enabled],
+    ['strat.featAutomation', ctx.automation_enabled],
+    ['strat.featIssue', ctx.issue_tracker_enabled],
+    ['strat.featCode', ctx.code_tracker_enabled]
+  ];
+  var fh = '';
+  $.each(feats, function (i, f) {
+    fh += '<span class="chip' + (f[1] ? '' : ' off') + '">' + esc(TLi18n.t(f[0])) + '</span>';
+  });
+  $('#ctxFeatures').html(fh);
+
+  $('#scCases').text(sc.test_cases);
+  $('#scSuites').text(sc.test_suites);
+  $('#scTopSuites').text(sc.top_level_suites);
+  $('#scReqs').text(sc.requirements);
+  $('#scReqSpecs').text(sc.req_specs);
+  $('#scPlans').text(sc.test_plans);
+  $('#scBuilds').text(sc.builds);
+  $('#scPlatforms').text(sc.platforms);
+  $('#scKeywords').text(sc.keywords);
+  $('#scCfields').text(sc.custom_fields);
+
+  $('#objectiveText').text(TLi18n.t('strat.objectiveText', {
+    cases: sc.test_cases, suites: sc.test_suites, reqs: sc.requirements
+  }));
+
+  $('#tyManual').text(ty.manual);
+  $('#tyAuto').text(ty.automated);
+  $('#tyAutoPct').text(sig.automation_pct + '%');
+  var total = ty.manual + ty.automated;
+  var autoW = total ? (100 * ty.automated / total) : 0;
+  $('#typeBar').html('<div class="seg man" style="width:' + (100 - autoW) + '%"></div>'
+    + '<div class="seg auto" style="width:' + autoW + '%"></div>');
+  $('#prHigh').text(ty.high);
+  $('#prMedium').text(ty.medium);
+  $('#prLow').text(ty.low);
+
+  var covPct = pct(sig.covered_requirements, sc.requirements);
+
+  $('#critEntry').text(TLi18n.t('strat.criteriaEntryText', {
+    cases: sc.test_cases, levels: sc.top_level_suites
+  }));
+  $('#critExit').text(TLi18n.t('strat.criteriaExitText', { coverage: covPct }));
+  $('#critCompletion').text(TLi18n.t('strat.criteriaCompletionText', {
+    automation: sig.automation_pct
+  }));
+
+  // Levels
+  if (dtLevels) { dtLevels.destroy(); }
+  var lh = '';
+  $.each(d.levels || [], function (i, r) {
+    lh += '<tr><td>' + esc(r.name) + '</td><td>' + r.test_cases + '</td></tr>';
+  });
+  $('#tblLevels tbody').html(lh);
+  dtLevels = $('#tblLevels').DataTable({
+    paging: false, info: false, searching: false, order: [[1, 'desc']],
+    language: { emptyTable: TLi18n.t('strat.emptyLevels') }
+  });
+
+  // Environments
+  if (dtEnv) { dtEnv.destroy(); }
+  var eh = '';
+  $.each(d.environments || [], function (i, r) {
+    var st = r.active
+      ? '<span class="chip">' + esc(TLi18n.t('strat.enabled')) + '</span>'
+      : '<span class="chip off">' + esc(TLi18n.t('strat.disabled')) + '</span>';
+    eh += '<tr><td>' + esc(r.name) + '</td><td>' + st + '</td></tr>';
+  });
+  $('#tblEnv tbody').html(eh);
+  dtEnv = $('#tblEnv').DataTable({
+    paging: false, info: false, searching: false,
+    language: { emptyTable: TLi18n.t('strat.emptyEnv') }
+  });
+
+  // Tooling
+  function trackerText(list, enabled) {
+    if (!enabled) { return TLi18n.t('strat.disabled'); }
+    if (!list || !list.length) { return TLi18n.t('strat.trackerNone'); }
+    return list.map(function (x) { return x.name; }).join(', ');
+  }
+  $('#toolIssue').text(trackerText(d.tooling.issue_trackers, ctx.issue_tracker_enabled));
+  $('#toolCode').text(trackerText(d.tooling.code_trackers, ctx.code_tracker_enabled));
+
+  // Team
+  if (dtTeam) { dtTeam.destroy(); }
+  var th = '';
+  $.each(d.team || [], function (i, r) {
+    var nm = ((r.first || '') + ' ' + (r.last || '')).replace(/^\s+|\s+$/g, '');
+    th += '<tr><td>' + esc(r.login) + '</td><td>' + esc(nm || '\u2014') + '</td><td>' + esc(r.role) + '</td></tr>';
+  });
+  $('#tblTeam tbody').html(th);
+  dtTeam = $('#tblTeam').DataTable({
+    paging: false, info: false, searching: false, order: [[0, 'asc']],
+    language: { emptyTable: TLi18n.t('strat.emptyTeam') }
+  });
+
+  // Related plans
+  if (dtPlans) { dtPlans.destroy(); }
+  var ph = '';
+  $.each((d.related && d.related.test_plans) || [], function (i, r) {
+    var st = r.active
+      ? '<span class="chip">' + esc(TLi18n.t('strat.active')) + '</span>'
+      : '<span class="chip off">' + esc(TLi18n.t('strat.inactive')) + '</span>';
+    ph += '<tr><td>' + esc(r.id) + '</td><td>' + esc(r.name) + '</td><td>' + st + '</td></tr>';
+  });
+  $('#tblPlans tbody').html(ph);
+  dtPlans = $('#tblPlans').DataTable({
+    paging: false, info: false, searching: false, order: [[0, 'asc']],
+    language: { emptyTable: TLi18n.t('strat.emptyPlans') }
+  });
+}
+
+function load() {
+  var tprojectId = q('tproject_id');
+  if (!tprojectId || !/^[0-9]+$/.test(String(tprojectId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('strat.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('strat.missingContext')) + '</div><div class="code">tproject_id</div></div>');
+    return;
+  }
+  showLoading();
+  $.ajax({
+    url: API, method: 'GET',
+    data: new URLSearchParams({ action: 'init', tproject_id: tprojectId }).toString(),
+    dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    $('#stateBox').html('');
+    $('#report').show();
+    renderDoc(data);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function buildMarkdown() {
+  if (!currentData) { return ''; }
+  var d = currentData, ctx = d.context, sc = d.scope, ty = d.types, sig = d.signals;
+  var L = [];
+  L.push('# ' + TLi18n.t('strat.title') + ': ' + (ctx.name || ('#' + ctx.project_id)));
+  L.push('');
+  L.push('_' + TLi18n.t('strat.generatedOn') + ': ' + new Date().toLocaleString()
+    + ' \u00b7 ' + TLi18n.t('strat.ctxPrefix') + ': ' + (ctx.prefix || '') + '_');
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.contextTitle'));
+  L.push('- ' + TLi18n.t('strat.ctxStatus') + ': ' + (ctx.active ? TLi18n.t('strat.active') : TLi18n.t('strat.inactive')));
+  L.push('- ' + TLi18n.t('strat.ctxVisibility') + ': ' + (ctx.is_public ? TLi18n.t('strat.public') : TLi18n.t('strat.private')));
+  if (ctx.notes) { L.push('- ' + TLi18n.t('strat.ctxNotes') + ': ' + ctx.notes); }
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secScope'));
+  L.push('| ' + TLi18n.t('strat.scCases') + ' | ' + TLi18n.t('strat.scSuites') + ' | '
+    + TLi18n.t('strat.scReqs') + ' | ' + TLi18n.t('strat.scPlans') + ' | '
+    + TLi18n.t('strat.scBuilds') + ' | ' + TLi18n.t('strat.scPlatforms') + ' |');
+  L.push('|---|---|---|---|---|---|');
+  L.push('| ' + sc.test_cases + ' | ' + sc.test_suites + ' | ' + sc.requirements + ' | '
+    + sc.test_plans + ' | ' + sc.builds + ' | ' + sc.platforms + ' |');
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secTypes'));
+  L.push('- ' + TLi18n.t('strat.manual') + ': ' + ty.manual);
+  L.push('- ' + TLi18n.t('strat.automated') + ': ' + ty.automated);
+  L.push('- ' + TLi18n.t('strat.automationPct') + ': ' + sig.automation_pct + '%');
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secLevels'));
+  L.push('| ' + TLi18n.t('strat.colLevel') + ' | ' + TLi18n.t('strat.colCases') + ' |');
+  L.push('|---|---|');
+  $.each(d.levels || [], function (i, r) { L.push('| ' + r.name + ' | ' + r.test_cases + ' |'); });
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secCriteria'));
+  var covPct = pct(sig.covered_requirements, sc.requirements);
+  L.push('- **' + TLi18n.t('strat.criteriaEntry') + '**: ' + TLi18n.t('strat.criteriaEntryText', { cases: sc.test_cases, levels: sc.top_level_suites }));
+  L.push('- **' + TLi18n.t('strat.criteriaExit') + '**: ' + TLi18n.t('strat.criteriaExitText', { coverage: covPct }));
+  L.push('- **' + TLi18n.t('strat.criteriaCompletion') + '**: ' + TLi18n.t('strat.criteriaCompletionText', { automation: sig.automation_pct }));
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secEnv'));
+  $.each(d.environments || [], function (i, r) {
+    L.push('- ' + r.name + ' (' + (r.active ? TLi18n.t('strat.enabled') : TLi18n.t('strat.disabled')) + ')');
+  });
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secTeam'));
+  $.each(d.team || [], function (i, r) {
+    L.push('- ' + r.login + ' \u2014 ' + r.role);
+  });
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secRelated'));
+  $.each((d.related && d.related.test_plans) || [], function (i, r) {
+    L.push('- #' + r.id + ' ' + r.name + ' (' + (r.active ? TLi18n.t('strat.active') : TLi18n.t('strat.inactive')) + ')');
+  });
+  L.push('');
+  L.push('## ' + TLi18n.t('strat.secAssumptions'));
+  L.push('- ' + TLi18n.t('strat.ass1'));
+  L.push('- ' + TLi18n.t('strat.ass2'));
+  L.push('- ' + TLi18n.t('strat.ass3'));
+  L.push('- ' + TLi18n.t('strat.ass4'));
+  L.push('');
+  return L.join('\r\n');
+}
+
+function download(content, mime, filename) {
+  var blob = new Blob([content], { type: mime });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function exportMd() {
+  if (!currentData) { toast(TLi18n.t('strat.nothingToExport'), 'err'); return; }
+  download(buildMarkdown(), 'text/markdown;charset=utf-8',
+    'test-strategy-' + (currentData.context.project_id || 0) + '.md');
+  toast(TLi18n.t('strat.exportDone'), 'ok');
+}
+
+function exportHtml() {
+  if (!currentData) { toast(TLi18n.t('strat.nothingToExport'), 'err'); return; }
+  var md = buildMarkdown();
+  var body = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'
+    + esc(TLi18n.t('strat.title')) + '</title></head><body><pre style="font-family:monospace;white-space:pre-wrap;">'
+    + esc(md) + '</pre></body></html>';
+  download(body, 'text/html;charset=utf-8',
+    'test-strategy-' + (currentData.context.project_id || 0) + '.html');
+  toast(TLi18n.t('strat.exportDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnExportMd').on('click', exportMd);
+  $('#btnExportHtml').on('click', exportHtml);
+  $('#btnPrint').on('click', function () { window.print(); });
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+<div class="toast" id="toast"></div>
+</body>
+</html>
