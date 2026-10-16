@@ -2020,8 +2020,12 @@ if ($method === 'POST' && count($segments) === 2 &&
                 }
             }
             if (count($features2['add']) > 0) {
-                $tplanMgr->assignment_mgr->assign($features2);
-                $assigned = count($features2['add']);
+                // assign() takes the INNER feature map (legacy planAddTC.php:1064
+                // unwraps 'add' first) and RETURNS the INSERTs executed, so
+                // tester_assigned_features reports rows written, not intent
+                // (Issue #1922)
+                $written = $tplanMgr->assignment_mgr->assign($features2['add']);
+                $assigned = is_array($written) ? count($written) : 0;
             }
         } catch (Throwable $e) {
             // linking succeeded; report the assignment failure softly
