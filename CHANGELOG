@@ -30,6 +30,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   0 in-scope warning/error events. The unrelated `assignment_mgr::assign()` wrong-map-shape defect
   found while testing is filed separately as #1922. Refs #1920.
 
+- [KEY BUGFIX] - #1922: on the modern **Add/Remove Test Cases** screen, the tester assignment of a
+  freshly linked test case (`api/plans/index.php` `POST /planaddtc/save` with `testerID`+`build_id`)
+  never wrote a `user_assignments` row while answering `tester_assigned_features: N` — the BFF passed
+  the legacy envelope `['add' => [feature_id => props]]` to `assignment_mgr::assign()`, which expects
+  the INNER feature map (`assignment_mgr.class.php:176-186` iterated `$feature_id='add'`), so
+  `$elem['build_id'|'type'|'user_id']` raised 3× `E_WARNING Undefined array key` and the insert loop
+  got `(array)null = []`. Fixed at the broken boundary: pass `$features2['add']` (legacy
+  `planAddTC.php:1064-1066` unwraps first) and report `count()` of `assign()`'s returned INSERT list,
+  so `tester_assigned_features` now counts rows actually written. Verified 8/8 (fresh-assign, dup
+  re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
+  assign panel, `php -l`). Refs #1922.
+
 - [SCREEN] - #1062: the **Automation Test Reports** screen
   (`gui/templates/results/automationReports.html`, BFF `api/automationreports/index.php`) is
   added under the Reports menu. Net-new for 2.0.1: 1.9.20 shipped no automation reporting (automated
