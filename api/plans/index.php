@@ -2429,6 +2429,33 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
     // setSuiteUrgency() touches (tcversion.parent(testcase).parent(suite)).
     $suites = [];
     if ($tplan_id > 0) {
+        // Accept filtered test case set
+        $testCaseSet = null;
+        if (isset($_GET['testcases']) && is_array($_GET['testcases'])) {
+            $testCaseSet = array_values(array_filter(array_map('intval', $_GET['testcases'])));
+        } elseif (isset($_GET['testcases'])) {
+            $tc = trim((string)$_GET['testcases']);
+            if ($tc !== '') {
+                $parts = preg_split('/[\s,;\t]+/', $tc);
+                $testCaseSet = array_values(array_filter(array_map('intval', $parts)));
+            }
+        }
+        if (is_null($testCaseSet) && isset($_GET['testcases_to_show']) && is_array($_GET['testcases_to_show'])) {
+            $testCaseSet = array_values(array_filter(array_map('intval', $_GET['testcases_to_show'])));
+        }
+        if (is_null($testCaseSet) && isset($_GET['form_token'])) {
+            $ft = intval($_GET['form_token']);
+            if ($ft > 0 && isset($_SESSION['plan_mode']) && is_array($_SESSION['plan_mode']) && isset($_SESSION['plan_mode'][$ft]) && isset($_SESSION['plan_mode'][$ft]['testcases_to_show'])) {
+                $testCaseSet = array_values(array_filter(array_map('intval', (array)$_SESSION['plan_mode'][$ft]['testcases_to_show'])));
+            } elseif ($ft > 0 && isset($_SESSION['edit_mode']) && is_array($_SESSION['edit_mode']) && isset($_SESSION['edit_mode'][$ft]) && isset($_SESSION['edit_mode'][$ft]['testcases_to_show'])) {
+                $testCaseSet = array_values(array_filter(array_map('intval', (array)$_SESSION['edit_mode'][$ft]['testcases_to_show'])));
+            }
+        }
+        $filterJoin = '';
+        $filterWhere = '';
+        if (!is_null($testCaseSet) && count($testCaseSet) > 0) {
+            $filterWhere = ' AND NTC.id IN (' . implode(',', $testCaseSet) . ') ';
+        }
         $tbl = tlObjectWithDB::getDBTables(
             ['testplan_tcversions', 'nodes_hierarchy']);
         $sql = " SELECT NSU.id AS tsuite_id, NSU.name AS tsuite_name," .
@@ -2440,9 +2467,11 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
                " ON NHA.id = TPTCV.tcversion_id" .
                " JOIN {$tbl['nodes_hierarchy']} NTC" .
                " ON NTC.id = NHA.parent_id" .
+               $filterJoin .
                " JOIN {$tbl['nodes_hierarchy']} NSU" .
                " ON NSU.id = NTC.parent_id" .
                " WHERE TPTCV.testplan_id = " . intval($tplan_id) .
+               $filterWhere .
                " GROUP BY NSU.id, NSU.name, NSU.node_order" .
                " ORDER BY NSU.node_order";
         $rs = $db->fetchRowsIntoMap($sql, 'tsuite_id');
@@ -2529,10 +2558,37 @@ if ($method === 'GET' && count($segments) === 2 &&
     $context->tproject_id = $tproject_id;
     $context->platform_id = $platform_id;
 
+    // Accept filtered test case set (navigator filter panel / session)
+    $testCaseSet = null;
+    if (isset($_GET['testcases']) && is_array($_GET['testcases'])) {
+        $testCaseSet = array_values(array_filter(array_map('intval', $_GET['testcases'])));
+    } elseif (isset($_GET['testcases'])) {
+        $tc = trim((string)$_GET['testcases']);
+        if ($tc !== '') {
+            $parts = preg_split('/[\s,;\t]+/', $tc);
+            $testCaseSet = array_values(array_filter(array_map('intval', $parts)));
+        }
+    }
+    if (is_null($testCaseSet) && isset($_GET['testcases_to_show']) && is_array($_GET['testcases_to_show'])) {
+        $testCaseSet = array_values(array_filter(array_map('intval', $_GET['testcases_to_show'])));
+    }
+    if (is_null($testCaseSet) && isset($_GET['form_token'])) {
+        $ft = intval($_GET['form_token']);
+        if ($ft > 0 && isset($_SESSION['plan_mode']) && is_array($_SESSION['plan_mode']) && isset($_SESSION['plan_mode'][$ft]) && is_array($_SESSION['plan_mode'][$ft]) && isset($_SESSION['plan_mode'][$ft]['testcases_to_show'])) {
+            $testCaseSet = array_values(array_filter(array_map('intval', (array)$_SESSION['plan_mode'][$ft]['testcases_to_show'])));
+        } elseif ($ft > 0 && isset($_SESSION['edit_mode']) && is_array($_SESSION['edit_mode']) && isset($_SESSION['edit_mode'][$ft]) && is_array($_SESSION['edit_mode'][$ft]) && isset($_SESSION['edit_mode'][$ft]['testcases_to_show'])) {
+            $testCaseSet = array_values(array_filter(array_map('intval', (array)$_SESSION['edit_mode'][$ft]['testcases_to_show'])));
+        }
+    }
+    $filters = null;
+    if (!is_null($testCaseSet) && count($testCaseSet) > 0) {
+        $filters = ['testcases' => $testCaseSet];
+    }
+
     $raw = $tplanMgr->getSuiteUrgency(
         $context,
         ['build4testers' => $build4testers],
-        null
+        $filters
     );
 
     // CUMULATIVE map: tcversion_id => [row per platform]; merge to one UI row

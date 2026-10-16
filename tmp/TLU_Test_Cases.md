@@ -42419,3 +42419,55 @@ with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
     `TLU_REQUIRE_SUITE="Issue #1926" bash ai/verify_test_suites.sh`.
     *Expected:* EXIT=0 with the own-suite-heading check passing. *Actual:* recorded in the
     final checkpoint comment on issue #1926. **PASS.**
+
+## Task — Issue #1142: Implement filtered test-case set (navigator filter panel) in testUrgency (gap vs legacy)
+
+**Precondition:** logged in as admin/admin, testUrgency screen accessible at http://localhost:8082/gui/templates/plans/testUrgency.html; DB contains test plan with linked TCs; optional navigator filter state in session (form_token with testcases_to_show).
+
+1. **No filter applied — default behavior unchanged**
+   - *Steps:* open testUrgency for a suite with multiple linked TCs, no filter params/form_token
+   - *Expected:* all linked TCs in the selected suite are shown (same as before)
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+2. **Filter via explicit testcases (comma-separated)**
+   - *Steps:* pass ?testcases=123,124 to /urgency/suite (or via UI with filter params)
+   - *Expected:* only TCs 123 and 124 appear in the grid (and suite counts reflect filtered set)
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+3. **Filter via testcases_to_show array param**
+   - *Steps:* pass ?testcases_to_show[]=123&testcases_to_show[]=124
+   - *Expected:* only those TCs appear
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+4. **Filter via form_token (session-based, legacy parity)**
+   - *Steps:* set session plan_mode[TOKEN].testcases_to_show to [123,124], call /urgency/suite?form_token=TOKEN
+   - *Expected:* only those TCs appear (and /urgency reflects filtered suites)
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+5. **UI forwards filter params correctly**
+   - *Steps:* open testUrgency with filter params in URL (e.g. ?form_token=...&filter_tc_id=...)
+   - *Expected:* UI includes them in API calls and preserves them on URL updates
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+6. **Empty/mismatched filter returns empty set gracefully**
+   - *Steps:* pass testcases with non-existent/invalid IDs
+   - *Expected:* no TC rows shown (or handled gracefully), no errors
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+7. **No regression — saves still work**
+   - *Steps:* with/without filter, set urgency on visible TCs and save via /urgency/tcases
+   - *Expected:* updates succeed (POST unchanged behavior)
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
+
+8. **Event Viewer clean after testing (rule 12)**
+   - *Steps:* check events table for new Error/Warning
+   - *Expected:* no new Error/Warning entries introduced
+   - *Actual:* ___
+   - *Status:* PASS/FAIL
