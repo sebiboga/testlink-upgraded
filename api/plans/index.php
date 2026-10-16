@@ -1996,6 +1996,9 @@ if ($method === 'POST' && count($segments) === 2 &&
             $getOpt = ['outputFormat' => 'map', 'addIfNull' => true];
             $platformSet = $tplanMgr->getPlatforms($tplan_id, $getOpt);
             $features2 = ['add' => []];
+            // legacy planAddTC.php:1046-1048 also feeds tcase_id/tcversion_id
+            // to send_mail_to_testers() (Issue #1920)
+            $tvToTc = array_flip($itemsToLink['tcversion']);
             foreach ($addedFeatures as $platId => $tcversionInfo) {
                 foreach ($tcversionInfo as $tvId => $featureId) {
                     $features2['add'][$featureId]['user_id'] = $testerID;
@@ -2010,6 +2013,10 @@ if ($method === 'POST' && count($segments) === 2 &&
                         $db->db_now();
                     $features2['add'][$featureId]['platform_name'] =
                         $platformSet[$platId] ?? '';
+                    $features2['add'][$featureId]['tcase_id'] =
+                        intval($tvToTc[$tvId] ?? 0);
+                    $features2['add'][$featureId]['tcversion_id'] =
+                        intval($tvId);
                 }
             }
             if (count($features2['add']) > 0) {
@@ -2021,10 +2028,14 @@ if ($method === 'POST' && count($segments) === 2 &&
             $assigned = -1;
         }
     }
-        // send mail if requested (legacy behavior)
-        if ($sendMail) {
+        // send mail if requested (legacy behavior).
+        // Legacy addToTestPlan() only mails when the assignment above actually
+        // produced features to notify (testerID > 0, $called keys);
+        // $features2 is undefined otherwise (Issue #1920).
+        if ($sendMail && !empty($features2['add'])) {
             try {
-                require_once dirname(__FILE__) . '/../lib/plan/planAddTC.php';
+                // from api/plans/ two levels up is the repo root (Issue #1920)
+                require_once dirname(__FILE__) . '/../../lib/plan/planAddTC.php';
                 $tcaseMgr = new testcase($db);
                 $tprojMgr = new testproject($db);
                 $tprojInfo = $tprojMgr->get_by_id($tproject_id);
