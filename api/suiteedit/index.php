@@ -628,14 +628,14 @@ function suiteEditValidateName(&$db)
     /* strings_stripSlashes() ran on the whole $_REQUEST in legacy
        init_args(); we strip here so a name typed as \" is judged the same. */
     $name = stripslashes($name);
-    /* preg_match() directly instead of the legacy check_string() helper, which
-       answered 0 (== "forbidden") for a name that does NOT match the pattern -
-       'SU52 Child v2' was rejected with bad_chars while preg_match() on the very
-       same arguments returned 0. Reproduced on every write route; filed as
-       #1854. check_string() is literally
-       `$status_ok = 1; if (preg_match($re, $str)) $status_ok = 0;`, so this is
-       the same decision, evaluated in a scope we control. */
-    if (preg_match($g_ereg_forbidden, $name)) {
+    /* #1854 was NOT a check_string() defect: the helper returns 1 = "check ok",
+       0 = "contains forbidden characters" (lib/functions/common.php) and is
+       correct. This BFF (ad29e1086) called it as `if (check_string(...)) ->
+       bad_chars`, inverting that polarity, so every valid name was rejected
+       while a name with a `|` passed. All other callers use the correct
+       `!check_string(...)` form (containerEdit.php:203,
+       testproject.class.php:893/917, api/projectinfo/index.php:426). */
+    if (!check_string($name, $g_ereg_forbidden)) {
         return array('', $details, 'bad_chars', 400);
     }
     if (mb_strlen($name, 'UTF-8') > 100) {
