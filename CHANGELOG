@@ -17,6 +17,23 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1851: **`tmp/TLU_Test_Cases.md` — the largest suite-file clobber in the
+  repo's history (`30aeecd0d`, 595 suite headings → 1, `+32/-26815`, subject
+  "leftover changes from task-implementation run") was never detected and never repaired:
+  the #1849 check 3 anchored ONLY the newest destructive commit, so the mandated gate kept
+  reporting `PASS / EXIT=0` while 593 suites were absent.** Restored the `30aeecd0d` pre-image
+  append-only (593 blocks, `+27280/-0`, one provenance line each for the 2 source-born
+  body-less blocks) plus the 31 further suites the widened check proved historically lost
+  (26 confirmed anchors), i.e. `origin/sebiboga...HEAD = +28695/-0`, **zero lines removed**.
+  Widened `ai/verify_test_suites.sh` check 3 to enforce EVERY confirmed destructive commit
+  instead of `break`ing at the newest — the gate's "older anchors use the retired `Suite ID:`
+  scheme and would be permanently red" premise was measured false (only 59 of the 593 lost
+  headings use that scheme; 493 are modern-scheme, all restorable); header docs + `--help`
+  range corrected. Verified: repaired tree `33 PASS / 0 FAIL` EXIT=0 over 26 enforced anchors;
+  the pre-repair tip now FAILs (`24 FAIL` incl. `30aeecd0d (593 lost)` — the old gate passed
+  it); a minus-one-block isolation candidate passes checks 1/2 and fails only under check 3;
+  outside-git and shallow paths still fail closed. Suite 11 cases. Refs #1851.
+
 - [KEY BUGFIX] - #1849: **`tmp/TLU_Test_Cases.md` — the shared regression-suite file
   silently lost whole suites to whole-file overwrites and the mandated gate could not see it.**
   Commit `136fc4426` ("append suite for #1089") was in fact a `+12/-6332` replacement (88 suite

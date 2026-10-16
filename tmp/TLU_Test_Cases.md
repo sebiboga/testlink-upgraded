@@ -42360,8 +42360,8 @@ The gate under test is `bash ai/verify_test_suites.sh` (repo root). `EPOCH DEADL
    has a body, fences balanced, no NEW duplicate headings (the pre-existing
    `## Task — Issue #1134 …` duplicate is untouched). *Actual:* `no suite heading left without
    a body (= 0)`, `markdown code fences balanced (= 266)`, duplicate heading lines = **1 both
-   before and after the run** (pre-existing). The 4 source-born empty blocks carry a one-line
-   provenance body. **PASS.**
+   before and after the run** (pre-existing). The 2 source-born empty blocks (`Suite 427`,
+   `Suite 1632`) carry a one-line provenance body. **PASS.**
 10. **Event Viewer clean (rule 12) + no app surface touched.** *Steps:*
     `SELECT COUNT(*) FROM events;`. *Actual:* **0 rows**. Only `tmp/TLU_Test_Cases.md`,
     `ai/verify_test_suites.sh`, `CHANGELOG`, docs/wiki changed — no PHP, template, API or
