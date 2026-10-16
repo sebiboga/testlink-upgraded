@@ -55,6 +55,24 @@ Every screen of the application was ported one-by-one in a screen-compare
   re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
   assign panel, `php -l`). Refs #1922.
 
+- [SCREEN] - #1061: the **Test Strategy Report**
+  (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
+  Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a *static* Test Strategy reference hub and never
+  generated a project-specific strategy. The screen assembles a strategy document entirely from the
+  project's artifacts — project context + 9 sections (quality objectives & scope, test types &
+  approaches, test levels & planned activities, entry/exit/completion criteria, test environments &
+  data, tooling & integrations, team & responsibilities, related test plans, assumptions/constraints/
+  dependencies) — with DataTables, generated scope/criteria sentences, Refresh, Markdown/HTML export,
+  Print and a state card per error code. The BFF is `GET|HEAD ?action=init&tproject_id=N`, guarded by
+  session auth + `bffSameOriginGuard` + `bffEnforceSession`, with `testplan_metrics` on the owning
+  project (opaque 404 before the right probe) and 400/401/403/404/405 machine codes.
+  `cfg/reports.cfg.php` + `api/aside/index.php` add the Reports entry, `$TLS_link_report_strategy_report`
+  in all 19 server locales, `strat.*` (93) + `footers.strategyReport` client keys in all 10 bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS). Verified with fixture `tmp/fixtures_1925.php` (project
+  `STRAT1925` id 9, plan 10: 3 cases / 2 suites / 2 requirements, automation 66.7%, team + tooling +
+  plans render, Romanian locale, 400/404 state cards, anon 401, role-3 403, ASIDE link present, console
+  clean, Event Viewer clean). Refs #1061 / tracking #1925.
+
 - [SCREEN] - #1062: the **Automation Test Reports** screen
   (`gui/templates/results/automationReports.html`, BFF `api/automationreports/index.php`) is
   added under the Reports menu. Net-new for 2.0.1: 1.9.20 shipped no automation reporting (automated
