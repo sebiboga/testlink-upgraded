@@ -213,7 +213,7 @@ $rsb = $db->get_recordset(
     ' WHERE testproject_id = ' . intval($owningProjectId) . ' ORDER BY id');
 foreach ((array)$rsb as $row) {
     $bid = intval($row['id']);
-    $bname = (string)$row['name'];
+    $bname = html_entity_decode((string)$row['name'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $builds[] = array('id' => $bid, 'name' => $bname);
     if ($bid === $buildId) {
         $buildName = $bname;
@@ -230,7 +230,7 @@ $rsp = $db->get_recordset(
       ORDER BY P.name');
 foreach ((array)$rsp as $row) {
     $pid = intval($row['pid']);
-    $pname = (string)$row['pname'];
+    $pname = html_entity_decode((string)$row['pname'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
     $platforms[] = array('id' => $pid, 'name' => $pname);
     if ($pid === $platformId) {
         $platformName = $pname;
