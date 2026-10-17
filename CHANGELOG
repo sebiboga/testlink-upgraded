@@ -164,6 +164,42 @@ Every screen of the application was ported one-by-one in a screen-compare
   capped utf8-safely. Suite
   `Modernize — Issue #1928` = 15/15 PASS in `tmp/TLU_Test_Cases.md`. Refs #1928 / parent #1070.
 
+- [SCREEN] - #1930 (parent #1066): the **Risk Register**
+  (`gui/templates/risk/riskRegister.html`, BFF `api/risk/index.php`) adds a project-scoped
+  ASIDE section **Risk Register** (icon `fas fa-exclamation-triangle`). Net-new for 2.0.1:
+  1.9.20 has no editable risk registry (the read-only `results/riskCoverage.html` dashboard of
+  #1277 owns the separate `risk.*` namespace). A project-scoped register of risks — name,
+  impact / likelihood / severity / priority (1–5), a **derived** risk level
+  (impact × likelihood: 1–4 low, 5–9 medium, 10–14 high, 15–25 critical), status (open /
+  mitigated / accepted / closed), owner, mitigation, free notes and optional links to a
+  requirement and a test case — with metric tiles (total / linked / critical / high / medium /
+  low), level + status filters, a registry DataTable (view / edit / delete), a details modal, a
+  create/edit modal with a live derived-level preview, a delete confirm, and per-code state
+  cards. The BFF is `GET ?action=init|list` + `POST ?action=save|delete`; session auth +
+  `bffSameOriginGuard` + `bffEnforceSession`, with `mgt_view_tc|mgt_modify_tc` (read) /
+  `mgt_modify_tc` (write) checked on the addressed project BEFORE it is resolved (no existence
+  oracle, #1697), and 400/401/403/404/405/409 machine codes (`name_required`, `bad_status`,
+  `invalid_requirement`, `invalid_tcase`, `duplicate_name`, `risk_not_found`, `bad_id`,
+  `tproject_not_found`, `no_right`). The `init` payload carries a `refs` block (recursive CTE
+  over `nodes_hierarchy`, `node_type_id IN (3,7)`) so the pickers only offer same-project
+  targets. The `tc_risks` table is created lazily and mirrored in
+  `install/sql/mysql/testlink_create_tables.sql` (whitelisted in `lib/functions/object.class.php`);
+  writes emit `RISK_CREATE` / `RISK_SAVE` / `RISK_DELETE` AUDIT events. Wiring:
+  `$actions->riskRegister` in `lib/functions/common.php`, the Risk Register ASIDE section in
+  `api/aside/index.php`, `$TLS_title_risk_register` in **all 19** server locales, and `riskreg.*`
+  (67) client keys in **all 10** bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS, 8430 keys). The
+  distinct `riskreg.*` namespace was required to stop cross-contamination with the 73
+  `risk.*` keys of the coverage dashboard (the register was initially rendering the dashboard's
+  subtitle). Browser-verified (admin): tiles, filters + empty state, create (derived
+  `CRITICAL 5 × 4 = 20`, both link chips, tiles update), duplicate-name guard, details, edit
+  (status open→mitigated, `update_ts` bumped), delete confirm + delete, no-right (403) and
+  no-project (404) states, German + Romanian locales, console clean; BFF curl matrix
+  401/403/404/400/405/409 + CSRF. Two defects found while testing and fixed: the i18n namespace
+  collision above, and a DataTable re-init bug that stacked the header `aria-label`
+  (`Name: activate to sort column ascending: activate to sort column ascending`) on every
+  re-render. Suite `Modernize — Issue #1930` = 16/16 PASS in `tmp/TLU_Test_Cases.md`. Refs #1930 /
+  parent #1066.
+
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
   Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a *static* Test Strategy reference hub and never
