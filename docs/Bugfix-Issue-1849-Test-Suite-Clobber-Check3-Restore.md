@@ -46,8 +46,9 @@ git log --format='C %H' --numstat <range> -- tmp/TLU_Test_Cases.md
   `git show <sha>^:tmp/TLU_Test_Cases.md` — append only the blocks whose `^## ` heading is
   absent, do not append the whole file;
 - it never fails open on the paths it can evaluate: no git clone, a shallow clone, or no
-  readable history ⇒ *unrunnable* (a FAIL unless `--allow-skip`), not a PASS. Known gap: a
-  clobber performed in a **merge commit's own diff** is invisible to `--numstat` (follow-up bug).
+  readable history ⇒ *unrunnable* (a FAIL unless `--allow-skip`), not a PASS. (Originally a
+  known gap: a clobber in a **merge commit's own diff** was invisible to `--numstat`; fixed in
+  #1923 by adding `-m`, see `Bugfix-Issue-1923-Merge-Clobber-Check3-Blind-Spot.md`.)
 
 Only the **newest** replacement is enforced. Older ones belong to the retired
 `## N. Name (Suite ID: M)` heading scheme.
@@ -96,6 +97,7 @@ G1805 result: 8 PASS / 0 FAIL / 0 SKIP   EXIT=0
 
 - `30aeecd0d` (595 → 1) — the earliest, largest clobber, retired heading scheme; tracked by #1851.
 - The retired-era suites are deliberately not required back (unsatisfiable baseline).
+- The `--numstat` merge blind spot is closed by #1923 (`-m` in the check-3 extractor).
 
 ## RESUME — re-verify in one command
 
