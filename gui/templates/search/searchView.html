@@ -461,7 +461,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
 
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   collapsedGroups = Object.create(null);
   $('#gridToolbarInfo').text('');
 
@@ -511,7 +511,7 @@ function renderResults(r) {
   // shown and leaving an empty table beside a non-zero count (Refs #799 —
   // same latent defect as searchQuickView pre-fix). The fallback also carries
   // the legacy group headers so the grouping survives without the CDN.
-  var $body = $('#resTable tbody').empty();
+  var $body = $('#resTable tbody').empty(); clearHeaderAria();
   var seen = {};
   $.each(rows, function (i, o) {
     if (!seen[o.path]) {
@@ -711,7 +711,7 @@ function resetForm() {
   $('#noResults').hide();
   collapsedGroups = Object.create(null);
   $('#gridToolbarInfo').text('');
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   $('.panel').find('input[type=text],input[type=number],input[type=date]').val('');
   $('.panel select').val('0');
   $('#targetTestCase').val(ctx ? ctx.tcasePrefix : '');
@@ -719,6 +719,11 @@ function resetForm() {
   $('#footerGenerated').hide();
   $('#footerGenOn').text('').removeAttr('title');
 }
+
+function clearHeaderAria() {
+  $('#resTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

@@ -354,7 +354,7 @@ function computeTotals(r) {
 // The RowGroup plugin is loaded from the same CDN as the already modernized
 // sibling screen gui/templates/results/tplanWithCF.html:107.
 function renderTable(r) {
-  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansFoot').empty(); }
+  if (table) { table.destroy(); $('#plansTable tbody').empty(); clearHeaderAria(); $('#plansFoot').empty(); }
   $('#platformFilter').empty();
 
   grouped = !!r.show_platforms;
@@ -600,6 +600,11 @@ function bindGridToolbar() {
     loadDashboard($('#showOnlyActive').is(':checked') ? 1 : 0);
   });
 }
+
+function clearHeaderAria() {
+  $('#plansTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

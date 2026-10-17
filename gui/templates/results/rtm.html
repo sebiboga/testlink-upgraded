@@ -260,7 +260,7 @@ function render() {
   }
 
   // Matrix table
-  var tbody = $('#dtReqs tbody').empty();
+  var tbody = $('#dtReqs tbody').empty(); clearHeaderAria();
   if (d.rows && d.rows.length > 0) {
     $.each(d.rows, function (i, r) {
       var tcCells = '';
@@ -407,6 +407,11 @@ TLi18n.load(function () {
   start();
 });
 $(function () { if (i18nReady) start(); });
+
+function clearHeaderAria() {
+  $('#dtReqs thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

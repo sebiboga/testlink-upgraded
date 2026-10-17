@@ -289,7 +289,7 @@ function loadData() {
     $('#tileRejected').text(c.rejected || 0);
     $('#projectInfo').text(r.tproject_name || '');
     if (allItems.length === 0) {
-      if (table) { table.destroy(); table = null; $('#reviewTable tbody').empty(); }
+      if (table) { table.destroy(); table = null; $('#reviewTable tbody').empty(); clearHeaderAria(); }
       $('#reviewTable').hide();
       $('#emptyState').show();
     } else {
@@ -329,7 +329,7 @@ function buildRow(it, canModerate) {
 }
 
 function renderTable(items, canModerate) {
-  if (table) { table.destroy(); $('#reviewTable tbody').empty(); }
+  if (table) { table.destroy(); $('#reviewTable tbody').empty(); clearHeaderAria(); }
   var rows = $.map(items, function(it) { return [buildRow(it, canModerate)]; });
   table = $('#reviewTable').DataTable({
     data: rows,
@@ -472,6 +472,11 @@ function showFail(xhr, key) {
   try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
   toast(msg, 'err');
 }
+
+function clearHeaderAria() {
+  $('#reviewTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

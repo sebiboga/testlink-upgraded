@@ -216,7 +216,7 @@ function loadScripts() {
 }
 
 function renderTable() {
-  if (table) { table.destroy(); $('#scriptsTable tbody').empty(); }
+  if (table) { table.destroy(); $('#scriptsTable tbody').empty(); clearHeaderAria(); }
   var rows = [];
   $.each(scripts, function(i, s) {
     if (!s || !s.script_id) return;
@@ -396,6 +396,11 @@ $(function() {
     loadAll();
   });
 });
+
+function clearHeaderAria() {
+  $('#scriptsTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

@@ -554,7 +554,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
 
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   collapsedGroups = Object.create(null);
   $('#gridToolbarInfo').text('');
 
@@ -601,7 +601,7 @@ function renderResults(r) {
   // the DataTables CDN (external) is slow/unavailable (Refs #799). The
   // fallback also carries the legacy group headers so the grouping survives
   // without the CDN (Refs #1102).
-  var $body = $('#resTable tbody').empty();
+  var $body = $('#resTable tbody').empty(); clearHeaderAria();
   var seen = {};
   $.each(rows, function (i, o) {
     if (!seen[o.path]) {
@@ -811,7 +811,7 @@ function resetForm() {
   $('#noResults').hide();
   collapsedGroups = Object.create(null);
   $('#gridToolbarInfo').text('');
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   $('#quickText').val('');
   // Refs #1101: clear the advanced criteria too
   $.each(advIds, function (i, k) {
@@ -822,6 +822,11 @@ function resetForm() {
   $('#footerGenerated').hide();
   $('#footerGenOn').text('').removeAttr('title');
 }
+
+function clearHeaderAria() {
+  $('#resTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

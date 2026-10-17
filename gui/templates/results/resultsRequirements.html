@@ -208,7 +208,7 @@ function loadData() {
 
       // Populate table
       if (d.rows && d.rows.length > 0) {
-        var tbody = $('#dtReqs tbody').empty();
+        var tbody = $('#dtReqs tbody').empty(); clearHeaderAria();
         $.each(d.rows, function(i, r) {
           var covHtml = '<td></td>';
           if (d.expected_coverage_enabled) {
@@ -342,6 +342,11 @@ $('#btnApply').on('click', start);
 $(function() {
   if (i18nReady) start();
 });
+
+function clearHeaderAria() {
+  $('#dtReqs thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

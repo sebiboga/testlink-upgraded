@@ -174,7 +174,7 @@ function authFail(xhr) {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#systemsTable tbody').empty(); clearHeaderAria(); }
+  if (table) { table.destroy(); $('#systemsTable tbody').empty(); clearHeaderAria(); clearHeaderAria(); }
   var rows = [];
   $.each(items, function(i, t) {
     var nameHtml = '';

@@ -458,7 +458,7 @@ function renderCustomFields(cfs) {
 function renderTc(rows) {
   $('#tcEmpty').toggle(rows.length === 0);
   $('#tcCard').show();
-  var $tb = $('#tcTable tbody').empty();
+  var $tb = $('#tcTable tbody').empty(); clearHeaderAria();
   $.each(rows, function(i, tc) {
     if (!tc.active && tc.version === 0) return; // no version yet -> treat as none
     var badge = tc.active
@@ -1278,6 +1278,11 @@ function fmtSize(n) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $('#tcTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

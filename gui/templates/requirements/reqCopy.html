@@ -206,7 +206,7 @@ function buildContainers() {
 
 function renderTable(items) {
   if (copyTable) { copyTable.destroy(); copyTable = null; }
-  $('#copyTable tbody').empty();
+  $('#copyTable tbody').empty(); clearHeaderAria();
   if (!items.length) {
     $('#copyTable').hide();
     $('#emptyState').css('display', 'block');
@@ -302,6 +302,11 @@ function doCopy() {
     }
   });
 }
+
+function clearHeaderAria() {
+  $('#copyTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

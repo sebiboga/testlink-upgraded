@@ -364,7 +364,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + r.totalRows + ')');
 
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   collapsedGroups = Object.create(null);
   $('#gridToolbarInfo').text('');
 
@@ -403,7 +403,7 @@ function renderResults(r) {
 
   // Plain <tbody> fallback (with legacy group headers) so rows are never lost
   // even when the DataTables / RowGroup CDN is slow or unavailable.
-  var $body = $('#resTable tbody').empty();
+  var $body = $('#resTable tbody').empty(); clearHeaderAria();
   var seen = Object.create(null);
   var groupSizes = Object.create(null);
   $.each(rows, function (i, o) { groupSizes[o.login] = (groupSizes[o.login] || 0) + 1; });
@@ -732,7 +732,7 @@ function resetForm() {
   collapsedGroups = Object.create(null);
   showUserCol = false;
   $('#gridToolbarInfo').text('');
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   $('#footerInfo').text('');
   $('#userSelect').val('0');
   if (meta && meta.defaults) {
@@ -742,6 +742,11 @@ function resetForm() {
     $('#endHour').val(String(meta.defaults.endHour));
   }
 }
+
+function clearHeaderAria() {
+  $('#resTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>
