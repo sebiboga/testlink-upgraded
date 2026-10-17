@@ -2308,6 +2308,14 @@ function getActions(&$gui,$baseURL) {
   // to a test case. Rights (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc
   // for writes) are enforced by the BFF api/testdata on every route.
   $actions->testDataSets = "/gui/templates/testdata/testDataSets.html?{$ctx}";
+  // Test Environments registry (Dashio standalone page) - Refs #1928, parent
+  // feature #1070. Net-new module (no legacy twin): first-class, project-scoped
+  // environment definitions (dev / QA / staging / preprod / production-like)
+  // with availability status, browser-device-OS, base URL, owner, version /
+  // build, service dependencies and notes. Rights (mgt_view_tc / mgt_modify_tc
+  // for reads, mgt_modify_tc for writes) are enforced by the BFF
+  // api/environments on every route.
+  $actions->testEnvironments = "/gui/templates/environments/testEnvironments.html?{$ctx}";
   // Test Closure (Dashio standalone page) - Refs #1278.
   // Net-new ISTQB closure-phase module (no legacy twin): lessons learned,
   // closure checklist/summary/archive reference, a printable closure report and

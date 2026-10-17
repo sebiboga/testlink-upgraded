@@ -3730,6 +3730,7 @@ $TLS_after_title = 'Nach dem Titel';
 $TLS_after_preconditions = 'Nach den Vorbedingungen';
 $TLS_title_test_closure = "Testabschluss"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Testdatensätze"; // "Test Data Sets" (Refs #1927)
+$TLS_title_test_environments = "Testumgebungen"; // "Test Environments" (Refs #1928)
 $TLS_link_report_risk_coverage = "Risikobasiertes Testen";
 $TLS_link_report_quality_gates = "Release-Qualitätstore"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Defekt-Intelligenz"; // Refs #1068

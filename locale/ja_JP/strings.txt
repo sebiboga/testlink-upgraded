@@ -4573,6 +4573,7 @@ $TLS_after_title = 'タイトルの後';
 $TLS_after_preconditions = '前提条件の後';
 $TLS_title_test_closure = "テストクロージング"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "テストデータセット"; // "Test Data Sets" (Refs #1927)
+$TLS_title_test_environments = "テスト環境"; // "Test Environments" (Refs #1928)
 $TLS_link_report_risk_coverage = "リスクベースのテスト";
 $TLS_link_report_quality_gates = "リリース品質ゲート"; // Refs #1067
 $TLS_link_report_defect_intelligence = "欠陥インテリジェンス"; // Refs #1068

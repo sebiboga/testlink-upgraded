@@ -608,6 +608,29 @@ if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
     );
 }
 
+// 7c-bis. Test Environments registry ---------------------------------------
+// Net-new module (Refs #1928, parent feature #1070): first-class, project-scoped
+// environment definitions (dev / QA / staging / preprod / production-like) with
+// availability status, browser-device-OS, base URL, owner, version / build,
+// service dependencies and notes. No legacy menu twin. Label uses the new
+// server string key title_test_environments, added to all 19 server locales.
+// Rights (view_tc / modify_tc) match the BFF api/environments, which answers
+// 403 without them.
+if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
+    $sections[] = array(
+        'key' => 'testEnvironments',
+        'label' => lang_get('title_test_environments'),
+        'icon' => 'fas fa-server',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'testEnvironments',
+            'label' => lang_get('title_test_environments'),
+            'href' => (string)$u('testEnvironments'),
+            'icon' => 'fas fa-server',
+        )),
+    );
+}
+
 // 7d. Test Closure ---------------------------------------------------------
 // ISTQB closure phase (Refs #1278): lessons learned + closure checklist +
 // printable closure report + the closure state that freezes plan results.

@@ -4232,6 +4232,7 @@ $TLS_after_title = 'After Title';
 $TLS_after_preconditions = 'After Preconditions';
 $TLS_title_test_closure = "Test Closure"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Test Data Sets"; // "Test Data Sets" (Refs #1927)
+$TLS_title_test_environments = "Test Environments"; // "Test Environments" (Refs #1928)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_link_report_quality_gates = "Release Quality Gates"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Defect Intelligence"; // Refs #1068

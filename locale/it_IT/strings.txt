@@ -2435,6 +2435,7 @@ $TLS_after_title = 'Dopo il titolo';
 $TLS_after_preconditions = 'Dopo le precondizioni';
 $TLS_title_test_closure = "Chiusura dei test"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Set di dati di test"; // "Test Data Sets" (Refs #1927)
+$TLS_title_test_environments = "Ambienti di test"; // "Test Environments" (Refs #1928)
 $TLS_link_report_risk_coverage = "Test basati sui rischi";
 $TLS_reqmgrsystem_interface_not_implemented = "Esempio di configurazione non disponibile: l'interfaccia '%s' non è implementata";
 $TLS_reqmgrsystem_invalid_type = 'Tipo di sistema di gestione dei requisiti non valido: %s';
