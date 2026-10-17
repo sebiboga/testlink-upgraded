@@ -281,6 +281,33 @@ function riskStats($items) {
     return $s;
 }
 
+/**
+ * Linked-entity pickers for the create/edit form: every requirement (node type
+ * 7) and test case (node type 8) in the addressed project subtree, resolved by
+ * one recursive CTE over nodes_hierarchy (test cases are node type 3, and
+ * requirements are node type 7 - all nodes whose ancestor chain reaches the
+ * project root; type 8 nodes are requirement VERSIONS and are excluded).
+ */
+function riskRefs($db, $tpid) {
+    $nh = tlObjectWithDB::getDBTables(array('nodes_hierarchy'))['nodes_hierarchy'];
+    $reqs = array();
+    $tcs = array();
+    $sql = "WITH RECURSIVE subtree AS (" .
+           " SELECT id, parent_id, node_type_id, name FROM {$nh} WHERE id = " . intval($tpid) .
+           " UNION ALL" .
+           " SELECT nh.id, nh.parent_id, nh.node_type_id, nh.name" .
+           " FROM {$nh} nh JOIN subtree s ON nh.parent_id = s.id" .
+           ") SELECT id, name, node_type_id FROM subtree" .
+           " WHERE node_type_id IN (3, 7) AND name <> '' ORDER BY name ASC";
+    $rows = (array)$db->get_recordset($sql);
+    foreach ((array)$rows as $r) {
+        $entry = array('id' => intval($r['id']), 'label' => (string)$r['name']);
+        if (intval($r['node_type_id']) === 7) { $reqs[] = $entry; }
+        else { $tcs[] = $entry; }
+    }
+    return array('requirements' => $reqs, 'tcases' => $tcs);
+}
+
 // --------------------------------------------------------------------------
 // Routing
 // --------------------------------------------------------------------------
@@ -353,6 +380,7 @@ if (!$isWrite && ($action === 'init' || $action === 'list')) {
             'scales' => array(1, 2, 3, 4, 5),
         ),
         'stats' => riskStats($items),
+        'refs' => riskRefs($db, $tpid),
         'items' => $items,
     );
     echo json_encode($payload);
