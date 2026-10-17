@@ -551,6 +551,30 @@ CREATE TABLE /*prefix*/tc_test_environments (
 ) DEFAULT CHARSET=utf8;
 
 
+CREATE TABLE /*prefix*/tc_risks (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `impact` tinyint(3) unsigned NOT NULL default '3',
+  `likelihood` tinyint(3) unsigned NOT NULL default '3',
+  `severity` tinyint(3) unsigned NOT NULL default '3',
+  `priority` tinyint(3) unsigned NOT NULL default '3',
+  `status` varchar(16) NOT NULL default 'open',
+  `owner` varchar(128) NOT NULL default '',
+  `mitigation` text,
+  `requirement_id` int(10) unsigned default NULL,
+  `tcase_id` int(10) unsigned default NULL,
+  `notes` text,
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `uq_risk_project_name` (`testproject_id`,`name`),
+  KEY `idx_risk_project` (`testproject_id`),
+  KEY `idx_risk_status` (`testproject_id`,`status`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
