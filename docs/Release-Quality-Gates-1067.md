@@ -27,6 +27,16 @@ The unit of counting is a test-case version assignment (testplan_tcversions, pla
 - **BFF:** `/api/qualitygate/index.php?action=init&tplan_id=N[&tproject_id=P][&build_id=B][&platform_id=PL][&progress_min=...][&pass_rate_min=...][&max_failed=...][&max_blocked=...][&max_unaddressed=...][&req_coverage_min=...]`
 - Security: session auth + `bffSameOriginGuard` + `bffEnforceSession`; right `testplan_metrics` on owning project; all IDs are positive integers. Responses: 200 ok, 400 invalid_request, 401 not_authenticated/session_expired, 403 no_right, 404 tplan_not_found/project_mismatch, 405 method_not_allowed.
 
+## Verification
+Verified on `tmp/fixtures_1067.php` (project `QG1067` / plan `QG Release`; platforms Android/iOS; 1 open build; 7 assignments = 3 pass / 2 fail, one addressed through `BUG-1067`, 1 blocked, 1 not run; 3 requirements, 1 covered):
+- Default thresholds → **NO-GO**, score 29 (progress 85.7%, pass rate 50%, 1 unaddressed failure, coverage 33.3%).
+- Platform = iOS → **CONDITIONAL GO**, score 83 (1 assigned / 1 executed / 1 passed).
+- Relaxed thresholds → **GO**, score 100.
+- Empty plan → **NO-GO**, score 50 (total 0).
+- Guard matrix: 400 `invalid_request`, 404 `tplan_not_found`, 404 `project_mismatch`, 401 `not_authenticated`, 403 `no_right`, 405 `method_not_allowed`.
+- Export CSV: UTF-8 BOM, `;`-separated, localized headers, 6 gate rows + verdict/score line.
+- Event Viewer clean (no Error/Warning attributed to this screen/BFF).
+
 ## Refs
 - Issue #1067
-- Screenshots: see wiki page
+- Screenshots: `docs/screenshots/issue-1067-quality-gate-nogo.png`, `issue-1067-quality-gate-go.png`, `issue-1067-quality-gate-ro.png` (also on the wiki page)

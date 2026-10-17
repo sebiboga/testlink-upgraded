@@ -6529,6 +6529,23 @@ Login `admin/admin`. Screen: `http://localhost:8082/gui/templates/requirements/r
 - Run browser tests against fixtures (plan 3 = NO-GO, plan 42 = GO). Screenshots: tmp/qg_no_go.png, tmp/qg_conditional.png, tmp/qg_go_relaxed.png.
 - After testing, verify Event Viewer has no new Error/Warning entries attributable to this screen/BFF.
 
+### Execution results (2026-10-17, fixture-relative ids)
+Fixture recreated with `php tmp/fixtures_1067.php`: this run produced project `QG1067` id=46, plan `QG Release` id=47, platforms Android id=5 / iOS id=6, build `QG Build 1` id=2, empty plan id=89. (Ids are auto-increment dependent; the suite's literal 3/1/2 map to the fixture entities, not fixed rowids.)
+
+| # | Case | Result | Evidence |
+|---|------|--------|----------|
+| 1 | BFF init NO-GO (default thresholds) | PASS | `GET action=init&tplan_id=47&tproject_id=46` → 200; total 7, executed 6, passed 3, failed 2, blocked 1, not_run 1, progress 85.7, pass_rate 50, unaddressed 1, req coverage 33.3 (3/1/1/1); 6 gates all fail (exec_progress/progress, pass_rate, failed_cases, blocked_cases, unaddressed_failures, req_coverage); verdict no_go, score 29 |
+| 2 | BFF filters — platform + build | PASS | platform_id=6 (iOS) → total 1, executed 1, passed 1, verdict conditional score 83; platform_id=5 (Android) → total 6, executed 5, passed 2, failed 2, blocked 1, not_run 1, no_go; build_id=2 → total 7, executed 6 (single build = same totals) |
+| 3 | Guard paths | PASS | missing tplan_id 400 invalid_request; tplan_id=999999 404 tplan_not_found; tproject_id mismatch 404 project_mismatch; tplan_id=abc 400; no session 401 not_authenticated; action=bogus 400; POST same-origin (Origin+X-Requested-With) 405 method_not_allowed; POST without origin 403 (same-origin guard); user `qgnorights` (no testplan_metrics) 403 no_right |
+| 4 | Thresholds configurable | PASS | `progress_min=80&pass_rate_min=40&max_failed=3&max_blocked=2&max_unaddressed=2&req_coverage_min=30` → all 6 gates Pass, verdict go, score 100 |
+| 5 | Screen renders verdict + gates (NO-GO) | PASS | /gui/templates/results/qualityGate.html?tproject_id=46&tplan_id=47 → header, Build/Platform selects (All/QG Build 1; All/Android/iOS), 6 threshold inputs (100/95/0/0/0/100); verdict NO-GO score 29; 9 tiles (7/6/3/2/1/1/1/85.7%/50%); context QG1067 / QG Release / Build: All · Platform: All / requirements enabled; gate table 6 rows w/ Value/Target/Status/Blocking; req panel 3/1/1/1/33.3%. No raw qg.* keys, no console errors. Screenshot docs/screenshots/issue-1067-quality-gate-nogo.png |
+| 6 | Screen interactions — scope + thresholds + evaluate | PASS | Platform=iOS + Evaluate → CONDITIONAL GO score 83, totals 1/1/1, completeness 0%. Relaxed thresholds + Evaluate → GO score 100 (screenshot issue-1067-quality-gate-go.png). Locale switch → Romanian full render, no raw keys (screenshot issue-1067-quality-gate-ro.png). Export CSV produced a localized (ro) semicolon CSV with BOM, headers + 6 gate rows + verdict/score line. Close calls window.close(). Refresh reloads current scope |
+| 7 | Empty/disabled states | PASS | Empty plan id=89 → total 0, all tiles 0, verdict no_go score 50 (case expected score 50). Requirements-enabled project shows req panel; BFF sets requirements.enabled accordingly |
+| 8 | ASIDE + reports.cfg + actions | PASS | cfg/reports.cfg.php:254 `reports_list['release_quality_gates']`; api/aside/index.php:217 branch `link_report_quality_gates` → /gui/templates/results/qualityGate.html; lib/functions/common.php:2619 `$actions->qualityGate`; server key TLS_link_report_quality_gates in all 19 locale bundles; client qg.* keys (77) in all 10 i18n bundles; `ai/verify_i18n_coverage.sh` exit 0 |
+| — | Event Viewer | PASS | `events` log_level IN (1,2): only id=2, a DATABASE error from the fixture's own first `testplan_platforms` INSERT typo (author artifact, corrected). No Error/Warning attributable to the quality-gate screen or BFF |
+
+Post-run fix: found `qg.notFoundTitle` and `qg.serverErrorTitle` shipped untranslated ("Not found"/"Server error") in ALL 9 non-English bundles (coverage gate cannot catch value-level gaps). Corrected across de/es/fr/it/ja/pt/ro/ru/zh; re-verified in-browser ro error state renders "Negăsit".
+
 
 ## Regression — Issue #1888: planMilestonesEdit.php failed doCreate re-render logged 16 E_WARNING rows ($gui->milestone unset)
 
