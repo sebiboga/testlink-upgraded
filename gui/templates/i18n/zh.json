@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "无法移动测试用例。",
   "tmvc.errCopyFailed": "无法复制测试用例。",
   "tmvc.errUnknownAction": "未知操作。",
-  "footers.containerMoveTC": "TestLink 2.0.1 - 移动/复制测试用例"
+  "footers.containerMoveTC": "TestLink 2.0.1 - 移动/复制测试用例",
+  "turg.help": "帮助",
+  "turg.helpTooltip": "显示此屏幕的说明",
+  "turg.helpOpenFull": "打开完整页面"
 }

@@ -192,6 +192,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   Windows): All/Linux -> High (6), Windows -> Low (2); the write path stays global, matching
   legacy `setTestUrgency()`. Refs #1141.
 
+- [FEATURE] - #1143: the modern **Set Test Urgency** screen
+  (`gui/templates/plans/testUrgency.html`) regains the legacy help/instructions affordance
+  (`lib/plan/planUrgency.php:27-30` `show_instructions('test_urgency')` →
+  `documentation/staticPage.html?key=test_urgency`; Purpose/Get Started body in
+  `locale/*/texts.php`). The screen had no way to reach the already-ported instructions
+  viewer (#1501). Added a `#btnHelp` question-mark button in the toolbar that opens a
+  Dashio/Bootstrap modal fetching `api/staticpage/index.php?action=show&key=test_urgency`
+  in the active locale, with an "Open full page" link to the standalone
+  `documentation/staticPage.html?key=test_urgency`; the modal does not navigate, so unsaved
+  radio changes survive. i18n `turg.help/helpTooltip/helpOpenFull` in all 10 bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS). Verified with `tmp/fixtures_1143.php` (en body
+  "Purpose/Get Started"; `&locale=de` → title "Dringlichkeit der Tests bestimmen", body
+  "Zweck:"; footer labels localized; 0 console messages). Refs #1143.
+
 - [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
   by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
   date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string

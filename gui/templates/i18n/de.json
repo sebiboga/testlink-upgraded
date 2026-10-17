@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "Die Testfälle konnten nicht verschoben werden.",
   "tmvc.errCopyFailed": "Die Testfälle konnten nicht kopiert werden.",
   "tmvc.errUnknownAction": "Unbekannte Aktion.",
-  "footers.containerMoveTC": "TestLink 2.0.1 - Testfälle verschieben/kopieren"
+  "footers.containerMoveTC": "TestLink 2.0.1 - Testfälle verschieben/kopieren",
+  "turg.help": "Hilfe",
+  "turg.helpTooltip": "Anleitung für diesen Bildschirm anzeigen",
+  "turg.helpOpenFull": "Ganze Seite öffnen"
 }

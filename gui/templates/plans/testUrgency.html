@@ -58,6 +58,20 @@ table.tcs tr:hover td { background: #f7fdfd; }
 .actions { display: flex; gap: 12px; padding: 12px 14px; align-items: center; border-top: 1px solid #eee; flex-wrap: wrap; }
 .hintline { font-size: 12px; color: #888; }
 .desc { padding: 10px 14px 16px; font-size: 12px; color: #777; }
+.help-body { font-size: 13.5px; line-height: 1.65; color: #333; }
+.help-body h2 { font-size: 15px; color: #1d8a83; margin: 16px 0 6px; }
+.help-body h1 { font-size: 17px; color: #1d8a83; margin: 14px 0 6px; }
+.help-body h3, .help-body h4 { font-size: 14px; color: #22242a; margin: 12px 0 6px; }
+.help-body ul, .help-body ol { padding-left: 22px; margin: 6px 0; }
+.help-body p { margin: 6px 0; }
+.help-body a { color: #2d8e88; }
+.help-body table { border-collapse: collapse; margin: 8px 0; }
+.help-body table td, .help-body table th { border: 1px solid #ddd; padding: 5px 9px; font-size: 12.5px; }
+.help-warn { background: #fff3cd; border: 1px solid #f0d68a; color: #856404; border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; font-size: 12.5px; }
+#helpModal .modal-header { background: #22242a; color: #fff; }
+#helpModal .modal-header .close { color: #fff; opacity: .85; text-shadow: none; }
+#helpModal .modal-title { font-size: 15px; }
+#helpModal .modal-footer { display: flex; gap: 10px; justify-content: flex-end; }
 .empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
@@ -81,6 +95,7 @@ table.tcs tr:hover td { background: #f7fdfd; }
   <span class="ctx" id="platformCtx" style="display:none;"><label for="platformSel" data-i18n="turg.platform">Platform</label>:
     <select id="platformSel" data-i18n-title="turg.platformTitle"></select></span>
   <span style="flex:1"></span>
+  <button class="btn-dark" id="btnHelp" data-i18n-title="turg.helpTooltip"><i class="fa fa-circle-question"></i> <span data-i18n="turg.help">Help</span></button>
   <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
 </div>
 
@@ -128,6 +143,24 @@ table.tcs tr:hover td { background: #f7fdfd; }
 <div class="footer" id="footerInfo"></div>
 <div class="footer"><span data-i18n="footers.testUrgency">TestLink 2.0.1 - Set Test Urgency</span></div>
 <div class="toast" id="toast"></div>
+
+<div class="modal fade" id="helpModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpTitle">-</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="help-body" id="helpBody"></div>
+      </div>
+      <div class="modal-footer">
+        <a class="btn-teal" id="helpFullLink" href="/gui/templates/documentation/staticPage.html?key=test_urgency" target="_blank" rel="noopener"><i class="fa fa-up-right-from-square"></i> <span data-i18n="turg.helpOpenFull">Open full page</span></a>
+        <button type="button" class="btn-dark" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -181,6 +214,7 @@ $(function () {
     else { load(); }
   });
   $('#btnReload').on('click', load);
+  $('#btnHelp').on('click', openHelp);
 
   $('#suiteList').on('click', 'li[data-id]', function () {
     selectSuite(parseInt($(this).attr('data-id'), 10));
@@ -440,6 +474,29 @@ function doSaveTcs() {
     selectSuite(selSuiteId);
   }).fail(function (xhr) { apiFail(xhr); })
   .always(function () { busy = false; });
+}
+
+function openHelp() {
+  var locale = (typeof TLi18n.getLocale === 'function') ? (TLi18n.getLocale() || 'en') : 'en';
+  $('#helpTitle').text(TLi18n.t('turg.help'));
+  $('#helpBody').html('<p style="color:#888">' + esc(TLi18n.t('common.loading')) + '</p>');
+  $('#helpModal').modal('show');
+  $.getJSON('/api/staticpage/index.php', { action: 'show', key: 'test_urgency', locale: locale })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') {
+        $('#helpBody').empty();
+        toast((r && r.message) || TLi18n.t('common.error'), true);
+        return;
+      }
+      $('#helpTitle').text(r.title || TLi18n.t('turg.help'));
+      $('#helpBody').html((r.notFound ? '<div class="help-warn">' + esc(TLi18n.t('stp.notFound')) + '</div>' : '') + (r.content_html || ''));
+    })
+    .fail(function (xhr) {
+      $('#helpBody').empty();
+      var msg = TLi18n.t('stp.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    });
 }
 </script>
 </body>

@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "Cazurile de test nu au putut fi mutate.",
   "tmvc.errCopyFailed": "Cazurile de test nu au putut fi copiate.",
   "tmvc.errUnknownAction": "Acțiune necunoscută.",
-  "footers.containerMoveTC": "TestLink 2.0.1 - Mutare/Copiere Cazuri de Test"
+  "footers.containerMoveTC": "TestLink 2.0.1 - Mutare/Copiere Cazuri de Test",
+  "turg.help": "Ajutor",
+  "turg.helpTooltip": "Afișează instrucțiunile pentru acest ecran",
+  "turg.helpOpenFull": "Deschide pagina completă"
 }

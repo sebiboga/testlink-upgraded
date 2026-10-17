@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "Не удалось переместить тестовые случаи.",
   "tmvc.errCopyFailed": "Не удалось скопировать тестовые случаи.",
   "tmvc.errUnknownAction": "Неизвестное действие.",
-  "footers.containerMoveTC": "TestLink 2.0.1 - Перемещение/Копирование тестовых случаев"
+  "footers.containerMoveTC": "TestLink 2.0.1 - Перемещение/Копирование тестовых случаев",
+  "turg.help": "Справка",
+  "turg.helpTooltip": "Показать инструкции для этого экрана",
+  "turg.helpOpenFull": "Открыть полную страницу"
 }

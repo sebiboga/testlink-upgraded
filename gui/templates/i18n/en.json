@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "The test cases could not be moved.",
   "tmvc.errCopyFailed": "The test cases could not be copied.",
   "tmvc.errUnknownAction": "Unknown action.",
-  "footers.containerMoveTC": "TestLink 2.0.1 - Move/Copy Test Cases"
+  "footers.containerMoveTC": "TestLink 2.0.1 - Move/Copy Test Cases",
+  "turg.help": "Help",
+  "turg.helpTooltip": "Show instructions for this screen",
+  "turg.helpOpenFull": "Open full page"
 }

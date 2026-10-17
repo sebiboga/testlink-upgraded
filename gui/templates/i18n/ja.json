@@ -8227,5 +8227,8 @@
   "tmvc.errMoveFailed": "テストケースを移動できませんでした。",
   "tmvc.errCopyFailed": "テストケースをコピーできませんでした。",
   "tmvc.errUnknownAction": "不明な操作です。",
-  "footers.containerMoveTC": "TestLink 2.0.1 - テストケースの移動/コピー"
+  "footers.containerMoveTC": "TestLink 2.0.1 - テストケースの移動/コピー",
+  "turg.help": "ヘルプ",
+  "turg.helpTooltip": "この画面の手順を表示",
+  "turg.helpOpenFull": "フルページを開く"
 }
