@@ -43603,3 +43603,64 @@ Result: 10/11 PASS; case 11 FAIL = the measured credential/permission landing bl
 8. **Landing blocker (FAILS):** `git push origin HEAD:fix/issue-1872-workflow-patch` → `! [remote rejected] … (refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission)`. The fix commit `56e9520a0` remains local-only; issue stays OPEN.
 9. `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → exit 0 (see run log); no suite lost.
 10. Event Viewer: n/a — no TestLink PHP/BFF/UI code touched (CI YAML + `.gitattributes` + markdown).
+
+## Modernize — Issue #1935: Metrics & Trends dashboard (screen + BFF + i18n, parent #1073)
+
+**Precondition:** app on `http://localhost:8082`, MariaDB `testlink@127.0.0.1:3306`. Fixture `tmp/fixtures_1935.php` builds project `MT1935` (prefix M6), plan `M6 Plan` (id 2), 6 linked versions (1 automated), builds `M6 Build 1`/`M6 Build 2`, platform `M6 Linux` (no executions), defects `M6-BUG-1`/`M6-BUG-2`, and role-3 user `mtnorights`. Login via `POST /api/auth/login` (admin/admin, same-origin headers).
+
+1. **Fixture + current-state aggregate (no filter)**
+   - *Steps:* `GET api/metricstrends/index.php?action=report&tplan_id=2&tproject_id=1`
+   - *Expected:* `total_tc=6 executed=5 not_run=1 passed=4 failed=1 blocked=0 progress_pct=83.3 pass_rate_pct=66.7 fail_rate_pct=16.7 automation_pct=16.7 defects=2 latest_build=2 builds_count=2`
+   - *Actual:* byte-identical to expected — PASS. *Status:* PASS.
+
+2. **Per-build trend + delta + is_latest**
+   - *Steps:* inspect `build_trend` from case 1
+   - *Expected:* b1 `passed=2 failed=2 blocked=1 defects=1 pass_rate=33.3 is_latest=false delta=null`; b2 `passed=3 failed=1 blocked=0 defects=2 pass_rate=50.0 is_latest=true delta=+16.7`
+   - *Actual:* matches — PASS. *Status:* PASS.
+
+3. **Build filter (b1)**
+   - *Steps:* `GET ...?action=report&tplan_id=2&build_id=1`
+   - *Expected:* summary flips to b1 values (`passed=2 failed=2 blocked=1 defects=1 pass_rate=33.3`), `builds_count=1`, the single trend row is `is_latest=true`, `latest_build_id=1`
+   - *Actual:* matches — PASS. *Status:* PASS.
+
+4. **Platform filter with no executions -> empty trend**
+   - *Steps:* `GET ...?action=report&tplan_id=2&platform_id=1` (M6 Linux)
+   - *Expected:* `executed=0 not_run=6 passed=0 failed=0 blocked=0 defects=0 builds_count=0 latest_build_id=0`, `build_trend=[]`
+   - *Actual:* matches — PASS. *Status:* PASS.
+
+5. **Foreign build / platform id refused as 400 (no silent leak)**
+   - *Steps:* `?build_id=99` and `?platform_id=9`
+   - *Expected:* `400 invalid_request`
+   - *Actual:* 400 `build_id does not belong to this test project` — PASS. *Status:* PASS.
+
+6. **Error codes: missing/unknown tplan, unknown action, project mismatch, tplan not found**
+   - *Steps:* `?action=report` (no id) / `?action=bogus&tplan_id=2` / `?tplan_id=2&tproject_id=999` / `?tplan_id=999`
+   - *Expected:* `400 invalid_request` / `400 invalid_request` / `404 project_mismatch` / `404 tplan_not_found`
+   - *Actual:* all four exact — PASS. *Status:* PASS.
+
+7. **Auth + rights: anon 401, role-3 403, POST 405**
+   - *Steps:* no session -> report; login `mtnorights` -> report; `POST` with same-origin headers
+   - *Expected:* `401 not_authenticated`, `403 no_right`, `405 method_not_allowed` (`Allow: GET, HEAD`)
+   - *Actual:* all three exact — PASS. *Status:* PASS.
+
+8. **i18n coverage + server labels**
+   - *Steps:* `bash ai/verify_i18n_coverage.sh`; grep `$TLS_link_report_metrics_trends` in `locale/*/strings.txt`
+   - *Expected:* 9/9 bundles PASS; label present in all 19 locales; screen references 62 keys, 0 missing from `en.json`
+   - *Actual:* 9/9 PASS, label in 19/19, 0 missing — PASS. *Status:* PASS.
+
+9. **Reports menu wiring + browser render**
+   - *Steps:* `cfg/reports.cfg.php` `metrics_trends` entry; `api/aside/index.php` `link_report_metrics_trends` href; open `gui/templates/results/metricsTrends.html?tproject_id=1&tplan_id=2` as admin
+   - *Expected:* context card (MT1935 / M6 Plan / M6 Build 2 / 2), snapshot tiles, distribution chart, trend cards + DataTable all render; Build+Platform selectors populated; "Export CSV"/"Close"/"Refresh" present; build Apply re-renders to the b1 numbers; platform Apply shows the empty state; console clean
+   - *Actual:* full render verified (snapshot values 6/5/1/4/1/0, 83.3%/66.7%/16.7%/2; trend b1 33.3% —, b2 50% +16.7% latest; DataTable columns Build..Defects); Build=1 Apply re-rendered to b1 (5/2/2/1, pass 33.3%, latest badge); Platform=M6 Linux Apply re-rendered to the empty state (`No builds with executions yet.` / `0 of 6`), CSV export captured a BOM-prefixed `text/csv` blob with the right headers + a blank delta on build 1, Romanian locale rendered (`Toate build-urile`, `Reușite`/`Eșuate`/`Blocate`, `Progres %`), console 0 messages. *Status:* PASS.
+
+11. **Regression: DataTables "Incorrect column count" on the empty trend (fixed)**
+    - *Steps:* apply a build/platform filter whose `build_trend` is empty (platform M6 Linux); watch for a JS alert
+    - *Expected:* the empty state renders a single colspan row and DataTables is NOT (re)initialized on it, so no `DataTables warning: table id=tbl - Incorrect column count` alert
+    - *Actual (pre-fix):* every empty result raised `DataTables warning: table id=tbl - Incorrect column count` (tn/18) because `renderTable()` re-initialized DataTables over a 1-cell `colspan=10` row (1 cell vs 10 `<th>`); the fix destroys any existing instance first, and for the empty case writes the colspan row WITHOUT re-initializing. Post-fix: no alert, `No builds with executions yet.` renders, and a subsequent non-empty Apply re-initializes cleanly. *Status:* PASS (fixed).
+
+10. **Event Viewer + syntax**
+    - *Steps:* `php -l` on the BFF + 3 wiring files; compare `events` ERROR/WARNING count before/after the API calls
+    - *Expected:* all files lint clean; no new ERROR/WARNING rows
+    - *Actual:* `php -l` clean on all four; `events` totals `5 rows / 0 warning / 0 error`, the only metricstrends row is id 4 at log_level 1 (the deliberate no-right probe `BFF metricstrends: user 2 has no testplan_metrics right on tproject 1 (tplan 2)`); 0 new ERROR/WARNING — PASS. *Status:* PASS.
+
+**Overall: 11/11 PASS** (fixture aggregate + trend arithmetic, build/platform filters incl. the empty state, 400/401/403/404/405 matrix, i18n + server labels in 19 locales, browser render + build/platform Apply, CSV export, denied state, and the DataTables empty-table warning regression fixed).

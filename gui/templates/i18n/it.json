@@ -8510,7 +8510,7 @@
   "mt.ctxProject": "Progetto di test",
   "mt.ctxPlan": "Piano di test",
   "mt.ctxLatestBuild": "Build più recente",
-  "mt.ctxBuilds": "Builds",
+  "mt.ctxBuilds": "Build",
   "mt.summaryTitle": "Stato attuale della qualità",
   "mt.totalTc": "Casi di test collegati",
   "mt.executed": "Eseguiti",

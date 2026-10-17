@@ -338,13 +338,17 @@ function renderTable(data) {
       + '<td>' + (parseInt(b.defects, 10) || 0) + '</td>'
       + '</tr>';
   });
-  if (rows === '') {
-    rows = '<tr><td colspan="10" style="color:#999;">' + esc(TLi18n.t('mt.noBuilds')) + '</td></tr>';
-  }
   if (dt) {
-    dt.clear().rows.add([]).draw();
     dt.destroy();
     dt = null;
+  }
+  if (rows === '') {
+    // Empty state: a single colspan cell. DataTables must NOT be (re)initialized
+    // on this row - it would read 1 cell against the 10 <th> and abort with its
+    // "Incorrect column count" warning (tn/18) on every empty filter result.
+    $('#tbl tbody').html('<tr><td colspan="10" style="color:#999;text-align:center;">'
+      + esc(TLi18n.t('mt.noBuilds')) + '</td></tr>');
+    return;
   }
   $('#tbl tbody').html(rows);
   dt = $('#tbl').DataTable({

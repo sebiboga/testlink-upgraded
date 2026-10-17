@@ -8524,7 +8524,7 @@
   "mt.defects": "Дефекты",
   "mt.distributionTitle": "Распределение текущего статуса",
   "mt.trendTitle": "Динамика по сборкам",
-  "mt.colBuild": "Build",
+  "mt.colBuild": "Сборка",
   "mt.colExecuted": "Выполнено",
   "mt.colPassed": "Пройдено",
   "mt.colFailed": "Провалено",
