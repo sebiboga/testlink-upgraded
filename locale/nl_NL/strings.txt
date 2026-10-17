@@ -4090,6 +4090,7 @@ $TLS_title_test_closure = "Testafsluiting"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Testdatasets"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Testomgevingen"; // "Test Environments" (Refs #1928)
 $TLS_title_risk_register = "Risicoregister"; // "Risk Register" (Refs #1930)
+$TLS_title_exploratory_sessions = "Exploratieve sessies"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_link_report_quality_gates = "Release-kwaliteitspoorten"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Defect-intelligentie"; // Refs #1068

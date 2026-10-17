@@ -4173,6 +4173,7 @@ $TLS_title_test_closure = "测试结束"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "测试数据集"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "测试环境"; // "Test Environments" (Refs #1928)
 $TLS_title_risk_register = "风险登记册"; // "Risk Register" (Refs #1930)
+$TLS_title_exploratory_sessions = "探索性测试会话"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "基于风险的测试";
 $TLS_link_report_quality_gates = "发布质量门禁"; // Refs #1067
 $TLS_link_report_defect_intelligence = "缺陷智能"; // Refs #1068

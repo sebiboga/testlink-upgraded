@@ -653,6 +653,29 @@ if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
     );
 }
 
+// 7c-quater. Exploratory Testing Sessions registry ---------------------------
+// Net-new module (Refs #1934, parent feature #1071): project-scoped
+// exploratory testing sessions with a test charter, status, time box, tester,
+// session date, environment, purpose, notes and defect references. No legacy
+// menu twin. Label uses the new server string key
+// title_exploratory_sessions, added to all 19 server locales. Rights
+// (view_tc / modify_tc) match the BFF api/exploratory, which answers 403
+// without them.
+if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
+    $sections[] = array(
+        'key' => 'exploratory',
+        'label' => lang_get('title_exploratory_sessions'),
+        'icon' => 'fas fa-compass',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'exploratorySessions',
+            'label' => lang_get('title_exploratory_sessions'),
+            'href' => (string)$u('exploratorySessions'),
+            'icon' => 'fas fa-compass',
+        )),
+    );
+}
+
 // 7d. Test Closure ---------------------------------------------------------
 // ISTQB closure phase (Refs #1278): lessons learned + closure checklist +
 // printable closure report + the closure state that freezes plan results.

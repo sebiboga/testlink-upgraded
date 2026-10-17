@@ -3863,6 +3863,7 @@ $TLS_title_test_closure = "Zamknięcie testów"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Zestawy danych testowych"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Środowiska testowe"; // "Test Environments" (Refs #1928)
 $TLS_title_risk_register = "Rejestr ryzyk"; // "Risk Register" (Refs #1930)
+$TLS_title_exploratory_sessions = "Sesje eksploracyjne"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "Testowanie oparte na ryzyku";
 $TLS_link_report_quality_gates = "Bramy jakości wydania"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Analiza defektów"; // Refs #1068

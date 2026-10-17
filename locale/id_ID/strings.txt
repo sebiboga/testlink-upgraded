@@ -2907,6 +2907,7 @@ $TLS_title_test_closure = "Penutupan Pengujian"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Kumpulan Data Uji"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Lingkungan Uji"; // "Test Environments" (Refs #1928)
 $TLS_title_risk_register = "Daftar Risiko"; // "Risk Register" (Refs #1930)
+$TLS_title_exploratory_sessions = "Sesi eksplorasi"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "Pengujian Berbasis Risiko";
 $TLS_reqmgrsystem_interface_not_implemented = "Contoh konfigurasi tidak tersedia: antarmuka '%s' belum diimplementasikan";
 $TLS_reqmgrsystem_invalid_type = 'Tipe sistem manajemen persyaratan tidak valid: %s';

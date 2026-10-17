@@ -2463,6 +2463,7 @@ $TLS_title_test_closure = "테스트 종료"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "테스트 데이터 세트"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "테스트 환경"; // "Test Environments" (Refs #1928)
 $TLS_title_risk_register = "위험 레지스터"; // "Risk Register" (Refs #1930)
+$TLS_title_exploratory_sessions = "탐색적 테스트 세션"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_reqmgrsystem_interface_not_implemented = "구성 예제를 사용할 수 없습니다: '%s' 인터페이스가 구현되지 않았습니다";
 $TLS_reqmgrsystem_invalid_type = '잘못된 요구 관리 시스템 유형입니다: %s';

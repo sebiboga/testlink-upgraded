@@ -2323,6 +2323,13 @@ function getActions(&$gui,$baseURL) {
   // Rights (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc for writes)
   // are enforced by the BFF api/risk on every route.
   $actions->riskRegister = "/gui/templates/risk/riskRegister.html?{$ctx}";
+  // Exploratory Testing Sessions registry (Dashio standalone page) - Refs
+  // #1934, parent feature #1071. Net-new module (no legacy twin): project-
+  // scoped exploratory sessions with charter, status, time box, tester,
+  // session date, environment, purpose, notes and defect references. Rights
+  // (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc for writes) are
+  // enforced by the BFF api/exploratory on every route.
+  $actions->exploratorySessions = "/gui/templates/exploratory/exploratorySessions.html?{$ctx}";
   // Test Closure (Dashio standalone page) - Refs #1278.
   // Net-new ISTQB closure-phase module (no legacy twin): lessons learned,
   // closure checklist/summary/archive reference, a printable closure report and
