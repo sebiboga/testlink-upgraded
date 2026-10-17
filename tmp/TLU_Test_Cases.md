@@ -43665,3 +43665,8 @@ Result: 10/11 PASS; case 11 FAIL = the measured credential/permission landing bl
 
 **Overall: 11/11 PASS** (fixture aggregate + trend arithmetic, build/platform filters incl. the empty state, 400/401/403/404/405 matrix, i18n + server labels in 19 locales, browser render + build/platform Apply, CSV export, denied state, and the DataTables empty-table warning regression fixed).
 **Overall:** 16/16 PASS.
+
+### Post-review addendum — cases 17–21 (run after the mandatory code review)
+
+Cases 17–21 above were executed against the post-review build. Combined result:
+**21/21 PASS** (cases 1–16 unchanged and still PASS; 17–21 added).
