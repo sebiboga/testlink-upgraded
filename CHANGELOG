@@ -17,6 +17,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
+  (`gui/templates/testcases/containerMoveTC.html`) rendered **raw i18n keys** in
+  every locale (tab title `tmvc.title`, buttons `tmvc.move`/`tmvc.cancel`, …)
+  because the whole-file rewrite of `gui/templates/i18n/*.json` in `dfba3151f`
+  (taken from a copy made before `b8067326d`) dropped all 50 `tmvc.*` keys plus
+  `footers.containerMoveTC` from all 10 bundles — and the coverage gate cannot see
+  it (the keys are gone from `en.json` itself, the gate's reference). Fix: restored
+  the 51 keys from `b8067326d` into all 10 bundles (append-only; verified 0 keys
+  lost vs HEAD, bundles 8175 → 8226 keys). `ai/verify_i18n_coverage.sh` 9/9 PASS;
+  browser spot-check `containerMoveTC.html?locale=ro` → title "Mutare/Copiere
+  Cazuri de Test", 0 raw-key elements, console clean. (Fixes #1918)
+
 - [KEY BUGFIX] - #1923: **`ai/verify_test_suites.sh` check 3 could not see a whole-file clobber of `tmp/TLU_Test_Cases.md` performed in a MERGE commit** — `git log` prints no stat block for a merge by default, so the extractor (`git log --format='C %H' --numstat`) yielded no candidate, check 3 reported `PASS no destructive commit`, and the gate exited **0** even though check 2's merge-base already carried the clobber (measured on a scratch merge reproduction: merge `21baf3b`, first parent 61 headings → result 3 headings, gate `7 PASS / 0 FAIL / EXIT=0`). This was the `KNOWN LIMITATION` recorded in the check-3 header. Fix: add `-m` so each merge is diffed per parent (`ai/verify_test_suites.sh:395`); the existing first-parent real-heading confirmation keeps a normal merge from producing a false anchor (`ha >= hb` ⇒ skipped), and `--first-parent` is deliberately NOT added so merged-branch history keeps being traversed (#1849/#1851 coverage). Verified: repro now FAILs (`clobber baseline: 90ca7b0^ (61 headings) -> 21baf3b (3 headings)`, 58 lost, EXIT=1); a normal merge with a destructive-looking second-parent diff still PASSes (EXIT=0); live default branch `32 PASS` → `34 PASS / 0 FAIL` with the suite and exactly one new real anchor `31162f6cc` (`Merge branch 'sebiboga' …`, 152 → 150 headings, PASS). Regression suite "Regression — Issue #1923". (Fixes #1923)
 
 - [KEY BUGFIX] - #1926: the modern **Set Test Urgency** screen
