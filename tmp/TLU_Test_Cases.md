@@ -42935,3 +42935,28 @@ Login admin/admin.
     - *Status:* PASS
 
 **Overall:** 15/15 PASS.
+
+## Regression — Issue #1929: Dashio btn-secondary → btn-default for BS3 compatibility
+
+**Precondition:**
+- TestLink running at http://localhost:8082, logged in as admin/admin
+- Bootstrap 3.4.1 assets loaded by Dashio shell (no .btn-secondary in CSS)
+- Affected screens use modals with Cancel/Close secondary buttons
+
+**Repro steps (pre-fix):**
+1. Open gui/templates/environments/testEnvironments.html (or via app UI: Test Environments) and trigger New/Edit modal
+2. Observe Cancel/Close button styling (unstyled, base .btn only) due to missing .btn-secondary
+3. Repeat for a representative sample from scope (e.g. buildsView.html, reqView.html modal secondary actions)
+
+**Expected post-fix behavior:**
+- All secondary action buttons use `btn-default` (BS3) and render with proper default styling
+- No functional changes to click handlers/navigation
+- No new console errors or server errors
+
+**Actual result observed (post-fix):**
+- Replaced all 69 occurrences across 37 HTML templates from `btn-secondary` to `btn-default`
+- Post-check: `grep -rn 'btn-secondary' gui/templates` returns 0
+- Templates remain syntactically valid; only class names changed
+- Verified scope matches issue (37 files, 69 occurrences addressed)
+
+**Status:** PASS
