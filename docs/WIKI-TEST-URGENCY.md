@@ -37,6 +37,7 @@ The legacy **Set Test Urgency** screen (`lib/plan/planUrgency.php` +
 | tester assignment resolved from execution-tree session build | **Build** toolbar selector (Issue #1140; latest active+open build by default) |
 | urgency grid scoped by execution-tree `setting_platform` | **Platform** toolbar selector (Issue #1141; All/Linux/Windows, hidden when the plan links none) |
 | ExtJS tree navigation into a suite | left-hand suites pane with urgency badges |
+| `show_instructions('test_urgency')` help/instructions page | **Help** toolbar button → modal with the same Purpose/Get Started text (Issue #1143) |
 
 ## Files
 

@@ -42617,3 +42617,75 @@ git update-ref refs/remotes/origin/sebiboga "$(git rev-parse HEAD)"   # check 2 
    checkpoint comment on issue #1923. **PASS.**
 
 **Files:** `ai/verify_test_suites.sh` (extractor `-m` + header notes).
+
+## Task — Issue #1143: Implement help/instructions page in testUrgency (gap vs legacy)
+
+**Precondition:** logged in as admin/admin; fixture `tmp/fixtures_1143.php` executed (test project `TURG1143`, test plan `TURG1143 Plan`, suite, 3 linked TCs; `option_priority=1`). Screen: `gui/templates/plans/testUrgency.html?tproject_id=1&tplan_id=2`. Legacy capability: `lib/plan/planUrgency.php:27-30` `show_instructions('test_urgency')` → `documentation/staticPage.html?key=test_urgency` (body from `locale/*/texts.php`), modernized under #1501.
+
+1. **Help button present + localized label/tooltip**
+   - *Steps:* open the screen (en) and inspect the toolbar
+   - *Expected:* a `#btnHelp` question-mark button next to reload, label "Help", tooltip from `turg.helpTooltip`
+   - *Actual:* `button "Help" description="Show instructions for this screen"` (a11y snapshot); after `&locale=de` → label "Hilfe", `title="Anleitung für diesen Bildschirm anzeigen"`
+   - *Status:* PASS
+
+2. **Click Help → modal shows the legacy instructions (en)**
+   - *Steps:* click `#btnHelp`; wait for the BFF fetch
+   - *Expected:* Bootstrap modal opens, title = `$TLS_htmltext_title['test_urgency']`, body = `$TLS_htmltext['test_urgency']` (Purpose + Get Started)
+   - *Actual:* `modalShown:true`, `title:"Specify tests with high or low urgency"`, `bodyHasPurpose:true`, `bodyHasGetStarted:true`
+   - *Status:* PASS
+
+3. **Close modal**
+   - *Steps:* click the footer Close button (and the header ×)
+   - *Expected:* modal hides, the grid is still on screen (no navigation)
+   - *Actual:* `modalOpen:false` after Close; the urgency grid/table remain rendered
+   - *Status:* PASS
+
+4. **Unsaved change survives open/close of Help**
+   - *Steps:* check the "High" radio of the first TC (`urg_5`), note the "unsaved changes" hint, open Help, close it
+   - *Expected:* radio stays checked, dirty hint stays visible (the modal does not navigate or reload)
+   - *Actual:* `radioStillChecked:true`, dirty hint still shown after open+close
+   - *Status:* PASS
+
+5. **Locale-aware help (de)**
+   - *Steps:* switch locale to German, click Help
+   - *Expected:* German title/body from `locale/de_DE/texts.php`; footer labels localized
+   - *Actual:* title `Dringlichkeit der Tests bestimmen`, body starts `Zweck:`; footer `Ganze Seite öffnen` / `Schließen`
+   - *Status:* PASS
+
+6. **"Open full page" link → standalone instructions viewer**
+   - *Steps:* read `#helpFullLink` and open it
+   - *Expected:* `/gui/templates/documentation/staticPage.html?key=test_urgency`, `target=_blank`
+   - *Actual:* href `/gui/templates/documentation/staticPage.html?key=test_urgency`, target `_blank`; standalone page renders the same title/body
+   - *Status:* PASS
+
+7. **BFF parity — authenticated `action=show`**
+   - *Steps:* `GET /api/staticpage/index.php?action=show&key=test_urgency&locale=en` (session cookie)
+   - *Expected:* `{status:'ok', title:'Specify tests with high or low urgency', notFound:false, content_html:<Purpose/Get Started>}`
+   - *Actual:* HTTP 200 `{status:"ok", title:"Specify tests with high or low urgency", notFound:false, locale:"en_GB", hasPurpose:true}`
+   - *Status:* PASS
+
+8. **Anonymous access rejected**
+   - *Steps:* `curl` the same endpoint with no session cookie
+   - *Expected:* 401
+   - *Actual:* `http=401`
+   - *Status:* PASS
+
+9. **Console hygiene**
+   - *Steps:* open/close Help, switch locale, list console messages
+   - *Expected:* no errors/warnings (the static `aria-hidden="true"` was removed from the modal during dev to clear a Chrome a11y warning)
+   - *Actual:* `list_console_messages` → 0 messages
+   - *Status:* PASS
+
+10. **Event Viewer clean (rule 12)**
+    - *Steps:* query `events` for ERROR/WARNING after the run
+    - *Expected:* no new Error/Warning
+    - *Actual:* only 2 rows, both `log_level=16` INFO audits (`audit_login_succeeded`, `audit_testproject_created`); 0 ERROR/WARNING
+    - *Status:* PASS
+
+11. **i18n coverage gate**
+    - *Steps:* `bash ai/verify_i18n_coverage.sh`
+    - *Expected:* exit 0, no bundle missing a key
+    - *Actual:* `9 bundle(s) passed, 0 failed`, exit 0
+    - *Status:* PASS
+
+**Overall:** 11/11 PASS.

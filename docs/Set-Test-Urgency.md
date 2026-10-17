@@ -30,7 +30,9 @@ menu visibility gated by `testplan_set_urgent_testcases` (legacy parity).
 
 * **Toolbar** — test project name, test plan selector (accessible plans),
   build selector, platform selector (only when the plan links platforms),
-  reload button; bare deep-links recover the first accessible project.
+  a **Help** button that opens the legacy `test_urgency` instructions in a
+  modal, and a reload button; bare deep-links recover the first accessible
+  project.
 * **Suites pane (left)** — every suite of the plan holding DIRECTLY linked
   test cases, with TC count and a colored urgency badge (`High` / `Medium` /
   `Low` / `mixed`). Click a suite to load its table.
@@ -45,6 +47,13 @@ menu visibility gated by `testplan_set_urgent_testcases` (legacy parity).
   in new tabs (replaces the legacy popups).
 * **Save button** — “Set Urgency for Test Cases” posts every radio value
   (legacy form parity); an unsaved-changes hint appears on edits.
+* **Help button** — the question-mark button in the toolbar opens the legacy
+  `show_instructions('test_urgency')` page (“Specify tests with high or low
+  urgency”: Purpose + Get Started) in a Bootstrap modal, fetched live from the
+  ported instructions viewer (`api/staticpage/index.php`), localized to the
+  active locale. A modal footer link opens the full standalone page
+  (`documentation/staticPage.html?key=test_urgency`). The modal does not
+  navigate, so unsaved radio changes are preserved.
 
 ![Suite switching and priority tags](images/testurgency-suite-switch.png)
 
@@ -154,6 +163,26 @@ verification of both write paths and an Event Viewer check (zero new
 Error/Warning entries). Tracking issue: #605.
 
 ## 8. Bug Fixes
+
+### Issue #1143 (2026-10-17) — Help / instructions affordance
+- **Gap:** legacy `lib/plan/planUrgency.php:27-30` rendered the
+  `show_instructions('test_urgency')` help page (title “Specify tests with high
+  or low urgency”, body from `locale/*/texts.php` with **Purpose** and **Get
+  Started**). The modern screen only had a one-line `.desc` and no button/link
+  to reach the instructions viewer that was already ported under #1501.
+- **Fix:** added a `#btnHelp` question-mark button to the toolbar and a
+  Bootstrap modal (`gui/templates/plans/testUrgency.html`) that fetches
+  `api/staticpage/index.php?action=show&key=test_urgency` in the active locale
+  (`TLi18n.getLocale()`), showing the legacy title/body; a footer link opens the
+  standalone `documentation/staticPage.html?key=test_urgency`. No BFF change was
+  needed — #1501 already serves `test_urgency`. i18n
+  `turg.help/helpTooltip/helpOpenFull` added to all 10 bundles.
+- **Testing:** fixture `tmp/fixtures_1143.php` (project `TURG1143`, plan, suite,
+  3 linked TCs). Verified in-browser: en modal “Purpose/Get Started”; `&locale=de`
+  → title “Dringlichkeit der Tests bestimmen”, body “Zweck:”, localized footer;
+  unsaved radio survives open/close; BFF 200 authenticated / 401 anonymous; 0
+  console messages; Event Viewer clean. Suite `Task — Issue #1143` in
+  `tmp/TLU_Test_Cases.md` — 11/11 PASS; `ai/verify_i18n_coverage.sh` 9/9 PASS.
 
 ### Issue #1141 (2026-10-16) — Platform filter
 - **Gap:** legacy scoped the urgency grid to the navigator's platform setting
