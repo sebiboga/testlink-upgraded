@@ -497,7 +497,11 @@ if ($action === 'save') {
             // exec_query() throws on any failure (database.class.php) so a
             // concurrent create that tripped uq_risk_project_name must be
             // detected here, not by inspecting insert_id/rowcount.
-            if (intval($db->error_num()) === 1062) {
+            $dupe = $db->fetchFirstRow(
+                "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
+                " AND name = '" . $db->prepare_string($name) . "'" .
+                " AND id != " . intval($id));
+            if (is_array($dupe) && $dupe) {
                 http_response_code(409);
                 echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
                     'message' => 'A risk with this name already exists'));
@@ -537,7 +541,10 @@ if ($action === 'save') {
     } catch (Exception $e) {
         // A concurrent create may have won the race and tripped the
         // uq_risk_project_name key; exec_query() throws before insert_id().
-        if (intval($db->error_num()) === 1062) {
+        $dupe = $db->fetchFirstRow(
+            "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
+            " AND name = '" . $db->prepare_string($name) . "'");
+        if (is_array($dupe) && $dupe) {
             http_response_code(409);
             echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
                 'message' => 'A risk with this name already exists'));
