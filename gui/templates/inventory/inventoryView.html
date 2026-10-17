@@ -240,7 +240,7 @@ function render(items) {
     ? items.length + ' ' + TLi18n.t('inv.devicesCount')
     : '');
 
-  if (devTbl) { devTbl.destroy(); $('#devTable tbody').empty(); }
+  if (devTbl) { devTbl.destroy(); $('#devTable tbody').empty(); clearHeaderAria(); }
 
   var rows = items.map(function (d) {
     var nameCell;
@@ -462,6 +462,11 @@ function doDelete() {
     $btn.prop('disabled', false);
   });
 }
+
+function clearHeaderAria() {
+  $('#devTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

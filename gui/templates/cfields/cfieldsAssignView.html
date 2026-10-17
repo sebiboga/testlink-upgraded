@@ -442,7 +442,7 @@ function flag(cf, attr) {
 }
 
 function renderAssigned(rows) {
-  var $b = $('#assignedTable tbody').empty();
+  var $b = $('#assignedTable tbody').empty(); clearHeaderAria();
   $('#assignedCount').text('(' + rows.length + ')');
   $('#assignedEmpty').toggle(rows.length === 0);
   $('#assignedTable').toggle(rows.length > 0);
@@ -589,6 +589,11 @@ function saveChanges() {
     toast((xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('cfa.msg.errorSave'), true);
   });
 }
+
+function clearHeaderAria() {
+  $('#assignedTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

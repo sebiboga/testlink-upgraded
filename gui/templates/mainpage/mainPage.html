@@ -347,7 +347,7 @@ function renderBugs(bugs, dash) {
     rows.push([id, title, st, b.tcases]);
   });
   if ($.fn.DataTable.isDataTable('#bugsTable')) $('#bugsTable').DataTable().destroy();
-  $('#bugsTable tbody').empty();
+  $('#bugsTable tbody').empty(); clearHeaderAria();
   $('#bugsTable').DataTable({
     data: rows,
     pageLength: 10,
@@ -583,6 +583,11 @@ function assignedToast(msg, type) {
   clearTimeout($t.data('tm'));
   $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
 }
+
+function clearHeaderAria() {
+  $('#bugsTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

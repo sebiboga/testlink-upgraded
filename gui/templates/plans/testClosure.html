@@ -330,7 +330,7 @@ function loadLessons() {
     renderCategoryFilter();
     if (fc) { lessons = lessons.filter(function(x) { return x.lesson_category === fc; }); }
     if (lessons.length === 0) {
-      if (table) { table.destroy(); table = null; $('#lessonTable tbody').empty(); }
+      if (table) { table.destroy(); table = null; $('#lessonTable tbody').empty(); clearHeaderAria(); }
       $('#lessonTable').hide();
       $('#emptyState').show();
     } else {
@@ -361,7 +361,7 @@ function buildRow(it) {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#lessonTable tbody').empty(); }
+  if (table) { table.destroy(); $('#lessonTable tbody').empty(); clearHeaderAria(); }
   var rows = $.map(items, function(it) { return [buildRow(it)]; });
   table = $('#lessonTable').DataTable({
     data: rows,
@@ -536,6 +536,11 @@ function showFail(xhr, key) {
   } catch (e) {}
   toast(msg, 'err');
 }
+
+function clearHeaderAria() {
+  $('#lessonTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

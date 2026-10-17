@@ -231,7 +231,7 @@ function loadTrackers() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
+  if (table) { table.destroy(); $('#trackersTable tbody').empty(); clearHeaderAria(); }
   var rows = [];
   $.each(items, function(i, t) {
     // Tracker cfg templates use different keys for the server URL: most write
@@ -634,6 +634,11 @@ function checkOAuthConnected() {
     $('#footerInfo').text(TLi18n.t('it.ghNotConnected'));
   });
 }
+
+function clearHeaderAria() {
+  $('#trackersTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

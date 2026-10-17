@@ -499,6 +499,11 @@ function saveAll() {
     }).fail(function(xhr) { writeError(xhr, 'cfpa.state.failed'); });
   });
 }
+
+function clearHeaderAria() {
+  $('#linkedTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

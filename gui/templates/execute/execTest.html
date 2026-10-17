@@ -1574,6 +1574,11 @@ function doCreateBug() {
   .fail(function (xhr) { toast(apiErr(xhr, 'exe.errCreateBug'), true); })
   .always(function () { $btn.prop('disabled', false); });
 }
+
+function clearHeaderAria() {
+  $('#linkedBugsTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

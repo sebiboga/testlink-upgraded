@@ -444,7 +444,7 @@ function render(items) {
     $('#tplanTable').DataTable().destroy();
     tplanTbl = null;
   }
-  $('#tplanTable tbody').empty();
+  $('#tplanTable tbody').empty(); clearHeaderAria();
 
   var rows = items.map(function (tp) {
     var apiTitle = TLi18n.t('pv.apiId').replace('{id}', tp.id);
@@ -958,6 +958,11 @@ function submitPlan() {
     }
   });
 }
+
+function clearHeaderAria() {
+  $('#tplanTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>
