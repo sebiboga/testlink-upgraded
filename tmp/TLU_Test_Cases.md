@@ -42698,3 +42698,21 @@ theirs/8 ours and 0 local/5 origin+fetch; YAML 11/11 parse; live rebase harness 
 live lines vs `-X ours` → 45/45; suite gate 34 PASS / 0 FAIL. Landing blocker re-measured and
 persists (`workflows` permission), so the workflow-fix commits are unpushable and the issue is left
 OPEN. Verdict: 11/11 PASS (behaviour verified), landing still blocked.
+
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 3, base `72826298a`)
+
+Re-execution of the 11-case suite below on the current default branch, plus the guard-semantics check, with the fix applied locally on `fix/issue-1872-workflow-patch` (tip `53e9ac7cf`):
+
+1. `git grep -n "rebase -X theirs" origin/sebiboga -- .github/workflows/` → 8 hits (bug live). POST-FIX (worktree): 0 hits — PASS.
+2. `grep -rn "rebase -X ours" .github/workflows/` post-fix → 8 hits — PASS.
+3. `grep -rn 'BEFORE"..HEAD' .github/workflows/` post-fix → 0 (was 5) — PASS.
+4. `grep -n 'origin/$GITHUB_REF_NAME' .github/workflows/*.yml | grep -c REFS` → 5 + 5 fetch guards — PASS.
+5. `yaml.safe_load` over `.github/workflows/*.yml` → 11/11 parse — PASS.
+6. Harness `-X theirs`: rebase stale(46 lines) onto agentB(+45 live) → 46 total, 0/45 live kept — PASS (documents the pre-fix data loss).
+7. Harness `-X ours`: same fixture → 145 total, 45/45 live kept — PASS.
+8. Guard semantics: local `72826298a..HEAD` grep 1872 → 2 (old logic false-closes); `72826298a..origin/sebiboga` → 0 (new logic correct) — PASS.
+9. Failure-safe: fetch failure leaves `REFS` empty → issue stays open — PASS (empty-string semantics of the `|| true` guard).
+10. `git log 72826298a..HEAD --format=%B | grep -c '#1872'` → 0 (run immune to the old auto-close) — PASS.
+11. Suite gate `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` after this append → PASS (re-measured at commit time, see issue comments).
+
+RESULT: 11/11 PASS. Landing of the 2 workflow commits still blocked (push re-measured `refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission`).
