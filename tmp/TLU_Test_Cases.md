@@ -43021,3 +43021,105 @@ Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&t
 | 11 | Event Viewer / `events` table | no new Error/Warning | n/a — no TestLink PHP/BFF code touched (CI YAML + docs only) | **PASS** (n/a) |
 **Run 4 result — case 10 executed:** `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (baseline `095212e1d` → 906 suites, none lost, no line removed, own heading present).
 **Regression — Issue #1872 (re-run, fix-bug run 4): 10/10 executed cases PASS + case 10 PASS (gate 34/0)** — case 9 remains the documented landing blocker: push re-measured rejected this run (`without workflows permission`), so the fix stays local (`fix/issue-1872-workflow-patch` → `8f231a75b`) and **#1872 stays OPEN** with the byte-identical patch published in `docs/Bugfix-Issue-1872-CI-Fallback-Landing-And-Autoclose.md` §Fix.
+
+## Modernize — Issue #1930: Risk-Based Testing registry `riskRegister` (screen + BFF + i18n, parent feature #1066)
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082`; MariaDB 127.0.0.1:3306 db `testlink` (freshly imported); run `php tmp/fixtures_1930.php` (creates tproject `RISK1930`, prefix `RK30`, id=1, suite id=2, test cases `RK30 Login`/`RK30 Checkout` id 3/7, requirement spec id=11 with `Login flow`/`Checkout flow` id 13/15, and the no-test-case-rights user `risknorights`/`risknorights`, role 3). Screen `gui/templates/risk/riskRegister.html?tproject_id=1`, BFF `api/risk/index.php`. Table `tc_risks` created lazily (mirrored in `install/sql/mysql/testlink_create_tables.sql`, whitelisted in `lib/functions/object.class.php`). Net-new module: 1.9.20 has no first-class project risk register (the existing `results/riskCoverage.html` screen is a different, read-only coverage dashboard and owns the separate `risk.*` namespace).
+
+1. **BFF contract — reads (curl, admin session)**
+   - *Steps:* `GET ?action=init&tproject_id=1`, `GET ?action=list&tproject_id=1`
+   - *Expected:* `200`; payload has `context{tproject_id, tproject_name, tproject_prefix, can_view, can_modify}`, `domains{statuses, levels, scales[1..5]}`, `stats`, `refs`, `items`
+   - *Actual:* init `200`; `context.tproject_name=RISK1930`, `tproject_prefix=RK30`, `can_modify=true`; refs = 2 requirements (`Login flow`, `Checkout flow`) + 2 test cases (`RK30 Login`, `RK30 Checkout`); list `200`
+   - *Status:* PASS
+
+2. **BFF contract — write + error paths (curl)**
+   - *Steps:* POST `?action=save` (missing name / duplicate / invalid requirement / invalid tcase / bad status), POST `?action=delete` (missing id / bad id), wrong verb, unknown action, anonymous, no CSRF proof
+   - *Expected:* `400 name_required`, `409 duplicate_name`, `400 invalid_requirement`, `400 invalid_tcase`, `400 bad_status`, `404 risk_not_found`, `400 bad_id`, `405 wrong_method`, `400 unknown_action`, `401` anonymous, `403` CSRF
+   - *Actual:* all confirmed — name_required(400), duplicate_name(409), invalid_requirement(400), invalid_tcase(400), bad_status(400), risk_not_found(404), bad_id(400), PUT→wrong_method(405), GET bogus→unknown_action(400), anon init→401, POST without Origin/XRW→`403 Forbidden: missing or mismatched same-origin proof (CSRF protection)`
+   - *Status:* PASS
+
+3. **ASIDE entry present + wired**
+   - *Steps:* `GET /api/aside/index.php?action=init&tproject_id=1`; locate section `key=riskRegister`
+   - *Expected:* section labelled by server string `title_risk_register`, single item href `/gui/templates/risk/riskRegister.html?tproject_id=1&tplan_id=0`, gated by `view_tc`/`modify_tc`
+   - *Actual:* section present, label `Risk Register`, `single:true`, href resolves; `$actions->riskRegister` wired in `lib/functions/common.php`; `$TLS_title_risk_register` added to all 19 `locale/*/strings.txt`
+   - *Status:* PASS
+
+4. **Screen renders with tiles, filters and empty state**
+   - *Steps:* open the screen as admin; inspect header, tiles, toolbar, table
+   - *Expected:* subtitle `riskreg.subtitle` (NOT the `riskCoverage` subtitle), 6 tiles (total/linked/critical/high/medium/low), `+ New risk` + `Refresh`, level + status filters, project chip `RISK1930 (RK30)`, empty state, no raw keys
+   - *Actual:* subtitle `capture and prioritise testing by business and technical risk` (namespace fix confirmed), 6 tiles, buttons + both filters, chip correct, empty state `There are no risks for this project yet.`, 0 raw-key elements
+   - *Status:* PASS
+
+5. **Create a risk (derived level + linked refs)**
+   - *Steps:* New → name `Payment gateway timeout`, impact `5`, likelihood `4`, owner `QA Lead`, mitigation text, link requirement `Login flow`, tcase `RK30 Login` → Save
+   - *Expected:* live preview `CRITICAL` (`5 x 4 = 20`); toast `riskreg.msgSaved`; row appears with CRITICAL badge, impact 5, likelihood 4, status Open, both link chips; tiles 1 risk / 1 linked; `tc_risks` row written; `RISK_CREATE` audit
+   - *Actual:* preview updated live to `CRITICAL 5 x 4 = 20`; toast `Risk saved.`; row rendered exactly so; tiles `1 RISKS`/`1 LINKED`; 2 link chips (`Login flow`, `RK30 Login`); audit `RISK_CREATE` emitted (log_level 16)
+   - *Status:* PASS
+
+6. **New-modal defaults + empty/duplicate name validation**
+   - *Steps:* open New (expect impact/likelihood/severity/priority `3`, status `Open`); Save with empty name; Save with duplicate `Payment gateway timeout`
+   - *Expected:* defaults correct; empty → `riskreg.errName`; duplicate → `riskreg.errDuplicate` / `409 duplicate_name`, modal stays open, no new row
+   - *Actual:* defaults `3/3/3/3` Open; empty → server `name_required`; duplicate → toast `A risk with this name already exists.` (409), modal stayed open, row count unchanged
+   - *Status:* PASS
+
+7. **Details modal**
+   - *Steps:* click a row's name / View action
+   - *Expected:* read-only name, level badge with `score x score = product`, impact, likelihood, severity, priority, status, owner, mitigation, linked requirement, linked test case, notes, updated + `Close`
+   - *Actual:* all fields rendered with correct values (`CRITICAL 5 x 4 = 20`, `Login flow`, `RK30 Login`), `Close` button, 0 raw keys
+   - *Status:* PASS
+
+8. **Edit persists changes**
+   - *Steps:* Edit the row → modal pre-filled → change status `Open`→`Mitigated` → Save
+   - *Expected:* title `riskreg.modalEditTitle`; toast; row status badge `Mitigated`; `update_ts` bumped; `RISK_SAVE` audit
+   - *Actual:* title `Edit risk`, all fields + links pre-filled, derived level `CRITICAL`; after save badge `Mitigated`, timestamp changed to `2026-10-17 15:57:04`; audit `RISK_SAVE` emitted
+   - *Status:* PASS
+
+9. **Delete (confirm → removed)**
+   - *Steps:* Delete → confirm modal shows interpolated `{name}` → confirm
+   - *Expected:* `riskreg.deleteConfirm` includes the name; toast `riskreg.msgDeleted`; row gone; tiles reset; `tc_risks` row removed; `RISK_DELETE` audit
+   - *Actual:* confirm text `Delete the risk "Payment gateway timeout"? This cannot be undone.`; toast `Risk deleted.`; empty state returned, tiles `0`; audit `RISK_DELETE` emitted
+   - *Status:* PASS
+
+10. **Rights + auth paths**
+    - *Steps:* login as `risknorights`/`risknorights` (role 3, no test-case rights) → open the screen / call the BFF; then anonymous
+    - *Expected:* `403 no_right` (view + modify) → screen shows `riskreg.noRight` state with main hidden and no New button; anonymous → `401` redirect to login
+    - *Actual:* init `403`, list `403`, save `403 no_right` `No permission to modify risks`; screen shows the no-permission state with `#mainArea` hidden and `#btnNew` absent; anonymous → `401`
+    - *Status:* PASS
+
+11. **No-project path**
+    - *Steps:* open the screen with a non-existent project (`tproject_id=99999`)
+    - *Expected:* `riskreg.noProject` state, main hidden
+    - *Actual:* `404 tproject_not_found`; state shown, main hidden
+    - *Status:* PASS
+
+12. **Locale switcher (i18n rendering)**
+    - *Steps:* switch to German / Romanian and re-read header + labels
+    - *Expected:* translated labels, no raw keys, no cross-contamination from the `riskCoverage` screen
+    - *Actual:* German `Risikoregister`, Romanian `Registrul riscurilor`; header tiles/filters/footer translated; 0 raw keys
+    - *Status:* PASS
+
+13. **i18n namespace isolation + coverage gate**
+    - *Steps:* `bash ai/verify_i18n_coverage.sh`; confirm `riskreg.*` in all 10 bundles and that the pre-existing `risk.*` namespace is untouched
+    - *Expected:* exit 0, 0 missing; `risk.*` count unchanged (73 in en), `riskreg.*` = 67; `comm -23` of base-vs-current key sets empty (no key lost)
+    - *Actual:* gate `9/9 PASS` (8430 keys); `risk.*`=73, `riskreg.*`=67; no key lost; `python3 -m json.tool` OK on all 10 bundles
+    - *Status:* PASS
+
+14. **DataTable re-init aria-label (bug found + fixed)**
+    - *Steps:* cycle the level filter several times so the table re-renders repeatedly, then read `thead th[aria-label]`
+    - *Expected:* single `"<col>: activate to sort column ascending"` suffix per header
+    - *Actual:* before fix the suffix stacked per render (`Name: activate to sort column ascending: activate to sort column ascending`); after adding `clearHeaderAria()` on every `destroy()` → 5 re-renders → single label. Note: the same destroy-without-clearing pattern exists in sibling screens (e.g. `testEnvironments.html`) — logged separately as a bug.
+    - *Status:* PASS (fixed)
+
+15. **Chrome console + Event Viewer (rule 12)**
+    - *Steps:* after the full pass, list console error/warn and query the `events` table
+    - *Expected:* console clean; only AUDIT rows from the suite actions, no Error/Warning
+    - *Actual:* 0 console error/warn; `events` shows only `log_level=16` AUDIT rows `RISK_CREATE`/`RISK_SAVE`/`RISK_DELETE`; 0 ERROR/WARNING (1 `LOGIN_FAILED` from a deliberate wrong-password probe)
+    - *Status:* PASS
+
+16. **Suite gate**
+    - *Steps:* `TLU_REQUIRE_SUITE="Issue #1930" bash ai/verify_test_suites.sh`
+    - *Expected:* PASS, no prior suite lost
+    - *Actual:* PASS (no suite lost; own heading present)
+    - *Status:* PASS
+
+**Overall:** 16/16 PASS.
