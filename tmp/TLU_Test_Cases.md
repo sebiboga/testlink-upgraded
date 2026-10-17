@@ -42999,3 +42999,25 @@ Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&t
    no new Error/Warning server events. **PASS**
 
 **Status:** PASS
+
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 4, base `095212e1d`)
+
+**Precondition** — fix-bug run 4; work branch `fix/issue-1872-workflow-patch` forked from `origin/sebiboga` @ `095212e1d` (= `.ci_before_sha`); GitHub App installation token `ghs_…` (`github-actions[bot]`), no `workflows` repository permission; no TestLink app/DB fixture (CI YAML defect only — Event Viewer n/a). Re-executes the 11-case suite above against the current default branch with the published 2-step patch applied (commit `8f231a75b`, 7 files, 18+/13−).
+
+**Expected post-fix behavior** — identical to the original suite: 0 `-X theirs` / 8 `-X ours`; 0 local `..HEAD` auto-close ranges / 5 origin-verified `"$BEFORE".."origin/$GITHUB_REF_NAME"` + 5 fetch guards; YAML 11/11; harness theirs → 0/45 vs ours → 45/45; local≠remote REFS counts; workflow push still credential-blocked (issue stays OPEN, exact patch published); suite gate passes.
+
+| # | Step | Expected | Actual (run 4) | Result |
+|---|---|---|---|---|
+| 1 | `grep -rn "rebase -X theirs" .github/workflows/` | 0 hits | 0 hits (pre-fix on base `095212e1d`: 8 hits — reproduced first) | **PASS** |
+| 2 | `grep -rn "rebase -X ours" .github/workflows/` | 8 hits | exactly 8 (7 fallback + `modernize.yml:238` PROMPT) | **PASS** |
+| 3 | `grep -rn 'BEFORE"..HEAD' .github/workflows/` | 0 hits | 0 (pre-fix: 5) | **PASS** |
+| 4 | `grep -rn '"$BEFORE".."origin/$GITHUB_REF_NAME"'` + fetch guards | 5 + 5 | 5 REFS lines + 5 `git fetch origin "$GITHUB_REF_NAME"` guards | **PASS** |
+| 5 | YAML gate `yaml.safe_load` | 11/11 | 11/11 | **PASS** |
+| 6 | Harness `rebase -X theirs` (fresh mktemp repo, reset between strategies) | bug reproduces: 46 lines, 0/45 | `total=46, LIVE kept=0/45` | **PASS** (bug reproduced) |
+| 7 | Harness `rebase -X ours` | keeps concurrent work: 145 lines, 45/45 | `total=145, LIVE kept=45/45` | **PASS** |
+| 8 | Guard semantics, BEFORE=`095212e1d` | local range ≠ origin range | surrogate count "1872": local `..HEAD` = 1 vs `..origin/sebiboga` = 0 → old logic would close, new logic stays open; strict `#1872` token in run-4 commit messages = 0 (deliberate, old auto-close loaded at dispatch) | **PASS** |
+| 9 | Landing attempt `git push origin HEAD:fix/issue-1872` (fresh ref) | documented blocker reproduces | `! [remote rejected] … .github/workflows/compare-screens.yml without workflows permission` | **PASS** (blocker reproduced; issue stays OPEN) |
+| 10 | `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` | gate passes | run after this append — result appended below | (appended below) |
+| 11 | Event Viewer / `events` table | no new Error/Warning | n/a — no TestLink PHP/BFF code touched (CI YAML + docs only) | **PASS** (n/a) |
+**Run 4 result — case 10 executed:** `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (baseline `095212e1d` → 906 suites, none lost, no line removed, own heading present).
+**Regression — Issue #1872 (re-run, fix-bug run 4): 10/10 executed cases PASS + case 10 PASS (gate 34/0)** — case 9 remains the documented landing blocker: push re-measured rejected this run (`without workflows permission`), so the fix stays local (`fix/issue-1872-workflow-patch` → `8f231a75b`) and **#1872 stays OPEN** with the byte-identical patch published in `docs/Bugfix-Issue-1872-CI-Fallback-Landing-And-Autoclose.md` §Fix.
