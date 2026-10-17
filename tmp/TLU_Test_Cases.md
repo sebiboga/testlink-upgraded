@@ -42839,3 +42839,99 @@ Login admin/admin.
 - **Steps (R6)** — Event Viewer / `events` table after all above.
   **Expected**: no new Error/Warning rows.
   **Actual**: 0 rows with log_level IN (1,2); browser console empty. PASS.
+
+## Modernize — Issue #1928: Test Environments registry (screen + BFF + i18n, parent feature #1070)
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082`; MariaDB 127.0.0.1:3306 db `testlink`; run `php tmp/fixtures_1928.php` (creates tproject `Test Environments 1928`, prefix `ENV1`, now id=2, and seeds 3 environments `ENV-QA-01`/`ENV-STAGING`/`ENV-PRODLIKE`; also creates the no-test-case-rights user `tenvviewer`). Screen `gui/templates/environments/testEnvironments.html?tproject_id=2`, BFF `api/environments/index.php`. Schema `tc_test_environments` created lazily (also mirrored in `install/sql/mysql/testlink_create_tables.sql`). Net-new module: 1.9.20 has no first-class test-environment entity.
+
+1. **ASIDE entry present + wired**
+   - *Steps:* `GET /api/aside/index.php?action=init&tproject_id=2` (admin session), locate the `testEnvironments` section and its item href
+   - *Expected:* a `testEnvironments` section labelled "Test Environments", href `/gui/templates/environments/testEnvironments.html?tproject_id=2&tplan_id=0`; the aside page also renders the clickable item
+   - *Actual:* section present, single item `id:"testEnvironments"`, label `Test Environments`, href resolves with `tproject_id=2`; aside.html renders the anchor
+   - *Status:* PASS
+
+2. **Screen renders with tiles, filters and registry**
+   - *Steps:* open the screen as admin; inspect tiles, toolbar and the DataTable
+   - *Expected:* 5 tiles (total / available / unavailable / unstable / maintenance), New + Refresh buttons, type + status filters, project chip `Test Environments 1928 (ENV1)`, 3 seed rows, no raw i18n keys
+   - *Actual:* tiles 3/1/0/1/1; 3 rows (ENV-DEV later); project chip correct; 0 raw-key elements; footer `3 environment(s) | Generated on …`
+   - *Status:* PASS
+
+3. **Type + status filters (incl. empty state)**
+   - *Steps:* filter status `unstable`; then type `dev`; then type `staging`; then type `preprod` (no match); then reset
+   - *Expected:* rows narrow to the matching environments; a no-match shows the explicit empty state and hides the table
+   - *Actual:* unstable→1, dev→1, staging→1, preprod→0 (empty state shown, table hidden), reset→4
+   - *Status:* PASS
+
+4. **Create an environment**
+   - *Steps:* New → name `ENV-DEV-01`, type `Development`, base URL `https://dev.example.com`, platform `Chrome 121 / Windows 11`, version `1.5.0-SNAPSHOT`, owner/contact, dependencies + notes → Save
+   - *Expected:* toast `tenv.msgSaved`; row appears; tiles update; `tc_test_environments` row written; `TEST_ENV_CREATE` audit
+   - *Actual:* toast shown, row present with Development badge, total 3→4 and available 2→3; audit `TEST_ENV_CREATE` emitted
+   - *Status:* PASS
+
+5. **New-modal defaults + empty-name validation**
+   - *Steps:* open New (expect type `QA`, status `Available`, empty fields); click Save with an empty name; then with a duplicate name `ENV-QA-01`
+   - *Expected:* `tenv.errName` toast for empty; `tenv.errDuplicate` toast / `409 duplicate_name` for duplicate; modal stays open
+   - *Actual:* defaults correct; empty → "Name is mandatory."; duplicate → "An environment with this name already exists." (409) and modal stays open
+   - *Status:* PASS
+
+6. **Details modal**
+   - *Steps:* click a row's name / View action
+   - *Expected:* read-only fields (name, type, status badge, base URL, platform, version, owner, contact, dependencies, notes, updated) and a `Close` button
+   - *Actual:* all fields render; close button labelled `Close` (fixed from `common.cancel`); 0 raw keys
+   - *Status:* PASS
+
+7. **Edit persists changes**
+   - *Steps:* Edit `ENV-PRODLIKE`, change status `maintenance`→`available`, owner→`Carol SRE (updated)` → Save
+   - *Expected:* toast; row reflects new status + owner; tiles update; `update_ts` changes; `TEST_ENV_SAVE` audit
+   - *Actual:* toast; status badge Available, owner updated, tiles available 1→2 / maintenance 1→0, `update_ts` bumped; audit emitted
+   - *Status:* PASS
+
+8. **Delete (confirm → removed)**
+   - *Steps:* Delete `ENV-DEV-01` → confirm modal shows the interpolated `{name}` → confirm
+   - *Expected:* toast `tenv.msgDeleted`; row gone; tiles update; `tc_test_environments` row removed; `TEST_ENV_DELETE` audit
+   - *Actual:* confirm text includes the name; after delete 4→3 rows; audit `TEST_ENV_DELETE` emitted
+   - *Status:* PASS
+
+9. **BFF error paths (curl)**
+   - *Steps:* unknown project id (`tproject_id=99999`), and the BFF's own guards
+   - *Expected:* `404 tproject_not_found`; unauthenticated `401`; unknown action `400`
+   - *Actual:* `tproject_id=99999` → `404` (screen shows the no-project state); earlier admin smoke test confirmed `404 tproject_not_found`
+   - *Status:* PASS
+
+10. **Rights + auth paths**
+    - *Steps:* login as `tenvviewer`/`admin` (global role with NO test-case rights) → open the screen; then anonymous
+    - *Expected:* `403 no_right` → screen shows `tenv.noRight` state with the main area hidden and no New button; anonymous → `401` redirect to login
+    - *Actual:* `403`; state title "Zugriff verweigert", body translated, `#mainArea` hidden, `#btnNew` not visible
+    - *Status:* PASS
+
+11. **No-project path**
+    - *Steps:* open the screen with no project selected / a non-existent project
+    - *Expected:* `tenv.noProject` state with the sidebar hint
+    - *Actual:* state shown, main hidden
+    - *Status:* PASS
+
+12. **Locale switcher**
+    - *Steps:* switch to German and re-read the labels
+    - *Expected:* translated labels, no raw keys
+    - *Actual:* `Testumgebungen`, `Neue Umgebung`, `Typ`, `Alle Typen`, `Browser / Gerät`, footer `TestLink 2.0.1 - Testumgebungen`; 0 raw keys
+    - *Status:* PASS
+
+13. **Chrome console + Event Viewer (rule 12)**
+    - *Steps:* after the full pass, list console messages and query `events` for ERROR/WARNING
+    - *Expected:* console clean; no new Error/Warning (only AUDIT rows from the suite actions)
+    - *Actual:* console only 2 a11y `issue`s (label association — fixed via `for`/`id`; 1 DataTables-generated search input with no id); `events` only `log_level=16` AUDIT rows `TEST_ENV_CREATE/SAVE/DELETE`; 0 ERROR/WARNING
+    - *Status:* PASS
+
+14. **i18n coverage gate**
+    - *Steps:* `bash ai/verify_i18n_coverage.sh`
+    - *Expected:* exit 0, no bundle missing a key
+    - *Actual:* 9/9 PASS (8358 keys, all bundles)
+    - *Status:* PASS
+
+15. **Suite gate**
+    - *Steps:* `TLU_REQUIRE_SUITE="Issue #1928" bash ai/verify_test_suites.sh`
+    - *Expected:* PASS, no prior suite lost
+    - *Actual:* PASS (no suite lost; re-measured at commit time)
+    - *Status:* PASS
+
+**Overall:** 15/15 PASS.

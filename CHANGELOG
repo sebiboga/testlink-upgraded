@@ -131,6 +131,34 @@ Every screen of the application was ported one-by-one in a screen-compare
   Viewer only AUDIT rows. Suite `Modernize — Issue #1927` = 14/14 PASS in
   `tmp/TLU_Test_Cases.md`. Refs #1927 / parent #1069.
 
+- [SCREEN] - #1928 (parent #1070): the **Test Environments** registry
+  (`gui/templates/environments/testEnvironments.html`, BFF `api/environments/index.php`)
+  adds a project-scoped ASIDE section **Test Environments** (icon `fas fa-server`).
+  Net-new for 2.0.1: 1.9.20 manages plans, builds and platforms but has no first-class
+  test-environment asset. A project-scoped registry of environment definitions — name,
+  type (dev / qa / staging / preprod / prod_like), availability status (available /
+  unavailable / unstable / maintenance), base URL, browser/device/OS platform, app
+  version / build, owner + contact, service dependencies and notes — with metric tiles
+  (total / available / unavailable / unstable / maintenance), type + status filters, a
+  registry DataTable (view / edit / delete), a details modal, and create/edit/delete
+  modals. The BFF is `GET ?action=init|list` + `POST ?action=save|delete`; session auth +
+  `bffSameOriginGuard`, with `mgt_view_tc|mgt_modify_tc` (read) / `mgt_modify_tc` (write)
+  checked on the addressed project BEFORE it is resolved (no existence oracle, #1697),
+  and 400/401/403/404/405/409 machine codes (`name_required`, `bad_env_type`, `bad_status`,
+  `duplicate_name`, `env_not_found`, `tproject_not_found`, `no_right`). The
+  `tc_test_environments` table is created lazily and mirrored in
+  `install/sql/mysql/testlink_create_tables.sql`; writes emit `TEST_ENV_CREATE` /
+  `TEST_ENV_SAVE` / `TEST_ENV_DELETE` AUDIT events. Wiring: `$actions->testEnvironments`
+  in `lib/functions/common.php`, the Test Environments ASIDE section in
+  `api/aside/index.php`, `$TLS_title_test_environments` in **all 19** server locales, and
+  `tenv.*` (62) client keys in **all 10** bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS,
+  8358 keys). Browser-verified (admin): tiles, filters + empty state, create, details,
+  edit, duplicate-name guard, delete confirm + delete, 403 (no-right user) and no-project
+  states, German locale, console clean; Event Viewer only AUDIT rows. Two screen defects
+  found while testing and fixed: the details-modal close button used `common.cancel`
+  (now `common.close`) and 12 form labels lacked `for`/`id` association (a11y). Suite
+  `Modernize — Issue #1928` = 15/15 PASS in `tmp/TLU_Test_Cases.md`. Refs #1928 / parent #1070.
+
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
   Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a *static* Test Strategy reference hub and never
