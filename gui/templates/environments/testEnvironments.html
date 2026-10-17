@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Environments</title>
+<!--
+  Test Environment Management screen (Refs #1928, parent feature #1070).
+  Dashio standalone page backed by api/environments. Project-scoped registry of
+  test ENVIRONMENTS as a first-class asset: type (dev/qa/staging/pre-prod/prod-like),
+  base URL, browser/device/OS platform, app version, owner/contact, availability
+  status, dependencies and notes.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.warn { border-left-color: #e05c5c; }
+.tile.amber { border-left-color: #e6b34d; }
+.tile.dark { border-left-color: #22242a; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-type { background: #2f323a; color: #ddd; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-available { background: #3aa89f; }
+.badge-unavailable { background: #e05c5c; }
+.badge-unstable { background: #e6b34d; }
+.badge-maintenance { background: #7f8c96; }
+.url-cell { color: #3aa89f; font-family: monospace; font-size: 12px; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 60px; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.detail-row { border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { display: inline-block; width: 170px; color: #777; font-weight: 600; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tenv.title">Test Environments</span>
+  <span class="sub" data-i18n="tenv.subtitle">first-class environment definitions and availability per test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="tenv.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="tenv.tileTotal">Environments</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileAvailable">0</div>
+      <div class="lbl" data-i18n="tenv.statusAvailable">Available</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileUnavailable">0</div>
+      <div class="lbl" data-i18n="tenv.statusUnavailable">Unavailable</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileUnstable">0</div>
+      <div class="lbl" data-i18n="tenv.statusUnstable">Unstable</div>
+    </div>
+    <div class="tile dark">
+      <div class="num" id="tileMaintenance">0</div>
+      <div class="lbl" data-i18n="tenv.statusMaintenance">Maintenance</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="tenv.newEnv">New environment</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="tenv.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label data-i18n="tenv.filterType">Type</label>
+    <select id="fFilterType" onchange="applyFilter()">
+      <option value="" data-i18n="tenv.allTypes">All types</option>
+      <option value="dev" data-i18n="tenv.typeDev">Development</option>
+      <option value="qa" data-i18n="tenv.typeQa">QA</option>
+      <option value="staging" data-i18n="tenv.typeStaging">Staging</option>
+      <option value="preprod" data-i18n="tenv.typePreprod">Pre-production</option>
+      <option value="prod_like" data-i18n="tenv.typeProdLike">Production-like</option>
+    </select>
+    <label data-i18n="tenv.filterStatus">Status</label>
+    <select id="fFilterStatus" onchange="applyFilter()">
+      <option value="" data-i18n="tenv.allStatuses">All statuses</option>
+      <option value="available" data-i18n="tenv.statusAvailable">Available</option>
+      <option value="unavailable" data-i18n="tenv.statusUnavailable">Unavailable</option>
+      <option value="unstable" data-i18n="tenv.statusUnstable">Unstable</option>
+      <option value="maintenance" data-i18n="tenv.statusMaintenance">Maintenance</option>
+    </select>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="tenv.noItems">There are no test environments for this project yet.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="tenv.colName">Name</th>
+          <th data-i18n="tenv.colType">Type</th>
+          <th data-i18n="tenv.colPlatform">Browser / device</th>
+          <th data-i18n="tenv.colBaseUrl">Base URL</th>
+          <th data-i18n="tenv.colOwner">Owner</th>
+          <th data-i18n="tenv.colStatus">Status</th>
+          <th data-i18n="tenv.colUpdated">Updated</th>
+          <th style="width:140px" data-i18n="tenv.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="tenv.footer">TestLink 2.0.1 - Test Environments</span></div>
+
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="tenv.modalNewTitle">New environment</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="tenv.fieldName">Name</label>
+          <input type="text" id="fName" maxlength="255">
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldType">Type</label>
+            <select id="fEnvType">
+              <option value="dev" data-i18n="tenv.typeDev">Development</option>
+              <option value="qa" data-i18n="tenv.typeQa">QA</option>
+              <option value="staging" data-i18n="tenv.typeStaging">Staging</option>
+              <option value="preprod" data-i18n="tenv.typePreprod">Pre-production</option>
+              <option value="prod_like" data-i18n="tenv.typeProdLike">Production-like</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldStatus">Status</label>
+            <select id="fStatus">
+              <option value="available" data-i18n="tenv.statusAvailable">Available</option>
+              <option value="unavailable" data-i18n="tenv.statusUnavailable">Unavailable</option>
+              <option value="unstable" data-i18n="tenv.statusUnstable">Unstable</option>
+              <option value="maintenance" data-i18n="tenv.statusMaintenance">Maintenance</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="tenv.fieldBaseUrl">Base URL</label>
+          <input type="text" id="fBaseUrl" maxlength="255" placeholder="https://">
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldPlatform">Browser / device / OS</label>
+            <input type="text" id="fPlatform" maxlength="255" placeholder="Chrome 120 / Windows 11">
+          </div>
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldVersion">Version / build</label>
+            <input type="text" id="fAppVersion" maxlength="64">
+          </div>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldOwner">Owner</label>
+            <input type="text" id="fOwner" maxlength="128">
+          </div>
+          <div style="flex:1;">
+            <label data-i18n="tenv.fieldContact">Contact</label>
+            <input type="text" id="fContact" maxlength="255">
+          </div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="tenv.fieldDependencies">Database / service dependencies</label>
+          <textarea id="fDependencies" maxlength="60000"></textarea>
+        </div>
+        <div class="form-row">
+          <label data-i18n="tenv.fieldNotes">Notes / constraints</label>
+          <textarea id="fNotes" maxlength="60000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveEnv()" data-i18n="tenv.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="tenv.modalDetailsTitle">Environment details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="tenv.modalDeleteTitle">Delete environment</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="tenv.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/environments/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function typeLabel(t) {
+  var map = { dev: 'tenv.typeDev', qa: 'tenv.typeQa', staging: 'tenv.typeStaging',
+              preprod: 'tenv.typePreprod', prod_like: 'tenv.typeProdLike' };
+  return TLi18n.t(map[t] || 'tenv.typeQa');
+}
+function statusLabel(s) {
+  var map = { available: 'tenv.statusAvailable', unavailable: 'tenv.statusUnavailable',
+              unstable: 'tenv.statusUnstable', maintenance: 'tenv.statusMaintenance' };
+  return TLi18n.t(map[s] || 'tenv.statusAvailable');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('tenv.noRight', 'tenv.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('tenv.noProject', 'tenv.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('tenv.noProject', 'tenv.noProjectBody', true); return; }
+  showState('tenv.errTitle', fallbackKey || 'tenv.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'tenv.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileAvailable').text(s.available || 0);
+    $('#tileUnavailable').text(s.unavailable || 0);
+    $('#tileUnstable').text(s.unstable || 0);
+    $('#tileMaintenance').text(s.maintenance || 0);
+    $('#btnNew').toggle(canModify);
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('tenv.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'tenv.loadError'); });
+}
+
+function filtered() {
+  var ft = $('#fFilterType').val(), fs = $('#fFilterStatus').val();
+  return allItems.filter(function(it) {
+    if (ft && it.env_type !== ft) { return false; }
+    if (fs && it.status !== fs) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' +
+    esc(it.name) + '</a>';
+  var urlCell = it.base_url ? '<span class="url-cell">' + esc(it.base_url) + '</span>' : '<span style="color:#aaa">-</span>';
+  var ownerCell = it.owner ? (esc(it.owner) + (it.contact ? '<div style="color:#999;font-size:11px;">' + esc(it.contact) + '</div>' : ''))
+    : '<span style="color:#aaa">-</span>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('tenv.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('tenv.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('tenv.del')) + '"><i class="fa fa-trash"></i></button>';
+  }
+  return {
+    name: nameCell,
+    type: '<span class="badge-type">' + esc(typeLabel(it.env_type)) + '</span>',
+    platform: esc(it.platform || '-') + (it.app_version ? ' <span class="badge-type">' + esc(it.app_version) + '</span>' : ''),
+    baseUrl: urlCell,
+    owner: ownerCell,
+    status: '<span class="badge-status badge-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'type'},
+      {data: 'platform'},
+      {data: 'baseUrl'},
+      {data: 'owner'},
+      {data: 'status'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 7}],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('tenv.modalNewTitle'));
+  $('#fName').val(''); $('#fEnvType').val('qa'); $('#fStatus').val('available');
+  $('#fBaseUrl').val(''); $('#fPlatform').val(''); $('#fAppVersion').val('');
+  $('#fOwner').val(''); $('#fContact').val(''); $('#fDependencies').val(''); $('#fNotes').val('');
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('tenv.modalEditTitle'));
+  $('#fName').val(it.name); $('#fEnvType').val(it.env_type); $('#fStatus').val(it.status);
+  $('#fBaseUrl').val(it.base_url); $('#fPlatform').val(it.platform); $('#fAppVersion').val(it.app_version);
+  $('#fOwner').val(it.owner); $('#fContact').val(it.contact);
+  $('#fDependencies').val(it.dependencies); $('#fNotes').val(it.notes);
+  $('#editModal').modal('show');
+}
+
+function saveEnv() {
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('tenv.errName'), 'err'); return; }
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    env_type: $('#fEnvType').val(),
+    status: $('#fStatus').val(),
+    base_url: $('#fBaseUrl').val(),
+    platform: $('#fPlatform').val(),
+    app_version: $('#fAppVersion').val(),
+    owner: $('#fOwner').val(),
+    contact: $('#fContact').val(),
+    dependencies: $('#fDependencies').val(),
+    notes: $('#fNotes').val()
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('tenv.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('tenv.errDuplicate'), 'err'); }
+    else { toast(TLi18n.t('tenv.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  function row(labelKey, val) {
+    return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
+  }
+  html += row('tenv.fieldName', it.name);
+  html += row('tenv.fieldType', typeLabel(it.env_type));
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('tenv.fieldStatus')) + '</span>' +
+          '<span class="badge-status badge-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span></div>';
+  html += row('tenv.fieldBaseUrl', it.base_url);
+  html += row('tenv.fieldPlatform', it.platform);
+  html += row('tenv.fieldVersion', it.app_version);
+  html += row('tenv.fieldOwner', it.owner);
+  html += row('tenv.fieldContact', it.contact);
+  html += row('tenv.fieldDependencies', it.dependencies);
+  html += row('tenv.fieldNotes', it.notes);
+  html += row('tenv.colUpdated', it.update_ts || it.creation_ts);
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('tenv.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('tenv.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('tenv.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+</script>
+</body>
+</html>
