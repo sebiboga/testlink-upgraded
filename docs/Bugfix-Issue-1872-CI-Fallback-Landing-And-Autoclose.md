@@ -193,3 +193,28 @@ token (`GH_TOKEN == GITHUB_TOKEN`), no SSH key / netrc / git-credentials / secon
 `permissions:` block cannot grant `workflows` (not a grantable key). #1872 therefore stays
 **OPEN**; the fix lives on local branch `fix/issue-1872-workflow-patch` → `aff75e51c` and is
 fully reproducible from §Fix above.
+
+## Re-verification — fix-bug run 6 (2026-10-17, base `6fbc6e095`)
+
+Sixth fix-bug run re-confirmed the bug fully live on the then-current default branch
+(`8` `-X theirs` / `0` `-X ours`; `5` local-only `BEFORE"..HEAD` auto-close ranges; `0` origin
+guards — identical line numbers to runs 3–5). The published two-step patch (§Fix above) was
+re-applied cleanly on `fix/issue-1872` (commit `ea7657111`, rebased per §8 onto the remote
+artifact tip `8deb7c0d7` → `61125777b`; 7 files, **18 insertions / 13 deletions**, byte-matches
+runs 1–5), giving: grep gates `0` theirs / `8` ours, `0` local / `5` origin REFS + `5` fetch
+guards, `yaml.safe_load` **11/11**, live 2-strategy harness `-X theirs` → **0/45** live lines
+kept vs `-X ours` → **45/45** kept, guard semantics (BEFORE=`6fbc6e095`) strict `#1872` token
+in local commit messages `0` (message deliberately says "Refs: issue 1872", no `#`), suite
+re-run `Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 6, base 6fbc6e095)` →
+**10/11 executed PASS** (case 11 = landing blocker), suite gate `TLU_REQUIRE_SUITE="Issue #1872"`
+→ **34 PASS / 0 FAIL**, exit 0. Code-review subagent: **CLEAN** (8/8 swaps + 5/5 guards at the
+expected file:line, YAML OK, no accidental removals, no `#1872` token in the commit message).
+Landing blocker **re-measured with this run's token on BOTH routes and persists**: git push of
+the fix commit → `! [remote rejected] … (refusing to allow a GitHub App to create or update
+workflow .github/workflows/compare-screens.yml without workflows permission)`; contents API
+`PUT /repos/…/contents/.github/workflows/fix-bug.yml` → `403 Resource not accessible by
+integration`. Credential inventory unchanged: single `ghs_…` App installation token
+(`GH_TOKEN == GITHUB_TOKEN`), repo `permissions.push:false`, no SSH key / netrc / second token;
+the `permissions:` block cannot grant `workflows` (not a grantable key). #1872 therefore stays
+**OPEN**; the fix lives on local branches `fix/issue-1872` and `fix/issue-1872-workflow-patch` →
+`61125777b` and is fully reproducible from §Fix above.

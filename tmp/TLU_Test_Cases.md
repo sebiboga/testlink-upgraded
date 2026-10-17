@@ -43045,3 +43045,218 @@ Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&t
 
 **Run 5 result — case 10 executed:** `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (baseline `9bc265954`, 906 suites, none lost, own heading present).
 **Regression — Issue #1872 (re-run, fix-bug run 5): 11/12 PASS; case 11 = documented landing blocker** — the fix commit `aff75e51c` (7 files, 18+/13−, byte-identical to the published §Fix patch) is fully verified but cannot be pushed by any available credential (re-measured both git and API routes this run), so **#1872 stays OPEN** per FIX-ISSUE §7.
+## Modernize — Issue #1930: Risk-Based Testing registry `riskRegister` (screen + BFF + i18n, parent feature #1066)
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082`; MariaDB 127.0.0.1:3306 db `testlink` (freshly imported); run `php tmp/fixtures_1930.php` (creates tproject `RISK1930`, prefix `RK30`, id=1, suite id=2, test cases `RK30 Login`/`RK30 Checkout` id 3/7, requirement spec id=11 with `Login flow`/`Checkout flow` id 13/15, and the no-test-case-rights user `risknorights`/`risknorights`, role 3). Screen `gui/templates/risk/riskRegister.html?tproject_id=1`, BFF `api/risk/index.php`. Table `tc_risks` created lazily (mirrored in `install/sql/mysql/testlink_create_tables.sql`, whitelisted in `lib/functions/object.class.php`). Net-new module: 1.9.20 has no first-class project risk register (the existing `results/riskCoverage.html` screen is a different, read-only coverage dashboard and owns the separate `risk.*` namespace).
+
+1. **BFF contract — reads (curl, admin session)**
+   - *Steps:* `GET ?action=init&tproject_id=1`, `GET ?action=list&tproject_id=1`
+   - *Expected:* `200`; payload has `context{tproject_id, tproject_name, tproject_prefix, can_view, can_modify}`, `domains{statuses, levels, scales[1..5]}`, `stats`, `refs`, `items`
+   - *Actual:* init `200`; `context.tproject_name=RISK1930`, `tproject_prefix=RK30`, `can_modify=true`; refs = 2 requirements (`Login flow`, `Checkout flow`) + 2 test cases (`RK30 Login`, `RK30 Checkout`); list `200`
+   - *Status:* PASS
+
+2. **BFF contract — write + error paths (curl)**
+   - *Steps:* POST `?action=save` (missing name / duplicate / invalid requirement / invalid tcase / bad status), POST `?action=delete` (missing id / bad id), wrong verb, unknown action, anonymous, no CSRF proof
+   - *Expected:* `400 name_required`, `409 duplicate_name`, `400 invalid_requirement`, `400 invalid_tcase`, `400 bad_status`, `404 risk_not_found`, `400 bad_id`, `405 wrong_method`, `400 unknown_action`, `401` anonymous, `403` CSRF
+   - *Actual:* all confirmed — name_required(400), duplicate_name(409), invalid_requirement(400), invalid_tcase(400), bad_status(400), risk_not_found(404), bad_id(400), PUT→wrong_method(405), GET bogus→unknown_action(400), anon init→401, POST without Origin/XRW→`403 Forbidden: missing or mismatched same-origin proof (CSRF protection)`
+   - *Status:* PASS
+
+3. **ASIDE entry present + wired**
+   - *Steps:* `GET /api/aside/index.php?action=init&tproject_id=1`; locate section `key=riskRegister`
+   - *Expected:* section labelled by server string `title_risk_register`, single item href `/gui/templates/risk/riskRegister.html?tproject_id=1&tplan_id=0`, gated by `view_tc`/`modify_tc`
+   - *Actual:* section present, label `Risk Register`, `single:true`, href resolves; `$actions->riskRegister` wired in `lib/functions/common.php`; `$TLS_title_risk_register` added to all 19 `locale/*/strings.txt`
+   - *Status:* PASS
+
+4. **Screen renders with tiles, filters and empty state**
+   - *Steps:* open the screen as admin; inspect header, tiles, toolbar, table
+   - *Expected:* subtitle `riskreg.subtitle` (NOT the `riskCoverage` subtitle), 6 tiles (total/linked/critical/high/medium/low), `+ New risk` + `Refresh`, level + status filters, project chip `RISK1930 (RK30)`, empty state, no raw keys
+   - *Actual:* subtitle `capture and prioritise testing by business and technical risk` (namespace fix confirmed), 6 tiles, buttons + both filters, chip correct, empty state `There are no risks for this project yet.`, 0 raw-key elements
+   - *Status:* PASS
+
+5. **Create a risk (derived level + linked refs)**
+   - *Steps:* New → name `Payment gateway timeout`, impact `5`, likelihood `4`, owner `QA Lead`, mitigation text, link requirement `Login flow`, tcase `RK30 Login` → Save
+   - *Expected:* live preview `CRITICAL` (`5 x 4 = 20`); toast `riskreg.msgSaved`; row appears with CRITICAL badge, impact 5, likelihood 4, status Open, both link chips; tiles 1 risk / 1 linked; `tc_risks` row written; `RISK_CREATE` audit
+   - *Actual:* preview updated live to `CRITICAL 5 x 4 = 20`; toast `Risk saved.`; row rendered exactly so; tiles `1 RISKS`/`1 LINKED`; 2 link chips (`Login flow`, `RK30 Login`); audit `RISK_CREATE` emitted (log_level 16)
+   - *Status:* PASS
+
+6. **New-modal defaults + empty/duplicate name validation**
+   - *Steps:* open New (expect impact/likelihood/severity/priority `3`, status `Open`); Save with empty name; Save with duplicate `Payment gateway timeout`
+   - *Expected:* defaults correct; empty → `riskreg.errName`; duplicate → `riskreg.errDuplicate` / `409 duplicate_name`, modal stays open, no new row
+   - *Actual:* defaults `3/3/3/3` Open; empty → server `name_required`; duplicate → toast `A risk with this name already exists.` (409), modal stayed open, row count unchanged
+   - *Status:* PASS
+
+7. **Details modal**
+   - *Steps:* click a row's name / View action
+   - *Expected:* read-only name, level badge with `score x score = product`, impact, likelihood, severity, priority, status, owner, mitigation, linked requirement, linked test case, notes, updated + `Close`
+   - *Actual:* all fields rendered with correct values (`CRITICAL 5 x 4 = 20`, `Login flow`, `RK30 Login`), `Close` button, 0 raw keys
+   - *Status:* PASS
+
+8. **Edit persists changes**
+   - *Steps:* Edit the row → modal pre-filled → change status `Open`→`Mitigated` → Save
+   - *Expected:* title `riskreg.modalEditTitle`; toast; row status badge `Mitigated`; `update_ts` bumped; `RISK_SAVE` audit
+   - *Actual:* title `Edit risk`, all fields + links pre-filled, derived level `CRITICAL`; after save badge `Mitigated`, timestamp changed to `2026-10-17 15:57:04`; audit `RISK_SAVE` emitted
+   - *Status:* PASS
+
+9. **Delete (confirm → removed)**
+   - *Steps:* Delete → confirm modal shows interpolated `{name}` → confirm
+   - *Expected:* `riskreg.deleteConfirm` includes the name; toast `riskreg.msgDeleted`; row gone; tiles reset; `tc_risks` row removed; `RISK_DELETE` audit
+   - *Actual:* confirm text `Delete the risk "Payment gateway timeout"? This cannot be undone.`; toast `Risk deleted.`; empty state returned, tiles `0`; audit `RISK_DELETE` emitted
+   - *Status:* PASS
+
+10. **Rights + auth paths**
+    - *Steps:* login as `risknorights`/`risknorights` (role 3, no test-case rights) → open the screen / call the BFF; then anonymous
+    - *Expected:* `403 no_right` (view + modify) → screen shows `riskreg.noRight` state with main hidden and no New button; anonymous → `401` redirect to login
+    - *Actual:* init `403`, list `403`, save `403 no_right` `No permission to modify risks`; screen shows the no-permission state with `#mainArea` hidden and `#btnNew` absent; anonymous → `401`
+    - *Status:* PASS
+
+11. **No-project path**
+    - *Steps:* open the screen with a non-existent project (`tproject_id=99999`)
+    - *Expected:* `riskreg.noProject` state, main hidden
+    - *Actual:* `404 tproject_not_found`; state shown, main hidden
+    - *Status:* PASS
+
+12. **Locale switcher (i18n rendering)**
+    - *Steps:* switch to German / Romanian and re-read header + labels
+    - *Expected:* translated labels, no raw keys, no cross-contamination from the `riskCoverage` screen
+    - *Actual:* German `Risikoregister`, Romanian `Registrul riscurilor`; header tiles/filters/footer translated; 0 raw keys
+    - *Status:* PASS
+
+13. **i18n namespace isolation + coverage gate**
+    - *Steps:* `bash ai/verify_i18n_coverage.sh`; confirm `riskreg.*` in all 10 bundles and that the pre-existing `risk.*` namespace is untouched
+    - *Expected:* exit 0, 0 missing; `risk.*` count unchanged (73 in en), `riskreg.*` = 67; `comm -23` of base-vs-current key sets empty (no key lost)
+    - *Actual:* gate `9/9 PASS` (8430 keys); `risk.*`=73, `riskreg.*`=67; no key lost; `python3 -m json.tool` OK on all 10 bundles
+    - *Status:* PASS
+
+14. **DataTable re-init aria-label (bug found + fixed)**
+    - *Steps:* cycle the level filter several times so the table re-renders repeatedly, then read `thead th[aria-label]`
+    - *Expected:* single `"<col>: activate to sort column ascending"` suffix per header
+    - *Actual:* before fix the suffix stacked per render (`Name: activate to sort column ascending: activate to sort column ascending`); after adding `clearHeaderAria()` on every `destroy()` → 5 re-renders → single label. Note: the same destroy-without-clearing pattern exists in sibling screens (e.g. `testEnvironments.html`) — logged separately as a bug.
+    - *Status:* PASS (fixed)
+
+15. **Chrome console + Event Viewer (rule 12)**
+    - *Steps:* after the full pass, list console error/warn and query the `events` table
+    - *Expected:* console clean; only AUDIT rows from the suite actions, no Error/Warning
+    - *Actual:* 0 console error/warn; `events` shows only `log_level=16` AUDIT rows `RISK_CREATE`/`RISK_SAVE`/`RISK_DELETE`; 0 ERROR/WARNING (1 `LOGIN_FAILED` from a deliberate wrong-password probe)
+    - *Status:* PASS
+
+16. **Suite gate**
+    - *Steps:* `TLU_REQUIRE_SUITE="Issue #1930" bash ai/verify_test_suites.sh`
+    - *Expected:* PASS, no prior suite lost
+    - *Actual:* PASS (no suite lost; own heading present)
+    - *Status:* PASS
+
+17. **Code-review fix — linked-node TYPE proof (BFF)**
+    - *Steps:* from the page, `POST ?action=save` with `tcase_id` = a requirement node id (7), a nonexistent id, and with `requirement_id` = a test case node id (3)
+    - *Expected:* `400 invalid_tcase` / `400 invalid_requirement`; a bare project-membership walk would have accepted them
+    - *Actual:* requirement id 15 sent as tcase → `400 invalid_tcase`; id 999999 → `400 invalid_tcase`; test case id as requirement → `400 invalid_requirement`
+    - *Status:* PASS (fixed)
+
+18. **Code-review fix — duplicate-name race → 409 JSON (BFF)**
+    - *Steps:* create a risk, then POST the same name again; inspect response
+    - *Expected:* `409 duplicate_name` JSON (not a non-JSON 500), no ERROR row in `events`
+    - *Actual:* `409 duplicate_name`; the write `exec_query()` is now wrapped in try/catch so a genuine SQLSTATE 1062 race also answers 409 (was dead code — `exec_query()` throws with XHR); `events` shows no ERROR
+    - *Status:* PASS (fixed)
+
+19. **Code-review fix — Level column numeric sort (screen)**
+    - *Steps:* open the registry and read `DataTable().order()` and the first rows' `risk_score`
+    - *Expected:* order `[[1,'desc']]`, scores descending (critical→high→…), not alphabetical (`critical→high→low→medium`)
+    - *Actual:* order `[[1,'desc']]`, scores `[20,15,4]`
+    - *Status:* PASS (fixed)
+
+20. **Code-review fixes — update path, 401 bounce, New gating, missing-ref placeholder**
+    - *Steps:* update an existing risk (`POST ?action=save` with `id`); inspect the fail handlers for a 401 branch; check `#btnNew` before load resolves; open Edit for a risk whose linked id is absent from `refs`
+    - *Expected:* update returns `ok`; 401 redirects to `login.php?note=expired`; New stays hidden until `can_modify` known; a `#id missing` option is shown instead of silently clearing the link
+    - *Actual:* update `ok` (id 6); both save/delete handlers `if (xhr.status === 401) location = '/login.php?note=expired'`; `#btnNew` default `display:none` toggled on load; `ensureRefOption()` appends `#<id> missing`
+    - *Status:* PASS (fixed)
+
+21. **Sibling defects filed + gates re-run**
+    - *Steps:* `gh issue create --label bug` for the DataTables aria-label stacking and the environments duplicate race; re-run the i18n + suite gates
+    - *Expected:* two labeled issues; gates green
+    - *Actual:* **#1931** (DataTables re-init `aria-label` stacking, ~66 screens) and **#1932** (`environments` duplicate race non-JSON 500) filed with `bug`; `verify_i18n_coverage.sh` 9/9 PASS (8431 keys, `riskreg.missingRef` ×10); suite gate 34 PASS / 0 FAIL; `php -l` and `node --check` clean
+    - *Status:* PASS
+
+**Overall:** 16/16 PASS.
+
+### Post-review addendum — cases 17–21 (run after the mandatory code review)
+
+Cases 17–21 above were executed against the post-review build. Combined result:
+**21/21 PASS** (cases 1–16 unchanged and still PASS; 17–21 added).
+
+## Regression — Issue #1932: environments BFF duplicate-name race returns a non-JSON 500 instead of 409
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082` (PHP built-in server, docroot = repo root); MariaDB 127.0.0.1:3306 db `testlink` (freshly imported); fixture testproject `BugReproProj` id=1 prefix `BRP`; table `tc_test_environments` lazily created by the BFF with `UNIQUE KEY uq_tenv_project_name (testproject_id, name)`; API `api/environments/index.php`. Requests carry `X-Requested-With: XMLHttpRequest` (as the modern screen's jQuery always does). Deterministic race repro = hold the unique-key slot open in an uncommitted transaction so the BFF's pre-check SELECT (InnoDB consistent read) cannot see it, then POST the same name; the INSERT blocks and then fails 1062 when the other transaction commits.
+
+1. **Race repro (PRIMARY) — non-JSON 500 before, JSON 409 after**
+   - *Steps:* `mysql: BEGIN; INSERT INTO tc_test_environments (testproject_id,name,env_type,status,created_by,update_ts) VALUES (1,'RaceLock','qa','available',1,NOW()); SELECT SLEEP(6); COMMIT;` then, while open, `POST /api/environments/?action=save {"tproject_id":1,"name":"RaceLock","env_type":"qa"}`
+   - *Expected (post-fix):* `409`, `Content-Type: application/json`, body `{"status":"error","code":"duplicate_name","message":"An environment with this name already exists"}`
+   - *Actual (pre-fix):* `HTTP/1.0 500`, **body 0 bytes** (non-JSON), plus ERROR row id=29 in `events` (`1062 - Duplicate entry '1-RaceLock' for key 'uq_tenv_project_name'`); the intended 409 re-check at `api/environments/index.php:406-422` was unreachable because `exec_query()` throws first (`database.class.php:204-207`).
+   - *Actual (post-fix):* `409 Conflict`, valid JSON `duplicate_name` — PASS.
+   - *Status:* PASS (fixed).
+
+2. **UPDATE path same race class (rename into a name a concurrent CREATE won)**
+   - *Steps:* with an environment `id=35`, run the uncommitted-INSERT barrier for `RaceLock`, then `POST ?action=save {"tproject_id":1,"id":35,"name":"RaceLock","env_type":"qa"}` (the UPDATE hits 1062 the same way)
+   - *Expected:* `409 duplicate_name` JSON
+   - *Actual (post-fix):* UPDATE `exec_query` is wrapped; its `catch` re-checks the unique key (`id != 35`) → `409 duplicate_name` JSON; without the wrap the same non-JSON 500 occurred.
+   - *Status:* PASS (fixed).
+
+3. **error_num() is dead at catch time — fix must NOT rely on it** (discovery)
+   - *Steps:* instrument the INSERT `catch` with `intval($db->error_num())` while reproducing case 1
+   - *Expected:* detect SQLSTATE 1062
+   - *Actual:* **`errno = 0`** — `exec_query()` logs the ERROR event (`tLog` → `events` INSERT on the SAME connection, `logger.class.php:1006-1036`) BEFORE throwing, and that successful query resets the mysqli errno. The issue's originally suggested `error_num()===1062` check (as shipped in `api/risk/index.php`) never fires; final fix re-checks the unique key instead.
+   - *Status:* PASS (fix uses the re-check).
+
+4. **Sequential duplicate save (pre-check path unchanged)**
+   - *Steps:* `POST ?action=save` a name that already exists, no barrier
+   - *Expected/Actual:* `409 duplicate_name` JSON — PASS.
+   - *Status:* PASS.
+
+5. **Create / update / delete happy paths**
+   - *Steps:* create `RegEnvNew` → 200 `{ok,id:35}` + AUDIT `TEST_ENV_CREATE`; update same name → 200 `Saved` + `TEST_ENV_SAVE`; rename to free name → 200; delete → 200 `{deleted:1}` + `TEST_ENV_DELETE`
+   - *Expected/Actual:* all 200 with the correct codes — PASS.
+   - *Status:* PASS.
+
+6. **Rename to an existing name (pre-check path)**
+   - *Steps:* update `id=35` to name `RaceLock`
+   - *Expected/Actual:* `409 duplicate_name` JSON — PASS.
+   - *Status:* PASS.
+
+7. **Error-contract regression**
+   - *Steps:* `POST ?action=bogus`; `PUT ?action=save`; unauthenticated `POST`
+   - *Expected/Actual:* `400 unknown_action` / `405 wrong_method` (`Allow: GET, HEAD, POST`) / `401 session_expired` — PASS.
+   - *Status:* PASS.
+
+8. **Event Viewer clean on normal flows**
+   - *Steps:* record `MAX(id)` and ERROR/WARNING count in `events`; run cases 4-7; re-check
+   - *Expected:* no new ERROR/WARNING rows (only AUDIT rows for the successful writes)
+   - *Actual:* `MAX(id)` 32→36 while ERROR/WARNING count stayed 4 (ids 29-32 are the deliberate race repros, logged by shared `exec_query` before throwing) — normal flows added zero ERROR/WARNING — PASS. Known residual: a genuine race still logs one ERROR row from `database.class.php:198` (shared code, same accepted behavior as `api/risk` #1930).
+   - *Status:* PASS.
+
+9. **Screen smoke (affected area)**
+   - *Steps:* open `gui/templates/environments/testEnvironments.html?tproject_id=1`
+   - *Expected/Actual:* page renders stats and 25 environment rows via the BFF, DataTables populated — PASS.
+   - *Status:* PASS.
+
+10. **Sibling defect filed, not fixed (scope) + gates**
+    - *Steps:* reproduce the identical race on `api/risk/index.php`; file with `bug`; run `php -l`, i18n gate, suite gate
+    - *Expected/Actual:* risk BFF answers `500 insert_failed` (measured) instead of 409 → filed **#1933** as `bug`; suite gate PASS; `php -l api/environments/index.php` clean; no i18n bundle touched (no i18n gate needed)
+    - *Status:* PASS.
+
+**Overall: 10/10 PASS** (PRIMARY race repro: 500 non-JSON → 409 JSON, verified deterministically).
+
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 6, base 6fbc6e095)
+
+Precondition: repo checkout of `sebiboga/testlink-upgraded` at base `6fbc6e095` (pre-fix default branch); shell access to the repo; Python 3 with PyYAML.
+
+1. **Repro c1** — `git grep -n "rebase -X theirs" origin/sebiboga -- .github/workflows/` → PRE: 8 hits; POST-FIX (on fix branch): 0. PASS
+2. **Repro c2** — `git grep -c "rebase -X ours" origin/sebiboga -- .github/workflows/` → PRE: 0; POST: 8 (7 fallback + PROMPT). PASS
+3. **Repro c3** — `git grep -n 'BEFORE"..HEAD' origin/sebiboga -- .github/workflows/` → PRE: 5; POST: 0. PASS
+4. **Repro c4** — `git grep -n '"\$BEFORE".."origin/\$GITHUB_REF_NAME"' <fix-branch> -- .github/workflows/` → POST: 5 ranges + 5 fetch guards. PASS
+5. **Syntax gate** — `yaml.safe_load` over `.github/workflows/*.yml` → 11/11 parse. PASS
+6. **Harness -X theirs** — scratch repo: base 100 lines; agentB appends 45 LIVE lines; stale rewrites file to 1 line; `git rebase -X theirs agentB` → 1 total line, 0/45 live kept. PASS (defect demonstrated)
+7. **Harness -X ours** — same scratch setup with `git rebase -X ours agentB` → 145 lines, 45/45 live kept. PASS
+8. **Guard failure-safety** — simulate `git fetch` failure → REFS stays empty → `gh issue close` not invoked (issue stays open). PASS
+9. **No self-false-close** — `git log 6fbc6e095..HEAD --format=%B | grep -c '#1872'` → 0 (commit messages say "Refs: issue 1872" without #). PASS
+10. **Suite gate** — `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → PASS (see run result below)
+11. **Push of workflow files (landing)** — `git push origin HEAD:fix/issue-1872` → REJECTED `without workflows permission`; contents API PUT → 403. FAIL (known landing blocker, not a fix defect — fix stays local per §7)
+
+Result: 10/11 PASS; case 11 FAIL = the measured credential/permission landing blocker (documented, issue left OPEN).
