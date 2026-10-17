@@ -43580,3 +43580,26 @@ Precondition: repo checkout of `sebiboga/testlink-upgraded` at base `6fbc6e095` 
 11. **Push of workflow files (landing)** — `git push origin HEAD:fix/issue-1872` → REJECTED `without workflows permission`; contents API PUT → 403. FAIL (known landing blocker, not a fix defect — fix stays local per §7)
 
 Result: 10/11 PASS; case 11 FAIL = the measured credential/permission landing blocker (documented, issue left OPEN).
+
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 7, base a41c96ba0)
+
+**Precondition:** clone of `sebiboga/testlink-upgraded` at `origin/sebiboga` @ `a41c96ba0`; CI-config bug (no PHP/DB/UI). Fix lives in `.github/workflows/*` (2 steps) + a landable `.gitattributes` mitigation.
+
+**Repro steps (pre-fix):**
+1. `git grep -n "rebase -X theirs" origin/sebiboga -- .github/workflows/` → 8 hits.
+2. `git grep -nE 'BEFORE"\.\.HEAD' origin/sebiboga -- .github/workflows/` → 5 hits.
+3. `git grep -c 'rebase -X ours' origin/sebiboga -- .github/workflows/` → 0; origin guard → 0.
+
+**Expected post-fix:** 0 `theirs` / 8 `ours`; 0 local `BEFORE..HEAD` / 5 origin-verified REFS + 5 fetch guards; `yaml.safe_load` 11/11; rebase harness `theirs`→0 live lines kept vs `ours`→all kept; guard semantics: a local-only unpushed commit containing `#1872` satisfies the OLD grep but not the NEW origin-range grep (so stayed open).
+
+**Actual result observed (run 7, 2026-10-17):**
+1. Pre-fix grep counts reproduced exactly: 8 `theirs`, 5 local `BEFORE"..HEAD`, 0 `ours`, 0 origin guard (base `a41c96ba0`).
+2. Step 1 (8 swaps) → `theirs`=0, `ours`=8 (compare-screens:333, fix-bug-oldest:237, fix-bug:234, implement-task-newest:254, implement-task-oldest:252, investigate-fix:287, modernize:320 + PROMPT modernize:238).
+3. Step 2 (5 sites) → local `BEFORE"..HEAD`=0, origin REFS=5, fetch guards=5; diffstat 7 workflow files, 18 insertions / 13 deletions.
+4. YAML gate: `python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]"` → 11/11 parse.
+5. Rebase harness (fresh repo/strategy, base=100 lines, live appends 45, stale rewrites file): `-X theirs` → 1 line, 0/45 live lines kept; `-X ours` → 145 lines, 45/45 kept (matches #1694).
+6. Guard semantics (BEFORE=`a41c96ba0`): synthetic local-only commit `... for #1872 (unpushed)` found by OLD local-range grep, NOT found by NEW origin-range grep; my branch commit messages contain no literal `#1872` (deliberate).
+7. NEW discovery + mitigation: with `.gitattributes` `merge=union` present on the base tree, the union merge driver OVERRIDES `-X theirs` for that path (harness: 45/45 live lines kept vs 1 without) → landed `CHANGELOG merge=union` (a non-workflow file, so pushable) as the smallest safe mitigation for the append-only shared file most edited concurrently.
+8. **Landing blocker (FAILS):** `git push origin HEAD:fix/issue-1872-workflow-patch` → `! [remote rejected] … (refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission)`. The fix commit `56e9520a0` remains local-only; issue stays OPEN.
+9. `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → exit 0 (see run log); no suite lost.
+10. Event Viewer: n/a — no TestLink PHP/BFF/UI code touched (CI YAML + `.gitattributes` + markdown).
