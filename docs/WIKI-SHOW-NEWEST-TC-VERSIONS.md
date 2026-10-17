@@ -90,11 +90,21 @@ prefix (header, toolbar labels, column headers, empty-state messages, footer
 hint, icon titles). Present in ALL locale bundles:
 `en ro de fr ru pt es ja zh`.
 
+Context help (#1146): the header renders a question-mark help button that opens
+a Bootstrap modal with the legacy `hlp_planTcModified` text. Keys `ntcv.help`,
+`ntcv.helpTooltip`, `ntcv.helpTitle`, `ntcv.helpBody` (added to all 10 bundles,
+mirroring the legacy `description.php` `$TLS_hlp_planTcModified` translations).
+
 ## 6. Testing
 Suite **643** in `tmp/TLU_Test_Cases.md`: 15/15 PASS — happy path, all three
 empty states, invalid contexts, permission paths (BFF + UI + menu gating),
 aside integration inside the shell, popup-link liveness, locale switch and
 Event Viewer check (independent pre-existing L18N warnings filed as #644).
+
+Suite **Issue #1146** (help icon): PASS — icon present in header, modal opens
+with the localized help text in `en` and `de`, coverage gate PASS. Screenshots
+`docs/screenshots/issue-1146-ntcv-before.png` / `-help-modal.png` /
+`-help-modal-de.png`.
 
 ## Commits
 | Commit | Content |

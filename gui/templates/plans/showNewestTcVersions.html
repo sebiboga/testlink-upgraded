@@ -12,6 +12,10 @@
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
 .header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
 .header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.help-btn { background: rgba(255,255,255,.22); border: none; color: #fff; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; font-size: 14px; line-height: 1; margin-left: 10px; vertical-align: middle; padding: 0; }
+.help-btn:hover { background: rgba(255,255,255,.38); }
+.helpTitle { color: #1d8a83; font-size: 16px; font-weight: 700; margin-top: 0; }
+.helpBody { font-size: 13.5px; line-height: 1.6; color: #333; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .toolbar .ctx { color: #aaa; font-size: 12px; }
 .toolbar .ctx b { color: #fff; }
@@ -50,6 +54,7 @@ table.ntcv tr:hover td { background: #f7fdfd; }
 <div class="header">
   <span data-i18n="ntcv.header">Show Newest Test Case Versions</span>
   <span class="sub" data-i18n="ntcv.headerSub">test plan</span>
+  <button type="button" class="help-btn" id="helpBtn" data-i18n-title="ntcv.helpTooltip" title="Help"><i class="fa fa-circle-question"></i></button>
   <span id="tplanNameBadge" style="float:right;font-size:13px;font-weight:400;opacity:.9;"></span>
 </div>
 
@@ -91,6 +96,24 @@ table.ntcv tr:hover td { background: #f7fdfd; }
 
 <div class="toast" id="toast"></div>
 
+<div class="modal fade" id="helpModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title"><i class="fa fa-circle-question"></i> <span data-i18n="ntcv.help">Help</span></h4>
+      </div>
+      <div class="modal-body">
+        <h5 class="helpTitle" data-i18n="ntcv.helpTitle">Newest versions of linked Test Cases</h5>
+        <p class="helpBody" data-i18n="ntcv.helpBody">The whole set of Test Cases linked to Test Plan is analyzed, and a list of Test Cases which have a newest version is displayed (against the current set of the Test Plan).</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-dark" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
@@ -125,6 +148,7 @@ $(function () {
     load();
   });
   $('#btnReload').on('click', load);
+  $('#helpBtn').on('click', function () { $('#helpModal').modal('show'); });
 });
 
 // review #643 f4: no context in URL -> auto-pick first accessible project

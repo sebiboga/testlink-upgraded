@@ -42960,3 +42960,42 @@ Login admin/admin.
 - Verified scope matches issue (37 files, 69 occurrences addressed)
 
 **Status:** PASS
+
+## Task — Issue #1146: Implement help icon (hlp_planTcModified) in showNewestTcVersions
+
+**Precondition:** TestLink 2.0.1 modern UI running at `http://localhost:8082`; logged in as `admin`.
+DB freshly imported, fixtures recreated: tproject `9000` (prefix `DEMO`), testsuite `9001` (`Suite One`),
+testcase `9002` (`Case A`, external id 1) with v1 (`tcversion_id=9003`) and v2 (`tcversion_id=9004`),
+testplan `9020` (`Plan One`) linked to v1.
+Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&tplan_id=9020`.
+
+**Steps / Expected / Actual:**
+
+1. Open the modern screen with the fixtures. **Expected:** header shows a round question-mark help
+   button next to the "Show Newest Test Case Versions" title. **Actual:** help button present
+   (a11y: button description "Help"); screenshot `docs/screenshots/issue-1146-ntcv-before.png`
+   (BEFORE, icon absent) vs live (icon present). **PASS**
+
+2. Click the help button. **Expected:** a Dashio Bootstrap modal opens titled "Help" with heading
+   "Newest versions of linked Test Cases" and the body paragraph. **Actual:** modal opens; heading +
+   body render the English `hlp_planTcModified` text; footer has a "Close" button
+   (screenshot `docs/screenshots/issue-1146-ntcv-help-modal.png`). **PASS**
+
+3. Switch locale via the header locale switcher to **German**, then click the help button again.
+   **Expected:** button label becomes "Hilfe", modal titled "Hilfe", heading
+   "Neuere Versionen von verknüpften Testfällen", body in German, Close becomes "Schließen".
+   **Actual:** confirmed via a11y snapshot (button "Hilfe", headings + body German, "Schließen");
+   screenshot `docs/screenshots/issue-1146-ntcv-help-modal-de.png`. **PASS**
+
+4. `bash ai/verify_i18n_coverage.sh` **Expected:** all 9 non-en bundles carry the 4 new `ntcv.help*`
+   keys. **Actual:** PASS — 8362 keys × 9 bundles, 0 missing (exit 0). **PASS**
+
+5. `python3 -m json.tool` on each of the 10 touched bundles. **Expected:** well-formed JSON.
+   **Actual:** all OK. **PASS**
+
+6. Console / Event Viewer check. **Expected:** no new Error-level console output and no new server
+   Event Viewer entries (feature is client-side only — no BFF change). **Actual:** only a benign
+   Bootstrap 3.4.1 `aria-hidden` fade-time warning (not an error, not introduced by this change);
+   no new Error/Warning server events. **PASS**
+
+**Status:** PASS

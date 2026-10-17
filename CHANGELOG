@@ -9755,6 +9755,21 @@ Changes:
 - [BUGFIX] - #1854: `api/suiteedit/index.php` called the shared name validator `check_string()` with the wrong polarity for the `suiteEdit` BFF (`if (check_string(...)) -> bad_chars`), reading its `1 = check ok` return as "has forbidden chars" — so every valid test-suite name was rejected with `400 bad_chars` while a name containing `|` passed. `check_string()` itself (`lib/functions/common.php`) is correct and used correctly (`!check_string(...)`) by `containerEdit.php:203`, `testproject.class.php:893/917` and `api/projectinfo/index.php:426`; the BFF now uses the same canonical `!check_string($name, $g_ereg_forbidden)` form. Verified: clean name → 200, `|` name → 400 `bad_chars`, empty → 400 `empty_name`, >100 chars → 400 `name_too_long`, on `create` and `update`. (Fixes #1854)
 - [KEY BUGFIX] - #1924: **commit `d6b3b860a` (`# Conflicts: CHANGELOG`) deleted 1171 lines / 10 hunks from `CHANGELOG`, dropping 53 unique issue refs (`#1065`–`#1885`) from the 2.0.1 ledger.** A rebase/cherry-pick conflict on `CHANGELOG` was resolved by taking the incoming side wholesale — the `git rebase -X theirs` clobber class already flagged in #1793/#1805/#1849/#1918 — so only the commit's 4 own lines survived and every pre-image entry in 10 regions vanished. Verified `d6b3b860a` is an ancestor of HEAD with `4 + / 1171 −` across 10 hunks and 53 lost `#[0-9]{3,4}` tokens; `CHANGELOG` had **no gate** (`ai/verify_test_suites.sh` protects only `tmp/TLU_Test_Cases.md`). Fix: a 3-way merge (`base=d6b3b860a`, `ours=HEAD` to keep every post-`d6b3b860a` entry, `theirs=d6b3b860a^`) with the 6 conflicts resolved as a union and merge-artifact duplicates capped at `max(pre,cur)` multiplicity, then a new blocking gate `ai/verify_changelog_coverage.sh` (no-ref-loss vs merge-base + rule-22 coverage of this run's `Refs/Fixes` + an ancestor ref-losing anchor) so a future conflict resolution cannot empty the ledger again. Verified: all 53 refs restored (`735 -> 788` unique refs, `0` still missing), `0` merge-introduced duplicates, every baseline line retained except the 3 partial re-wraps `d6b3b860a` itself inserted (their full entries survive from the pre-image), `2026-… (issue #N)` date rows `1 -> 5`, regression suite `Issue #1924` 9/9 PASS, gate `TLU_REQUIRE_SUITE="Issue #1924"` 8 PASS / 0 FAIL. (Fixes #1924)
 
+### Gap closed — Show Newest Test Case Versions: legacy context-help icon `hlp_planTcModified` restored (Fixes #1146)
+- `gui/templates/plans/showNewestTcVersions.html`: the header now renders a round question-mark
+  help button (`#helpBtn`, `.help-btn`) beside the "Show Newest Test Case Versions" title, opening a
+  Dashio Bootstrap modal with the localized legacy help text. The legacy `showNewestTcVersions.tpl:17`
+  included `inc_help.tpl` with `helptopic="hlp_planTcModified"`, whose `<h2>`/`<p>` text lived in
+  `locale/<loc>/description.php` (`$TLS_hlp_planTcModified`); the modern screen had dropped the icon
+  entirely (no help control anywhere in the header/toolbar/footer).
+- New i18n keys `ntcv.help`, `ntcv.helpTooltip`, `ntcv.helpTitle`, `ntcv.helpBody` added to all 10
+  locale bundles with translations mirroring the legacy description text (de/fr/es/ja/pt/zh from their
+  `description.php`; ro/ru translated, it carries the English fallback like its description.php).
+  Client-side only — no BFF change.
+- Verified end-to-end in the browser (en + de), coverage gate `verify_i18n_coverage.sh` PASS,
+  suite `Issue #1146` PASS. (Fixes #1146)
+
+
 ### Gap closed — planAddTC (Add/Remove Test Cases): render-time gating of the executed remove checkbox (Fixes #1133)
 - `gui/templates/plans/planAddTCView.html`: `renderContainer()` now branches on
   `INIT.rights.canRemoveExecuted` — an executed link renders as a read-only
