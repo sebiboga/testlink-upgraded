@@ -369,19 +369,43 @@ if ($action === 'save') {
                 'message' => 'Environment not found'));
             exit;
         }
-        $db->exec_query(
-            "UPDATE {$t} SET name = '" . $db->prepare_string($name) . "'," .
-            " env_type = '" . $db->prepare_string($envType) . "'," .
-            " base_url = '" . $db->prepare_string($baseUrl) . "'," .
-            " platform = '" . $db->prepare_string($platform) . "'," .
-            " app_version = '" . $db->prepare_string($appVersion) . "'," .
-            " owner = '" . $db->prepare_string($owner) . "'," .
-            " contact = '" . $db->prepare_string($contact) . "'," .
-            " dependencies = '" . $db->prepare_string($dependencies) . "'," .
-            " notes = '" . $db->prepare_string($notes) . "'," .
-            " status = '" . $db->prepare_string($status) . "'," .
-            " update_ts = NOW()" .
-            " WHERE id = " . intval($id) . " AND testproject_id = " . intval($tpid));
+        try {
+            $db->exec_query(
+                "UPDATE {$t} SET name = '" . $db->prepare_string($name) . "'," .
+                " env_type = '" . $db->prepare_string($envType) . "'," .
+                " base_url = '" . $db->prepare_string($baseUrl) . "'," .
+                " platform = '" . $db->prepare_string($platform) . "'," .
+                " app_version = '" . $db->prepare_string($appVersion) . "'," .
+                " owner = '" . $db->prepare_string($owner) . "'," .
+                " contact = '" . $db->prepare_string($contact) . "'," .
+                " dependencies = '" . $db->prepare_string($dependencies) . "'," .
+                " notes = '" . $db->prepare_string($notes) . "'," .
+                " status = '" . $db->prepare_string($status) . "'," .
+                " update_ts = NOW()" .
+                " WHERE id = " . intval($id) . " AND testproject_id = " . intval($tpid));
+        } catch (Exception $e) {
+            // Refs #1932: exec_query() throws on any failure (database.class.php).
+            // error_num() CANNOT be used here to detect the duplicate: exec_query
+            // logs the ERROR event (tLog -> events INSERT on the SAME connection,
+            // logger.class.php writeEvent) BEFORE throwing, and that successful
+            // query resets the mysqli errno to 0 (measured: 0 at catch time).
+            // Re-check the unique key instead - identical semantics to the
+            // pre-check above.
+            $dupe = $db->fetchFirstRow(
+                "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
+                " AND name = '" . $db->prepare_string($name) . "'" .
+                " AND id != " . intval($id));
+            if (is_array($dupe) && $dupe) {
+                http_response_code(409);
+                echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
+                    'message' => 'An environment with this name already exists'));
+                exit;
+            }
+            http_response_code(500);
+            echo json_encode(array('status' => 'error', 'code' => 'save_failed',
+                'message' => 'Could not save environment'));
+            exit;
+        }
 
         $event = new stdClass();
         $event->message = 'Test environment saved: ' . $name . ' (id ' . $id . ')';
@@ -397,15 +421,39 @@ if ($action === 'save') {
         exit;
     }
 
-    $db->exec_query(
-        "INSERT INTO {$t} (testproject_id, name, env_type, base_url, platform," .
-        " app_version, owner, contact, dependencies, notes, status," .
-        " created_by, update_ts) VALUES (" .
-        intval($tpid) . ", " . $vals . ", " . intval($userId) . ", NOW())");
+    try {
+        $db->exec_query(
+            "INSERT INTO {$t} (testproject_id, name, env_type, base_url, platform," .
+            " app_version, owner, contact, dependencies, notes, status," .
+            " created_by, update_ts) VALUES (" .
+            intval($tpid) . ", " . $vals . ", " . intval($userId) . ", NOW())");
+    } catch (Exception $e) {
+        // Refs #1932: a concurrent create may have won the race and tripped the
+        // uq_tenv_project_name key; exec_query() throws (database.class.php)
+        // before insert_id() is ever read, so the old insert_id() <= 0 re-check
+        // below was unreachable for the very case it handled. error_num() is
+        // useless here - the ERROR event INSERT that exec_query() performs on
+        // the same connection (logger.class.php writeEvent) resets the mysqli
+        // errno to 0 before the throw (measured: errno=0 at catch time) - so the
+        // unique key is re-checked directly, exactly like the pre-check above.
+        $dupe = $db->fetchFirstRow(
+            "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
+            " AND name = '" . $db->prepare_string($name) . "'");
+        if (is_array($dupe) && $dupe) {
+            http_response_code(409);
+            echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
+                'message' => 'An environment with this name already exists'));
+            exit;
+        }
+        http_response_code(500);
+        echo json_encode(array('status' => 'error', 'code' => 'insert_failed',
+            'message' => 'Could not create environment'));
+        exit;
+    }
     $newId = (int)$db->insert_id($t);
     if ($newId <= 0) {
-        // A concurrent create may have won the race and tripped the
-        // uq_tenv_project_name key; re-check before reporting a hard failure.
+        // Defensive fallback: exec_query() reported success but no id came
+        // back - re-check the unique key before reporting a hard failure.
         $dupe = $db->fetchFirstRow(
             "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
             " AND name = '" . $db->prepare_string($name) . "'");
