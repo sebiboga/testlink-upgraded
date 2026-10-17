@@ -43342,3 +43342,26 @@ All 15 cases PASS. Screenshots: tmp/shots/1934_{list,new_modal,view_modal,delete
 - Fix applied systematically to all templates with destroy()+DataTable().
 
 **PASS/FAIL:** PASS
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 5, base `9bc265954`)
+
+**Precondition:** default branch `sebiboga` fetched at run start (`9bc265954`); branch `fix/issue-1872` created from it; credential = GitHub App installation token (`GH_TOKEN`), no SSH key / netrc / second token.
+
+**Run 5 — executed cases:**
+
+| # | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Repro pre-fix: `git grep "rebase -X theirs" origin/sebiboga -- .github/workflows/` | 8 hits (bug live) | 8 hits at identical lines (compare-screens:333, fix-bug-oldest:237, fix-bug:234, implement-task-newest:254, implement-task-oldest:252, investigate-fix:287, modernize:320+238) | **PASS** |
+| 2 | Repro pre-fix: local-only auto-close `grep 'BEFORE"..HEAD'` | 5 hits | 5 hits (fix-bug:261, fix-bug-oldest:264, investigate-fix:313, implement-task-oldest:279, implement-task-newest:281); `origin/$GITHUB_REF_NAME` guards → 0 | **PASS** |
+| 3 | Fix step 1: after patch, `grep -rn "rebase -X theirs" .github/workflows/` / `-X ours` | 0 / 8 | 0 / 8 | **PASS** |
+| 4 | Fix step 2: after patch, local `BEFORE"..HEAD` REFS / origin REFS + fetch guards | 0 / 5 + 5 | 0 / 5 + 5 | **PASS** |
+| 5 | YAML gate `yaml.safe_load` over `.github/workflows/*.yml` | 11/11 parse | 11/11 OK | **PASS** |
+| 6 | Rebase strategy harness, `-X theirs` (pre-fix) | destructive: 0/45 live lines kept | 46 lines total, 0/45 live kept | **PASS** |
+| 7 | Rebase strategy harness, `-X ours` (post-fix) | 45/45 live lines kept | 145 lines total, 45/45 live kept | **PASS** |
+| 8 | No false self-close: commit messages vs OLD local grep `#1872` | 0 occurrences | 0 (message says `Refs: issue 1872`, no `#`); origin-range count also 0; failure-safe on fetch fail | **PASS** |
+| 9 | Code review subagent over `aff75e51c` | no blocking findings | CLEAN: 8/8 + 5/5 coverage, bash -n 19/19, YAML OK, no accidental line removals | **PASS** |
+| 10 | Suite gate `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` | 34 PASS / 0 FAIL | 34 PASS / 0 FAIL, exit 0 (pre-append run; re-run after append) | **PASS** |
+| 11 | Landing: `git push origin HEAD:fix/issue-1872` (git) + contents API PUT | accepted with workflows-scoped credential | BOTH rejected: git → `refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission`; API → 403 `Resource not accessible by integration` (re-measured this run, fresh token) | **FAIL — documented landing blocker, issue stays OPEN** |
+| 12 | Event Viewer / `events` table | no new Error/Warning | n/a — no TestLink PHP/BFF code touched (CI YAML + markdown only) | **PASS** (n/a) |
+
+**Run 5 result — case 10 executed:** `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (baseline `9bc265954`, 906 suites, none lost, own heading present).
+**Regression — Issue #1872 (re-run, fix-bug run 5): 11/12 PASS; case 11 = documented landing blocker** — the fix commit `aff75e51c` (7 files, 18+/13−, byte-identical to the published §Fix patch) is fully verified but cannot be pushed by any available credential (re-measured both git and API routes this run), so **#1872 stays OPEN** per FIX-ISSUE §7.

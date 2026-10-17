@@ -167,3 +167,29 @@ token (`GH_TOKEN == GITHUB_TOKEN`), no `secrets.*` referenced by ANY workflow
 key / netrc / git-credentials / second token, origin URL embeds no credential. #1872 therefore
 stays **OPEN**; the fix lives on local branch `fix/issue-1872-workflow-patch` → `8f231a75b`
 and is fully reproducible from §Fix above.
+
+
+## Re-verification — fix-bug run 5 (2026-10-17, base `9bc265954`)
+
+Fifth fix-bug run re-confirmed the bug fully live on the then-current default branch
+(`8` `-X theirs` / `0` `-X ours`; `5` local-only `BEFORE"..HEAD` auto-close ranges; `0` origin
+guards — identical line numbers to runs 3–4). The published two-step patch (§Fix above) was
+re-applied byte-identically on `fix/issue-1872` → `aff75e51c` (7 files, **18 insertions / 13
+deletions**, same as runs 1–4), giving: grep gates `0` theirs / `8` ours, `0` local / `5` origin
+REFS + `5` fetch guards, `yaml.safe_load` **11/11**, live 2-strategy harness (fresh repo per
+strategy) `-X theirs` → 46 lines **0/45** live kept vs `-X ours` → 145 lines **45/45** kept,
+guard semantics (BEFORE=`9bc265954`) old local `#1872` count `0` / origin count `0` (commit
+message deliberately says "Refs: issue 1872", no `#`, so the dispatch-time OLD auto-close cannot
+falsely close this issue; failed fetch ⇒ empty REFS ⇒ stays open), suite re-run
+`Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 5, base 9bc265954)` → **11/12 executed
+PASS**, suite gate `TLU_REQUIRE_SUITE="Issue #1872"` → **34 PASS / 0 FAIL**, exit 0.
+Code-review subagent over `aff75e51c`: **CLEAN** (8/8 swaps + 5/5 guards, `bash -n` 19/19,
+YAML OK, no accidental line removals). Landing blocker **re-measured with this run token and
+persists on BOTH routes**: git push → `! [remote rejected] … (refusing to allow a GitHub App to
+create or update workflow .github/workflows/compare-screens.yml without workflows permission)`;
+contents API `PUT /repos/…/contents/.github/workflows/fix-bug.yml` → `403 Resource not
+accessible by integration`. Credential inventory unchanged: single `ghs_…` App installation
+token (`GH_TOKEN == GITHUB_TOKEN`), no SSH key / netrc / git-credentials / second token; the
+`permissions:` block cannot grant `workflows` (not a grantable key). #1872 therefore stays
+**OPEN**; the fix lives on local branch `fix/issue-1872-workflow-patch` → `aff75e51c` and is
+fully reproducible from §Fix above.
