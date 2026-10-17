@@ -193,3 +193,92 @@ token (`GH_TOKEN == GITHUB_TOKEN`), no SSH key / netrc / git-credentials / secon
 `permissions:` block cannot grant `workflows` (not a grantable key). #1872 therefore stays
 **OPEN**; the fix lives on local branch `fix/issue-1872-workflow-patch` → `aff75e51c` and is
 fully reproducible from §Fix above.
+
+## Re-verification — fix-bug run 6 (2026-10-17, base `6fbc6e095`)
+
+Sixth fix-bug run re-confirmed the bug fully live on the then-current default branch
+(`8` `-X theirs` / `0` `-X ours`; `5` local-only `BEFORE"..HEAD` auto-close ranges; `0` origin
+guards — identical line numbers to runs 3–5). The published two-step patch (§Fix above) was
+re-applied cleanly on `fix/issue-1872` (commit `ea7657111`, rebased per §8 onto the remote
+artifact tip `8deb7c0d7` → `61125777b`; 7 files, **18 insertions / 13 deletions**, byte-matches
+runs 1–5), giving: grep gates `0` theirs / `8` ours, `0` local / `5` origin REFS + `5` fetch
+guards, `yaml.safe_load` **11/11**, live 2-strategy harness `-X theirs` → **0/45** live lines
+kept vs `-X ours` → **45/45** kept, guard semantics (BEFORE=`6fbc6e095`) strict `#1872` token
+in local commit messages `0` (message deliberately says "Refs: issue 1872", no `#`), suite
+re-run `Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 6, base 6fbc6e095)` →
+**10/11 executed PASS** (case 11 = landing blocker), suite gate `TLU_REQUIRE_SUITE="Issue #1872"`
+→ **34 PASS / 0 FAIL**, exit 0. Code-review subagent: **CLEAN** (8/8 swaps + 5/5 guards at the
+expected file:line, YAML OK, no accidental removals, no `#1872` token in the commit message).
+Landing blocker **re-measured with this run's token on BOTH routes and persists**: git push of
+the fix commit → `! [remote rejected] … (refusing to allow a GitHub App to create or update
+workflow .github/workflows/compare-screens.yml without workflows permission)`; contents API
+`PUT /repos/…/contents/.github/workflows/fix-bug.yml` → `403 Resource not accessible by
+integration`. Credential inventory unchanged: single `ghs_…` App installation token
+(`GH_TOKEN == GITHUB_TOKEN`), repo `permissions.push:false`, no SSH key / netrc / second token;
+the `permissions:` block cannot grant `workflows` (not a grantable key). #1872 therefore stays
+**OPEN**; the fix lives on local branches `fix/issue-1872` and `fix/issue-1872-workflow-patch` →
+`61125777b` and is fully reproducible from §Fix above.
+
+## Re-verification — fix-bug run 7 (2026-10-17, base `a41c96ba0`) + NEW landable mitigation
+
+Seventh fix-bug run. The bug was still fully live on the current default branch
+(`8` `-X theirs` / `0` `-X ours` at `compare-screens.yml:333`, `fix-bug-oldest.yml:237`,
+`fix-bug.yml:234`, `implement-task-newest.yml:254`, `implement-task-oldest.yml:252`,
+`investigate-fix.yml:287`, `modernize.yml:320` + PROMPT `modernize.yml:238`; `5` local-only
+`BEFORE"..HEAD` auto-close ranges at `fix-bug.yml:261`, `fix-bug-oldest.yml:264`,
+`investigate-fix.yml:313`, `implement-task-oldest.yml:279`, `implement-task-newest.yml:281`;
+`0` origin guards). The published two-step patch (§Fix above) was re-applied byte-identically on
+`fix/issue-1872-workflow-patch` → `56e9520a0` (7 files, **18 insertions / 13 deletions**), giving:
+grep gates `0` theirs / `8` ours, `0` local / `5` origin REFS + `5` fetch guards,
+`yaml.safe_load` **11/11**, live 2-strategy harness `-X theirs` → **0/45** live lines kept vs
+`-X ours` → **45/45** kept, guard semantics BEFORE=`a41c96ba0` (a synthetic local-only
+`…#1872…` commit is found by the OLD local-range grep and **not** by the NEW origin-range grep).
+
+### NEW: a landable mitigation via `.gitattributes merge=union`
+
+While re-measuring, this run isolated a **pushable** lever: when a `merge=union` attribute is
+present on the merged tree, git's union merge driver **overrides** the `-X theirs` strategy option
+for that path. Measured in a fresh repo (base = 100 lines; live side appends 45 lines; stale side
+rewrites the file; `git rebase -X theirs live`):
+
+| `.gitattributes` | live lines kept after `-X theirs` |
+|---|---|
+| (none) | **1** line total, **0/45** live lines kept (clobbered) |
+| `f.txt merge=union` on the base tree | **46** lines, **45/45** live lines kept (union wins) |
+
+The mechanism is pushable because `.gitattributes` is **not** a workflow file. This run therefore
+landed one conservative line — `CHANGELOG merge=union` — protecting the shared, append-only file
+that every concurrent agent edits (the largest single clobber target that is safe under union;
+`gui/templates/i18n/*.json` cannot use union without producing invalid JSON, so it is **not**
+covered and still relies on the workflow-flag fix). This mitigation reduces the blast radius of
+defect&nbsp;1 but does **not** remove the 8 `-X theirs` sites; the issue's own grep gate (`0 theirs /
+8 ours`) is still unmet.
+
+### Landing status (unchanged)
+
+Landing blocker **re-measured with this run's token and persists**: `git push origin
+HEAD:fix/issue-1872-workflow-patch` → `! [remote rejected] … (refusing to allow a GitHub App to
+create or update workflow .github/workflows/compare-screens.yml without workflows permission)`.
+Credential inventory unchanged: single `ghs_…` App installation token (`GH_TOKEN == GITHUB_TOKEN
+== wiki-remote token`; length 377), repo `permissions.push:false`, no SSH key / netrc /
+git-credentials / `secrets.*`. **#1872 stays OPEN**; the workflow fix lives on local branch
+`fix/issue-1872-workflow-patch` → `56e9520a0` and is fully reproducible from §Fix above, while the
+`.gitattributes` mitigation + docs + suite land on the default branch through the normal artifact
+route (no workflow paths touched by those commits).
+
+## Re-verification — fix-bug run 8 (2026-10-17, base `b30bc309f`)
+
+Eighth consecutive fix-bug run for #1872. Bug re-confirmed live on `origin/sebiboga @ b30bc309f`
+(8 `-X theirs` / 0 `-X ours`; 5 local-only auto-close REFS / 0 origin guards — identical topology
+to runs 3–7). The byte-identical 2-step patch from §Fix was re-applied on local branch
+`fix/issue-1872-workflow-patch` (`0cf8e0eea`, 7 files, 18+/13−): grep gates 0 theirs / 8 ours,
+0 local / 5 origin REFS + 5 fetch guards, `yaml.safe_load` 11/11, live rebase harness
+theirs → 0/45 / ours → 45/45 (re-measured this run), no-false-self-close token count 0.
+
+**Push wall re-measured:** `git push origin HEAD:fix/issue-1872-run8` →
+`! [remote rejected] … (refusing to allow a GitHub App to create or update workflow
+.github/workflows/compare-screens.yml without workflows permission)` — 8th consecutive run
+blocked by the same App-installation-level permission; no SSH key / alternate credential exists
+on the runner. Landable (non-workflow) artifacts of this run — the suite append
+`Regression — Issue #1872 (re-run … run 8, base b30bc309f)` and this docs section — were pushed
+to `origin/fix/issue-1872`. **Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix).

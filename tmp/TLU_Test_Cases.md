@@ -43876,3 +43876,23 @@ All 15 cases PASS. Screenshots: tmp/shots/1934_{list,new_modal,view_modal,delete
     - *Actual:* `php -l` clean on all four; `events` totals `5 rows / 0 warning / 0 error`, the only metricstrends row is id 4 at log_level 1 (the deliberate no-right probe `BFF metricstrends: user 2 has no testplan_metrics right on tproject 1 (tplan 2)`); 0 new ERROR/WARNING — PASS. *Status:* PASS.
 
 **Overall: 11/11 PASS** (fixture aggregate + trend arithmetic, build/platform filters incl. the empty state, 400/401/403/404/405 matrix, i18n + server labels in 19 locales, browser render + build/platform Apply, CSV export, denied state, and the DataTables empty-table warning regression fixed).
+
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 8, base b30bc309f)
+
+**Precondition:** fresh checkout of `sebiboga` @ `b30bc309f`; CI-config bug — no TestLink
+PHP/DB/UI involved. Fix commit lives on local branch `fix/issue-1872-workflow-patch`
+(`0cf8e0eea`); push of `.github/workflows/*` re-measured rejected this run.
+
+1. Repro (pre-fix on `origin/sebiboga`): `git grep -c "rebase -X theirs" origin/sebiboga -- .github/workflows/` → 8; `-X ours` → 0. **PASS** (bug live).
+2. Repro (pre-fix): `git grep -n 'BEFORE"..HEAD' origin/sebiboga -- .github/workflows/` → 5 local-only auto-close REFS; `origin/\$GITHUB_REF_NAME` guards → 0. **PASS** (bug live).
+3. Step-1 gate (post-fix branch): `grep -rn "rebase -X theirs" .github/workflows/` → 0; `grep -rn "rebase -X ours"` → 8 (7 fallback + PROMPT). **PASS**.
+4. Step-2 gate (post-fix branch): `grep -rn 'BEFORE"..HEAD' .github/workflows/` → 0; `origin/\$GITHUB_REF_NAME` REFS lines → 5 + 5 fetch guards. **PASS**.
+5. Diff shape: `git diff --name-only origin/sebiboga..fix/issue-1872-workflow-patch` → exactly 7 files under `.github/workflows/`, 18 insertions / 13 deletions. **PASS**.
+6. YAML syntax: `python3 -c "import yaml,glob; [yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]"` → 11/11 parse. **PASS**.
+7. Live rebase harness (fresh repo, base 100 lines; live adds 45 lines 101–145; stale rewrites file to 46 lines; rebase stale onto live): `-X theirs` → 0/45 live lines survive (total 46) — destructive, matches #1694. **PASS**.
+8. Live rebase harness, same fixture with `-X ours` → 45/45 live lines survive (total 145) — newer content kept. **PASS**.
+9. Auto-close guard semantics: OLD range (`origin/sebiboga..HEAD`) would list local unpushed commits; NEW range (`origin/sebiboga..origin/sebiboga` after fetch) is empty when push was rejected → `gh issue close … "landed"` cannot fire on an unpushed fix; failed fetch leaves `REFS=""` (failure-safe, stays open). **PASS**.
+10. No-false-self-close: `git log origin/sebiboga..fix/issue-1872-workflow-patch --format=%B | grep -c "#1872"` → 0 (commit messages use `Refs: issue 1872` without `#`). **PASS**.
+11. Push permission re-measured: `git push origin HEAD:fix/issue-1872-run8` (workflow commit) → `! [remote rejected] … without workflows permission`; same token pushes non-workflow artifacts (docs/suite commits) → accepted. **PASS** (blocker is content-path-specific, unchanged from runs 1–7).
+
+**Result:** 11/11 PASS. Gate: `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → see FINDINGS comment (run 8) for the measured PASS/FAIL tally.
