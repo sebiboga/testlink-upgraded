@@ -244,6 +244,11 @@ if ($tplan_id > 0) {
                 // JSON artifact upload -> executions).
                 $hrefR = '/gui/templates/results/cicdPublish.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_metrics_trends') {
+                // Refs #1935: Metrics & Trends dashboard (current quality
+                // snapshot + per-build execution/defect trend).
+                $hrefR = '/gui/templates/results/metricsTrends.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

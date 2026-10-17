@@ -2517,6 +2517,16 @@ function getActions(&$gui,$baseURL) {
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
+  // Refs #1935: Metrics & Trends dashboard (net-new screen). Aggregates a test
+  // plan's current quality snapshot plus a per-build trend (execution status
+  // distribution and linked defects) from executions/execution_bugs; 1.9.20
+  // shipped only the single-snapshot generalMetrics view, no longitudinal
+  // trends. Backed by the api/metricstrends BFF (init/report actions), which
+  // enforces testplan_metrics on the owning project. Reachable from the Reports
+  // menu (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->metricsTrends =
+    "/gui/templates/results/metricsTrends.html?{$ctx}";
+
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 

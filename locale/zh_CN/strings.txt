@@ -4176,6 +4176,7 @@ $TLS_title_risk_register = "风险登记册"; // "Risk Register" (Refs #1930)
 $TLS_title_exploratory_sessions = "探索性测试会话"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "基于风险的测试";
 $TLS_link_report_quality_gates = "发布质量门禁"; // Refs #1067
+$TLS_link_report_metrics_trends = "指标与趋势"; // Refs #1935
 $TLS_link_report_defect_intelligence = "缺陷智能"; // Refs #1068
 $TLS_link_report_strategy_report = "测试策略报告"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "性能测试报告"; // Refs #1063

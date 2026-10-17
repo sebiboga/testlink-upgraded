@@ -4578,6 +4578,7 @@ $TLS_title_risk_register = "リスク登録簿"; // "Risk Register" (Refs #1930)
 $TLS_title_exploratory_sessions = "探索的テストセッション"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "リスクベースのテスト";
 $TLS_link_report_quality_gates = "リリース品質ゲート"; // Refs #1067
+$TLS_link_report_metrics_trends = "メトリックスと傾向"; // Refs #1935
 $TLS_link_report_defect_intelligence = "欠陥インテリジェンス"; // Refs #1068
 $TLS_link_report_strategy_report = "テスト戦略レポート"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "パフォーマンステストレポート"; // Refs #1063

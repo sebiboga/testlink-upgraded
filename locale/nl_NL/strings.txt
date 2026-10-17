@@ -4093,6 +4093,7 @@ $TLS_title_risk_register = "Risicoregister"; // "Risk Register" (Refs #1930)
 $TLS_title_exploratory_sessions = "Exploratieve sessies"; // "Exploratory Sessions" (Refs #1934)
 $TLS_link_report_risk_coverage = "Risk-Based Testing";
 $TLS_link_report_quality_gates = "Release-kwaliteitspoorten"; // Refs #1067
+$TLS_link_report_metrics_trends = "Metrieken en trends"; // Refs #1935
 $TLS_link_report_defect_intelligence = "Defect-intelligentie"; // Refs #1068
 $TLS_link_report_strategy_report = "Teststrategie-rapport"; // Refs #1061/#1925
 $TLS_link_report_performance_reports = "Prestatietestrapporten"; // Refs #1063

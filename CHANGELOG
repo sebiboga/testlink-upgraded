@@ -296,6 +296,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   via non-numeric `BUG-1065`, browser render + 401 redirect, console clean, Event Viewer clean).
   Refs #1068.
 
+- [SCREEN] - #1935: the **Metrics & Trends** dashboard
+  (`gui/templates/results/metricsTrends.html`, BFF `api/metricstrends/index.php`) is added under the
+  Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a single-snapshot generalMetrics view, no
+  longitudinal trends. The BFF aggregates one test plan's current quality snapshot (linked test cases,
+  executed/not-run/passed/failed/blocked, progress %, pass rate %, automation %, linked defects) plus a
+  per-build trend (executions by status, progress %, pass rate %, Δ pass rate, defects) from
+  `executions` + `execution_bugs`, with build/platform filters and CSV export; `testplan_metrics` on the
+  owning test project (getAccess=true) mirrors api/automationreports. `cfg/reports.cfg.php` +
+  `api/aside/index.php` add the Reports entry, `$TLS_link_report_metrics_trends` in all 19 server
+  locales, `mt.*` (61) + `footers.metricsTrends` client keys in all 10 bundles (en+ro+de+es+fr+it+pt+ru
+  translated; `ai/verify_i18n_coverage.sh` 9/9 PASS). Refs #1935 / parent #1073.
+
 - [FEATURE] - #1135: the modern **Add / Remove Test Cases** screen
   (`gui/templates/plans/planAddTCView.html`) regains the legacy platform-scoped
   "Check/uncheck all Test cases for [platform] for [adding|removal]" bulk controls

@@ -392,6 +392,19 @@ $tlCfg->reports_list['tcNotRunAnyPlatform'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1935 - Metrics & Trends dashboard (metricsTrends) modernized. This is
+// a new 2.0.1 view that no legacy entry exposed: it aggregates the current
+// quality snapshot plus a per-build trend (execution status + defects) for a
+// test plan. Registered here pointing at the modern HTML screen; the BFF
+// action 'report' enforces testplan_metrics. directLink is empty: the modern
+// screen is HTML only.
+$tlCfg->reports_list['metrics_trends'] = array(
+	'title' => 'link_report_metrics_trends',
+	'url' => 'gui/templates/results/metricsTrends.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',
