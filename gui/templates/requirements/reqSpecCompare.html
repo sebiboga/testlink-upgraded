@@ -494,6 +494,10 @@ function fmtTs(ts) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $("#revTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

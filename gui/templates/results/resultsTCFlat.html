@@ -316,6 +316,10 @@ function renderTable(r) {
     }
   });
 }
+
+function clearHeaderAria() {
+  $("#flatTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

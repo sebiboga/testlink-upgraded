@@ -1508,6 +1508,10 @@ function showDemoToast(msg, cls) {
   clearTimeout($t.data('t'));
   $t.data('t', setTimeout(function () { $t.fadeOut(300, function() { $t.remove(); }); }, 4000));
 }
+
+function clearHeaderAria() {
+  $("#assignTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

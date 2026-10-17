@@ -377,7 +377,7 @@ function showSessionExpired() {
   $('#roleModal').modal('hide');
   $('#deleteModal').modal('hide');
   if (table) { table.destroy(); table = null; }
-  $('#rolesTable tbody').empty();
+  $('#rolesTable tbody').empty(); clearHeaderAria();
   // Drop the cached model too, not just the rows: a later renderTable() would otherwise
   // resurrect the previous session's role catalog over the neutralised screen.
   allItems = [];
@@ -387,7 +387,7 @@ function showSessionExpired() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#rolesTable tbody').empty(); }
+  if (table) { table.destroy(); $('#rolesTable tbody').empty(); clearHeaderAria(); }
   var rows = [];
   $.each(items, function(i, r) {
     var rightTags = '';
@@ -701,6 +701,10 @@ function duplicateRole(id) {
       toast(msg, true);
     }
   });
+}
+
+function clearHeaderAria() {
+  $("#rolesTable thead th").removeAttr("aria-label");
 }
 </script>
 </body>

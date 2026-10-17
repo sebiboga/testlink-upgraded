@@ -282,6 +282,10 @@ function renderTable(r) {
     language: { search: TLi18n.t('common.search') + ':' }
   });
 }
+
+function clearHeaderAria() {
+  $("#resultTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

@@ -370,7 +370,7 @@ function showSessionExpired() {
   $('#gridToolbarInfo').empty();
   $('#footerText').empty();
   if (table) { table.destroy(); table = null; }
-  $('#usersTable tbody').empty();
+  $('#usersTable tbody').empty(); clearHeaderAria();
   // Drop the cached model too, not just the rows: a later renderTable() would otherwise
   // resurrect the previous session's user catalog over the neutralised screen.
   allItems = [];
@@ -512,7 +512,7 @@ function loadUsers() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#usersTable tbody').empty(); }
+  if (table) { table.destroy(); $('#usersTable tbody').empty(); clearHeaderAria(); }
   var filtered = items.filter(function(u) { return u.active != 2; });
   var rows = [];
   $.each(filtered, function(i, u) {
@@ -1056,6 +1056,10 @@ function toggleActive(id, active) {
       toast(msg, true);
     }
   });
+}
+
+function clearHeaderAria() {
+  $("#usersTable thead th").removeAttr("aria-label");
 }
 </script>
 </body>

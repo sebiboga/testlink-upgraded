@@ -494,6 +494,10 @@ function getCookie(name) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $("#verTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

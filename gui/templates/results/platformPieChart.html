@@ -413,6 +413,10 @@ $(function () {
     load();
   });
 });
+
+function clearHeaderAria() {
+  $("#tbl thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>

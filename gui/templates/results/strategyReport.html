@@ -548,6 +548,10 @@ $(function () {
     load();
   });
 });
+
+function clearHeaderAria() {
+  $("#tblLevels thead th").removeAttr("aria-label");
+}
 </script>
 <div class="toast" id="toast"></div>
 </body>

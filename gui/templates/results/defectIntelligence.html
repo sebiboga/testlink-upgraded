@@ -390,6 +390,10 @@ $(function () {
     load();
   });
 });
+
+function clearHeaderAria() {
+  $("#tblSuites thead th").removeAttr("aria-label");
+}
 </script>
 <div class="toast" id="toast"></div>
 </body>

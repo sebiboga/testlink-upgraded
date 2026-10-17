@@ -299,6 +299,10 @@ function doAdd() {
       toast(msg, true);
     });
 }
+
+function clearHeaderAria() {
+  $("#planTable thead th").removeAttr("aria-label");
+}
 </script>
 </body>
 </html>
