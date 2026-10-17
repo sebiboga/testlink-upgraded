@@ -43694,3 +43694,124 @@ On race, returns HTTP 409 with JSON `{"status":"error","code":"duplicate_name","
 
 **Test status**
 PASS (structural fix verified). Deterministic repro logic matches the environments fix (#1932).
+
+## Modernize — Issue #1934: Exploratory Testing Sessions registry `exploratorySessions` (screen + BFF + i18n, parent feature #1071)
+
+**Scope**
+`api/exploratory/index.php` (BFF), `gui/templates/exploratory/exploratorySessions.html`
+(screen), `tc_exploratory_sessions` lazy schema + DDL mirror + object whitelist,
+aside/common links, i18n (10 client bundles + 19 server locales).
+Tracking issue: #1934. Fix PRs: cf4cc4196 (BFF), abd82a9a6 (screen), 007dbac04 (i18n/links).
+
+**Test data**
+- Project `EXPLOR1934` (prefix `E34`, id=1); users `admin` (role 6) and
+  `norights`/`norights` (role 3, id=2) via tmp/fixtures_1934.php + tmp/mkuser_norights.php.
+- Seeded sessions: Checkout flow charter (completed, defects 101,102),
+  Search regression charter (planned), Upload session charter (in_progress, defect 103).
+
+**Cases and results**
+1. BFF auth/verb: GET anon -> 401 not_authenticated; PUT -> 405 wrong_method
+   (with Origin header); POST unknown action -> 400 unknown_action.
+   PASS.
+2. BFF validation: save without name -> 400 name_required; bad status ->
+   400 bad_status; negative timebox -> 400 bad_timebox; bad session_date ->
+   400 bad_session_date; init with tproject_id=0 -> 400 no_testproject;
+   init/list unknown tproject -> 404 tproject_not_found.
+   PASS.
+3. BFF CRUD: init returns context (name/prefix/can_modify) + items + stats;
+   save creates (200 Created, id), save with id updates; delete removes
+   (200). Duplicate name in same project -> 409 duplicate_name; delete/save
+   unknown id -> 404 session_not_found.
+   PASS.
+4. BFF rights: role-3 user GET init -> 403 no_right; POST save/delete ->
+   403 no_right; rights checked on ADDRESSED project BEFORE existence
+   (#1697 no-oracle). PASS.
+5. AUDIT: EXPLORATORY_CREATE / EXPLORATORY_SAVE / EXPLORATORY_DELETE events
+   written (log_level 16, description includes session name+id, source
+   "GUI - Test Project ID : 1"). PASS.
+6. Screen load (admin): title/subtitle i18n, 5 metric tiles, toolbar
+   (New/Refresh/filters), 9-column table, project info chip, footer with
+   expl.count + generatedOn. No raw i18n keys rendered. PASS.
+7. New modal: all 10 fields render (name, charter, status select, timebox
+   number min=0, tester, date, environment, purpose, notes, defects);
+   empty name -> client toast "Session name is mandatory." + modal stays
+   open; valid save -> toast "Session saved.", row appears, tiles update
+   (1/0/1/0/0). PASS.
+8. Duplicate via UI: save same name -> toast "A session with this name
+   already exists." (BFF 409 mapped in JS), modal stays open.
+   PASS.
+9. View modal: name, charter, status, tester, timebox, date, environment,
+   purpose, notes, defects ("-" when empty) all shown.
+   PASS.
+10. Edit modal: status planned->completed saved; row status cell + tiles
+    (1/0/0/1/0) + updated timestamp refresh. PASS.
+11. Filters: status filter completed -> 1 row; planned -> 0 rows shows
+    #noMatch "No session matches the current filters." + table hidden;
+    search "login" -> match; "zzz" -> noMatch; reset restores rows.
+    Footer shows TOTAL count (allItems.length) consistent with
+    testDataSets behavior. PASS.
+12. Delete: confirm modal interpolates name ("Delete the session
+    \"Checkout flow charter\"?"); confirm -> toast "Session deleted.",
+    tiles reset, row removed; deleting last session restores
+    #emptyState "There are no exploratory sessions for this project yet."
+    PASS.
+13. norights (role 3): aside section "Exploratory Sessions" hidden
+    (gated view_tc|modify_tc); direct URL -> state card "No permission" /
+    "You are not allowed to view exploratory sessions of this test
+    project.", main area hidden. PASS.
+14. i18n: 65 expl.* keys present and identical across en,de,es,fr,it,ja,
+    pt,ro,ru,zh (ai/verify_i18n_coverage.sh PASS, json.tool valid);
+    $TLS_title_exploratory_sessions added in all 19 server locales after
+    the title_risk_register anchor. PASS.
+15. Console/Event Viewer: only the deliberate 409 from case 8; no new
+    Error/Warning events from this screen's testing.
+    PASS.
+
+**Test status**
+All 15 cases PASS. Screenshots: tmp/shots/1934_{list,new_modal,view_modal,delete_confirm,no_match,norights}.png
+
+## Regression — Issue #1931: DataTables re-init stacks the header aria-label in modernized screens
+
+**Precondition:**
+- Modernized screen with DataTables that destroys and re-creates table (e.g. testEnvironments.html).
+- Browser with DevTools available.
+
+**Repro steps (pre-fix):**
+1. Open a modernized screen that calls table.destroy() then re-inits DataTable on refresh/filter (e.g. Environments > Test Environments).
+2. Trigger re-render 3-5 times (change filters / refresh).
+3. Inspect sortable <th> elements in thead: aria-label accumulates " : activate to sort column ascending" fragments per re-render.
+
+**Expected post-fix behavior:**
+1. After each re-render (destroy + re-init), each sortable th aria-label contains exactly one sort hint instance (no duplication).
+2. Sorting functionality remains intact.
+3. No aria-label accumulation on repeated re-renders.
+4. Empty state transitions do not leave stale stacked aria-labels.
+
+**Actual result (post-fix):**
+- clearHeaderAria() strips th[aria-label] after destroy() before re-init in all affected templates. DataTables recreates proper aria-label on init. No accumulation observed.
+- Fix applied systematically to all templates with destroy()+DataTable().
+
+**PASS/FAIL:** PASS
+## Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 5, base `9bc265954`)
+
+**Precondition:** default branch `sebiboga` fetched at run start (`9bc265954`); branch `fix/issue-1872` created from it; credential = GitHub App installation token (`GH_TOKEN`), no SSH key / netrc / second token.
+
+**Run 5 — executed cases:**
+
+| # | Case | Expected | Actual | Result |
+|---|---|---|---|---|
+| 1 | Repro pre-fix: `git grep "rebase -X theirs" origin/sebiboga -- .github/workflows/` | 8 hits (bug live) | 8 hits at identical lines (compare-screens:333, fix-bug-oldest:237, fix-bug:234, implement-task-newest:254, implement-task-oldest:252, investigate-fix:287, modernize:320+238) | **PASS** |
+| 2 | Repro pre-fix: local-only auto-close `grep 'BEFORE"..HEAD'` | 5 hits | 5 hits (fix-bug:261, fix-bug-oldest:264, investigate-fix:313, implement-task-oldest:279, implement-task-newest:281); `origin/$GITHUB_REF_NAME` guards → 0 | **PASS** |
+| 3 | Fix step 1: after patch, `grep -rn "rebase -X theirs" .github/workflows/` / `-X ours` | 0 / 8 | 0 / 8 | **PASS** |
+| 4 | Fix step 2: after patch, local `BEFORE"..HEAD` REFS / origin REFS + fetch guards | 0 / 5 + 5 | 0 / 5 + 5 | **PASS** |
+| 5 | YAML gate `yaml.safe_load` over `.github/workflows/*.yml` | 11/11 parse | 11/11 OK | **PASS** |
+| 6 | Rebase strategy harness, `-X theirs` (pre-fix) | destructive: 0/45 live lines kept | 46 lines total, 0/45 live kept | **PASS** |
+| 7 | Rebase strategy harness, `-X ours` (post-fix) | 45/45 live lines kept | 145 lines total, 45/45 live kept | **PASS** |
+| 8 | No false self-close: commit messages vs OLD local grep `#1872` | 0 occurrences | 0 (message says `Refs: issue 1872`, no `#`); origin-range count also 0; failure-safe on fetch fail | **PASS** |
+| 9 | Code review subagent over `aff75e51c` | no blocking findings | CLEAN: 8/8 + 5/5 coverage, bash -n 19/19, YAML OK, no accidental line removals | **PASS** |
+| 10 | Suite gate `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` | 34 PASS / 0 FAIL | 34 PASS / 0 FAIL, exit 0 (pre-append run; re-run after append) | **PASS** |
+| 11 | Landing: `git push origin HEAD:fix/issue-1872` (git) + contents API PUT | accepted with workflows-scoped credential | BOTH rejected: git → `refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission`; API → 403 `Resource not accessible by integration` (re-measured this run, fresh token) | **FAIL — documented landing blocker, issue stays OPEN** |
+| 12 | Event Viewer / `events` table | no new Error/Warning | n/a — no TestLink PHP/BFF code touched (CI YAML + markdown only) | **PASS** (n/a) |
+
+**Run 5 result — case 10 executed:** `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (baseline `9bc265954`, 906 suites, none lost, own heading present).
+**Regression — Issue #1872 (re-run, fix-bug run 5): 11/12 PASS; case 11 = documented landing blocker** — the fix commit `aff75e51c` (7 files, 18+/13−, byte-identical to the published §Fix patch) is fully verified but cannot be pushed by any available credential (re-measured both git and API routes this run), so **#1872 stays OPEN** per FIX-ISSUE §7.
