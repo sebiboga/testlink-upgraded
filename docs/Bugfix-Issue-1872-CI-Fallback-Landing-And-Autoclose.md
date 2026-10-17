@@ -100,6 +100,21 @@ Note for the run that carries this patch: until Step 2 is live, the pre-fix auto
 greps local commit messages for the literal `#<issue>` token — that is why the commit messages of
 the fixing run deliberately say `Refs: issue 1872` without the `#`.
 
+## Re-verification (2026-10-17, second fix-bug run)
+
+The bug was still fully live on the default branch @ `824f0f6de` (8 `-X theirs`, 0 `-X ours`,
+5 local-only `BEFORE"..HEAD` auto-close ranges, 0 origin guards). The exact same two-step patch
+re-applied **cleanly and byte-identically** (grep gates 0/8 and 0/5+5-fetch, YAML 11/11,
+rebase harness `-X theirs` → 0/45 vs `-X ours` → 45/45, suite gate 34 PASS / 0 FAIL), confirming the
+durable patch below is still valid for the current default branch. The landing blocker was
+re-measured with this run's credential and **persists**: `git push origin HEAD:fix/issue-1872-cifix`
+→ `! [remote rejected] … (refusing to allow a GitHub App to create or update workflow
+`.github/workflows/compare-screens.yml` without `workflows` permission)`. The token embedded in the
+`tmp/wiki-repo/` remote is the **same** `ghs_` App token (`gh api repos/…` → `push:false`), so it is
+no escape route. #1872 therefore stays **OPEN** until a `workflows`-scoped credential applies the
+patch. The two fix commits were kept on a local branch (`fix/issue-1872-workflow-patch` → `383c6bf23`);
+nothing could be pushed for them.
+
 ## References
 
 * Issues: #1694 (class), #1868 (workflow-side fix, never landed), #1870 (rulebook copies, landed),
