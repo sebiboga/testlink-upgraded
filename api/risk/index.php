@@ -201,17 +201,25 @@ function riskProjectInfo($db, $tpid) {
     return (is_array($row) && $row) ? $row : null;
 }
 
-/** True when a nodes_hierarchy id belongs to the addressed project. */
+/**
+ * When a nodes_hierarchy id is inside the addressed project, return the node's
+ * OWN node_type_id; otherwise false. Returning the type lets callers reject a
+ * cross-type link (e.g. a requirement id stored in the test-case column) - the
+ * walk alone would accept any in-project node, including the project root.
+ */
 function riskNodeInProject($db, $nodeId, $tpid) {
     $nh = tlObjectWithDB::getDBTables(array('nodes_hierarchy'))['nodes_hierarchy'];
-    $cur = intval($nodeId);
+    $self = intval($nodeId);
+    $selfType = 0;
+    $cur = $self;
     $guard = 0;
     while ($cur > 0 && $guard < 64) {
         $row = $db->fetchFirstRow(
             "SELECT parent_id, node_type_id FROM {$nh} WHERE id = " . intval($cur));
         if (!is_array($row) || !$row) { return false; }
+        if ($cur === $self) { $selfType = intval($row['node_type_id']); }
         if (intval($row['node_type_id']) === 1) {
-            return (intval($cur) === intval($tpid));
+            return (intval($cur) === intval($tpid)) ? $selfType : false;
         }
         $cur = intval($row['parent_id']);
         $guard++;
@@ -423,17 +431,26 @@ if ($action === 'save') {
     $tcId = riskInt($body, 'tcase_id');
     $id = riskInt($body, 'id');
 
-    if ($reqId > 0 && !riskNodeInProject($db, $reqId, $tpid)) {
-        http_response_code(400);
-        echo json_encode(array('status' => 'error', 'code' => 'invalid_requirement',
-            'message' => 'The linked requirement does not belong to this project'));
-        exit;
+    // Prove the linked nodes belong to this project AND are of the expected
+    // node type (7/8 = requirement/requirement-version, 3 = test case); a bare
+    // membership walk would also accept a suite, plan or the project root.
+    if ($reqId > 0) {
+        $reqType = riskNodeInProject($db, $reqId, $tpid);
+        if ($reqType === false || !in_array($reqType, array(7, 8), true)) {
+            http_response_code(400);
+            echo json_encode(array('status' => 'error', 'code' => 'invalid_requirement',
+                'message' => 'The linked requirement does not belong to this project'));
+            exit;
+        }
     }
-    if ($tcId > 0 && !riskNodeInProject($db, $tcId, $tpid)) {
-        http_response_code(400);
-        echo json_encode(array('status' => 'error', 'code' => 'invalid_tcase',
-            'message' => 'The linked test case does not belong to this project'));
-        exit;
+    if ($tcId > 0) {
+        $tcType = riskNodeInProject($db, $tcId, $tpid);
+        if ($tcType !== 3) {
+            http_response_code(400);
+            echo json_encode(array('status' => 'error', 'code' => 'invalid_tcase',
+                'message' => 'The linked test case does not belong to this project'));
+            exit;
+        }
     }
 
     // name unique per project (own name allowed on update)
@@ -461,20 +478,36 @@ if ($action === 'save') {
                 'message' => 'Risk not found'));
             exit;
         }
-        $db->exec_query(
-            "UPDATE {$t} SET name = '" . $db->prepare_string($name) . "'," .
-            " impact = " . intval($impact) . "," .
-            " likelihood = " . intval($likelihood) . "," .
-            " severity = " . intval($severity) . "," .
-            " priority = " . intval($priority) . "," .
-            " status = '" . $db->prepare_string($status) . "'," .
-            " owner = '" . $db->prepare_string($owner) . "'," .
-            " mitigation = '" . $db->prepare_string($mitigation) . "'," .
-            " requirement_id = " . $reqVal . "," .
-            " tcase_id = " . $tcVal . "," .
-            " notes = '" . $db->prepare_string($notes) . "'," .
-            " update_ts = NOW()" .
-            " WHERE id = " . intval($id) . " AND testproject_id = " . intval($tpid));
+        try {
+            $db->exec_query(
+                "UPDATE {$t} SET name = '" . $db->prepare_string($name) . "'," .
+                " impact = " . intval($impact) . "," .
+                " likelihood = " . intval($likelihood) . "," .
+                " severity = " . intval($severity) . "," .
+                " priority = " . intval($priority) . "," .
+                " status = '" . $db->prepare_string($status) . "'," .
+                " owner = '" . $db->prepare_string($owner) . "'," .
+                " mitigation = '" . $db->prepare_string($mitigation) . "'," .
+                " requirement_id = " . $reqVal . "," .
+                " tcase_id = " . $tcVal . "," .
+                " notes = '" . $db->prepare_string($notes) . "'," .
+                " update_ts = NOW()" .
+                " WHERE id = " . intval($id) . " AND testproject_id = " . intval($tpid));
+        } catch (Exception $e) {
+            // exec_query() throws on any failure (database.class.php) so a
+            // concurrent create that tripped uq_risk_project_name must be
+            // detected here, not by inspecting insert_id/rowcount.
+            if (intval($db->error_num()) === 1062) {
+                http_response_code(409);
+                echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
+                    'message' => 'A risk with this name already exists'));
+                exit;
+            }
+            http_response_code(500);
+            echo json_encode(array('status' => 'error', 'code' => 'save_failed',
+                'message' => 'Could not save risk'));
+            exit;
+        }
 
         $event = new stdClass();
         $event->message = 'Risk saved: ' . $name . ' (id ' . $id . ')';
@@ -490,29 +523,33 @@ if ($action === 'save') {
         exit;
     }
 
-    $db->exec_query(
-        "INSERT INTO {$t} (testproject_id, name, impact, likelihood, severity," .
-        " priority, status, owner, mitigation, requirement_id, tcase_id, notes," .
-        " created_by, update_ts) VALUES (" .
-        intval($tpid) . ", '" . $db->prepare_string($name) . "', " .
-        intval($impact) . ", " . intval($likelihood) . ", " . intval($severity) .
-        ", " . intval($priority) . ", '" . $db->prepare_string($status) . "', '" .
-        $db->prepare_string($owner) . "', '" . $db->prepare_string($mitigation) .
-        "', " . $reqVal . ", " . $tcVal . ", '" .
-        $db->prepare_string($notes) . "', " . intval($userId) . ", NOW())");
-    $newId = (int)$db->insert_id($t);
-    if ($newId <= 0) {
+    try {
+        $db->exec_query(
+            "INSERT INTO {$t} (testproject_id, name, impact, likelihood, severity," .
+            " priority, status, owner, mitigation, requirement_id, tcase_id, notes," .
+            " created_by, update_ts) VALUES (" .
+            intval($tpid) . ", '" . $db->prepare_string($name) . "', " .
+            intval($impact) . ", " . intval($likelihood) . ", " . intval($severity) .
+            ", " . intval($priority) . ", '" . $db->prepare_string($status) . "', '" .
+            $db->prepare_string($owner) . "', '" . $db->prepare_string($mitigation) .
+            "', " . $reqVal . ", " . $tcVal . ", '" .
+            $db->prepare_string($notes) . "', " . intval($userId) . ", NOW())");
+    } catch (Exception $e) {
         // A concurrent create may have won the race and tripped the
-        // uq_risk_project_name key; re-check before reporting a hard failure.
-        $dupe = $db->fetchFirstRow(
-            "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
-            " AND name = '" . $db->prepare_string($name) . "'");
-        if (is_array($dupe) && $dupe) {
+        // uq_risk_project_name key; exec_query() throws before insert_id().
+        if (intval($db->error_num()) === 1062) {
             http_response_code(409);
             echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
                 'message' => 'A risk with this name already exists'));
             exit;
         }
+        http_response_code(500);
+        echo json_encode(array('status' => 'error', 'code' => 'insert_failed',
+            'message' => 'Could not create risk'));
+        exit;
+    }
+    $newId = (int)$db->insert_id($t);
+    if ($newId <= 0) {
         http_response_code(500);
         echo json_encode(array('status' => 'error', 'code' => 'insert_failed',
             'message' => 'Could not create risk'));
@@ -550,9 +587,16 @@ if ($action === 'delete') {
             'message' => 'Risk not found'));
         exit;
     }
-    $db->exec_query(
-        "DELETE FROM {$t} WHERE id = " . intval($id) .
-        " AND testproject_id = " . intval($tpid));
+    try {
+        $db->exec_query(
+            "DELETE FROM {$t} WHERE id = " . intval($id) .
+            " AND testproject_id = " . intval($tpid));
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(array('status' => 'error', 'code' => 'delete_failed',
+            'message' => 'Could not delete risk'));
+        exit;
+    }
 
     $event = new stdClass();
     $event->message = 'Risk deleted: ' . (string)$chk['name'] . ' (id ' . $id . ')';

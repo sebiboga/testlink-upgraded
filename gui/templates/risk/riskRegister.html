@@ -123,7 +123,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   </div>
 
   <div class="toolbar">
-    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="riskreg.newRisk">New risk</span></button>
+    <button class="btn-teal" id="btnNew" style="display:none;" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="riskreg.newRisk">New risk</span></button>
     <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="riskreg.refresh">Refresh</span></button>
     <span style="flex:1"></span>
     <label for="fFilterLevel" data-i18n="riskreg.filterLevel">Level</label>
@@ -221,7 +221,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
         </div>
         <div class="form-row">
           <label for="fMitigation" data-i18n="riskreg.fieldMitigation">Mitigation</label>
-          <textarea id="fMitigation" maxlength="60000"></textarea>
+          <textarea id="fMitigation" maxlength="20000"></textarea>
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
@@ -235,7 +235,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
         </div>
         <div class="form-row">
           <label for="fNotes" data-i18n="riskreg.fieldNotes">Notes</label>
-          <textarea id="fNotes" maxlength="60000"></textarea>
+          <textarea id="fNotes" maxlength="20000"></textarea>
         </div>
       </div>
       <div class="modal-footer">
@@ -422,12 +422,12 @@ function linkedCell(it) {
 function buildRow(it) {
   var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
   var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
-    esc(TLi18n.t('riskreg.view')) + '"><i class="fa fa-eye"></i></button>';
+    esc(TLi18n.t('riskreg.view')) + '" aria-label="' + esc(TLi18n.t('riskreg.view')) + '"><i class="fa fa-eye"></i></button>';
   if (canModify) {
     actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
-      esc(TLi18n.t('riskreg.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      esc(TLi18n.t('riskreg.edit')) + '" aria-label="' + esc(TLi18n.t('riskreg.edit')) + '"><i class="fa fa-pencil"></i></button>' +
       '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
-      esc(TLi18n.t('riskreg.del')) + '"><i class="fa fa-trash"></i></button>';
+      esc(TLi18n.t('riskreg.del')) + '" aria-label="' + esc(TLi18n.t('riskreg.del')) + '"><i class="fa fa-trash"></i></button>';
   }
   return {
     name: nameCell,
@@ -437,7 +437,8 @@ function buildRow(it) {
     status: '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
     linked: linkedCell(it),
     updated: esc(it.update_ts || it.creation_ts || ''),
-    actions: actions
+    actions: actions,
+    risk_score: it.risk_score || 0
   };
 }
 
@@ -452,7 +453,9 @@ function renderTable(items) {
     data: rows,
     columns: [
       {data: 'name'},
-      {data: 'level'},
+      {data: 'level', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.risk_score || 0) : data;
+      }},
       {data: 'impact'},
       {data: 'likelihood'},
       {data: 'status'},
@@ -461,7 +464,7 @@ function renderTable(items) {
       {data: 'actions'}
     ],
     columnDefs: [{orderable: false, targets: 7}],
-    order: [[1, 'asc']],
+    order: [[1, 'desc']],
     pageLength: 25,
     language: {
       search: '', searchPlaceholder: TLi18n.t('common.search'),
@@ -499,6 +502,13 @@ function openNew() {
   $('#editModal').modal('show');
 }
 
+function ensureRefOption(sel, id) {
+  if (!id || id <= 0) { return; }
+  var el = $(sel);
+  if (el.find('option[value="' + id + '"]').length) { return; }
+  el.append($('<option>').val(id).text('#' + id + ' ' + TLi18n.t('riskreg.missingRef')));
+}
+
 function openEdit(id) {
   var it = findItem(id);
   if (!it) { return; }
@@ -509,6 +519,8 @@ function openEdit(id) {
   fillScores('#fSeverity', it.severity); fillScores('#fPriority', it.priority);
   $('#fStatus').val(it.status); $('#fOwner').val(it.owner);
   $('#fMitigation').val(it.mitigation); $('#fNotes').val(it.notes);
+  ensureRefOption('#fReq', it.requirement_id);
+  ensureRefOption('#fTcase', it.tcase_id);
   $('#fReq').val(it.requirement_id > 0 ? String(it.requirement_id) : '');
   $('#fTcase').val(it.tcase_id > 0 ? String(it.tcase_id) : '');
   updatePreview();
@@ -542,6 +554,7 @@ function saveRisk() {
     toast(TLi18n.t('riskreg.msgSaved'), 'ok');
     load();
   }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
     var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
     if (code === 'duplicate_name') { toast(TLi18n.t('riskreg.errDuplicate'), 'err'); }
     else if (code === 'invalid_requirement') { toast(TLi18n.t('riskreg.errBadReq'), 'err'); }
@@ -595,6 +608,7 @@ function doDelete() {
     toast(TLi18n.t('riskreg.msgDeleted'), 'ok');
     load();
   }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
     var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
     toast(TLi18n.t('riskreg.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
   }).always(function() { $('#btnDelete').prop('disabled', false); });

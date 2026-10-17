@@ -8421,6 +8421,7 @@
   "riskreg.edit": "Edit",
   "riskreg.del": "Delete",
   "riskreg.unlinked": "Not linked",
+  "riskreg.missingRef": "缺失",
   "riskreg.count": "{n} risks",
   "riskreg.errName": "Name is mandatory.",
   "riskreg.errDuplicate": "A risk with this name already exists.",

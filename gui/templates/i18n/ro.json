@@ -8421,6 +8421,7 @@
   "riskreg.edit": "Editeaza",
   "riskreg.del": "Sterge",
   "riskreg.unlinked": "Nelegat",
+  "riskreg.missingRef": "lipsă",
   "riskreg.count": "{n} riscuri",
   "riskreg.errName": "Numele este obligatoriu.",
   "riskreg.errDuplicate": "Un risc cu acest nume exista deja.",
