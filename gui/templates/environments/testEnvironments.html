@@ -116,7 +116,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="tenv.newEnv">New environment</span></button>
     <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="tenv.refresh">Refresh</span></button>
     <span style="flex:1"></span>
-    <label data-i18n="tenv.filterType">Type</label>
+    <label for="fFilterType" data-i18n="tenv.filterType">Type</label>
     <select id="fFilterType" onchange="applyFilter()">
       <option value="" data-i18n="tenv.allTypes">All types</option>
       <option value="dev" data-i18n="tenv.typeDev">Development</option>
@@ -125,7 +125,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       <option value="preprod" data-i18n="tenv.typePreprod">Pre-production</option>
       <option value="prod_like" data-i18n="tenv.typeProdLike">Production-like</option>
     </select>
-    <label data-i18n="tenv.filterStatus">Status</label>
+    <label for="fFilterStatus" data-i18n="tenv.filterStatus">Status</label>
     <select id="fFilterStatus" onchange="applyFilter()">
       <option value="" data-i18n="tenv.allStatuses">All statuses</option>
       <option value="available" data-i18n="tenv.statusAvailable">Available</option>
@@ -169,12 +169,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label data-i18n="tenv.fieldName">Name</label>
+          <label for="fName" data-i18n="tenv.fieldName">Name</label>
           <input type="text" id="fName" maxlength="255">
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldType">Type</label>
+            <label for="fEnvType" data-i18n="tenv.fieldType">Type</label>
             <select id="fEnvType">
               <option value="dev" data-i18n="tenv.typeDev">Development</option>
               <option value="qa" data-i18n="tenv.typeQa">QA</option>
@@ -184,7 +184,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
             </select>
           </div>
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldStatus">Status</label>
+            <label for="fStatus" data-i18n="tenv.fieldStatus">Status</label>
             <select id="fStatus">
               <option value="available" data-i18n="tenv.statusAvailable">Available</option>
               <option value="unavailable" data-i18n="tenv.statusUnavailable">Unavailable</option>
@@ -194,35 +194,35 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
           </div>
         </div>
         <div class="form-row">
-          <label data-i18n="tenv.fieldBaseUrl">Base URL</label>
+          <label for="fBaseUrl" data-i18n="tenv.fieldBaseUrl">Base URL</label>
           <input type="text" id="fBaseUrl" maxlength="255" placeholder="https://">
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldPlatform">Browser / device / OS</label>
+            <label for="fPlatform" data-i18n="tenv.fieldPlatform">Browser / device / OS</label>
             <input type="text" id="fPlatform" maxlength="255" placeholder="Chrome 120 / Windows 11">
           </div>
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldVersion">Version / build</label>
+            <label for="fAppVersion" data-i18n="tenv.fieldVersion">Version / build</label>
             <input type="text" id="fAppVersion" maxlength="64">
           </div>
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldOwner">Owner</label>
+            <label for="fOwner" data-i18n="tenv.fieldOwner">Owner</label>
             <input type="text" id="fOwner" maxlength="128">
           </div>
           <div style="flex:1;">
-            <label data-i18n="tenv.fieldContact">Contact</label>
+            <label for="fContact" data-i18n="tenv.fieldContact">Contact</label>
             <input type="text" id="fContact" maxlength="255">
           </div>
         </div>
         <div class="form-row">
-          <label data-i18n="tenv.fieldDependencies">Database / service dependencies</label>
+          <label for="fDependencies" data-i18n="tenv.fieldDependencies">Database / service dependencies</label>
           <textarea id="fDependencies" maxlength="60000"></textarea>
         </div>
         <div class="form-row">
-          <label data-i18n="tenv.fieldNotes">Notes / constraints</label>
+          <label for="fNotes" data-i18n="tenv.fieldNotes">Notes / constraints</label>
           <textarea id="fNotes" maxlength="60000"></textarea>
         </div>
       </div>
@@ -244,7 +244,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-body" id="detailsBody"></div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
       </div>
     </div>
   </div>
