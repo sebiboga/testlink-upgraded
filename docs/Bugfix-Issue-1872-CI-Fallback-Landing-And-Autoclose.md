@@ -136,3 +136,34 @@ App to create or update workflow .github/workflows/compare-screens.yml without w
 permission)`. Credential inventory: `ghs_…` App token only (len 377), no SSH key, no netrc, no
 second token. Fix commits kept on local branch `fix/issue-1872-workflow-patch` → `53e9ac7cf`.
 #1872 stays **OPEN** until a `workflows`-scoped credential applies the patch above.
+
+## Re-verification — fix-bug run 4 (2026-10-17 14:51–15:1x UTC, base `095212e1d`)
+
+Fourth fix-bug run re-confirmed the bug fully live on the then-current default branch
+(`8` `-X theirs` / `0` `-X ours` at `fix-bug.yml:234`, `fix-bug-oldest.yml:237`,
+`implement-task-newest.yml:254`, `implement-task-oldest.yml:252`, `investigate-fix.yml:287`,
+`compare-screens.yml:333`, `modernize.yml:320` + PROMPT `modernize.yml:238`; `5` local-only
+`BEFORE"..HEAD` auto-close ranges at `fix-bug.yml:261`, `fix-bug-oldest.yml:264`,
+`investigate-fix.yml:313`, `implement-task-oldest.yml:279`, `implement-task-newest.yml:281`;
+`0` origin guards; all 10 prior workflow-fix commits absent from every ref — `git cat-file -t`
+fatal ×10). The published two-step patch (§Fix above) was re-applied byte-identically on
+`fix/issue-1872-workflow-patch` → `8f231a75b` (7 files, **18 insertions / 13 deletions**, same
+as runs 1–3), giving: grep gates `0` theirs / `8` ours, `0` local / `5` origin REFS + `5` fetch
+guards, `yaml.safe_load` **11/11**, live 2-strategy harness (fresh `mktemp` repo, `git reset
+--hard` between strategies) `-X theirs` → 46 lines **0/45** live kept vs `-X ours` → 145 lines
+**45/45** kept, guard semantics BEFORE=`095212e1d` local proxy-count `1` vs origin `0` (old
+local logic would close; new origin logic stays open; failed fetch ⇒ empty REFS ⇒ stays open),
+suite re-run `Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 4, base 095212e1d)` →
+**10/10 executed PASS**, suite gate `TLU_REQUIRE_SUITE="Issue #1872"` → **34 PASS / 0 FAIL**,
+exit 0. Code-review subagent: **non-blocking, no findings** (its file:line citations were
+re-verified by grep: 8/8 + 5/5 at the exact expected lines). Landing blocker **re-measured with
+this run's token and persists**: `git push origin HEAD:fix/issue-1872` (fresh ref — remote
+branch absent, `git ls-remote --heads origin fix/issue-1872*` → empty) → `! [remote rejected]
+… (refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml
+without workflows permission)`. Credential inventory unchanged: single `ghs_…` App installation
+token (`GH_TOKEN == GITHUB_TOKEN`), no `secrets.*` referenced by ANY workflow
+(`grep -rho 'secrets\.[A-Za-z_]*' .github/workflows/` → 0 hits), `fix-bug.yml:17-19` grants only
+`contents: write, issues: write` (`workflows` is not a grantable `permissions:` key), no SSH
+key / netrc / git-credentials / second token, origin URL embeds no credential. #1872 therefore
+stays **OPEN**; the fix lives on local branch `fix/issue-1872-workflow-patch` → `8f231a75b`
+and is fully reproducible from §Fix above.
