@@ -42689,3 +42689,12 @@ git update-ref refs/remotes/origin/sebiboga "$(git rev-parse HEAD)"   # check 2 
     - *Status:* PASS
 
 **Overall:** 11/11 PASS.
+### Re-run 2026-10-17 — Issue #1872 (second fix-bug run)
+
+Re-executed all 11 cases of `Regression — Issue #1872` against `origin/sebiboga` @ `824f0f6de`:
+bug still live (8 `-X theirs`, 0 `-X ours`, 5 local-only `BEFORE"..HEAD`, 0 origin guards). Fix
+re-applied in 2 commits (`2bc983849` swaps + `383c6bf23` origin-guard). Results: grep gates 0
+theirs/8 ours and 0 local/5 origin+fetch; YAML 11/11 parse; live rebase harness `-X theirs` → 0/45
+live lines vs `-X ours` → 45/45; suite gate 34 PASS / 0 FAIL. Landing blocker re-measured and
+persists (`workflows` permission), so the workflow-fix commits are unpushable and the issue is left
+OPEN. Verdict: 11/11 PASS (behaviour verified), landing still blocked.
