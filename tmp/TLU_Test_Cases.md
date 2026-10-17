@@ -43319,3 +43319,26 @@ Tracking issue: #1934. Fix PRs: cf4cc4196 (BFF), abd82a9a6 (screen), 007dbac04 (
 
 **Test status**
 All 15 cases PASS. Screenshots: tmp/shots/1934_{list,new_modal,view_modal,delete_confirm,no_match,norights}.png
+
+## Regression — Issue #1931: DataTables re-init stacks the header aria-label in modernized screens
+
+**Precondition:**
+- Modernized screen with DataTables that destroys and re-creates table (e.g. testEnvironments.html).
+- Browser with DevTools available.
+
+**Repro steps (pre-fix):**
+1. Open a modernized screen that calls table.destroy() then re-inits DataTable on refresh/filter (e.g. Environments > Test Environments).
+2. Trigger re-render 3-5 times (change filters / refresh).
+3. Inspect sortable <th> elements in thead: aria-label accumulates " : activate to sort column ascending" fragments per re-render.
+
+**Expected post-fix behavior:**
+1. After each re-render (destroy + re-init), each sortable th aria-label contains exactly one sort hint instance (no duplication).
+2. Sorting functionality remains intact.
+3. No aria-label accumulation on repeated re-renders.
+4. Empty state transitions do not leave stale stacked aria-labels.
+
+**Actual result (post-fix):**
+- clearHeaderAria() strips th[aria-label] after destroy() before re-init in all affected templates. DataTables recreates proper aria-label on init. No accumulation observed.
+- Fix applied systematically to all templates with destroy()+DataTable().
+
+**PASS/FAIL:** PASS
