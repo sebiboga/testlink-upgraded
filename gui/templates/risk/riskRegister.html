@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Register</title>
+<!--
+  Risk-Based Testing registry screen (Refs #1930, parent feature #1066).
+  Dashio standalone page backed by api/risk. Project-scoped registry of RISKS:
+  impact / likelihood / severity / priority (1..5) with a DERIVED risk level
+  (impact x likelihood), status (open / mitigated / accepted / closed), owner,
+  mitigation, notes, and optional links to a requirement and a test case.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.warn { border-left-color: #e05c5c; }
+.tile.amber { border-left-color: #e6b34d; }
+.tile.dark { border-left-color: #22242a; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-level { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; }
+.lvl-low { background: #3aa89f; }
+.lvl-medium { background: #e6b34d; }
+.lvl-high { background: #e07b39; }
+.lvl-critical { background: #e05c5c; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.st-open { background: #e05c5c; }
+.st-mitigated { background: #3aa89f; }
+.st-accepted { background: #e6b34d; }
+.st-closed { background: #7f8c96; }
+.score { font-family: monospace; font-weight: 700; }
+.link-chip { display: inline-block; background: #eef6f5; color: #2d8e88; border: 1px solid #cde7e5; border-radius: 3px; padding: 1px 7px; font-size: 11px; margin-right: 4px; }
+.link-chip.none { background: #f4f4f4; color: #aaa; border-color: #e5e5e5; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 60px; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.detail-row { border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { display: inline-block; width: 170px; color: #777; font-weight: 600; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="risk.title">Risk Register</span>
+  <span class="sub" data-i18n="risk.subtitle">capture and prioritise testing by business and technical risk</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="risk.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="risk.tileTotal">Risks</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileCritical">0</div>
+      <div class="lbl" data-i18n="risk.levelCritical">Critical</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileHigh">0</div>
+      <div class="lbl" data-i18n="risk.levelHigh">High</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileMedium">0</div>
+      <div class="lbl" data-i18n="risk.levelMedium">Medium</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileLow">0</div>
+      <div class="lbl" data-i18n="risk.levelLow">Low</div>
+    </div>
+    <div class="tile dark">
+      <div class="num" id="tileLinked">0</div>
+      <div class="lbl" data-i18n="risk.tileLinked">Linked</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="risk.newRisk">New risk</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="risk.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label for="fFilterLevel" data-i18n="risk.filterLevel">Level</label>
+    <select id="fFilterLevel" onchange="applyFilter()">
+      <option value="" data-i18n="risk.allLevels">All levels</option>
+      <option value="critical" data-i18n="risk.levelCritical">Critical</option>
+      <option value="high" data-i18n="risk.levelHigh">High</option>
+      <option value="medium" data-i18n="risk.levelMedium">Medium</option>
+      <option value="low" data-i18n="risk.levelLow">Low</option>
+    </select>
+    <label for="fFilterStatus" data-i18n="risk.filterStatus">Status</label>
+    <select id="fFilterStatus" onchange="applyFilter()">
+      <option value="" data-i18n="risk.allStatuses">All statuses</option>
+      <option value="open" data-i18n="risk.statusOpen">Open</option>
+      <option value="mitigated" data-i18n="risk.statusMitigated">Mitigated</option>
+      <option value="accepted" data-i18n="risk.statusAccepted">Accepted</option>
+      <option value="closed" data-i18n="risk.statusClosed">Closed</option>
+    </select>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="risk.noItems">There are no risks for this project yet.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="risk.colName">Name</th>
+          <th data-i18n="risk.colLevel">Level</th>
+          <th data-i18n="risk.colImpact">Impact</th>
+          <th data-i18n="risk.colLikelihood">Likelihood</th>
+          <th data-i18n="risk.colStatus">Status</th>
+          <th data-i18n="risk.colLinked">Linked to</th>
+          <th data-i18n="risk.colUpdated">Updated</th>
+          <th style="width:140px" data-i18n="risk.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="risk.footer">TestLink 2.0.1 - Risk Register</span></div>
+
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="risk.modalNewTitle">New risk</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="fName" data-i18n="risk.fieldName">Name</label>
+          <input type="text" id="fName" maxlength="255">
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label for="fImpact" data-i18n="risk.fieldImpact">Impact</label>
+            <select id="fImpact" onchange="updatePreview()"></select>
+          </div>
+          <div style="flex:1;">
+            <label for="fLikelihood" data-i18n="risk.fieldLikelihood">Likelihood</label>
+            <select id="fLikelihood" onchange="updatePreview()"></select>
+          </div>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label for="fSeverity" data-i18n="risk.fieldSeverity">Severity</label>
+            <select id="fSeverity"></select>
+          </div>
+          <div style="flex:1;">
+            <label for="fPriority" data-i18n="risk.fieldPriority">Priority</label>
+            <select id="fPriority"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="fStatus" data-i18n="risk.fieldStatus">Status</label>
+          <select id="fStatus">
+            <option value="open" data-i18n="risk.statusOpen">Open</option>
+            <option value="mitigated" data-i18n="risk.statusMitigated">Mitigated</option>
+            <option value="accepted" data-i18n="risk.statusAccepted">Accepted</option>
+            <option value="closed" data-i18n="risk.statusClosed">Closed</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="risk.previewLevel">Derived risk level</label>
+          <span id="levelPreview" class="badge-level lvl-medium">Medium</span>
+          <span class="score" id="scorePreview" style="margin-left:8px;color:#777;"></span>
+        </div>
+        <div class="form-row">
+          <label for="fOwner" data-i18n="risk.fieldOwner">Owner</label>
+          <input type="text" id="fOwner" maxlength="128">
+        </div>
+        <div class="form-row">
+          <label for="fMitigation" data-i18n="risk.fieldMitigation">Mitigation</label>
+          <textarea id="fMitigation" maxlength="60000"></textarea>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label for="fReq" data-i18n="risk.fieldRequirement">Linked requirement</label>
+            <select id="fReq"><option value="" data-i18n="risk.none">None</option></select>
+          </div>
+          <div style="flex:1;">
+            <label for="fTcase" data-i18n="risk.fieldTcase">Linked test case</label>
+            <select id="fTcase"><option value="" data-i18n="risk.none">None</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="fNotes" data-i18n="risk.fieldNotes">Notes</label>
+          <textarea id="fNotes" maxlength="60000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveRisk()" data-i18n="risk.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="risk.modalDetailsTitle">Risk details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="risk.modalDeleteTitle">Delete risk</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="risk.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/risk/index.php';
+var table = null;
+var allItems = [];
+var refs = { requirements: [], tcases: [] };
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function statusLabel(s) {
+  var map = { open: 'risk.statusOpen', mitigated: 'risk.statusMitigated',
+              accepted: 'risk.statusAccepted', closed: 'risk.statusClosed' };
+  return TLi18n.t(map[s] || 'risk.statusOpen');
+}
+function levelLabel(l) {
+  var map = { low: 'risk.levelLow', medium: 'risk.levelMedium',
+              high: 'risk.levelHigh', critical: 'risk.levelCritical' };
+  return TLi18n.t(map[l] || 'risk.levelLow');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('risk.noRight', 'risk.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('risk.noProject', 'risk.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('risk.noProject', 'risk.noProjectBody', true); return; }
+  showState('risk.errTitle', fallbackKey || 'risk.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'risk.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    refs = r.refs || { requirements: [], tcases: [] };
+    fillRefs();
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileCritical').text(s.critical || 0);
+    $('#tileHigh').text(s.high || 0);
+    $('#tileMedium').text(s.medium || 0);
+    $('#tileLow').text(s.low || 0);
+    $('#tileLinked').text(s.linked || 0);
+    $('#btnNew').toggle(canModify);
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('risk.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'risk.loadError'); });
+}
+
+function fillRefs() {
+  var rq = $('#fReq'), tc = $('#fTcase');
+  rq.find('option:not(:first)').remove();
+  tc.find('option:not(:first)').remove();
+  $.each(refs.requirements || [], function(i, o) {
+    rq.append($('<option>').val(o.id).text(o.label));
+  });
+  $.each(refs.tcases || [], function(i, o) {
+    tc.append($('<option>').val(o.id).text(o.label));
+  });
+}
+
+function filtered() {
+  var fl = $('#fFilterLevel').val(), fs = $('#fFilterStatus').val();
+  return allItems.filter(function(it) {
+    if (fl && it.risk_level !== fl) { return false; }
+    if (fs && it.status !== fs) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function linkedCell(it) {
+  var out = '';
+  if (it.requirement_id > 0) { out += '<span class="link-chip"><i class="fa fa-file-text"></i> ' + esc(it.requirement_label || ('#' + it.requirement_id)) + '</span>'; }
+  if (it.tcase_id > 0) { out += '<span class="link-chip"><i class="fa fa-check"></i> ' + esc(it.tcase_label || ('#' + it.tcase_id)) + '</span>'; }
+  if (!out) { out = '<span class="link-chip none">' + esc(TLi18n.t('risk.unlinked')) + '</span>'; }
+  return out;
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('risk.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('risk.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('risk.del')) + '"><i class="fa fa-trash"></i></button>';
+  }
+  return {
+    name: nameCell,
+    level: '<span class="badge-level lvl-' + esc(it.risk_level) + '">' + esc(levelLabel(it.risk_level)) + '</span>',
+    impact: '<span class="score">' + esc(it.impact) + '</span>',
+    likelihood: '<span class="score">' + esc(it.likelihood) + '</span>',
+    status: '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
+    linked: linkedCell(it),
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'level'},
+      {data: 'impact'},
+      {data: 'likelihood'},
+      {data: 'status'},
+      {data: 'linked'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 7}],
+    order: [[1, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function fillScores(sel, val) {
+  var el = $(sel);
+  el.find('option').remove();
+  for (var i = 1; i <= 5; i++) { el.append($('<option>').val(i).text(i)); }
+  el.val(val || 3);
+}
+
+function updatePreview() {
+  var im = parseInt($('#fImpact').val() || 1, 10);
+  var lk = parseInt($('#fLikelihood').val() || 1, 10);
+  var score = im * lk;
+  var lvl = score >= 15 ? 'critical' : score >= 10 ? 'high' : score >= 5 ? 'medium' : 'low';
+  $('#levelPreview').attr('class', 'badge-level lvl-' + lvl).text(levelLabel(lvl));
+  $('#scorePreview').text(im + ' x ' + lk + ' = ' + score);
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('risk.modalNewTitle'));
+  $('#fName').val('');
+  fillScores('#fImpact', 3); fillScores('#fLikelihood', 3);
+  fillScores('#fSeverity', 3); fillScores('#fPriority', 3);
+  $('#fStatus').val('open'); $('#fOwner').val('');
+  $('#fMitigation').val(''); $('#fNotes').val('');
+  $('#fReq').val(''); $('#fTcase').val('');
+  updatePreview();
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('risk.modalEditTitle'));
+  $('#fName').val(it.name);
+  fillScores('#fImpact', it.impact); fillScores('#fLikelihood', it.likelihood);
+  fillScores('#fSeverity', it.severity); fillScores('#fPriority', it.priority);
+  $('#fStatus').val(it.status); $('#fOwner').val(it.owner);
+  $('#fMitigation').val(it.mitigation); $('#fNotes').val(it.notes);
+  $('#fReq').val(it.requirement_id > 0 ? String(it.requirement_id) : '');
+  $('#fTcase').val(it.tcase_id > 0 ? String(it.tcase_id) : '');
+  updatePreview();
+  $('#editModal').modal('show');
+}
+
+function saveRisk() {
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('risk.errName'), 'err'); return; }
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    impact: parseInt($('#fImpact').val(), 10),
+    likelihood: parseInt($('#fLikelihood').val(), 10),
+    severity: parseInt($('#fSeverity').val(), 10),
+    priority: parseInt($('#fPriority').val(), 10),
+    status: $('#fStatus').val(),
+    owner: $('#fOwner').val(),
+    mitigation: $('#fMitigation').val(),
+    requirement_id: $('#fReq').val() ? parseInt($('#fReq').val(), 10) : 0,
+    tcase_id: $('#fTcase').val() ? parseInt($('#fTcase').val(), 10) : 0,
+    notes: $('#fNotes').val()
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('risk.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('risk.errDuplicate'), 'err'); }
+    else if (code === 'invalid_requirement') { toast(TLi18n.t('risk.errBadReq'), 'err'); }
+    else if (code === 'invalid_tcase') { toast(TLi18n.t('risk.errBadTcase'), 'err'); }
+    else { toast(TLi18n.t('risk.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  function row(labelKey, val) {
+    return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
+  }
+  html += row('risk.fieldName', it.name);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.colLevel')) + '</span>' +
+          '<span class="badge-level lvl-' + esc(it.risk_level) + '">' + esc(levelLabel(it.risk_level)) + '</span>' +
+          ' <span class="score" style="color:#777;margin-left:6px;">' + it.impact + ' x ' + it.likelihood + ' = ' + it.risk_score + '</span></div>';
+  html += row('risk.fieldImpact', it.impact);
+  html += row('risk.fieldLikelihood', it.likelihood);
+  html += row('risk.fieldSeverity', it.severity);
+  html += row('risk.fieldPriority', it.priority);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldStatus')) + '</span>' +
+          '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span></div>';
+  html += row('risk.fieldOwner', it.owner);
+  html += row('risk.fieldMitigation', it.mitigation);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldRequirement')) + '</span>' + esc(it.requirement_label || (it.requirement_id ? '#' + it.requirement_id : '-')) + '</div>';
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldTcase')) + '</span>' + esc(it.tcase_label || (it.tcase_id ? '#' + it.tcase_id : '-')) + '</div>';
+  html += row('risk.fieldNotes', it.notes);
+  html += row('risk.colUpdated', it.update_ts || it.creation_ts);
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('risk.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('risk.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('risk.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+</script>
+</body>
+</html>
