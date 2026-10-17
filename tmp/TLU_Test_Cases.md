@@ -43664,3 +43664,4 @@ Result: 10/11 PASS; case 11 FAIL = the measured credential/permission landing bl
     - *Actual:* `php -l` clean on all four; `events` totals `5 rows / 0 warning / 0 error`, the only metricstrends row is id 4 at log_level 1 (the deliberate no-right probe `BFF metricstrends: user 2 has no testplan_metrics right on tproject 1 (tplan 2)`); 0 new ERROR/WARNING — PASS. *Status:* PASS.
 
 **Overall: 11/11 PASS** (fixture aggregate + trend arithmetic, build/platform filters incl. the empty state, 400/401/403/404/405 matrix, i18n + server labels in 19 locales, browser render + build/platform Apply, CSV export, denied state, and the DataTables empty-table warning regression fixed).
+**Overall:** 16/16 PASS.
