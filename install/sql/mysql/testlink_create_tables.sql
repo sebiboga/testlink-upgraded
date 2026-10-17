@@ -523,6 +523,33 @@ CREATE TABLE /*prefix*/tc_test_data_sets (
 ) DEFAULT CHARSET=utf8;
 
 
+# ---------------------------------------------------------------------------
+# Test Environment Management - project-scoped test environment registry
+# (Refs #1928 / #1070). Net-new module: environments as a first-class asset
+# (name, type, base URL, browser/device/OS, version, owner, availability).
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_test_environments (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `env_type` varchar(16) NOT NULL default 'qa',
+  `base_url` varchar(255) NOT NULL default '',
+  `platform` varchar(255) NOT NULL default '',
+  `app_version` varchar(64) NOT NULL default '',
+  `owner` varchar(128) NOT NULL default '',
+  `contact` varchar(255) NOT NULL default '',
+  `dependencies` text,
+  `notes` text,
+  `status` varchar(16) NOT NULL default 'available',
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_tenv_project` (`testproject_id`),
+  KEY `idx_tenv_status` (`testproject_id`,`status`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',

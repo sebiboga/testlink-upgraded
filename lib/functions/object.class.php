@@ -292,6 +292,7 @@ abstract class tlObject implements iSerialization
                     'tc_reviews',
                     'tc_risk',
                     'tc_test_data_sets',
+                    'tc_test_environments',
                     'test_closure',
                     'lessons_learned',
                     'role_rights',
