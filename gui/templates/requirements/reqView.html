@@ -827,7 +827,7 @@ function renderCoverage(r) {
   }
   $('#noCov').hide();
   $('#covTable').show();
-  if (covTable) { covTable.destroy(); $('#covTable tbody').empty(); }
+  if (covTable) { covTable.destroy(); $('#covTable tbody').empty(); clearHeaderAria(); }
   covTable = $('#covTable').DataTable({
     data: rows,
     pageLength: 10,
@@ -1379,6 +1379,11 @@ function fmtTs(ts) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $('#covTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

@@ -426,7 +426,7 @@ function renderAttachments(atts) {
   if ($.fn.DataTable.isDataTable('#attTable')) {
     $('#attTable').DataTable().destroy();
   }
-  var $tb = $('#attTable tbody').empty();
+  var $tb = $('#attTable tbody').empty(); clearHeaderAria();
   if (!atts.length) {
     return;
   }
@@ -546,6 +546,11 @@ function fmtSize(n) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $('#attTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

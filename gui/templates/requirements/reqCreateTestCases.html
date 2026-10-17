@@ -188,7 +188,7 @@ function load() {
 
 function render() {
   if (DT) { DT.destroy(); DT = null; }
-  var $tb = $('#reqTable tbody').empty();
+  var $tb = $('#reqTable tbody').empty(); clearHeaderAria();
   $('#errBox').hide();
   if (!feedbackSticky) { $('#feedback').hide(); }
   feedbackSticky = 0;
@@ -310,6 +310,11 @@ function createTestCases() {
     apiFail(xhr);
   });
 }
+
+function clearHeaderAria() {
+  $('#reqTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

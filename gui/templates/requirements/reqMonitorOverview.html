@@ -304,7 +304,7 @@ function toggleGroups() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#rmoTable tbody').empty(); }
+  if (table) { table.destroy(); $('#rmoTable tbody').empty(); clearHeaderAria(); }
   var rows = $.map(items, function(req) { return [buildRowObject(req)]; });
 
   table = $('#rmoTable').DataTable({
@@ -387,6 +387,11 @@ function setMonitor(id, action) {
     }
   });
 }
+
+function clearHeaderAria() {
+  $('#rmoTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

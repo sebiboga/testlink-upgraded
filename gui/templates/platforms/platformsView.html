@@ -221,7 +221,7 @@ function render(items) {
   $('#platEmpty').toggle(items.length === 0);
   $('#platTable').toggle(items.length > 0);
 
-  if (platTbl) { platTbl.destroy(); $('#platTable tbody').empty(); }
+  if (platTbl) { platTbl.destroy(); $('#platTable tbody').empty(); clearHeaderAria(); }
 
   var rows = items.map(function (p) {
     var apiTitle = TLi18n.t('pl.apiId').replace('{id}', p.id);
@@ -437,6 +437,11 @@ function openEditor() {
   if (tplanId > 0) target += '&tplan_id=' + tplanId;
   window.location.href = target;
 }
+
+function clearHeaderAria() {
+  $('#platTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

@@ -155,7 +155,7 @@ function loadData(clearFeedback) {
 }
 
 function renderInstalled(items) {
-  if (installedTable) { installedTable.destroy(); $('#installedTable tbody').empty(); }
+  if (installedTable) { installedTable.destroy(); $('#installedTable tbody').empty(); clearHeaderAria(); }
   var rows = [];
   $.each(items, function(i, p) {
     var statusBadge = p.enabled
@@ -260,6 +260,11 @@ $('#confirmOk').on('click', function() {
     }
   });
 });
+
+function clearHeaderAria() {
+  $('#installedTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

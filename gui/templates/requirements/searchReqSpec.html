@@ -316,7 +316,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + TLi18n.t('reqspecsearch.matchCount', {n: r.count}) + ')');
 
-  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); clearHeaderAria(); }
 
   if (!r.rows || r.rows.length === 0) {
     $('#resultsWrap').hide();
@@ -388,7 +388,7 @@ function resetForm() {
   $('#resultsHead').hide();
   $('#resultsWrap').hide();
   $('#noResults').hide();
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); clearHeaderAria(); }
   $('.panel').find('input[type=text],textarea').val('');
   $('#reqSpecType').val('notype');
   $('#custom_field_id').val('0');
@@ -399,6 +399,11 @@ function resetForm() {
   $('#footerHint').text('');
   $('#footerGenOn').text('').removeAttr('title');
 }
+
+function clearHeaderAria() {
+  $('#resTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

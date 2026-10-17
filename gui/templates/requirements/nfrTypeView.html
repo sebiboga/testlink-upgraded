@@ -317,7 +317,7 @@ function load() {
 
 function renderTable(items) {
   if (DT) { DT.destroy(); DT = null; }
-  var $tb = $('#nfrTable tbody').empty();
+  var $tb = $('#nfrTable tbody').empty(); clearHeaderAria();
   if (!items.length) {
     $('#emptyState').text(TLi18n.t('nfrt.emptyList')).show();
     $('#nfrTable').hide();
@@ -442,6 +442,11 @@ function doDelete() {
     apiFail(xhr);
   });
 }
+
+function clearHeaderAria() {
+  $('#nfrTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

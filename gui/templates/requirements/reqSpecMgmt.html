@@ -806,7 +806,7 @@ function renderSpecs(items) {
   $('#specTotalReqs').toggle(items.length > 0)
     .html(esc(TLi18n.t('rs.totalReqsOf', { n: totalReqs, p: (options && options.tproject_name) || '-' })));
 
-  if (specTbl) { specTbl.destroy(); $('#specTable tbody').empty(); }
+  if (specTbl) { specTbl.destroy(); $('#specTable tbody').empty(); clearHeaderAria(); }
 
   var rows = visible.map(function (node) {
     var s = node.spec, depth = node.depth;
@@ -1781,6 +1781,11 @@ function doMoveSpec() {
 function showError($el, msg) {
   $el.text(msg).show();
 }
+
+function clearHeaderAria() {
+  $('#specTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

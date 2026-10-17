@@ -505,7 +505,7 @@
           $('#projectsTable').DataTable().destroy();
           projectsTbl = null;
         }
-        $('#projectsTable tbody').empty();
+        $('#projectsTable tbody').empty(); clearHeaderAria();
         $('#projectsTable').hide();
         emptyState.style.display = 'block';
         return;
@@ -521,7 +521,7 @@
         projectsTbl = null;
       }
       $('#projectsTable thead tr.filters').remove();
-      $('#projectsTable tbody').empty();
+      $('#projectsTable tbody').empty(); clearHeaderAria();
 
       const rows = projectsData.map(projectRow);
 
@@ -964,7 +964,12 @@
       TLi18n.apply();
       loadProjects();
     });
-  </script>
+  
+function clearHeaderAria() {
+  $('#projectsTable thead th').removeAttr('aria-label');
+}
+
+</script>
 <div class="footer"><span data-i18n="footers.projectsView">TestLink 2.0.1 - Test Project Management</span></div>
 </body>
 </html>

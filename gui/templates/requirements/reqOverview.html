@@ -203,7 +203,7 @@ function renderTable(items) {
       (k ? TLi18n.t(k) : $('<div>').text(c.key.substr(3)).html()) + '</th>');
   });
 
-  if (table) { table.destroy(); $('#reqTable tbody').empty(); }
+  if (table) { table.destroy(); $('#reqTable tbody').empty(); clearHeaderAria(); }
 
   var rows = [];
   $.each(items, function(i, it) {
@@ -408,6 +408,11 @@ function fmtTs(ts) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $('#reqTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

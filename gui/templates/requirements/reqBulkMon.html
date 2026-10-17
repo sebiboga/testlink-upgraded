@@ -187,7 +187,7 @@ function loadData() {
 
 function renderTable(items) {
   if (monTable) { monTable.destroy(); monTable = null; }
-  $('#monTable tbody').empty();
+  $('#monTable tbody').empty(); clearHeaderAria();
   if (!items.length) {
     $('#monTable').hide();
     $('#emptyState').css('display', 'block');
@@ -262,6 +262,11 @@ function submitAction(op) {
     }
   });
 }
+
+function clearHeaderAria() {
+  $('#monTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>

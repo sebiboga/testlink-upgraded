@@ -561,7 +561,7 @@ function deleteAttachment(id) {
 
 function renderRequirements(r) {
   if (reqTable) { reqTable.destroy(); reqTable = null; }
-  $('#reqTable tbody').empty();
+  $('#reqTable tbody').empty(); clearHeaderAria();
   var reqs = r.requirements || [];
   if (!reqs.length) {
     $('#noRequirements').show();
@@ -1003,6 +1003,11 @@ function fmtSize(n) {
 function escapeHtml(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+function clearHeaderAria() {
+  $('#reqTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>
