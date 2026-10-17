@@ -234,6 +234,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   "Purpose/Get Started"; `&locale=de` → title "Dringlichkeit der Tests bestimmen", body
   "Zweck:"; footer labels localized; 0 console messages). Refs #1143.
 
+- [FEATURE] - #1144: the modern **Set Test Urgency** screen restores the legacy row
+  ordering of the urgency grid. Legacy `getSuiteUrgency()` orders rows with
+  `ORDER BY NHB.node_order` (suite tree order, drag-drop reorders included); the modern BFF
+  re-sorted the merged rows by `tcversion_id` (insertion order), so a case inserted later
+  but placed earlier in the tree rendered in the wrong position, diverging from both the
+  legacy grid and the suite tree. `GET /urgency/suite` now carries `node_order` in each item
+  payload and sorts by `[node_order, tcversion_id]` (tcversion_id only as deterministic
+  tie-breaker). Verified with `tmp/fixtures_1144.php` (URG1 Suite Order: Case B created
+  first / lower tcversion_id but tree-reordered to node_order 2): API + in-browser render
+  Case A (node_order 1) before Case B (pre-fix: reversed); natural-order suite, empty
+  suite, suite-button and per-TC writes regression-tested; Event Viewer clean. Refs #1144.
+
 - [BUGFIX] - #1853: `cfield_mgr::_build_cfield()` classified a hash key as a date part purely
   by suffix (`_input`/`_hour`/`_minute`/`_second`) without checking the field's type, so a
   date-shaped key sent for a non-date field (e.g. `custom_field_0_12_input` for a string

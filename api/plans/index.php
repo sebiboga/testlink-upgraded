@@ -2614,6 +2614,11 @@ if ($method === 'GET' && count($segments) === 2 &&
         $importance = intval($first['importance']);
         $items[] = [
             'tcversion_id' => intval($tcversion_id),
+            // Issue #1144: tree position of the test case inside the suite
+            // (nodes_hierarchy.node_order - legacy getSuiteUrgency()
+            // ORDER BY NHB.node_order). Carried through so the grid can
+            // render in suite tree order, not tcversion_id order.
+            'node_order' => intval($first['node_order']),
             'testcase_id' => intval($first['testcase_id']),
             'name' => (string)$first['name'],
             'tcprefix' => (string)$first['tcprefix'],
@@ -2629,7 +2634,14 @@ if ($method === 'GET' && count($segments) === 2 &&
         ];
     }
 
-    usort($items, function ($a, $b) { return $a['tcversion_id'] <=> $b['tcversion_id']; });
+    // Issue #1144: mirror legacy getSuiteUrgency() ORDER BY NHB.node_order —
+    // rows must follow the suite tree order (drag-drop reorders included),
+    // not tcversion_id (insertion) order. tcversion_id is only the
+    // deterministic tie-breaker for equal node_order values.
+    usort($items, function ($a, $b) {
+        return [$a['node_order'], $a['tcversion_id']]
+           <=> [$b['node_order'], $b['tcversion_id']];
+    });
 
     out([
         'status' => 'ok',

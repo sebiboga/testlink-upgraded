@@ -164,6 +164,30 @@ Error/Warning entries). Tracking issue: #605.
 
 ## 8. Bug Fixes
 
+### Issue #1144 (2026-10-17) — Row order follows the suite tree (node_order)
+- **Gap:** legacy `getSuiteUrgency()` orders rows with
+  `ORDER BY NHB.node_order` (`lib/functions/testPlanUrgency.class.php:179`) so
+  the urgency grid renders test cases in suite tree order (drag-drop reorders
+  included). The modern BFF merged the same legacy rows but then re-sorted them
+  by `tcversion_id` (insertion order) — `api/plans/index.php` — so a case
+  inserted later but placed earlier in the tree rendered in the wrong position,
+  diverging from both the legacy grid and the suite tree.
+- **Fix:** the `GET /urgency/suite` merge loop now carries `node_order`
+  (already present in every raw row via the legacy SQL) into each item payload
+  and sorts by `[node_order, tcversion_id]` — `node_order` ascending mirrors
+  legacy `ORDER BY NHB.node_order`; `tcversion_id` is only a deterministic
+  tie-breaker. No front-end change was needed (`renderRows()` renders payload
+  order). No new i18n keys (no new user-visible strings).
+- **Testing:** fixture `tmp/fixtures_1144.php` (project `URG1144`, suite
+  `URG1 Suite Order`: Case B created first / lower tcversion_id but tree-
+  reordered to node_order 2, Case A created later / node_order 1; plus a
+  natural-order suite and an empty suite). Verified API + in-browser: reordered
+  suite renders Case A before Case B (pre-fix: reversed); natural order
+  unchanged; empty suite returns `items: []`; suite-button and per-TC writes
+  keep the order on refresh; Event Viewer clean (0 Error/Warning). Suite
+  `Task — Issue #1144` in `tmp/TLU_Test_Cases.md`; gate
+  `TLU_REQUIRE_SUITE="Issue #1144" bash ai/verify_test_suites.sh` PASS.
+
 ### Issue #1143 (2026-10-17) — Help / instructions affordance
 - **Gap:** legacy `lib/plan/planUrgency.php:27-30` rendered the
   `show_instructions('test_urgency')` help page (title “Specify tests with high

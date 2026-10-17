@@ -42806,3 +42806,36 @@ RESULT: 11/11 PASS. Landing of the 2 workflow commits still blocked (push re-mea
     - *Status:* PASS
 
 **Overall:** 14/14 PASS.
+
+## Task — Issue #1144: testUrgency rows follow suite tree order (node_order)
+
+**Precondition**: `php tmp/fixtures_1144.php` (project `URG1144`, plan `URG1144 Plan`,
+suite `URG1 Suite Order` with Case B created first / lower tcversion_id but tree-reordered
+to node_order 2, Case A created later / higher tcversion_id but node_order 1; suite
+`URG1 Suite Normal` natural order; suite `URG1 Suite Empty` with no cases).
+Login admin/admin.
+
+- **Steps (R1)** — open `gui/templates/plans/testUrgency.html?tproject_id=<p>&tplan_id=<pl>`,
+  select `URG1 Suite Order`.
+  **Expected**: rows render `URG1-2 Case A` (node_order 1) BEFORE `URG1-1 Case B` (node_order 2),
+  matching legacy `ORDER BY NHB.node_order` and the suite tree, even though B has the lower
+  tcversion_id.
+  **Actual (post-fix)**: Case A row first, Case B second; API payload carries `node_order`
+  (1 then 2). PASS. Pre-fix the API returned Case B first (tcversion_id order).
+- **Steps (R2)** — select `URG1 Suite Normal`.
+  **Expected**: natural order unchanged (Case C then Case D).
+  **Actual**: Case C then Case D. PASS.
+- **Steps (R3)** — multi-platform: N/A for this fixture (project has platforms disabled);
+  CUMULATIVE merge covered by R1 (one UI row per tcversion preserved with node_order).
+  **Actual**: one row per tcversion, ordered by node_order. PASS (API).
+- **Steps (R4)** — `GET /urgency/suite?tsuite_id=<empty>` for `URG1 Suite Empty`.
+  **Expected**: `status: ok`, `items: []`, no error.
+  **Actual**: `{"status":"ok","items":[]}`. PASS.
+- **Steps (R5)** — on `URG1 Suite Order`: click suite button High (rows refresh, order
+  kept); set Case A radio to Low, click "Set Urgency for Test Cases"; re-read.
+  **Expected**: writes succeed, row order stays A then B after every refresh.
+  **Actual**: suite High applied to both; per-tc save set A=Low/B=High; order A then B
+  after each refresh. PASS (browser + API).
+- **Steps (R6)** — Event Viewer / `events` table after all above.
+  **Expected**: no new Error/Warning rows.
+  **Actual**: 0 rows with log_level IN (1,2); browser console empty. PASS.
