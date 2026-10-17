@@ -197,8 +197,15 @@ Every screen of the application was ported one-by-one in a screen-compare
   401/403/404/400/405/409 + CSRF. Two defects found while testing and fixed: the i18n namespace
   collision above, and a DataTable re-init bug that stacked the header `aria-label`
   (`Name: activate to sort column ascending: activate to sort column ascending`) on every
-  re-render. Suite `Modernize — Issue #1930` = 16/16 PASS in `tmp/TLU_Test_Cases.md`. Refs #1930 /
-  parent #1066.
+  re-render. Suite `Modernize — Issue #1930` = 16/16 PASS in `tmp/TLU_Test_Cases.md`. **Code review
+  applied**: write `exec_query()` calls wrapped in try/catch so a racing duplicate answers 409
+  (was a non-JSON 500 — the post-`insert_id` guard was dead code because `exec_query()` throws with
+  XHR; sibling flaw filed as #1932), the linked-node proof now also checks the node TYPE (7/8 for
+  requirement, 3 for test case) instead of mere project membership, the DataTable Level column sorts
+  numerically by `risk_score` (was alphabetical), icon buttons carry `aria-label`, save/delete bounce
+  on 401, a linked id missing from `refs` shows a `(missing)` placeholder, and the New button stays
+  hidden until `can_modify` is known. The header `aria-label` stacking also affects other
+  destroy+re-init screens and is filed as #1931. Refs #1930 / parent #1066.
 
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
