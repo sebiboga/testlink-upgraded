@@ -256,7 +256,7 @@ function loadCfields() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('#cfTable tbody').empty(); }
+  if (table) { table.destroy(); $('#cfTable tbody').empty(); clearHeaderAria(); }
   var rows = [];
   $.each(items, function(i, cf) {
     var activeHtml = cf.active ? '<span class="badge-active">' + TLi18n.t('common.yes') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('common.no') + '</span>';
@@ -473,3 +473,7 @@ $(document).on('click', '.action-btn.danger[data-delete-id]', function() {
 </script>
 </body>
 </html>
+
+function clearHeaderAria() {
+  $('#cfTable thead th').removeAttr('aria-label');
+}
