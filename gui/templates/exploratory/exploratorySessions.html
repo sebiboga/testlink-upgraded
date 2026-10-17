@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exploratory Sessions</title>
+<!--
+  Exploratory Testing Sessions registry (Refs #1934, parent feature #1071).
+  Dashio standalone page backed by api/exploratory. Project-scoped registry of
+  exploratory testing sessions: charter, status, time box, tester, date,
+  environment, purpose, notes and defect references.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 170px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.progress { border-left-color: #3aa89f; }
+.tile.done { border-left-color: #5cb85c; }
+.tile.defects { border-left-color: #e05c5c; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select, .toolbar input { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+.badge-planned { background: #7f8c96; }
+.badge-in_progress { background: #4ECDC4; color: #0d3f3c; }
+.badge-completed { background: #5cb85c; }
+.badge-aborted { background: #e05c5c; }
+.charter-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 70px; font-family: monospace; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="expl.title">Exploratory Sessions</span>
+  <span class="sub" data-i18n="expl.subtitle">charters, time boxes and session outcomes per test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="expl.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="expl.tileTotal">Sessions</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tilePlanned">0</div>
+      <div class="lbl" data-i18n="expl.tilePlanned">Planned</div>
+    </div>
+    <div class="tile progress">
+      <div class="num" id="tileProgress">0</div>
+      <div class="lbl" data-i18n="expl.tileProgress">In progress</div>
+    </div>
+    <div class="tile done">
+      <div class="num" id="tileCompleted">0</div>
+      <div class="lbl" data-i18n="expl.tileCompleted">Completed</div>
+    </div>
+    <div class="tile defects">
+      <div class="num" id="tileDefects">0</div>
+      <div class="lbl" data-i18n="expl.tileDefects">With defects</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="expl.newSession">New session</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="expl.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label data-i18n="expl.filterStatus">Status</label>
+    <select id="fStatus" onchange="applyFilter()">
+      <option value="" data-i18n="expl.allStatuses">All statuses</option>
+      <option value="planned" data-i18n="expl.statusPlanned">Planned</option>
+      <option value="in_progress" data-i18n="expl.statusInProgress">In progress</option>
+      <option value="completed" data-i18n="expl.statusCompleted">Completed</option>
+      <option value="aborted" data-i18n="expl.statusAborted">Aborted</option>
+    </select>
+    <label data-i18n="expl.filterText">Search</label>
+    <input type="text" id="fText" oninput="applyFilter()" style="width:160px;">
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="expl.noItems">There are no exploratory sessions for this project yet.</div>
+    <div id="noMatch" class="empty-state" style="display:none;" data-i18n="expl.noMatch">No session matches the current filters.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="expl.colName">Name</th>
+          <th data-i18n="expl.colCharter">Charter</th>
+          <th data-i18n="expl.colStatus">Status</th>
+          <th data-i18n="expl.colTester">Tester</th>
+          <th data-i18n="expl.colTimebox">Timebox</th>
+          <th data-i18n="expl.colDate">Date</th>
+          <th data-i18n="expl.colEnv">Environment</th>
+          <th data-i18n="expl.colUpdated">Updated</th>
+          <th style="width:130px" data-i18n="expl.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="expl.footer">TestLink 2.0.1 - Exploratory Sessions</span></div>
+
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="expl.modalNewTitle">New session</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="expl.fieldName">Session name</label>
+          <input type="text" id="fName" maxlength="255">
+        </div>
+        <div class="form-row">
+          <label data-i18n="expl.fieldCharter">Test charter</label>
+          <textarea id="fCharter" maxlength="60000" style="font-family:inherit;"></textarea>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="expl.fieldStatus">Status</label>
+            <select id="fStatusEdit">
+              <option value="planned" data-i18n="expl.statusPlanned">Planned</option>
+              <option value="in_progress" data-i18n="expl.statusInProgress">In progress</option>
+              <option value="completed" data-i18n="expl.statusCompleted">Completed</option>
+              <option value="aborted" data-i18n="expl.statusAborted">Aborted</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label data-i18n="expl.fieldTimebox">Timebox (minutes)</label>
+            <input type="number" id="fTimebox" min="0" max="1000000" step="1">
+            <div class="hint" data-i18n="expl.fieldTimeboxHint">Planned session duration in minutes.</div>
+          </div>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="expl.fieldTester">Tester</label>
+            <input type="text" id="fTester" maxlength="100">
+          </div>
+          <div style="flex:1;">
+            <label data-i18n="expl.fieldDate">Session date</label>
+            <input type="date" id="fDate">
+          </div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="expl.fieldEnv">Environment</label>
+          <input type="text" id="fEnvironment" maxlength="255">
+        </div>
+        <div class="form-row">
+          <label data-i18n="expl.fieldPurpose">Purpose</label>
+          <textarea id="fPurpose" maxlength="60000" style="font-family:inherit;min-height:50px;"></textarea>
+        </div>
+        <div class="form-row">
+          <label data-i18n="expl.fieldNotes">Live notes</label>
+          <textarea id="fNotes" maxlength="60000" style="font-family:inherit;"></textarea>
+        </div>
+        <div class="form-row">
+          <label data-i18n="expl.fieldDefects">Defect references</label>
+          <input type="text" id="fDefects" maxlength="1000">
+          <div class="hint" data-i18n="expl.fieldDefectsHint">Comma-separated defect ids discovered during the session.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveSession()" data-i18n="expl.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="expl.modalDetailsTitle">Session details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="expl.modalDeleteTitle">Delete session</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="expl.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/exploratory/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function statusLabel(s) {
+  var map = { planned: 'expl.statusPlanned', in_progress: 'expl.statusInProgress',
+              completed: 'expl.statusCompleted', aborted: 'expl.statusAborted' };
+  return TLi18n.t(map[s] || 'expl.statusPlanned');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('expl.noRight', 'expl.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('expl.noProject', 'expl.noProjectBody', true); return; }
+  showState('expl.errTitle', fallbackKey || 'expl.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'expl.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tilePlanned').text(s.planned || 0);
+    $('#tileProgress').text(s.in_progress || 0);
+    $('#tileCompleted').text(s.completed || 0);
+    $('#tileDefects').text(s.with_defects || 0);
+    if (!canModify) { $('#btnNew').hide(); }
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('expl.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'expl.loadError'); });
+}
+
+function filtered() {
+  var fs = $('#fStatus').val();
+  var ft = ($('#fText').val() || '').toLowerCase();
+  return allItems.filter(function(it) {
+    if (fs && it.status !== fs) { return false; }
+    if (ft) {
+      var hay = (it.name + ' ' + it.charter + ' ' + it.tester + ' ' + it.environment).toLowerCase();
+      if (hay.indexOf(ft) === -1) { return false; }
+    }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (allItems.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    $('#dataTable').hide();
+    $('#noMatch').hide();
+    $('#emptyState').show();
+    return;
+  }
+  $('#emptyState').hide();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    $('#dataTable').hide();
+    $('#noMatch').show();
+  } else {
+    $('#noMatch').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' +
+    esc(it.name) + '</a>';
+  var charter = '<div class="charter-cell" title="' + esc(it.charter) + '">' +
+    esc(it.charter || '-') + '</div>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('expl.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('expl.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('expl.del')) + '"><i class="fa fa-trash"></i></button>';
+  }
+  return {
+    name: nameCell,
+    charter: charter,
+    status: '<span class="badge-status badge-' + esc(it.status) + '">' +
+            esc(statusLabel(it.status)) + '</span>',
+    tester: esc(it.tester || '-'),
+    timebox: it.timebox_min ? (it.timebox_min + ' min') : '-',
+    date: esc(it.session_date || '-'),
+    env: esc(it.environment || '-'),
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'charter'},
+      {data: 'status'},
+      {data: 'tester'},
+      {data: 'timebox'},
+      {data: 'date'},
+      {data: 'env'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 8}],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('expl.modalNewTitle'));
+  $('#fName').val('');
+  $('#fCharter').val('');
+  $('#fStatusEdit').val('planned');
+  $('#fTimebox').val('');
+  $('#fTester').val('');
+  $('#fDate').val('');
+  $('#fEnvironment').val('');
+  $('#fPurpose').val('');
+  $('#fNotes').val('');
+  $('#fDefects').val('');
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('expl.modalEditTitle'));
+  $('#fName').val(it.name);
+  $('#fCharter').val(it.charter || '');
+  $('#fStatusEdit').val(it.status);
+  $('#fTimebox').val(it.timebox_min || '');
+  $('#fTester').val(it.tester || '');
+  $('#fDate').val(it.session_date || '');
+  $('#fEnvironment').val(it.environment || '');
+  $('#fPurpose').val(it.purpose || '');
+  $('#fNotes').val(it.notes || '');
+  $('#fDefects').val(it.defect_refs || '');
+  $('#editModal').modal('show');
+}
+
+function saveSession() {
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('expl.errName'), 'err'); return; }
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    charter: $('#fCharter').val(),
+    status: $('#fStatusEdit').val(),
+    timebox_min: parseInt($('#fTimebox').val() || '0', 10) || 0,
+    tester: $('#fTester').val(),
+    session_date: $('#fDate').val() || '',
+    environment: $('#fEnvironment').val(),
+    purpose: $('#fPurpose').val(),
+    notes: $('#fNotes').val(),
+    defect_refs: $('#fDefects').val()
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('expl.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('expl.errDuplicate'), 'err'); }
+    else if (code === 'bad_session_date') { toast(TLi18n.t('expl.errDate'), 'err'); }
+    else if (code === 'bad_timebox') { toast(TLi18n.t('expl.errTimebox'), 'err'); }
+    else { toast(TLi18n.t('expl.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  function row(labelKey, value) {
+    html += '<div class="form-row"><label>' + esc(TLi18n.t(labelKey)) + '</label><div>' +
+            value + '</div></div>';
+  }
+  row('expl.colName', esc(it.name));
+  row('expl.fieldCharter', esc(it.charter || '-'));
+  row('expl.colStatus', '<span class="badge-status badge-' + esc(it.status) + '">' +
+      esc(statusLabel(it.status)) + '</span>');
+  row('expl.fieldTester', esc(it.tester || '-'));
+  row('expl.fieldTimebox', it.timebox_min ? (it.timebox_min + ' min') : '-');
+  row('expl.fieldDate', esc(it.session_date || '-'));
+  row('expl.fieldEnv', esc(it.environment || '-'));
+  row('expl.fieldPurpose', esc(it.purpose || '-'));
+  row('expl.fieldNotes', esc(it.notes || '-'));
+  row('expl.fieldDefects', esc(it.defect_refs || '-'));
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('expl.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('expl.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('expl.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+</script>
+</body>
+</html>
