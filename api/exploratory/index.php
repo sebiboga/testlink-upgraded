@@ -52,6 +52,10 @@ header('Cache-Control: no-store');
 $db = null;
 doDBConnect($db);
 
+// Enforce the legacy session inactivity timeout (issue #1614): a tab left open
+// past config_get('sessionInactivityTimeout') must not keep reading/writing.
+bffEnforceSession($db);
+
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
@@ -309,6 +313,15 @@ if (!$isWrite) {
 
 // ---- writes ----------------------------------------------------------------
 
+// Existence check AFTER the rights gate above (never before — #1697), so writes
+// mirror the read path's tproject_not_found instead of creating orphan rows.
+if (explProjectInfo($db, $tpid) === null) {
+    http_response_code(404);
+    echo json_encode(array('status' => 'error', 'code' => 'tproject_not_found',
+        'message' => 'Test project not found'));
+    exit;
+}
+
 if ($action === 'save') {
     $body = explBody();
     $name = explField($body, 'name', 255);
@@ -378,7 +391,7 @@ if ($action === 'save') {
             "INSERT INTO {$t} (testproject_id, name, charter, status, timebox_min, " .
             "tester, session_date, environment, purpose, notes, defect_refs, " .
             "created_by, update_ts) VALUES (" . intval($tpid) . ", " . $vTail . ")");
-        $newId = (int)$db->insert_id('tc_exploratory_sessions');
+        $newId = (int)$db->insert_id($t);
         if ($newId <= 0) {
             http_response_code(500);
             echo json_encode(array('status' => 'error', 'code' => 'insert_failed',

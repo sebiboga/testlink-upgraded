@@ -43244,3 +43244,78 @@ On race, returns HTTP 409 with JSON `{"status":"error","code":"duplicate_name","
 
 **Test status**
 PASS (structural fix verified). Deterministic repro logic matches the environments fix (#1932).
+
+## Modernize — Issue #1934: Exploratory Testing Sessions registry `exploratorySessions` (screen + BFF + i18n, parent feature #1071)
+
+**Scope**
+`api/exploratory/index.php` (BFF), `gui/templates/exploratory/exploratorySessions.html`
+(screen), `tc_exploratory_sessions` lazy schema + DDL mirror + object whitelist,
+aside/common links, i18n (10 client bundles + 19 server locales).
+Tracking issue: #1934. Fix PRs: cf4cc4196 (BFF), abd82a9a6 (screen), 007dbac04 (i18n/links).
+
+**Test data**
+- Project `EXPLOR1934` (prefix `E34`, id=1); users `admin` (role 6) and
+  `norights`/`norights` (role 3, id=2) via tmp/fixtures_1934.php + tmp/mkuser_norights.php.
+- Seeded sessions: Checkout flow charter (completed, defects 101,102),
+  Search regression charter (planned), Upload session charter (in_progress, defect 103).
+
+**Cases and results**
+1. BFF auth/verb: GET anon -> 401 not_authenticated; PUT -> 405 wrong_method
+   (with Origin header); POST unknown action -> 400 unknown_action.
+   PASS.
+2. BFF validation: save without name -> 400 name_required; bad status ->
+   400 bad_status; negative timebox -> 400 bad_timebox; bad session_date ->
+   400 bad_session_date; init with tproject_id=0 -> 400 no_testproject;
+   init/list unknown tproject -> 404 tproject_not_found.
+   PASS.
+3. BFF CRUD: init returns context (name/prefix/can_modify) + items + stats;
+   save creates (200 Created, id), save with id updates; delete removes
+   (200). Duplicate name in same project -> 409 duplicate_name; delete/save
+   unknown id -> 404 session_not_found.
+   PASS.
+4. BFF rights: role-3 user GET init -> 403 no_right; POST save/delete ->
+   403 no_right; rights checked on ADDRESSED project BEFORE existence
+   (#1697 no-oracle). PASS.
+5. AUDIT: EXPLORATORY_CREATE / EXPLORATORY_SAVE / EXPLORATORY_DELETE events
+   written (log_level 16, description includes session name+id, source
+   "GUI - Test Project ID : 1"). PASS.
+6. Screen load (admin): title/subtitle i18n, 5 metric tiles, toolbar
+   (New/Refresh/filters), 9-column table, project info chip, footer with
+   expl.count + generatedOn. No raw i18n keys rendered. PASS.
+7. New modal: all 10 fields render (name, charter, status select, timebox
+   number min=0, tester, date, environment, purpose, notes, defects);
+   empty name -> client toast "Session name is mandatory." + modal stays
+   open; valid save -> toast "Session saved.", row appears, tiles update
+   (1/0/1/0/0). PASS.
+8. Duplicate via UI: save same name -> toast "A session with this name
+   already exists." (BFF 409 mapped in JS), modal stays open.
+   PASS.
+9. View modal: name, charter, status, tester, timebox, date, environment,
+   purpose, notes, defects ("-" when empty) all shown.
+   PASS.
+10. Edit modal: status planned->completed saved; row status cell + tiles
+    (1/0/0/1/0) + updated timestamp refresh. PASS.
+11. Filters: status filter completed -> 1 row; planned -> 0 rows shows
+    #noMatch "No session matches the current filters." + table hidden;
+    search "login" -> match; "zzz" -> noMatch; reset restores rows.
+    Footer shows TOTAL count (allItems.length) consistent with
+    testDataSets behavior. PASS.
+12. Delete: confirm modal interpolates name ("Delete the session
+    \"Checkout flow charter\"?"); confirm -> toast "Session deleted.",
+    tiles reset, row removed; deleting last session restores
+    #emptyState "There are no exploratory sessions for this project yet."
+    PASS.
+13. norights (role 3): aside section "Exploratory Sessions" hidden
+    (gated view_tc|modify_tc); direct URL -> state card "No permission" /
+    "You are not allowed to view exploratory sessions of this test
+    project.", main area hidden. PASS.
+14. i18n: 65 expl.* keys present and identical across en,de,es,fr,it,ja,
+    pt,ro,ru,zh (ai/verify_i18n_coverage.sh PASS, json.tool valid);
+    $TLS_title_exploratory_sessions added in all 19 server locales after
+    the title_risk_register anchor. PASS.
+15. Console/Event Viewer: only the deliberate 409 from case 8; no new
+    Error/Warning events from this screen's testing.
+    PASS.
+
+**Test status**
+All 15 cases PASS. Screenshots: tmp/shots/1934_{list,new_modal,view_modal,delete_confirm,no_match,norights}.png

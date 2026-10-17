@@ -216,6 +216,38 @@ Every screen of the application was ported one-by-one in a screen-compare
   residual). Suite `Regression — Issue #1932` = 10/10 PASS in `tmp/TLU_Test_Cases.md`. (Fixes #1932)
 
 
+- [SCREEN] - #1934 (parent #1071): the **Exploratory Testing Sessions** registry
+  (`gui/templates/exploratory/exploratorySessions.html`, BFF `api/exploratory/index.php`) is the
+  first slice of Exploratory Testing, added as a project-scoped ASIDE section **Exploratory
+  Sessions** (icon `fas fa-compass`). Net-new for 2.0.1: 1.9.20 has no exploratory-testing entity —
+  charters, time boxes and session outcomes exist only as prose. A project-scoped registry of
+  sessions — name, charter, status (planned / in_progress / completed / aborted), timebox (minutes),
+  tester, session date, environment, purpose, live notes and comma-separated defect references —
+  with metric tiles (total / planned / in progress / completed / with defects), status + free-text
+  filters with an explicit no-match empty state, a registry DataTable (view / edit / delete), a
+  details modal, a create/edit modal with empty-name client validation and a duplicate-name 409
+  guard, and a delete confirm interpolating `{name}`. The BFF is
+  `GET|HEAD ?action=init|list` + `POST ?action=save|delete`; session auth + `bffSameOriginGuard` +
+  `bffEnforceSession`, with `mgt_view_tc|mgt_modify_tc` (read) / `mgt_modify_tc` (write) checked on
+  the addressed project BEFORE it is resolved (no existence oracle), and 400/401/403/404/405/409
+  machine codes (`name_required`, `bad_status`, `bad_timebox`, `bad_session_date`, `duplicate_name`,
+  `session_not_found`, `tproject_not_found`, `bad_id`, `no_right`, `no_testproject`, `wrong_method`).
+  The `tc_exploratory_sessions` table is created lazily and mirrored in
+  `install/sql/mysql/testlink_create_tables.sql` + whitelisted in `lib/functions/object.class.php`;
+  writes emit `EXPLORATORY_CREATE` / `EXPLORATORY_SAVE` / `EXPLORATORY_DELETE` AUDIT events.
+  Wiring: `$actions->exploratorySessions` in `lib/functions/common.php`, the Exploratory Sessions
+  ASIDE section in `api/aside/index.php`, `$TLS_title_exploratory_sessions` in **all 19** server
+  locales, and `expl.*` (65) client keys in **all 10** bundles (`ai/verify_i18n_coverage.sh` 9/9
+  PASS, 8496 keys). Browser-verified (admin): screen load, tiles/filters/footer, empty-name +
+  duplicate-name (409) validation, create (row + tiles update + AUDIT), details, edit
+  (in_progress→completed, `update_ts` bumped), status/search filters + no-match empty state, delete
+  confirm + delete (restored empty state), no-right (403) state with the ASIDE item hidden, German /
+  French / Romanian labels; BFF curl matrix 401/403/404/400/405/409; Event Viewer only AUDIT rows
+  (0 ERROR/WARNING). Code review applied: added `bffEnforceSession`, aligned `insert_id($t)` and made
+  writes return `tproject_not_found` (404) on a missing project. Suite `Modernize — Issue #1934` =
+  15/15 PASS in `tmp/TLU_Test_Cases.md`. Docs mirror `docs/exploratory-sessions.md`, wiki page + 6
+  screenshots. Refs #1934 / parent #1071.
+
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
   Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a *static* Test Strategy reference hub and never
