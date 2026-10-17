@@ -2316,6 +2316,13 @@ function getActions(&$gui,$baseURL) {
   // for reads, mgt_modify_tc for writes) are enforced by the BFF
   // api/environments on every route.
   $actions->testEnvironments = "/gui/templates/environments/testEnvironments.html?{$ctx}";
+  // Risk-Based Testing registry (Dashio standalone page) - Refs #1930, parent
+  // feature #1066. Net-new module (no legacy twin): project-scoped risks with
+  // impact / likelihood / severity / priority, a DERIVED risk level, status,
+  // owner, mitigation and optional links to a requirement and a test case.
+  // Rights (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc for writes)
+  // are enforced by the BFF api/risk on every route.
+  $actions->riskRegister = "/gui/templates/risk/riskRegister.html?{$ctx}";
   // Test Closure (Dashio standalone page) - Refs #1278.
   // Net-new ISTQB closure-phase module (no legacy twin): lessons learned,
   // closure checklist/summary/archive reference, a printable closure report and

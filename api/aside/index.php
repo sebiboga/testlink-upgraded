@@ -631,6 +631,28 @@ if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
     );
 }
 
+// 7c-ter. Risk-Based Testing registry --------------------------------------
+// Net-new module (Refs #1930, parent feature #1066): project-scoped risks with
+// impact / likelihood / severity / priority, a DERIVED risk level, status,
+// owner, mitigation and optional links to a requirement and a test case. No
+// legacy menu twin. Label uses the new server string key title_risk_register,
+// added to all 19 server locales. Rights (view_tc / modify_tc) match the BFF
+// api/risk, which answers 403 without them.
+if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
+    $sections[] = array(
+        'key' => 'riskRegister',
+        'label' => lang_get('title_risk_register'),
+        'icon' => 'fas fa-exclamation-triangle',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'riskRegister',
+            'label' => lang_get('title_risk_register'),
+            'href' => (string)$u('riskRegister'),
+            'icon' => 'fas fa-exclamation-triangle',
+        )),
+    );
+}
+
 // 7d. Test Closure ---------------------------------------------------------
 // ISTQB closure phase (Refs #1278): lessons learned + closure checklist +
 // printable closure report + the closure state that freezes plan results.

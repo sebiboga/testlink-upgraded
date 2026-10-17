@@ -182,6 +182,7 @@ $TLS_link_report_not_run_on_any_platform = "Cazuri de test neexecutate pe nicio 
 $TLS_title_test_closure = "Închiderea testării"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Seturi de date de test"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Medii de test"; // "Test Environments" (Refs #1928)
+$TLS_title_risk_register = "Registrul riscurilor"; // "Risk Register" (Refs #1930)
 $TLS_link_report_risk_coverage = "Testare bazata pe risc";
 $TLS_title_execution_notes = "Note de execuție"; // "Execution notes" (Refs #1809)
 $TLS_reqmgrsystem_interface_not_implemented = "Exemplu de configurare indisponibil: interfața '%s' nu este implementată";

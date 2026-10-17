@@ -3234,6 +3234,7 @@ $TLS_req_docid_length_exceeded = 'Identificador de documento de requisito demasi
 $TLS_title_test_closure = "Cierre de pruebas"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Conjuntos de datos de prueba"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Entornos de prueba"; // "Test Environments" (Refs #1928)
+$TLS_title_risk_register = "Registro de riesgos"; // "Risk Register" (Refs #1930)
 $TLS_link_report_risk_coverage = "Pruebas basadas en riesgo";
 $TLS_reqmgrsystem_interface_not_implemented = "Ejemplo de configuración no disponible: la interfaz '%s' no está implementada";
 $TLS_reqmgrsystem_invalid_type = 'Tipo de sistema de gestión de requisitos no válido: %s';

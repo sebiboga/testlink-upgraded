@@ -4259,6 +4259,7 @@ $TLS_error_self_signup_disabled = 'O registo automático de novos utilizadores e
 $TLS_title_test_closure = "Encerramento de testes"; // "Test Closure" (Refs #1278)
 $TLS_title_test_data_sets = "Conjuntos de dados de teste"; // "Test Data Sets" (Refs #1927)
 $TLS_title_test_environments = "Ambientes de teste"; // "Test Environments" (Refs #1928)
+$TLS_title_risk_register = "Registo de Riscos"; // "Risk Register" (Refs #1930)
 $TLS_link_report_risk_coverage = "Testes baseados em risco";
 $TLS_link_report_quality_gates = "Portas de qualidade da versão"; // Refs #1067
 $TLS_link_report_defect_intelligence = "Inteligência de Defeitos"; // Refs #1068
