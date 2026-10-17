@@ -496,6 +496,33 @@ CREATE TABLE /*prefix*/tc_reviews (
 ) DEFAULT CHARSET=utf8;
 
 
+# ---------------------------------------------------------------------------
+# Test Data Management - versioned test data sets (Refs #1927 / #1069).
+# Net-new module: project-scoped registry of versioned test data sets with a
+# data-type, PII classification + masking rule, sample payload, notes and an
+# optional link to a test case for traceability.
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_test_data_sets (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `set_group` int(10) unsigned NOT NULL default '0',
+  `version` int(10) unsigned NOT NULL default '1',
+  `name` varchar(255) NOT NULL default '',
+  `data_type` varchar(16) NOT NULL default 'reusable',
+  `classification` varchar(16) NOT NULL default 'internal',
+  `masking_rule` varchar(255) NOT NULL default '',
+  `payload` mediumtext,
+  `notes` text,
+  `tcase_id` int(10) unsigned NOT NULL default '0',
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_tds_project` (`testproject_id`,`set_group`),
+  KEY `idx_tds_tcase` (`tcase_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
