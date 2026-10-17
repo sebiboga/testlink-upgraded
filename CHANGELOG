@@ -156,7 +156,12 @@ Every screen of the application was ported one-by-one in a screen-compare
   edit, duplicate-name guard, delete confirm + delete, 403 (no-right user) and no-project
   states, German locale, console clean; Event Viewer only AUDIT rows. Two screen defects
   found while testing and fixed: the details-modal close button used `common.cancel`
-  (now `common.close`) and 12 form labels lacked `for`/`id` association (a11y). Suite
+  (now `common.close`) and 12 form labels lacked `for`/`id` association (a11y). A code
+  review then hardened the BFF: the legacy session-inactivity timeout is now enforced
+  (`bffEnforceSession`, issue #1614), the verb gate is evaluated before the rights check
+  so an unsupported verb always answers 405, a `UNIQUE (testproject_id, name)` key backs
+  the duplicate-name check (with a concurrent-race 409 fallback), and the TEXT fields are
+  capped utf8-safely. Suite
   `Modernize — Issue #1928` = 15/15 PASS in `tmp/TLU_Test_Cases.md`. Refs #1928 / parent #1070.
 
 - [SCREEN] - #1061: the **Test Strategy Report**

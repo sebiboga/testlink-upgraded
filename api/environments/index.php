@@ -51,6 +51,10 @@ header('Cache-Control: no-store');
 $db = null;
 doDBConnect($db);
 
+// Enforce the legacy session inactivity timeout (issue #1614): a tab left open
+// past config_get('sessionInactivityTimeout') must not keep reading/writing.
+bffEnforceSession($db);
+
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
@@ -107,6 +111,7 @@ function tenvEnsureSchema($db) {
         " creation_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," .
         " update_ts DATETIME NULL," .
         " PRIMARY KEY (id)," .
+        " UNIQUE KEY uq_tenv_project_name (testproject_id, name)," .
         " KEY idx_tenv_project (testproject_id)," .
         " KEY idx_tenv_status (testproject_id, status)" .
         " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
@@ -226,6 +231,16 @@ if ($tpid <= 0) {
     exit;
 }
 
+// Verb gate BEFORE the rights check, so an unsupported verb (PUT/DELETE/PATCH)
+// always answers 405 regardless of the caller's rights.
+if ($method !== 'GET' && $method !== 'POST') {
+    header('Allow: GET, HEAD, POST');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'wrong_method',
+        'message' => 'Method not allowed'));
+    exit;
+}
+
 // rights BEFORE project resolution (no existence oracle - #1697).
 $isWrite = ($method === 'POST');
 if ($isWrite) {
@@ -242,14 +257,6 @@ if ($isWrite) {
             'message' => 'No permission to view test environments'));
         exit;
     }
-}
-
-if ($method !== 'GET' && $method !== 'POST') {
-    header('Allow: GET, HEAD, POST');
-    http_response_code(405);
-    echo json_encode(array('status' => 'error', 'code' => 'wrong_method',
-        'message' => 'Method not allowed'));
-    exit;
 }
 
 if ($action === '') {
@@ -324,8 +331,8 @@ if ($action === 'save') {
     $appVersion = tenvField($body, 'app_version', 64);
     $owner = tenvField($body, 'owner', 128);
     $contact = tenvField($body, 'contact', 255);
-    $dependencies = tenvField($body, 'dependencies', 60000);
-    $notes = tenvField($body, 'notes', 60000);
+    $dependencies = tenvField($body, 'dependencies', 20000);
+    $notes = tenvField($body, 'notes', 20000);
     $id = tenvInt($body, 'id');
 
     // name unique per project (own name allowed on update)
@@ -395,8 +402,19 @@ if ($action === 'save') {
         " app_version, owner, contact, dependencies, notes, status," .
         " created_by, update_ts) VALUES (" .
         intval($tpid) . ", " . $vals . ", " . intval($userId) . ", NOW())");
-    $newId = (int)$db->insert_id('tc_test_environments');
+    $newId = (int)$db->insert_id($t);
     if ($newId <= 0) {
+        // A concurrent create may have won the race and tripped the
+        // uq_tenv_project_name key; re-check before reporting a hard failure.
+        $dupe = $db->fetchFirstRow(
+            "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
+            " AND name = '" . $db->prepare_string($name) . "'");
+        if (is_array($dupe) && $dupe) {
+            http_response_code(409);
+            echo json_encode(array('status' => 'error', 'code' => 'duplicate_name',
+                'message' => 'An environment with this name already exists'));
+            exit;
+        }
         http_response_code(500);
         echo json_encode(array('status' => 'error', 'code' => 'insert_failed',
             'message' => 'Could not create environment'));

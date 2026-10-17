@@ -545,6 +545,7 @@ CREATE TABLE /*prefix*/tc_test_environments (
   `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_ts` datetime default NULL,
   PRIMARY KEY  (`id`),
+  UNIQUE KEY `uq_tenv_project_name` (`testproject_id`,`name`),
   KEY `idx_tenv_project` (`testproject_id`),
   KEY `idx_tenv_status` (`testproject_id`,`status`)
 ) DEFAULT CHARSET=utf8;
