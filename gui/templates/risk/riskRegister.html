@@ -83,81 +83,81 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 <body>
 
 <div class="header">
-  <span data-i18n="risk.title">Risk Register</span>
-  <span class="sub" data-i18n="risk.subtitle">capture and prioritise testing by business and technical risk</span>
+  <span data-i18n="riskreg.title">Risk Register</span>
+  <span class="sub" data-i18n="riskreg.subtitle">capture and prioritise testing by business and technical risk</span>
   <span id="localeSwitcher" style="float:right;"></span>
 </div>
 
 <div class="state-card" id="stateCard">
   <h3 id="stateTitle"></h3>
   <p id="stateBody"></p>
-  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="risk.refresh">Refresh</span></button>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="riskreg.refresh">Refresh</span></button>
 </div>
 
 <div id="mainArea">
   <div class="tiles">
     <div class="tile">
       <div class="num" id="tileTotal">0</div>
-      <div class="lbl" data-i18n="risk.tileTotal">Risks</div>
+      <div class="lbl" data-i18n="riskreg.tileTotal">Risks</div>
     </div>
     <div class="tile warn">
       <div class="num" id="tileCritical">0</div>
-      <div class="lbl" data-i18n="risk.levelCritical">Critical</div>
+      <div class="lbl" data-i18n="riskreg.levelCritical">Critical</div>
     </div>
     <div class="tile amber">
       <div class="num" id="tileHigh">0</div>
-      <div class="lbl" data-i18n="risk.levelHigh">High</div>
+      <div class="lbl" data-i18n="riskreg.levelHigh">High</div>
     </div>
     <div class="tile amber">
       <div class="num" id="tileMedium">0</div>
-      <div class="lbl" data-i18n="risk.levelMedium">Medium</div>
+      <div class="lbl" data-i18n="riskreg.levelMedium">Medium</div>
     </div>
     <div class="tile">
       <div class="num" id="tileLow">0</div>
-      <div class="lbl" data-i18n="risk.levelLow">Low</div>
+      <div class="lbl" data-i18n="riskreg.levelLow">Low</div>
     </div>
     <div class="tile dark">
       <div class="num" id="tileLinked">0</div>
-      <div class="lbl" data-i18n="risk.tileLinked">Linked</div>
+      <div class="lbl" data-i18n="riskreg.tileLinked">Linked</div>
     </div>
   </div>
 
   <div class="toolbar">
-    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="risk.newRisk">New risk</span></button>
-    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="risk.refresh">Refresh</span></button>
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="riskreg.newRisk">New risk</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="riskreg.refresh">Refresh</span></button>
     <span style="flex:1"></span>
-    <label for="fFilterLevel" data-i18n="risk.filterLevel">Level</label>
+    <label for="fFilterLevel" data-i18n="riskreg.filterLevel">Level</label>
     <select id="fFilterLevel" onchange="applyFilter()">
-      <option value="" data-i18n="risk.allLevels">All levels</option>
-      <option value="critical" data-i18n="risk.levelCritical">Critical</option>
-      <option value="high" data-i18n="risk.levelHigh">High</option>
-      <option value="medium" data-i18n="risk.levelMedium">Medium</option>
-      <option value="low" data-i18n="risk.levelLow">Low</option>
+      <option value="" data-i18n="riskreg.allLevels">All levels</option>
+      <option value="critical" data-i18n="riskreg.levelCritical">Critical</option>
+      <option value="high" data-i18n="riskreg.levelHigh">High</option>
+      <option value="medium" data-i18n="riskreg.levelMedium">Medium</option>
+      <option value="low" data-i18n="riskreg.levelLow">Low</option>
     </select>
-    <label for="fFilterStatus" data-i18n="risk.filterStatus">Status</label>
+    <label for="fFilterStatus" data-i18n="riskreg.filterStatus">Status</label>
     <select id="fFilterStatus" onchange="applyFilter()">
-      <option value="" data-i18n="risk.allStatuses">All statuses</option>
-      <option value="open" data-i18n="risk.statusOpen">Open</option>
-      <option value="mitigated" data-i18n="risk.statusMitigated">Mitigated</option>
-      <option value="accepted" data-i18n="risk.statusAccepted">Accepted</option>
-      <option value="closed" data-i18n="risk.statusClosed">Closed</option>
+      <option value="" data-i18n="riskreg.allStatuses">All statuses</option>
+      <option value="open" data-i18n="riskreg.statusOpen">Open</option>
+      <option value="mitigated" data-i18n="riskreg.statusMitigated">Mitigated</option>
+      <option value="accepted" data-i18n="riskreg.statusAccepted">Accepted</option>
+      <option value="closed" data-i18n="riskreg.statusClosed">Closed</option>
     </select>
     <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
   </div>
 
   <div class="table-wrap">
-    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="risk.noItems">There are no risks for this project yet.</div>
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="riskreg.noItems">There are no risks for this project yet.</div>
     <table id="dataTable" class="display" style="width:100%">
       <thead>
         <tr>
-          <th data-i18n="risk.colName">Name</th>
-          <th data-i18n="risk.colLevel">Level</th>
-          <th data-i18n="risk.colImpact">Impact</th>
-          <th data-i18n="risk.colLikelihood">Likelihood</th>
-          <th data-i18n="risk.colStatus">Status</th>
-          <th data-i18n="risk.colLinked">Linked to</th>
-          <th data-i18n="risk.colUpdated">Updated</th>
-          <th style="width:140px" data-i18n="risk.colActions">Actions</th>
+          <th data-i18n="riskreg.colName">Name</th>
+          <th data-i18n="riskreg.colLevel">Level</th>
+          <th data-i18n="riskreg.colImpact">Impact</th>
+          <th data-i18n="riskreg.colLikelihood">Likelihood</th>
+          <th data-i18n="riskreg.colStatus">Status</th>
+          <th data-i18n="riskreg.colLinked">Linked to</th>
+          <th data-i18n="riskreg.colUpdated">Updated</th>
+          <th style="width:140px" data-i18n="riskreg.colActions">Actions</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -166,81 +166,81 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 </div>
 
 <div class="footer" id="footerText"></div>
-<div class="footer"><span data-i18n="risk.footer">TestLink 2.0.1 - Risk Register</span></div>
+<div class="footer"><span data-i18n="riskreg.footer">TestLink 2.0.1 - Risk Register</span></div>
 
 <!-- Create / edit modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="editTitle" data-i18n="risk.modalNewTitle">New risk</h5>
+        <h5 class="modal-title" id="editTitle" data-i18n="riskreg.modalNewTitle">New risk</h5>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label for="fName" data-i18n="risk.fieldName">Name</label>
+          <label for="fName" data-i18n="riskreg.fieldName">Name</label>
           <input type="text" id="fName" maxlength="255">
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label for="fImpact" data-i18n="risk.fieldImpact">Impact</label>
+            <label for="fImpact" data-i18n="riskreg.fieldImpact">Impact</label>
             <select id="fImpact" onchange="updatePreview()"></select>
           </div>
           <div style="flex:1;">
-            <label for="fLikelihood" data-i18n="risk.fieldLikelihood">Likelihood</label>
+            <label for="fLikelihood" data-i18n="riskreg.fieldLikelihood">Likelihood</label>
             <select id="fLikelihood" onchange="updatePreview()"></select>
           </div>
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label for="fSeverity" data-i18n="risk.fieldSeverity">Severity</label>
+            <label for="fSeverity" data-i18n="riskreg.fieldSeverity">Severity</label>
             <select id="fSeverity"></select>
           </div>
           <div style="flex:1;">
-            <label for="fPriority" data-i18n="risk.fieldPriority">Priority</label>
+            <label for="fPriority" data-i18n="riskreg.fieldPriority">Priority</label>
             <select id="fPriority"></select>
           </div>
         </div>
         <div class="form-row">
-          <label for="fStatus" data-i18n="risk.fieldStatus">Status</label>
+          <label for="fStatus" data-i18n="riskreg.fieldStatus">Status</label>
           <select id="fStatus">
-            <option value="open" data-i18n="risk.statusOpen">Open</option>
-            <option value="mitigated" data-i18n="risk.statusMitigated">Mitigated</option>
-            <option value="accepted" data-i18n="risk.statusAccepted">Accepted</option>
-            <option value="closed" data-i18n="risk.statusClosed">Closed</option>
+            <option value="open" data-i18n="riskreg.statusOpen">Open</option>
+            <option value="mitigated" data-i18n="riskreg.statusMitigated">Mitigated</option>
+            <option value="accepted" data-i18n="riskreg.statusAccepted">Accepted</option>
+            <option value="closed" data-i18n="riskreg.statusClosed">Closed</option>
           </select>
         </div>
         <div class="form-row">
-          <label data-i18n="risk.previewLevel">Derived risk level</label>
+          <label data-i18n="riskreg.previewLevel">Derived risk level</label>
           <span id="levelPreview" class="badge-level lvl-medium">Medium</span>
           <span class="score" id="scorePreview" style="margin-left:8px;color:#777;"></span>
         </div>
         <div class="form-row">
-          <label for="fOwner" data-i18n="risk.fieldOwner">Owner</label>
+          <label for="fOwner" data-i18n="riskreg.fieldOwner">Owner</label>
           <input type="text" id="fOwner" maxlength="128">
         </div>
         <div class="form-row">
-          <label for="fMitigation" data-i18n="risk.fieldMitigation">Mitigation</label>
+          <label for="fMitigation" data-i18n="riskreg.fieldMitigation">Mitigation</label>
           <textarea id="fMitigation" maxlength="60000"></textarea>
         </div>
         <div class="form-row" style="display:flex;gap:12px;">
           <div style="flex:1;">
-            <label for="fReq" data-i18n="risk.fieldRequirement">Linked requirement</label>
-            <select id="fReq"><option value="" data-i18n="risk.none">None</option></select>
+            <label for="fReq" data-i18n="riskreg.fieldRequirement">Linked requirement</label>
+            <select id="fReq"><option value="" data-i18n="riskreg.none">None</option></select>
           </div>
           <div style="flex:1;">
-            <label for="fTcase" data-i18n="risk.fieldTcase">Linked test case</label>
-            <select id="fTcase"><option value="" data-i18n="risk.none">None</option></select>
+            <label for="fTcase" data-i18n="riskreg.fieldTcase">Linked test case</label>
+            <select id="fTcase"><option value="" data-i18n="riskreg.none">None</option></select>
           </div>
         </div>
         <div class="form-row">
-          <label for="fNotes" data-i18n="risk.fieldNotes">Notes</label>
+          <label for="fNotes" data-i18n="riskreg.fieldNotes">Notes</label>
           <textarea id="fNotes" maxlength="60000"></textarea>
         </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" id="btnSave" onclick="saveRisk()" data-i18n="risk.save">Save</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveRisk()" data-i18n="riskreg.save">Save</button>
       </div>
     </div>
   </div>
@@ -251,7 +251,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" data-i18n="risk.modalDetailsTitle">Risk details</h5>
+        <h5 class="modal-title" data-i18n="riskreg.modalDetailsTitle">Risk details</h5>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body" id="detailsBody"></div>
@@ -267,7 +267,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" data-i18n="risk.modalDeleteTitle">Delete risk</h5>
+        <h5 class="modal-title" data-i18n="riskreg.modalDeleteTitle">Delete risk</h5>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
@@ -275,7 +275,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="risk.delete">Delete</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="riskreg.delete">Delete</button>
       </div>
     </div>
   </div>
@@ -309,14 +309,14 @@ function toast(msg, kind) {
 }
 
 function statusLabel(s) {
-  var map = { open: 'risk.statusOpen', mitigated: 'risk.statusMitigated',
-              accepted: 'risk.statusAccepted', closed: 'risk.statusClosed' };
-  return TLi18n.t(map[s] || 'risk.statusOpen');
+  var map = { open: 'riskreg.statusOpen', mitigated: 'riskreg.statusMitigated',
+              accepted: 'riskreg.statusAccepted', closed: 'riskreg.statusClosed' };
+  return TLi18n.t(map[s] || 'riskreg.statusOpen');
 }
 function levelLabel(l) {
-  var map = { low: 'risk.levelLow', medium: 'risk.levelMedium',
-              high: 'risk.levelHigh', critical: 'risk.levelCritical' };
-  return TLi18n.t(map[l] || 'risk.levelLow');
+  var map = { low: 'riskreg.levelLow', medium: 'riskreg.levelMedium',
+              high: 'riskreg.levelHigh', critical: 'riskreg.levelCritical' };
+  return TLi18n.t(map[l] || 'riskreg.levelLow');
 }
 
 function showState(key, bodyKey, warn) {
@@ -340,11 +340,11 @@ function apiFail(xhr, fallbackKey) {
   var code = '';
   try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
   if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
-  if (xhr.status === 403) { showState('risk.noRight', 'risk.noRightBody', false); return; }
-  if (xhr.status === 404) { showState('risk.noProject', 'risk.noProjectBody', true); return; }
-  if (xhr.status === 400 && code === 'no_testproject') { showState('risk.noProject', 'risk.noProjectBody', true); return; }
-  showState('risk.errTitle', fallbackKey || 'risk.loadError', true);
-  toast(TLi18n.t(fallbackKey || 'risk.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+  if (xhr.status === 403) { showState('riskreg.noRight', 'riskreg.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('riskreg.noProject', 'riskreg.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('riskreg.noProject', 'riskreg.noProjectBody', true); return; }
+  showState('riskreg.errTitle', fallbackKey || 'riskreg.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'riskreg.loadError') + (code ? ' (' + code + ')' : ''), 'err');
 }
 
 function load() {
@@ -367,9 +367,9 @@ function load() {
     $('#btnNew').toggle(canModify);
     allItems = r.items || [];
     applyFilter();
-    $('#footerText').text(TLi18n.t('risk.count', {n: allItems.length}) + ' | ' +
+    $('#footerText').text(TLi18n.t('riskreg.count', {n: allItems.length}) + ' | ' +
       TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
-  }).fail(function(xhr) { apiFail(xhr, 'risk.loadError'); });
+  }).fail(function(xhr) { apiFail(xhr, 'riskreg.loadError'); });
 }
 
 function fillRefs() {
@@ -396,7 +396,7 @@ function filtered() {
 function applyFilter() {
   var items = filtered();
   if (items.length === 0) {
-    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
     $('#dataTable').hide();
     $('#emptyState').show();
   } else {
@@ -415,19 +415,19 @@ function linkedCell(it) {
   var out = '';
   if (it.requirement_id > 0) { out += '<span class="link-chip"><i class="fa fa-file-text"></i> ' + esc(it.requirement_label || ('#' + it.requirement_id)) + '</span>'; }
   if (it.tcase_id > 0) { out += '<span class="link-chip"><i class="fa fa-check"></i> ' + esc(it.tcase_label || ('#' + it.tcase_id)) + '</span>'; }
-  if (!out) { out = '<span class="link-chip none">' + esc(TLi18n.t('risk.unlinked')) + '</span>'; }
+  if (!out) { out = '<span class="link-chip none">' + esc(TLi18n.t('riskreg.unlinked')) + '</span>'; }
   return out;
 }
 
 function buildRow(it) {
   var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
   var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
-    esc(TLi18n.t('risk.view')) + '"><i class="fa fa-eye"></i></button>';
+    esc(TLi18n.t('riskreg.view')) + '"><i class="fa fa-eye"></i></button>';
   if (canModify) {
     actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
-      esc(TLi18n.t('risk.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      esc(TLi18n.t('riskreg.edit')) + '"><i class="fa fa-pencil"></i></button>' +
       '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
-      esc(TLi18n.t('risk.del')) + '"><i class="fa fa-trash"></i></button>';
+      esc(TLi18n.t('riskreg.del')) + '"><i class="fa fa-trash"></i></button>';
   }
   return {
     name: nameCell,
@@ -441,8 +441,12 @@ function buildRow(it) {
   };
 }
 
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
 function renderTable(items) {
-  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
   var rows = $.map(items, function(it) { return [buildRow(it)]; });
   table = $('#dataTable').DataTable({
     data: rows,
@@ -484,7 +488,7 @@ function updatePreview() {
 
 function openNew() {
   editId = 0;
-  $('#editTitle').text(TLi18n.t('risk.modalNewTitle'));
+  $('#editTitle').text(TLi18n.t('riskreg.modalNewTitle'));
   $('#fName').val('');
   fillScores('#fImpact', 3); fillScores('#fLikelihood', 3);
   fillScores('#fSeverity', 3); fillScores('#fPriority', 3);
@@ -499,7 +503,7 @@ function openEdit(id) {
   var it = findItem(id);
   if (!it) { return; }
   editId = id;
-  $('#editTitle').text(TLi18n.t('risk.modalEditTitle'));
+  $('#editTitle').text(TLi18n.t('riskreg.modalEditTitle'));
   $('#fName').val(it.name);
   fillScores('#fImpact', it.impact); fillScores('#fLikelihood', it.likelihood);
   fillScores('#fSeverity', it.severity); fillScores('#fPriority', it.priority);
@@ -513,7 +517,7 @@ function openEdit(id) {
 
 function saveRisk() {
   var name = $.trim($('#fName').val());
-  if (!name) { toast(TLi18n.t('risk.errName'), 'err'); return; }
+  if (!name) { toast(TLi18n.t('riskreg.errName'), 'err'); return; }
   var payload = {
     tproject_id: tprojectId,
     id: editId,
@@ -535,14 +539,14 @@ function saveRisk() {
     data: JSON.stringify(payload)
   }).done(function() {
     $('#editModal').modal('hide');
-    toast(TLi18n.t('risk.msgSaved'), 'ok');
+    toast(TLi18n.t('riskreg.msgSaved'), 'ok');
     load();
   }).fail(function(xhr) {
     var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
-    if (code === 'duplicate_name') { toast(TLi18n.t('risk.errDuplicate'), 'err'); }
-    else if (code === 'invalid_requirement') { toast(TLi18n.t('risk.errBadReq'), 'err'); }
-    else if (code === 'invalid_tcase') { toast(TLi18n.t('risk.errBadTcase'), 'err'); }
-    else { toast(TLi18n.t('risk.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+    if (code === 'duplicate_name') { toast(TLi18n.t('riskreg.errDuplicate'), 'err'); }
+    else if (code === 'invalid_requirement') { toast(TLi18n.t('riskreg.errBadReq'), 'err'); }
+    else if (code === 'invalid_tcase') { toast(TLi18n.t('riskreg.errBadTcase'), 'err'); }
+    else { toast(TLi18n.t('riskreg.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
   }).always(function() { $('#btnSave').prop('disabled', false); });
 }
 
@@ -553,22 +557,22 @@ function openDetails(id) {
   function row(labelKey, val) {
     return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
   }
-  html += row('risk.fieldName', it.name);
-  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.colLevel')) + '</span>' +
+  html += row('riskreg.fieldName', it.name);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('riskreg.colLevel')) + '</span>' +
           '<span class="badge-level lvl-' + esc(it.risk_level) + '">' + esc(levelLabel(it.risk_level)) + '</span>' +
           ' <span class="score" style="color:#777;margin-left:6px;">' + it.impact + ' x ' + it.likelihood + ' = ' + it.risk_score + '</span></div>';
-  html += row('risk.fieldImpact', it.impact);
-  html += row('risk.fieldLikelihood', it.likelihood);
-  html += row('risk.fieldSeverity', it.severity);
-  html += row('risk.fieldPriority', it.priority);
-  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldStatus')) + '</span>' +
+  html += row('riskreg.fieldImpact', it.impact);
+  html += row('riskreg.fieldLikelihood', it.likelihood);
+  html += row('riskreg.fieldSeverity', it.severity);
+  html += row('riskreg.fieldPriority', it.priority);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('riskreg.fieldStatus')) + '</span>' +
           '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span></div>';
-  html += row('risk.fieldOwner', it.owner);
-  html += row('risk.fieldMitigation', it.mitigation);
-  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldRequirement')) + '</span>' + esc(it.requirement_label || (it.requirement_id ? '#' + it.requirement_id : '-')) + '</div>';
-  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('risk.fieldTcase')) + '</span>' + esc(it.tcase_label || (it.tcase_id ? '#' + it.tcase_id : '-')) + '</div>';
-  html += row('risk.fieldNotes', it.notes);
-  html += row('risk.colUpdated', it.update_ts || it.creation_ts);
+  html += row('riskreg.fieldOwner', it.owner);
+  html += row('riskreg.fieldMitigation', it.mitigation);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('riskreg.fieldRequirement')) + '</span>' + esc(it.requirement_label || (it.requirement_id ? '#' + it.requirement_id : '-')) + '</div>';
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('riskreg.fieldTcase')) + '</span>' + esc(it.tcase_label || (it.tcase_id ? '#' + it.tcase_id : '-')) + '</div>';
+  html += row('riskreg.fieldNotes', it.notes);
+  html += row('riskreg.colUpdated', it.update_ts || it.creation_ts);
   $('#detailsBody').html(html);
   $('#detailsModal').modal('show');
 }
@@ -577,7 +581,7 @@ function askDelete(id) {
   var it = findItem(id);
   if (!it) { return; }
   deleteId = id;
-  $('#deleteMsg').text(TLi18n.t('risk.deleteConfirm', {name: it.name}));
+  $('#deleteMsg').text(TLi18n.t('riskreg.deleteConfirm', {name: it.name}));
   $('#deleteModal').modal('show');
 }
 
@@ -588,11 +592,11 @@ function doDelete() {
     data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
   }).done(function() {
     $('#deleteModal').modal('hide');
-    toast(TLi18n.t('risk.msgDeleted'), 'ok');
+    toast(TLi18n.t('riskreg.msgDeleted'), 'ok');
     load();
   }).fail(function(xhr) {
     var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
-    toast(TLi18n.t('risk.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+    toast(TLi18n.t('riskreg.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
   }).always(function() { $('#btnDelete').prop('disabled', false); });
 }
 </script>
