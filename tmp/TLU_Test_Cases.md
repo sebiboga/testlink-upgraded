@@ -43158,3 +43158,64 @@ Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&t
 
 Cases 17–21 above were executed against the post-review build. Combined result:
 **21/21 PASS** (cases 1–16 unchanged and still PASS; 17–21 added).
+
+## Regression — Issue #1932: environments BFF duplicate-name race returns a non-JSON 500 instead of 409
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082` (PHP built-in server, docroot = repo root); MariaDB 127.0.0.1:3306 db `testlink` (freshly imported); fixture testproject `BugReproProj` id=1 prefix `BRP`; table `tc_test_environments` lazily created by the BFF with `UNIQUE KEY uq_tenv_project_name (testproject_id, name)`; API `api/environments/index.php`. Requests carry `X-Requested-With: XMLHttpRequest` (as the modern screen's jQuery always does). Deterministic race repro = hold the unique-key slot open in an uncommitted transaction so the BFF's pre-check SELECT (InnoDB consistent read) cannot see it, then POST the same name; the INSERT blocks and then fails 1062 when the other transaction commits.
+
+1. **Race repro (PRIMARY) — non-JSON 500 before, JSON 409 after**
+   - *Steps:* `mysql: BEGIN; INSERT INTO tc_test_environments (testproject_id,name,env_type,status,created_by,update_ts) VALUES (1,'RaceLock','qa','available',1,NOW()); SELECT SLEEP(6); COMMIT;` then, while open, `POST /api/environments/?action=save {"tproject_id":1,"name":"RaceLock","env_type":"qa"}`
+   - *Expected (post-fix):* `409`, `Content-Type: application/json`, body `{"status":"error","code":"duplicate_name","message":"An environment with this name already exists"}`
+   - *Actual (pre-fix):* `HTTP/1.0 500`, **body 0 bytes** (non-JSON), plus ERROR row id=29 in `events` (`1062 - Duplicate entry '1-RaceLock' for key 'uq_tenv_project_name'`); the intended 409 re-check at `api/environments/index.php:406-422` was unreachable because `exec_query()` throws first (`database.class.php:204-207`).
+   - *Actual (post-fix):* `409 Conflict`, valid JSON `duplicate_name` — PASS.
+   - *Status:* PASS (fixed).
+
+2. **UPDATE path same race class (rename into a name a concurrent CREATE won)**
+   - *Steps:* with an environment `id=35`, run the uncommitted-INSERT barrier for `RaceLock`, then `POST ?action=save {"tproject_id":1,"id":35,"name":"RaceLock","env_type":"qa"}` (the UPDATE hits 1062 the same way)
+   - *Expected:* `409 duplicate_name` JSON
+   - *Actual (post-fix):* UPDATE `exec_query` is wrapped; its `catch` re-checks the unique key (`id != 35`) → `409 duplicate_name` JSON; without the wrap the same non-JSON 500 occurred.
+   - *Status:* PASS (fixed).
+
+3. **error_num() is dead at catch time — fix must NOT rely on it** (discovery)
+   - *Steps:* instrument the INSERT `catch` with `intval($db->error_num())` while reproducing case 1
+   - *Expected:* detect SQLSTATE 1062
+   - *Actual:* **`errno = 0`** — `exec_query()` logs the ERROR event (`tLog` → `events` INSERT on the SAME connection, `logger.class.php:1006-1036`) BEFORE throwing, and that successful query resets the mysqli errno. The issue's originally suggested `error_num()===1062` check (as shipped in `api/risk/index.php`) never fires; final fix re-checks the unique key instead.
+   - *Status:* PASS (fix uses the re-check).
+
+4. **Sequential duplicate save (pre-check path unchanged)**
+   - *Steps:* `POST ?action=save` a name that already exists, no barrier
+   - *Expected/Actual:* `409 duplicate_name` JSON — PASS.
+   - *Status:* PASS.
+
+5. **Create / update / delete happy paths**
+   - *Steps:* create `RegEnvNew` → 200 `{ok,id:35}` + AUDIT `TEST_ENV_CREATE`; update same name → 200 `Saved` + `TEST_ENV_SAVE`; rename to free name → 200; delete → 200 `{deleted:1}` + `TEST_ENV_DELETE`
+   - *Expected/Actual:* all 200 with the correct codes — PASS.
+   - *Status:* PASS.
+
+6. **Rename to an existing name (pre-check path)**
+   - *Steps:* update `id=35` to name `RaceLock`
+   - *Expected/Actual:* `409 duplicate_name` JSON — PASS.
+   - *Status:* PASS.
+
+7. **Error-contract regression**
+   - *Steps:* `POST ?action=bogus`; `PUT ?action=save`; unauthenticated `POST`
+   - *Expected/Actual:* `400 unknown_action` / `405 wrong_method` (`Allow: GET, HEAD, POST`) / `401 session_expired` — PASS.
+   - *Status:* PASS.
+
+8. **Event Viewer clean on normal flows**
+   - *Steps:* record `MAX(id)` and ERROR/WARNING count in `events`; run cases 4-7; re-check
+   - *Expected:* no new ERROR/WARNING rows (only AUDIT rows for the successful writes)
+   - *Actual:* `MAX(id)` 32→36 while ERROR/WARNING count stayed 4 (ids 29-32 are the deliberate race repros, logged by shared `exec_query` before throwing) — normal flows added zero ERROR/WARNING — PASS. Known residual: a genuine race still logs one ERROR row from `database.class.php:198` (shared code, same accepted behavior as `api/risk` #1930).
+   - *Status:* PASS.
+
+9. **Screen smoke (affected area)**
+   - *Steps:* open `gui/templates/environments/testEnvironments.html?tproject_id=1`
+   - *Expected/Actual:* page renders stats and 25 environment rows via the BFF, DataTables populated — PASS.
+   - *Status:* PASS.
+
+10. **Sibling defect filed, not fixed (scope) + gates**
+    - *Steps:* reproduce the identical race on `api/risk/index.php`; file with `bug`; run `php -l`, i18n gate, suite gate
+    - *Expected/Actual:* risk BFF answers `500 insert_failed` (measured) instead of 409 → filed **#1933** as `bug`; suite gate PASS; `php -l api/environments/index.php` clean; no i18n bundle touched (no i18n gate needed)
+    - *Status:* PASS.
+
+**Overall: 10/10 PASS** (PRIMARY race repro: 500 non-JSON → 409 JSON, verified deterministically).

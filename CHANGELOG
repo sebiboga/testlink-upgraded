@@ -206,6 +206,15 @@ Every screen of the application was ported one-by-one in a screen-compare
   on 401, a linked id missing from `refs` shows a `(missing)` placeholder, and the New button stays
   hidden until `can_modify` is known. The header `aria-label` stacking also affects other
   destroy+re-init screens and is filed as #1931. Refs #1930 / parent #1066.
+- [KEY BUGFIX] - #1932: the modern **Test Environments** BFF (`api/environments/index.php`)
+  returned a non-JSON 500 with empty body on a duplicate-name race because `exec_query()`
+  throws for XHR clients before the `insert_id()` guard runs; errno is unusable in the catch
+  (shared logger writes to `events` on the same connection and resets it). Wrapped CREATE/UPDATE
+  write calls in `try/catch`, re-checking the unique key (`uq_tenv_project_name`) and returning
+  `409 duplicate_name` JSON on conflict, else `500` with a specific code. Normal flows remain
+  Event-Viewer clean (a genuine race still logs one ERROR row from shared logger — accepted
+  residual). Suite `Regression — Issue #1932` = 10/10 PASS in `tmp/TLU_Test_Cases.md`. (Fixes #1932)
+
 
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
