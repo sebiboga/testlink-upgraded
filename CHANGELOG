@@ -103,6 +103,34 @@ Every screen of the application was ported one-by-one in a screen-compare
   re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
   assign panel, `php -l`). Refs #1922.
 
+- [SCREEN] - #1927 (parent #1069): the **Test Data Sets** registry
+  (`gui/templates/testdata/testDataSets.html`, BFF `api/testdata/index.php`) is the
+  first slice of Test Data Management, added as a project-scoped ASIDE section
+  **Test Data** (icon `fas fa-database`). Net-new for 2.0.1: 1.9.20 has no
+  test-data-set entity at all. A project-scoped registry of **versioned** test data
+  sets — name, data type (reusable / temporary / environment), PII classification
+  (public / internal / confidential / pii) + masking rule, a sample payload, notes and
+  an optional link to a test case — with metric tiles (sets / versions / sensitive /
+  linked), type + classification filters, a registry DataTable (view / edit / history /
+  delete), a details modal (payload rendered with `.text()`), a version-history modal
+  (newest first) and create/edit/delete modals. The BFF is
+  `GET ?action=init|list|history` + `POST ?action=save|delete`; session auth +
+  `bffSameOriginGuard` + `bffEnforceSession`, with `mgt_view_tc|mgt_modify_tc` (read) /
+  `mgt_modify_tc` (write) checked on the addressed project BEFORE it is resolved (no
+  existence oracle), and 400/401/403/404/405 machine codes (`bad_data_type`,
+  `invalid_tcase`, `bad_set_group`, `tproject_not_found`, `no_right`). The
+  `tc_test_data_sets` table is created lazily and mirrored in
+  `install/sql/mysql/testlink_create_tables.sql`; writes emit `TEST_DATA_CREATE` /
+  `TEST_DATA_VERSION` / `TEST_DATA_DELETE` AUDIT events. Wiring: `$actions->testDataSets`
+  in `lib/functions/common.php`, the Test Data ASIDE section in `api/aside/index.php`,
+  `$TLS_title_test_data_sets` in **all 19** server locales, and `tds.*` (67) client keys
+  in **all 10** bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS, 8296 keys).
+  Browser-verified (admin): tiles, filters + empty state, create linked to `R6-1 R6 Login
+  Pass`, details, edit → v2 + version chip, history (DESC), delete confirm + delete,
+  Romanian locale, console clean; BFF curl matrix 401/403/404/400/405 + CSRF; Event
+  Viewer only AUDIT rows. Suite `Modernize — Issue #1927` = 14/14 PASS in
+  `tmp/TLU_Test_Cases.md`. Refs #1927 / parent #1069.
+
 - [SCREEN] - #1061: the **Test Strategy Report**
   (`gui/templates/results/strategyReport.html`, BFF `api/strategyreport/index.php`) is added under the
   Reports menu. Net-new for 2.0.1: 1.9.20 shipped only a *static* Test Strategy reference hub and never

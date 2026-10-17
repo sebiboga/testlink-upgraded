@@ -42716,3 +42716,93 @@ Re-execution of the 11-case suite below on the current default branch, plus the 
 11. Suite gate `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` after this append → PASS (re-measured at commit time, see issue comments).
 
 RESULT: 11/11 PASS. Landing of the 2 workflow commits still blocked (push re-measured `refusing to allow a GitHub App to create or update workflow .github/workflows/compare-screens.yml without workflows permission`).
+
+## Modernize — Issue #1927: Test Data Sets registry (screen + BFF + i18n, parent #1069)
+
+**Precondition:** logged in as admin/admin; app `http://localhost:8082`; MariaDB 127.0.0.1:3306 db `testlink`. Screen `gui/templates/testdata/testDataSets.html?tproject_id=1&tplan_id=2`, BFF `api/testdata/index.php`. Project 1 = `RTM1065` prefix `R6`; test case node ids 4 (`R6 Login Pass`), 16 (`R6 Checkout Blocked`). Schema `tc_test_data_sets` created lazily (also mirrored in `install/sql/mysql/testlink_create_tables.sql`). Net-new module: 1.9.20 has no test-data-set entity.
+
+1. **ASIDE entry present + wired**
+   - *Steps:* `GET /api/aside/index.php` (admin session), locate the `testData` section and its item href
+   - *Expected:* a `testData` section between `reviews` and `testClosure`, label "Test Data Sets", href `/gui/templates/testdata/testDataSets.html?tproject_id=1&tplan_id=2`
+   - *Actual:* section present with `key:"testData"`, single item `id:"testDataSets"`, label `Test Data Sets`, href resolves with `tproject_id=1&tplan_id=2`
+   - *Status:* PASS
+
+2. **Screen renders with tiles and registry**
+   - *Steps:* open the screen as admin; inspect the tiles and the DataTable
+   - *Expected:* tiles Sets / Versions / Sensitive / Linked test cases and a DataTable of sets, no raw i18n keys, console clean
+   - *Actual:* tiles render, DataTable renders, 0 raw-key elements, 0 console messages
+   - *Status:* PASS
+
+3. **Type + classification filters (incl. empty state)**
+   - *Steps:* apply a data-type filter and a classification filter; then a no-match combination
+   - *Expected:* rows narrow to the matching sets; a no-match shows the explicit empty state
+   - *Actual:* filters narrow correctly; no-match shows `tds.noItems` empty state
+   - *Status:* PASS
+
+4. **Create a set linked to a test case**
+   - *Steps:* New → name `Login credentials`, type `reusable`, class `pii`, masking `hash`, linked test case node 4, payload + notes → Save
+   - *Expected:* toast `tds.msgSaved`; row appears with linked label `R6-1 R6 Login Pass`, version 1; tiles update
+   - *Actual:* toast shown, row present, linked label `R6-1 R6 Login Pass`, `tc_test_data_sets` row written (version 1, `TEST_DATA_CREATE` audit)
+   - *Status:* PASS
+
+5. **Details modal (payload safely rendered)**
+   - *Steps:* click the row's Details action
+   - *Expected:* read-only fields incl. linked test case and the sample payload (never interpreted as HTML)
+   - *Actual:* modal shows name/type/class/masking/linked/notes and the payload set with `.text()`
+   - *Status:* PASS
+
+6. **Edit writes a new version**
+   - *Steps:* Edit the set, change a field → Save
+   - *Expected:* toast; row shows version 2 + a version chip; history now has 2 versions
+   - *Actual:* version → 2, version chip shown, `TEST_DATA_VERSION` audit emitted
+   - *Status:* PASS
+
+7. **History modal (newest first)**
+   - *Steps:* open the row's History action
+   - *Expected:* versions listed DESC with per-version payload
+   - *Actual:* 2 rows, v2 first, payload per version
+   - *Status:* PASS
+
+8. **Delete set (confirm → removed)**
+   - *Steps:* Delete → confirm modal shows the interpolated `{name}` → confirm
+   - *Expected:* toast `tds.msgDeleted`; row gone; tiles back to 0; `tc_test_data_sets` rows 0; `TEST_DATA_DELETE` audit
+   - *Actual:* confirm text includes the name; after delete tiles = 0; DB rows 0; audit emitted
+   - *Status:* PASS
+
+9. **BFF error paths (curl)**
+   - *Steps:* exercise `PUT` request, unknown action, bad `data_type`, `tcase_id` not in project, bad/missing `set_group` history, unknown project, missing Origin
+   - *Expected:* `405`; `400 unknown_action`; `400 bad_data_type`; `400 invalid_tcase`; `400 bad_set_group` / `404`; `404 tproject_not_found`; `403` (CSRF)
+   - *Actual:* exactly those statuses/codes
+   - *Status:* PASS
+
+10. **Rights + auth paths**
+    - *Steps:* login as a no-rights user (`rtmnorights`, password `norights`) → `init`; then anonymous `init`; then `tproject_id=0`
+    - *Expected:* `403 no_right`; `401 not_authenticated`; `0` falls back to the session project → 200
+    - *Actual:* 403 then 401; `tproject_id=0` → 200 (session fallback, intended)
+    - *Status:* PASS
+
+11. **Locale switcher**
+    - *Steps:* switch to Romanian and re-read the labels
+    - *Expected:* translated labels, no raw keys
+    - *Actual:* Romanian labels render, 0 raw keys
+    - *Status:* PASS
+
+12. **Chrome console + Event Viewer (rule 12)**
+    - *Steps:* after the full pass, list console messages and query `events` for ERROR/WARNING
+    - *Expected:* console clean; no new Error/Warning (only AUDIT rows from the suite actions)
+    - *Actual:* console clean; only AUDIT (`log_level=16`) rows `TEST_DATA_CREATE/VERSION/DELETE`; 0 new ERROR/WARNING
+    - *Status:* PASS
+
+13. **i18n coverage gate**
+    - *Steps:* `bash ai/verify_i18n_coverage.sh`
+    - *Expected:* exit 0, no bundle missing a key
+    - *Actual:* 9/9 PASS (8296 keys)
+    - *Status:* PASS
+
+14. **Suite gate**
+    - *Steps:* `TLU_REQUIRE_SUITE="Issue #1927" bash ai/verify_test_suites.sh`
+    - *Expected:* PASS, no prior suite lost
+    - *Actual:* PASS (no suite lost; re-measured at commit time)
+    - *Status:* PASS
+
+**Overall:** 14/14 PASS.
