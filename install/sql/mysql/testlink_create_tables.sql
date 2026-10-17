@@ -575,6 +575,32 @@ CREATE TABLE /*prefix*/tc_risks (
 ) DEFAULT CHARSET=utf8;
 
 
+# ---------------------------------------------------------------------------
+# Exploratory Testing Sessions - project-scoped registry of exploratory
+# sessions / test charters (Refs #1934 / #1071). Net-new module: 1.9.20 has
+# no exploratory-testing entity at all.
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_exploratory_sessions (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `charter` text,
+  `status` varchar(20) NOT NULL default 'planned',
+  `timebox_min` int(10) unsigned NOT NULL default '0',
+  `tester` varchar(100) NOT NULL default '',
+  `session_date` date default NULL,
+  `environment` varchar(255) NOT NULL default '',
+  `purpose` text,
+  `notes` text,
+  `defect_refs` varchar(1000) NOT NULL default '',
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_expl_project` (`testproject_id`,`status`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
