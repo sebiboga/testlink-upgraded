@@ -43122,4 +43122,39 @@ Modern screen: `gui/templates/plans/showNewestTcVersions.html?tproject_id=9000&t
     - *Actual:* PASS (no suite lost; own heading present)
     - *Status:* PASS
 
+17. **Code-review fix — linked-node TYPE proof (BFF)**
+    - *Steps:* from the page, `POST ?action=save` with `tcase_id` = a requirement node id (7), a nonexistent id, and with `requirement_id` = a test case node id (3)
+    - *Expected:* `400 invalid_tcase` / `400 invalid_requirement`; a bare project-membership walk would have accepted them
+    - *Actual:* requirement id 15 sent as tcase → `400 invalid_tcase`; id 999999 → `400 invalid_tcase`; test case id as requirement → `400 invalid_requirement`
+    - *Status:* PASS (fixed)
+
+18. **Code-review fix — duplicate-name race → 409 JSON (BFF)**
+    - *Steps:* create a risk, then POST the same name again; inspect response
+    - *Expected:* `409 duplicate_name` JSON (not a non-JSON 500), no ERROR row in `events`
+    - *Actual:* `409 duplicate_name`; the write `exec_query()` is now wrapped in try/catch so a genuine SQLSTATE 1062 race also answers 409 (was dead code — `exec_query()` throws with XHR); `events` shows no ERROR
+    - *Status:* PASS (fixed)
+
+19. **Code-review fix — Level column numeric sort (screen)**
+    - *Steps:* open the registry and read `DataTable().order()` and the first rows' `risk_score`
+    - *Expected:* order `[[1,'desc']]`, scores descending (critical→high→…), not alphabetical (`critical→high→low→medium`)
+    - *Actual:* order `[[1,'desc']]`, scores `[20,15,4]`
+    - *Status:* PASS (fixed)
+
+20. **Code-review fixes — update path, 401 bounce, New gating, missing-ref placeholder**
+    - *Steps:* update an existing risk (`POST ?action=save` with `id`); inspect the fail handlers for a 401 branch; check `#btnNew` before load resolves; open Edit for a risk whose linked id is absent from `refs`
+    - *Expected:* update returns `ok`; 401 redirects to `login.php?note=expired`; New stays hidden until `can_modify` known; a `#id missing` option is shown instead of silently clearing the link
+    - *Actual:* update `ok` (id 6); both save/delete handlers `if (xhr.status === 401) location = '/login.php?note=expired'`; `#btnNew` default `display:none` toggled on load; `ensureRefOption()` appends `#<id> missing`
+    - *Status:* PASS (fixed)
+
+21. **Sibling defects filed + gates re-run**
+    - *Steps:* `gh issue create --label bug` for the DataTables aria-label stacking and the environments duplicate race; re-run the i18n + suite gates
+    - *Expected:* two labeled issues; gates green
+    - *Actual:* **#1931** (DataTables re-init `aria-label` stacking, ~66 screens) and **#1932** (`environments` duplicate race non-JSON 500) filed with `bug`; `verify_i18n_coverage.sh` 9/9 PASS (8431 keys, `riskreg.missingRef` ×10); suite gate 34 PASS / 0 FAIL; `php -l` and `node --check` clean
+    - *Status:* PASS
+
 **Overall:** 16/16 PASS.
+
+### Post-review addendum — cases 17–21 (run after the mandatory code review)
+
+Cases 17–21 above were executed against the post-review build. Combined result:
+**21/21 PASS** (cases 1–16 unchanged and still PASS; 17–21 added).
