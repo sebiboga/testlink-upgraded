@@ -121,3 +121,18 @@ nothing could be pushed for them.
   #1872 (this).
 * Files: `.github/workflows/{fix-bug,fix-bug-oldest,implement-task-newest,implement-task-oldest,investigate-fix,compare-screens,modernize}.yml`.
 * Suite: `Regression — Issue #1872` in `tmp/TLU_Test_Cases.md` (11/11 PASS).
+
+## Re-verification — fix-bug run 3 (2026-10-17, base `72826298a`)
+
+Third fix-bug run re-confirmed the bug fully live on the then-current default branch
+(`8` `-X theirs` / `0` `-X ours`; `5` local-only `BEFORE"..HEAD` auto-close ranges; `0` origin
+guards). The published two-step patch was re-applied byte-identically (grep gates `0`/`8` and
+`0`/`5+5-fetch`, `yaml.safe_load` `11/11`, rebase harness `-X theirs` → `0/45` live lines kept vs
+`-X ours` → `45/45`, guard semantics local-count `2` vs origin-count `0`, suite re-run appended as
+`Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 3, base 72826298a)` → `11/11 PASS`,
+suite gate `34 PASS / 0 FAIL`). Landing blocker **re-measured with this run's token and persists**:
+`git push origin HEAD:fix/issue-1872-cifix3` → `! [remote rejected] … (refusing to allow a GitHub
+App to create or update workflow .github/workflows/compare-screens.yml without workflows
+permission)`. Credential inventory: `ghs_…` App token only (len 377), no SSH key, no netrc, no
+second token. Fix commits kept on local branch `fix/issue-1872-workflow-patch` → `53e9ac7cf`.
+#1872 stays **OPEN** until a `workflows`-scoped credential applies the patch above.
