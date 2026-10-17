@@ -2301,6 +2301,13 @@ function getActions(&$gui,$baseURL) {
   // mgt_modify_tc / mgt_modify_req for writes) are enforced by the BFF
   // api/reviews on every route.
   $actions->reviews = "/gui/templates/reviews/reviews.html?{$ctx}";
+  // Test Data Management - Test Data Sets registry (Dashio standalone page) -
+  // Refs #1927, parent feature #1069. Net-new module (no legacy twin):
+  // project-scoped, versioned test data sets with data-type, PII
+  // classification + masking rule, sample payload, notes and an optional link
+  // to a test case. Rights (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc
+  // for writes) are enforced by the BFF api/testdata on every route.
+  $actions->testDataSets = "/gui/templates/testdata/testDataSets.html?{$ctx}";
   // Test Closure (Dashio standalone page) - Refs #1278.
   // Net-new ISTQB closure-phase module (no legacy twin): lessons learned,
   // closure checklist/summary/archive reference, a printable closure report and

@@ -414,6 +414,7 @@ if (!$isWrite && $action === 'history') {
             'data_type' => (string)$r['data_type'],
             'classification' => (string)$r['classification'],
             'masking_rule' => (string)$r['masking_rule'],
+            'payload' => (string)($r['payload'] ?? ''),
             'payload_len' => strlen((string)($r['payload'] ?? '')),
             'notes' => (string)($r['notes'] ?? ''),
             'tcase_id' => intval($r['tcase_id']),

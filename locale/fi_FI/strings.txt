@@ -2166,6 +2166,7 @@ $TLS_req_title_length_exceeded = 'Vaatimuksen otsikon pituus ylittyi';
 $TLS_req_docid_length_exceeded = 'Vaatimuksen dokumentti-ID:n pituus ylittyi';
 
 $TLS_title_test_closure = "Testauksen päätös"; // "Test Closure" (Refs #1278)
+$TLS_title_test_data_sets = "Testidatasarjat"; // "Test Data Sets" (Refs #1927)
 $TLS_link_report_risk_coverage = "Riskipohjainen testaus";
 $TLS_reqmgrsystem_interface_not_implemented = "Asetusesimerkki ei ole käytettävissä: rajapintaa '%s' ei ole toteutettu";
 $TLS_reqmgrsystem_invalid_type = 'Virheellinen vaatimustenhallintajärjestelmän tyyppi: %s';

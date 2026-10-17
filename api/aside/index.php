@@ -586,7 +586,29 @@ if ($gm('view_tc') === 'yes' || $gm('reqs_view') === 'yes' ||
     );
 }
 
-// 7c. Test Closure ---------------------------------------------------------
+// 7c. Test Data Management - Test Data Sets --------------------------------
+// Net-new module (Refs #1927, parent feature #1069): project-scoped, versioned
+// test data sets with a data-type, PII classification + masking rule, a sample
+// payload, notes and an optional link to a test case. No legacy menu twin.
+// Label uses the new server string key title_test_data_sets, added to all 19
+// server locales. Rights (view_tc / modify_tc) match the BFF api/testdata,
+// which answers 403 without them.
+if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
+    $sections[] = array(
+        'key' => 'testData',
+        'label' => lang_get('title_test_data_sets'),
+        'icon' => 'fas fa-database',
+        'single' => true,
+        'items' => array(array(
+            'id' => 'testDataSets',
+            'label' => lang_get('title_test_data_sets'),
+            'href' => (string)$u('testDataSets'),
+            'icon' => 'fas fa-database',
+        )),
+    );
+}
+
+// 7d. Test Closure ---------------------------------------------------------
 // ISTQB closure phase (Refs #1278): lessons learned + closure checklist +
 // printable closure report + the closure state that freezes plan results.
 // Net-new module with no legacy menu twin; plan-scoped, so it needs an active
