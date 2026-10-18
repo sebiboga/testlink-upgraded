@@ -44219,3 +44219,38 @@ Branch `fix/issue-1939`, commit `b3f38542e`. Screen under test: `gui/templates/p
 
 ### Status
 PASS
+
+## Suite 1943 — Modernize: Editable Test Strategy document (strategyDoc) — Refs #1052
+
+Environment: localhost:8082, fresh DB fixture `tmp/fixtures_1943.php` (project SDOC1943, prefix SD4, tproject_id=1), users admin/admin + norights/norights (role 3), Chrome headless via MCP. Executed 2026-10-18.
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1943-1 | BFF init contract | `GET api/strategydoc?action=init&tproject_id=1` (curl, Origin header) | 200, context.can_view/can_modify, domains, stats, items | PASS (13b1ebcaf) |
+| 1943-2 | BFF create v1 | `POST ?action=save` new name | 200, id, version 1, status draft | PASS |
+| 1943-3 | BFF duplicate name | `POST ?action=save` same name again | 409 duplicate_name | PASS |
+| 1943-4 | BFF bad status | `POST ?action=status` status=banana | 400 bad_status | PASS |
+| 1943-5 | BFF verb gate | `PUT ?action=save` with Origin | 405 wrong_method (before rights) | PASS |
+| 1943-6 | BFF anonymous | `GET ?action=init` no session | 401 not_authenticated | PASS |
+| 1943-7 | BFF unknown action | `GET ?action=zzz` | 400 unknown_action | PASS |
+| 1943-8 | BFF doc 404 | `GET ?action=doc&id=999999` | 404 doc_not_found | PASS |
+| 1943-9 | BFF rights on write | login norights, `POST ?action=save` | 403 no_right | PASS |
+| 1943-10 | BFF rights on read | login norights, `GET ?action=init` | 403 no_right | PASS |
+| 1943-11 | Installer schema | `CREATE TABLE` block in testlink_create_tables.sql + lazy BFF create + object.class.php whitelist | table created, no SQL error in event log | PASS |
+| 1943-12 | Screen render (empty) | open strategyDoc.html?tproject_id=1 | tiles 0, empty-state message, footer, "New document" button, i18n keys all resolved (no raw sdoc.* text) | PASS |
+| 1943-13 | Create document | New document → name "Master Test Strategy" → Save | modal closes, row appears v1 draft admin, DOCUMENTS=1 DRAFT=1, toast | PASS |
+| 1943-14 | Details modal | row → View | modal shows Name/Status v1/Last author/Status changed by/Updated + all 9 sections; empty sections show "-" | PASS |
+| 1943-15 | Edit + version bump | row → Edit → change Scope → Save | row becomes v2, updated ts changes, DRAFT tile still 1 | PASS |
+| 1943-16 | Status change | row → Change status → Approved → Apply | status badge APPROVED, APPROVED tile 1, DRAFT tile 0 | PASS |
+| 1943-17 | Status filter empty match | status filter = Draft (no drafts) | table hidden, empty state text = sdoc.noMatch "No documents match the current filter." | PASS (fixed 181cebae3) |
+| 1943-18 | Status filter match | status filter = All / Approved | rows filtered correctly, restored | PASS |
+| 1943-19 | Search | DataTables search "nomatch-xyz" then "Master" then clear | 0 entries (filtered from N) → 1 entry → 1 entry | PASS |
+| 1943-20 | Locale switch RO | locale switcher → Română (page reload w/ locale=ro) | all labels translated (DOCUMENTE/CIORNĂ/Document nou/Stare...), 0 raw sdoc.* keys in DOM | PASS |
+| 1943-21 | Create 2nd + delete | create "Temp to delete" → Delete → confirm | row removed, tiles back to 1, footer updated | PASS |
+| 1943-22 | Delete confirm modal | Delete → modal shows doc name in question, Cancel keeps row | modal text "Are you sure ... "Temp to delete"?" | PASS |
+| 1943-23 | State card noProject | open with tproject_id=99999 (project not found → 404) | stateCard visible: "No test project / Select a test project first." | PASS |
+| 1943-24 | State card noRight | login norights → open screen | stateCard visible: "No permission / You do not have permission..." ; write buttons never rendered | PASS |
+| 1943-25 | Console clean | full session (create/edit/status/filter/search/locale/delete/state cards) | zero console errors/warnings | PASS |
+| 1943-26 | Aside entry | ASIDE → Test Strategy section | "Test Strategy Documents" link with fas fa-file-signature after General Overview, loads screen in mainframe | PASS |
+| 1943-27 | Event Viewer | `events` table after all tests | only log_level=16 (INFO) entries; STRATEGY_DOC_CREATE/SAVE/STATUS/DELETE audits present; zero ERROR/WARNING | PASS |
+| 1943-28 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 9/9 bundles PASS (8788 keys) | PASS |

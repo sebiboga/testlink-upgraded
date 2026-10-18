@@ -249,6 +249,40 @@ Every screen of the application was ported one-by-one in a screen-compare
   on 401, a linked id missing from `refs` shows a `(missing)` placeholder, and the New button stays
   hidden until `can_modify` is known. The header `aria-label` stacking also affects other
   destroy+re-init screens and is filed as #1931. Refs #1930 / parent #1066.
+
+- [SCREEN] - #1943 (parent #1052): the **Test Strategy Documents** registry
+  (`gui/templates/strategy/strategyDoc.html`, BFF `api/strategydoc/index.php`) adds the first
+  **editable** artifact of the Test Strategy feature: a project-scoped registry of
+  author-written strategy documents — name, status (draft / review / approved / archived) and
+  9 section textareas (quality objectives, scope, approach, entry/exit criteria, environments,
+  tools, roles, risks) — with metric tiles (total / draft / under review / approved /
+  archived), a status filter with an explicit `sdoc.noMatch` empty state, a registry DataTable
+  (view / edit / status / delete), a read-only details modal, versioned saves (every content
+  save bumps v1, v2, … with author + timestamp), a dynamic change-status modal and a delete
+  confirm, plus `noProject` / `noRight` / error state cards. Net-new for 2.0.1: 1.9.20 has no
+  authoring of strategy documents — the 18 chapters of #1052 are fixed read-only content and
+  the Test Strategy Report (#1061) only assembles from artifacts. The BFF is
+  `GET ?action=init|list|doc` + `POST ?action=save|status|delete`, with session auth +
+  `bffSameOriginGuard`, the verb gate evaluated before the rights check (405 for unsupported
+  verbs), `mgt_view_tc|mgt_modify_tc` (read) / `mgt_modify_tc` (write) checked on the addressed
+  project BEFORE it is resolved (#1697), unresolvable `tproject_id` falling back to
+  `$_SESSION['testprojectID']` (parity with `api/risk/index.php`), and 400/401/403/404/405/409
+  machine codes (`no_testproject`, `unknown_action`, `no_right`, `bad_status`, `name_required`,
+  `duplicate_name`, `doc_not_found`, `bad_id`, `not_authenticated`). The
+  `testproject_strategy_docs` table is created lazily and mirrored in
+  `install/sql/mysql/testlink_create_tables.sql` (whitelisted in `lib/functions/object.class.php`);
+  writes emit `STRATEGY_DOC_CREATE` / `SAVE` / `STATUS` / `DELETE` AUDIT events. Wiring:
+  `$actions->strategyDoc` in `lib/functions/common.php`, the ASIDE Test Strategy entry after
+  General Overview (icon `fas fa-file-signature`) in `api/aside/index.php`,
+  `$TLS_href_test_strategy_doc` in **all 19** server locales, and `sdoc.*` (74) client keys in
+  **all 10** bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS, 8788 keys). Browser-verified (admin):
+  create (row + tiles update), details (9 sections, empty ones show `-`), edit (v1→v2), status
+  change (tiles recompute), status filter + no-match empty state, search, Romanian locale, delete
+  confirm + delete, `noProject` (404) and `noRight` (403) state cards, console clean; Event Viewer
+  INFO-only with all four STRATEGY_DOC audits present. One defect found while testing and fixed:
+  the filtered-empty state reused `sdoc.noItems` (now `sdoc.noMatch`). Suite `Suite 1943` = 28/28
+  PASS in `tmp/TLU_Test_Cases.md`. Docs mirror `docs/test-strategy-documents.md`, wiki page +
+  7 screenshots. Refs #1943 / parent #1052.
 - [KEY BUGFIX] - #1932: the modern **Test Environments** BFF (`api/environments/index.php`)
   returned a non-JSON 500 with empty body on a duplicate-name race because `exec_query()`
   throws for XHR clients before the `insert_id()` guard runs; errno is unusable in the catch
