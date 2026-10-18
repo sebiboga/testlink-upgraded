@@ -432,7 +432,7 @@ if ($action === 'publish') {
                 'name' => isset($row['name']) && is_scalar($row['name']) ? (string)$row['name'] : '',
                 'classname' => isset($row['classname']) && is_scalar($row['classname']) ? (string)$row['classname'] : '',
                 'external_id' => isset($row['external_id']) && is_scalar($row['external_id']) ? trim((string)$row['external_id']) : '',
-                'status' => isset($row['status']) && is_scalar($row['status']) ? (string)$row['status'] : 'passed',
+                'status' => isset($row['status']) && is_scalar($row['status']) ? (string)$row['status'] : 'n',
                 'duration' => isset($row['duration']) && is_numeric($row['duration']) ? (float)$row['duration'] : 0,
                 'message' => isset($row['message']) && is_scalar($row['message']) ? (string)$row['message'] : '',
             );
@@ -490,6 +490,11 @@ if ($action === 'publish') {
     foreach ($entries as $entry) {
         $token = strtolower(trim((string)$entry['status']));
         $code = isset($statusCodes[$token]) ? $statusCodes[$token] : 'n';
+        // The config map can yield out-of-domain tokens (e.g. unknown -> 'u');
+        // executions.status only accepts p/f/b/n, so clamp with a not-run fallback.
+        if (!in_array($code, array('p', 'f', 'b', 'n'), true)) {
+            $code = 'n';
+        }
         $tc = $resolve($entry);
         if ($tc === null) {
             $summary['skipped']++;
@@ -536,6 +541,11 @@ if ($action === 'publish') {
             );
         }
     }
+
+    tLog('BFF cicdpublish: user ' . intval($user->dbID ?? 0) .
+        ' published ' . intval($summary['published']) . ' of ' . intval($summary['total']) .
+        ' executions (skipped ' . intval($summary['skipped']) . ', errors ' . intval($summary['errors']) .
+        ') on build ' . intval($buildId) . ' / plan ' . intval($tplanId), 'AUDIT');
 
     cpOut(array(
         'status' => 'ok',

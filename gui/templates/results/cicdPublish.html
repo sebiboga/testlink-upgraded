@@ -115,16 +115,16 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <h3><i class="fa fa-bullseye"></i><span data-i18n="cicd.scopeTitle">Target test plan</span></h3>
     <div class="filter-grid">
       <div class="filter-item">
-        <label data-i18n="cicd.filterPlan">Test plan</label>
-        <select id="fPlan"></select>
+        <label for="fPlan" data-i18n="cicd.filterPlan">Test plan</label>
+        <select id="fPlan" name="tplan_id"></select>
       </div>
       <div class="filter-item">
-        <label data-i18n="cicd.filterBuild">Build</label>
-        <select id="fBuild"></select>
+        <label for="fBuild" data-i18n="cicd.filterBuild">Build</label>
+        <select id="fBuild" name="build_id"></select>
       </div>
       <div class="filter-item">
-        <label data-i18n="cicd.filterPlatform">Platform</label>
-        <select id="fPlatform"></select>
+        <label for="fPlatform" data-i18n="cicd.filterPlatform">Platform</label>
+        <select id="fPlatform" name="platform_id"></select>
       </div>
     </div>
     <div class="hint" id="scopeHint"></div>
@@ -139,15 +139,15 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="hint" style="margin-top:0;margin-bottom:12px;" data-i18n="cicd.publishIntro">Upload the JUnit XML (or JSON) artifact produced by your pipeline. Each test is matched to a test case assigned to the selected plan - by the external id first, then by name - and one execution is recorded per test.</div>
     <div class="form-grid">
       <div class="form-item">
-        <label data-i18n="cicd.format">Format</label>
-        <select id="fFormat">
+        <label for="fFormat" data-i18n="cicd.format">Format</label>
+        <select id="fFormat" name="format">
           <option value="junit" data-i18n="cicd.formatJunit">JUnit XML</option>
           <option value="json" data-i18n="cicd.formatJson">JSON</option>
         </select>
       </div>
       <div class="form-item">
-        <label data-i18n="cicd.file">Results file</label>
-        <input type="file" id="fFile" accept=".xml,.json,text/xml,application/json">
+        <label for="fFile" data-i18n="cicd.file">Results file</label>
+        <input type="file" id="fFile" name="uploadedFile" accept=".xml,.json,text/xml,application/json">
       </div>
       <div class="form-item">
         <button class="btn-teal" id="btnPublish"><i class="fa fa-upload"></i> <span data-i18n="cicd.publish">Publish results</span></button>
@@ -191,7 +191,6 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/cicdpublish/index.php';
-var currentData = null;
 var dt = null;
 var STATUS_LABELS = { p: 'cicd.statusP', f: 'cicd.statusF', b: 'cicd.statusB', n: 'cicd.statusN' };
 var OUTCOME_LABELS = { published: 'cicd.outcomePublished', not_found: 'cicd.outcomeNotFound', error: 'cicd.outcomeError' };
@@ -248,11 +247,11 @@ function fillSelect($sel, items, selected, allLabelKey) {
 
 // ---- connector guide -------------------------------------------------------
 var SNIPPETS = {
-  github: 'name: publish-results\non: [push]\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test -- --reporter=junit > junit.xml\n      - name: Publish to TestLink\n        run: |\n          curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n            -H "Cookie: PHPSESSID=${{ secrets.TL_SESSION }}" \\\n            -F "tplan_id=${{ vars.TL_TPLAN_ID }}" \\\n            -F "build_id=${{ vars.TL_BUILD_ID }}" \\\n            -F "format=junit" \\\n            -F "uploadedFile=@junit.xml"',
-  gitlab: 'publish-results:\n  stage: test\n  script:\n    - npm test -- --reporter=junit > junit.xml\n    - |\n      curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n        -H "Cookie: PHPSESSID=$TL_SESSION" \\\n        -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n        -F "format=junit" -F "uploadedFile=@junit.xml"\n  artifacts:\n    when: always\n    reports:\n      junit: junit.xml',
-  jenkins: 'pipeline {\n  agent any\n  stages {\n    stage("Publish results") {\n      steps {\n        sh """npm test -- --reporter=junit > junit.xml"""\n        sh """curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=$TL_SESSION" \\\n  -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n  -F "format=junit" -F "uploadedFile=@junit.xml" """\n      }\n    }\n  }\n}',
-  azure: '- script: |\n    npm test -- --reporter=junit > junit.xml\n    curl -sS -X POST "$(TESTLINK)/api/cicdpublish/index.php?action=publish" \\\n      -H "Cookie: PHPSESSID=$(TL_SESSION)" \\\n      -F "tplan_id=$(TL_TPLAN_ID)" -F "build_id=$(TL_BUILD_ID)" \\\n      -F "format=junit" -F "uploadedFile=@junit.xml"\n  displayName: "Publish test results to TestLink"',
-  generic: 'curl -sS -X POST \\\n  "https://testlink.example.com/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=<session>" \\\n  -F "tplan_id=14" \\\n  -F "build_id=1" \\\n  -F "platform_id=1" \\\n  -F "format=junit" \\\n  -F "uploadedFile=@junit.xml"'
+  github: 'name: publish-results\non: [push]\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test -- --reporter=junit > junit.xml\n      - name: Publish to TestLink\n        run: |\n          curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n            -H "Cookie: PHPSESSID=${{ secrets.TL_SESSION }}" \\\n            -H "X-Requested-With: XMLHttpRequest" \\\n            -F "tplan_id=${{ vars.TL_TPLAN_ID }}" \\\n            -F "build_id=${{ vars.TL_BUILD_ID }}" \\\n            -F "format=junit" \\\n            -F "uploadedFile=@junit.xml"',
+  gitlab: 'publish-results:\n  stage: test\n  script:\n    - npm test -- --reporter=junit > junit.xml\n    - |\n      curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n        -H "Cookie: PHPSESSID=$TL_SESSION" \\\n        -H "X-Requested-With: XMLHttpRequest" \\\n        -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n        -F "format=junit" -F "uploadedFile=@junit.xml"\n  artifacts:\n    when: always\n    reports:\n      junit: junit.xml',
+  jenkins: 'pipeline {\n  agent any\n  stages {\n    stage("Publish results") {\n      steps {\n        sh """npm test -- --reporter=junit > junit.xml"""\n        sh """curl -sS -X POST "$TESTLINK/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=$TL_SESSION" \\\n  -H "X-Requested-With: XMLHttpRequest" \\\n  -F "tplan_id=$TL_TPLAN_ID" -F "build_id=$TL_BUILD_ID" \\\n  -F "format=junit" -F "uploadedFile=@junit.xml" """\n      }\n    }\n  }\n}',
+  azure: '- script: |\n    npm test -- --reporter=junit > junit.xml\n    curl -sS -X POST "$(TESTLINK)/api/cicdpublish/index.php?action=publish" \\\n      -H "Cookie: PHPSESSID=$(TL_SESSION)" \\\n      -H "X-Requested-With: XMLHttpRequest" \\\n      -F "tplan_id=$(TL_TPLAN_ID)" -F "build_id=$(TL_BUILD_ID)" \\\n      -F "format=junit" -F "uploadedFile=@junit.xml"\n  displayName: "Publish test results to TestLink"',
+  generic: 'curl -sS -X POST \\\n  "https://testlink.example.com/api/cicdpublish/index.php?action=publish" \\\n  -H "Cookie: PHPSESSID=<session>" \\\n  -H "X-Requested-With: XMLHttpRequest" \\\n  -F "tplan_id=14" \\\n  -F "build_id=1" \\\n  -F "platform_id=1" \\\n  -F "format=junit" \\\n  -F "uploadedFile=@junit.xml"'
 };
 var CONNECTORS = [
   { id: 'github',  key: 'cicd.connGithub',  desc: 'cicd.connGithubDesc',  fmts: ['JUnit XML'] },
@@ -305,19 +304,21 @@ function renderResult(data) {
       + '</tr>';
   });
   if (dt) { dt.destroy(); dt = null; }
+  clearHeaderAria();
   $('#tbl tbody').html(rows);
-  dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: true });
+  dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: true,
+    language: { search: TLi18n.t('common.search') + ':', emptyTable: TLi18n.t('common.noData') } });
+  $('#tbl_filter input[type="search"]').attr({ id: 'tblSearch', name: 'tblSearch' });
   $('#resultBox').show();
 }
 
 // ---- data flow -------------------------------------------------------------
-function buildParams(extra) {
+function buildParams() {
   var p = new URLSearchParams({ action: 'init' });
   var asserted = q('tproject_id');
   if (asserted && /^[0-9]+$/.test(String(asserted))) { p.set('tproject_id', asserted); }
   var plan = $('#fPlan').val() || q('tplan_id');
   if (plan && /^[0-9]+$/.test(String(plan))) { p.set('tplan_id', plan); }
-  if (extra) { $.each(extra, function (k, v) { p.set(k, v); }); }
   return p;
 }
 
@@ -334,7 +335,6 @@ function load() {
       showState(stateFor(data && data.code, 200, data && data.message));
       return;
     }
-    currentData = data;
     var ctx = data.context || {};
     var planSel = ($('#fPlan').val()) || q('tplan_id') || (ctx.id || '');
     fillSelect($('#fPlan'), data.plans || [], planSel, 'cicd.selectPlan');
@@ -354,6 +354,10 @@ function load() {
     $('#fileHint').text(lim > 0 ? TLi18n.t('cicd.fileHint', { kb: Math.round(lim / 1024) }) : '');
     renderGuide();
     $('#stateBox').html('');
+    if (dt) { dt.destroy(); dt = null; }
+    clearHeaderAria();
+    $('#tiles').html('');
+    $('#tbl tbody').html('');
     $('#resultBox').hide();
     $('#report').show();
   }).fail(function (xhr) {
@@ -407,6 +411,7 @@ function publish() {
     }
     $('#stateBox').html('');
     renderResult(data);
+    $('#fFile').val('');
     var s = data.summary || {};
     if ((parseInt(s.skipped, 10) || 0) + (parseInt(s.errors, 10) || 0) > 0) {
       toast(TLi18n.t('cicd.publishedPartial', { published: s.published || 0, total: s.total || 0 }), 'err');
@@ -431,15 +436,19 @@ function publish() {
 
 function copySnippet(id) {
   var text = SNIPPETS[id] || '';
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { toast(TLi18n.t('cicd.copied'), 'ok'); },
-      function () { toast(TLi18n.t('cicd.copied'), 'ok'); });
-  } else {
+  function legacyCopy() {
     var ta = document.createElement('textarea');
     ta.value = text; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
     document.body.removeChild(ta);
-    toast(TLi18n.t('cicd.copied'), 'ok');
+    toast(TLi18n.t(ok ? 'cicd.copied' : 'common.error'), ok ? 'ok' : 'err');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast(TLi18n.t('cicd.copied'), 'ok'); },
+      function () { legacyCopy(); });
+  } else {
+    legacyCopy();
   }
 }
 
