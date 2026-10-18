@@ -32,6 +32,33 @@ Every screen of the application was ported one-by-one in a screen-compare
   "Regression — Issue #1938" 8/8 PASS. Follow-up same-class defects on planView filed as
   #1939. (Fixes #1938)
 
+- [KEY BUGFIX] - #1939: the modern **Test Plan Management** screen
+  (`gui/templates/plans/planView.html`) raised two Chrome Issues entries —
+  `No label associated with a form field (count: 4)` (the text-only captions at
+  `:134` Name, `:140` Description, `:157` API Key, `:172` Attachments had neither
+  `for=` nor a wrapping control) and `A form field element should have an id or
+  name attribute` (count 1 even with an **empty** table — that hit is
+  **DataTables 1.13.7's generated filter input**, which ships with no id/name;
+  the JS-built row checkbox at `:454` adds one more occurrence per rendered plan
+  row, count 2 after the first plan). Fix (planView.html only): `for="planName"` /
+  `for="planNotes"` wired to the existing ids; the API-Key and Attachments
+  captions converted to `<span>`s (their targets are a readonly `<div>` and a
+  multi-control section — `<label for>` cannot legally reference them), with the
+  CSS rule `.api-key-row > label` retargeted to `.api-key-row > .api-key-label`
+  so styling is unchanged; row checkbox got `id="rowChk-<planId>"`; id/name wired
+  onto `#tplanTable_filter input[type=search]` after every DataTable init (re-run
+  each `render()` because the table is destroyed/re-created). No i18n keys added —
+  all captions keep their `pv.*`/`pe.*` keys (`i18n.apply` is tag-agnostic);
+  `aria-label` again rejected as a second translatable string that can drift.
+  Verified in Chrome: Issues log empty with 0/1/2 plans and in the ro locale,
+  DOM audit 0 unassociated labels + 0 fields without id/name, create/edit/delete
+  plan, API-key copy, select-all + bulk activate/inactivate, search filter and
+  locale switch en→ro→en all PASS, Event Viewer clean (audit-only). Regression
+  suite "Regression — Issue #1939" 11/11 PASS. Same-class defects on other
+  screens (DataTables filter input across ~80 screens, `row-chk` in
+  planUpdateTC/cfieldsAssignView) filed as follow-up, out of this issue's scope.
+  (Fixes #1939)
+
 - [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
   (`gui/templates/testcases/containerMoveTC.html`) rendered **raw i18n keys** in
   every locale (tab title `tmvc.title`, buttons `tmvc.move`/`tmvc.cancel`, …)

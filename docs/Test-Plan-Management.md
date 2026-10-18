@@ -174,3 +174,72 @@ All labels reuse the existing `pe.att*` / `pe.msg.upload*|delete*` i18n keys, al
 present in all 10 locale bundles (`bash ai/verify_i18n_coverage.sh` passes).
 
 Screenshot: [GitHub Wiki](https://github.com/sebiboga/testlink-upgraded/wiki/Test-Plan-Management) (`1119-planview-attachments.png`).
+
+## Accessibility: label/field associations — Issue #1939
+
+Chrome DevTools raised two Issues entries on this screen (Refs #1939, found
+while verifying the navBar fix #1938): **`No label associated with a form
+field (count: 4)`** and **`A form field element should have an id or name
+attribute`** (count 1 on an empty table, +1 per rendered plan row).
+
+**Root cause.** Four distinct defects in `gui/templates/plans/planView.html`:
+
+1. The Dashio port kept four *visual* `<label>`s that have neither `for=` nor a
+   wrapping control: `:134` Name (→ `#planName`), `:140` Description
+   (→ `#planNotes`), `:157` API Key (→ `#apiKeyVal`, a **`<div
+   role=textbox>`** — not a labelable element, so `for=` could not legally
+   target it), `:172` Attachments (a section caption over a list + Title input
+   + File input + Upload button — no single control to point at).
+2. The row checkbox built in `render()` (`:454`) carried neither `id` nor
+   `name` — one audit hit **per row**.
+3. The always-present hit behind `count: 1` on an **empty** table was neither
+   of the above: it was **DataTables 1.13.7's own generated filter input**
+   (`#tplanTable_filter input[type=search]`), which ships with neither `id`
+   nor `name` (the generated `tplanTable_filter` id sits on the wrapping
+   `<div>`). The issue's initial suspicion (row checkbox only) accounted for
+   just half the symptom — measured by DOM audit before/after creating the
+   first plan (count 1 → 2).
+
+**Fix (minimal — `planView.html` only).** `for="planName"` / `for="planNotes"`
+on the two labels whose controls already exist; the API-Key and Attachments
+captions converted to `<span>` (API-Key caption got `class="api-key-label"`
+and the CSS rule `.api-key-row > label` was retargeted to `.api-key-row >
+.api-key-label`, so styling is byte-identical); row checkbox got
+`id="rowChk-<planId>"` (unique per row, mirrors `#chkAll`); after every
+DataTable init in `render()` the filter input receives
+`id="tplanTableSearch"`/`name="tplanTableSearch"` (re-applied each cycle
+because `render()` destroys and re-creates the table). Alternatives rejected:
+`aria-label` duplicates translatable text that can drift (rejected in #1938
+too); `for="apiKeyVal"` is invalid (div is not labelable) and the audit would
+still fire; wrapping the Attachments section inside the label puts block
+content in a `<label>` and ambiguously labels 3 controls; forking DataTables
+config — 1.13.7 has no option for the filter input's id. **No i18n keys were
+added or changed** — all four captions keep their existing `data-i18n` keys
+(`pv.modal.name`, `pv.modal.description`, `pv.apiKey`, `pe.attTitle`) and
+`i18n.apply` writes text tag-agnostically.
+
+**Verified** (headless Chrome, chrome-devtools MCP, fixtures project 1
+`A11yProj` + plan 2 `SmokePlan`): Issues log on a fresh load
+**`<no console messages found>`** (pre-fix: both entries, counts 4 and 1→2);
+DOM audit `labelsNoFor=[]`, `fieldsNoIdName=[]` with 0, 1 and 2 plans and in
+the ro locale; label-click focuses `#planName`/`#planNotes`; a11y names
+`textbox "Name"`/`"Description"`; create plan, edit plan (API-key row +
+Copy→`copied`→revert), delete plan (confirm dialog), select-all, bulk
+activate/inactivate/empty-selection guard, DataTables search filter
+(0↔1 rows), locale switch en→ro→en (converted spans translate: `Nume`,
+`Cheie API`, `Atasamente`) all PASS; Event Viewer clean (8 rows, all
+`log_level 16` audit, zero Error/Warning). Regression suite **Regression —
+Issue #1939** 11/11 PASS. Code review: APPROVE, no findings.
+
+**Files:** `gui/templates/plans/planView.html` (4 label/caption edits + row
+checkbox id + filter-input wiring), `CHANGELOG`,
+`docs/Test-Plan-Management.md` mirror. Same-class defects on **other**
+screens (DataTables filter input on ~80 screens using `DataTable(`, `row-chk`
+in `planUpdateTC.html`/`cfieldsAssignView.html`) are out of this issue's
+scope and filed separately.
+
+PlanView edit modal after the fix — Name/Description labels associated,
+API-Key/Attachments captions converted to spans, row checkbox + search input
+carry ids:
+
+Screenshot: [GitHub Wiki](https://github.com/sebiboga/testlink-upgraded/wiki/Test-Plan-Management) (`issue-1939-planview-a11y-labels.png`).
