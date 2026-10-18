@@ -50,7 +50,10 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
    The key is generated server-side and must never be editable; shown as plain
    monospace text, exactly like the projectsView project API key row. */
 .api-key-row { margin-top:16px; padding-top:14px; border-top:1px solid #eee; }
-.api-key-row > label { font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block; }
+/* Refs #1939: was `> label` — the API-key caption points at a readonly div
+   (not a labelable control), so it is a span; Chrome's Issues audit flags a
+   <label> with no associated form field. */
+.api-key-row > .api-key-label { font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block; }
 .readonly-val { font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace; font-size:12px; color:#555; background:#f8f9fa; border:1px solid #e2e3e5; border-radius:4px; padding:10px; word-break:break-all; user-select:all; }
 .readonly-val:focus { outline:2px solid #2d8e88; outline-offset:1px; }
 .api-key-copy-btn { margin-top:8px; background:#353b48; color:#fff; border:none; padding:6px 12px; border-radius:3px; cursor:pointer; font-size:12px; }
@@ -128,13 +131,13 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
         <form id="planForm" onsubmit="return false;">
           <input type="hidden" id="planEditId" value="">
           <div class="form-group" style="margin-bottom:14px;">
-            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.name">Name</label>
+            <label for="planName" style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.name">Name</label>
             <input type="text" class="form-control" id="planName" maxlength="100" required
                    style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:13px;width:100%;"
                    data-i18n-placeholder="pv.modal.namePlaceholder">
           </div>
           <div class="form-group" style="margin-bottom:14px;">
-            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.description">Description</label>
+            <label for="planNotes" style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.description">Description</label>
             <textarea class="form-control" id="planNotes" rows="6"
                       style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:13px;width:100%;resize:vertical;"></textarea>
           </div>
@@ -151,7 +154,7 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
                and only on the edit path. Read-only: the key is generated
                server-side and is never editable. -->
           <div class="api-key-row" id="apiKeyRow" style="display:none;">
-            <label data-i18n="pv.apiKey">API Key</label>
+            <span class="api-key-label" data-i18n="pv.apiKey">API Key</span>
             <div class="readonly-val" id="apiKeyVal" tabindex="0" role="textbox" aria-readonly="true"></div>
             <button type="button" class="api-key-copy-btn" id="apiKeyCopyBtn" onclick="copyApiKey(this)">
               <i class="fas fa-copy"></i> <span data-i18n="pv.apiKeyCopy" aria-live="polite">Copy</span>
@@ -166,7 +169,7 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
                the full-screen editor uses (fk_table=testplans), so the DB format
                stays legacy-compatible. -->
           <div id="planAttSection" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #eee;">
-            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:6px;display:block;" data-i18n="pe.attTitle">Attachments</label>
+            <span style="font-weight:600;font-size:13px;color:#333;margin-bottom:6px;display:block;" data-i18n="pe.attTitle">Attachments</span>
             <div id="planAttList"></div>
             <div style="margin-top:10px;">
               <label style="font-weight:600;font-size:12px;color:#333;margin-bottom:4px;display:block;"
@@ -448,8 +451,8 @@ function render(items) {
 
   var rows = items.map(function (tp) {
     var apiTitle = TLi18n.t('pv.apiId').replace('{id}', tp.id);
-    var chkCell = '<input type="checkbox" class="row-chk" value="' + tp.id + '"' +
-                  (canManage ? '' : ' disabled') + '>';
+    var chkCell = '<input type="checkbox" class="row-chk" id="rowChk-' + parseInt(tp.id, 10) +
+                  '" value="' + tp.id + '"' + (canManage ? '' : ' disabled') + '>';
     var nameCell = '<i class="fas fa-cubes api-id" title="' + esc(apiTitle) + '"></i>';
     nameCell += '<a class="tplan-name" href="javascript:void(0)" ' +
                 'onclick="openPlanModal(\'edit\',' + parseInt(tp.id, 10) + ')" ' +
@@ -519,6 +522,11 @@ function render(items) {
       { targets: -1, orderable: false }
     ]
   });
+  // Refs #1939: DataTables generates its filter search input with neither id
+  // nor name (the generated #tplanTable_filter id sits on the wrapping div),
+  // which Chrome flags in the Issues tab; wire it after every init.
+  $('#tplanTable_filter input[type=search]')
+    .attr('id', 'tplanTableSearch').attr('name', 'tplanTableSearch');
 }
 
 function activeToggle(id, value) {
