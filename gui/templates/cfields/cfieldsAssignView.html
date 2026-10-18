@@ -451,7 +451,7 @@ function renderAssigned(rows) {
   rows.forEach(function (cf) {
     $b.append(
       '<tr data-id="' + cf.id + '">' +
-      '<td><input type="checkbox" class="row-chk"></td>' +
+      '<td><input type="checkbox" class="row-chk" id="rowChk-assigned-' + cf.id + '"></td>' +
       '<td><a class="cf-name" href="javascript:void(0)" title="' + esc(TLi18n.t('cfa.editField')) +
         '" onclick="editCf(' + cf.id + ')">' +
         esc(cf.name) + '</a></td>' +
@@ -472,6 +472,16 @@ function renderAssigned(rows) {
       order: [[1, 'asc']], pageLength: 25, lengthChange: false,
       columnDefs: [{ orderable: false, targets: 0 }]
     });
+  setTimeout(function() {
+    var $wrap = $('#assignedTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'assignedTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'assignedTableSearch');
+      }
+    }
+  }, 0);
   }
 }
 
@@ -485,7 +495,7 @@ function renderAvailable(rows) {
   rows.forEach(function (cf) {
     $b.append(
       '<tr data-id="' + cf.id + '">' +
-      '<td><input type="checkbox" class="row-chk"></td>' +
+      '<td><input type="checkbox" class="row-chk" id="rowChk-avail-' + cf.id + '"></td>' +
       '<td><a class="cf-name" href="javascript:void(0)" title="' + esc(TLi18n.t('cfa.editField')) +
         '" onclick="editCf(' + cf.id + ')">' +
         esc(cf.name) + '</a></td>' +
@@ -494,6 +504,16 @@ function renderAvailable(rows) {
       '<td>' + esc(cf.nodeLabel) + '</td>' +
       '</tr>');
   });
+  setTimeout(function() {
+    var $wrap = $('#availableTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'availableTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'availableTableSearch');
+      }
+    }
+  }, 0);
 
   if (rows.length) {
     availableTbl = $('#availableTable').DataTable({

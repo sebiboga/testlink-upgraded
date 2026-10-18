@@ -405,7 +405,7 @@ function renderSuiteRows(suiteId) {
       });
       selCtl = '<select class="targetSel" data-tcid="' + it.testcase_id + '">'
         + opts + '</select>';
-      chk = '<input type="checkbox" class="row-chk" data-tcid="' + it.testcase_id + '">';
+      chk = '<input type="checkbox" class="row-chk" id="rowChk-' + parseInt(it.testcase_id, 10) + '" data-tcid="' + it.testcase_id + '">';
     }
 
     var newestCell = !it.is_latest && it.newest_version > 0
