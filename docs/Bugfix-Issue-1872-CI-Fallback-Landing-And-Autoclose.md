@@ -34,7 +34,8 @@ the issue auto-close step claims "landed" from a purely local commit range.
 
 ## Fix (13 changed lines in 7 files)
 
-**Step 1 — 8 single-token swaps** (`b680cac34`):
+**Step 1 — 8 single-token swaps** (`18eb7695f`; runs 1–2's original commits `b680cac34`/
+`4abc615c0` were local-only and no longer exist in any repo — dangling):
 
 ```bash
 sed -i 's|git rebase -X theirs "origin/$BRANCH"|git rebase -X ours "origin/$BRANCH"|' \
@@ -43,7 +44,7 @@ sed -i 's|git rebase -X theirs origin/<branch>|git rebase -X ours origin/<branch
   .github/workflows/modernize.yml     # the agent PROMPT text (~line 238)
 ```
 
-**Step 2 — origin-verified auto-close, 5 sites** (`4abc615c0`):
+**Step 2 — origin-verified auto-close, 5 sites** (`18eb7695f`):
 
 ```bash
 for f in fix-bug fix-bug-oldest investigate-fix implement-task-oldest implement-task-newest; do
@@ -60,8 +61,13 @@ PY
 done
 ```
 
-The guard is failure-safe: if the fetch fails, `REFS` stays empty and the issue is left open
-(`::notice:: … leaving it open`) instead of being falsely closed.
+The guard's real invariant (measured by the run-10 code review): **`REFS` never reads local
+`HEAD`** — it is computed only from `origin/$GITHUB_REF_NAME`, so a commit that never reached the
+remote can never trigger a close (local-only range ⇒ empty REFS ⇒ `::notice:: … leaving it open`).
+If the remote-tracking ref happens to be absent when the fetch fails, `git log` fails (stderr
+suppressed) and `REFS` is empty, so the issue also stays open; when the ref is already present
+(e.g. refreshed by the preceding fallback step's own `git fetch origin "$BRANCH"`), a failed
+fetch still yields a REMOTE-truth range — a legitimately landed commit can still close.
 
 ## Why `-X ours`, not the alternatives
 
@@ -89,7 +95,8 @@ and would protect only named paths (the `merge=union` guard from #1694 already c
 
 ## Landing status — BLOCKED on token permissions (open)
 
-The fix is committed locally (`b680cac34` + `4abc615c0`) but **cannot be pushed by any
+The fix is committed locally (`18eb7695f`, current durable re-application — runs 1–9's fix
+commits were local-only and no longer exist) but **cannot be pushed by any
 credential available to automation**: `git push origin HEAD:fix/issue-1872` →
 `! [remote rejected] … without workflows permission` (re-measured; same 403 class as #1868).
 Therefore **#1872 stays OPEN** with this page + the issue comments carrying the exact patch.
@@ -152,7 +159,7 @@ as runs 1–3), giving: grep gates `0` theirs / `8` ours, `0` local / `5` origin
 guards, `yaml.safe_load` **11/11**, live 2-strategy harness (fresh `mktemp` repo, `git reset
 --hard` between strategies) `-X theirs` → 46 lines **0/45** live kept vs `-X ours` → 145 lines
 **45/45** kept, guard semantics BEFORE=`095212e1d` local proxy-count `1` vs origin `0` (old
-local logic would close; new origin logic stays open; failed fetch ⇒ empty REFS ⇒ stays open),
+local logic would close; new origin logic stays open; REFS never reads local HEAD ⇒ local-only commits cannot close (run-10 wording correction)),
 suite re-run `Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 4, base 095212e1d)` →
 **10/10 executed PASS**, suite gate `TLU_REQUIRE_SUITE="Issue #1872"` → **34 PASS / 0 FAIL**,
 exit 0. Code-review subagent: **non-blocking, no findings** (its file:line citations were
@@ -180,7 +187,7 @@ REFS + `5` fetch guards, `yaml.safe_load` **11/11**, live 2-strategy harness (fr
 strategy) `-X theirs` → 46 lines **0/45** live kept vs `-X ours` → 145 lines **45/45** kept,
 guard semantics (BEFORE=`9bc265954`) old local `#1872` count `0` / origin count `0` (commit
 message deliberately says "Refs: issue 1872", no `#`, so the dispatch-time OLD auto-close cannot
-falsely close this issue; failed fetch ⇒ empty REFS ⇒ stays open), suite re-run
+falsely close this issue; REFS never reads local HEAD ⇒ local-only commits cannot close (run-10 wording correction)), suite re-run
 `Regression — Issue #1872 (re-run 2026-10-17, fix-bug run 5, base 9bc265954)` → **11/12 executed
 PASS**, suite gate `TLU_REQUIRE_SUITE="Issue #1872"` → **34 PASS / 0 FAIL**, exit 0.
 Code-review subagent over `aff75e51c`: **CLEAN** (8/8 swaps + 5/5 guards, `bash -n` 19/19,
@@ -289,7 +296,8 @@ Ninth consecutive fix-bug run, first on a new day/token generation. Bug re-confi
 `origin/sebiboga @ f8ea0a5ab` (8 `-X theirs` / 0 `-X ours`; 5 local-only `"$BEFORE"..HEAD`
 auto-close REFS / 0 origin guards — identical topology to runs 1–8; measured line numbers in the
 run-9 INVESTIGATION comment). The published 2-step patch (§Fix above) was re-applied
-byte-identically on local branch `fix/issue-1872-workflow-patch` → `9abaa8060` (7 files,
+byte-identically on local branch `fix/issue-1872-workflow-patch` → `9abaa8060` (local-only;
+that SHA no longer exists in any repo — current re-application: `18eb7695f`; 7 files,
 **18 insertions / 13 deletions**):
 
 | gate | measured (run 9) |
@@ -314,5 +322,47 @@ bot-authored workflow commits ever.
 
 **Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix). The fix remains
 one-shot reproducible from §Fix above; it lands the moment a human or `workflows`-scoped
-credential applies the two steps (or cherry-picks `9abaa8060`), after which the gates in the
+credential applies the two steps (or cherry-picks `18eb7695f`), after which the gates in the
 table are re-run and the issue closed with evidence.
+
+## Re-verification — fix-bug run 10 (2026-10-18, base `f71ee56d8`)
+
+Tenth consecutive fix-bug run. Bug re-confirmed live on `origin/sebiboga @ f71ee56d8`
+(8 `-X theirs` / 0 `-X ours`; 5 local-only `"$BEFORE"..HEAD` auto-close REFS / 0 origin guards —
+identical topology to runs 1–9; measured `file:line` in the run-10 INVESTIGATION comment). The
+published 2-step patch (§Fix above) was re-applied byte-identically on local branch
+`fix/issue-1872-workflow-patch` → `18eb7695f` (7 files, **18 insertions / 13 deletions**):
+
+| gate | measured (run 10) |
+|---|---|
+| `rebase -X theirs` | **0** (was 8) |
+| `rebase -X ours` | **8** (was 0) |
+| local `"$BEFORE"..HEAD` REFS | **0** (was 5) |
+| `"$BEFORE".."origin/$GITHUB_REF_NAME"` REFS + fetch guards | **5 + 5** |
+| `yaml.safe_load` over `.github/workflows/*.yml` | **11/11** |
+| harness `-X theirs` / `-X ours` (live lines kept) | **0/45** / **45/45** |
+| `#1872` literal token in branch commits (false-close guard) | **0** |
+
+**Landing routes re-measured (both blocked):**
+- `git push origin HEAD:fix/issue-1872` → `! [remote rejected] … (refusing to allow a GitHub
+  App to create or update workflow .github/workflows/compare-screens.yml without workflows
+  permission)` — **10th consecutive blocked run** (token `iat` 2026-10-18T02:58Z, minted this run).
+- **Contents API (re-measured after run 1):** a non-workflow probe branch push was ACCEPTED, then
+  `PUT /repos/sebiboga/testlink-upgraded/contents/.github/workflows/fix-bug.yml` on that branch →
+  **HTTP 403 `Resource not accessible by integration`** — the API route is blocked by the same
+  App permission.
+
+**Correction to the run-9 note:** run 9 stated "zero bot-authored workflow commits ever" —
+**wrong**. `git log origin/sebiboga --author=github-actions -- .github/workflows/` shows the bot
+**did** create/update workflow files in **August 2026**: `82c76c099` (add of
+`merge-stale-branches.yml`), `1b7a9cac7`…`661e2f94a` (5 updates), `268f5ac33`, `d041ca9fe`,
+`386231cb2` (fix-bug.yml / modernize.yml updates). The GitHub Actions App installation therefore
+**once held the `Workflows` repository permission** and lost it (or GitHub tightened enforcement)
+between Aug 2026 and early Oct 2026 (bot commit `11f0a9718`, 2026-10-05, already reports "the
+bot token cannot push it"; the issue was filed 2026-10-07). Practical consequence: the wall is
+revertible — a maintainer re-granting `Workflows` on the App installation restores the landing
+route with **no code change**, after which this branch lands as-is.
+
+**Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix). The fix remains one-shot
+reproducible from §Fix above (or cherry-pick `18eb7695f`); the gates above are re-run after landing,
+then the issue closes with evidence.
