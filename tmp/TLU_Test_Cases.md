@@ -44170,3 +44170,25 @@ Branch `fix/issue-1939`, commit `b3f38542e`. Screen under test: `gui/templates/p
 11. Syntax gate: inline `<script>` extracted → `node --check` OK; no i18n bundle touched (no new strings) — **PASS**
 
 **Result: 11/11 PASS.** Pre-fix symptom gone; no functional regressions observed on the tested matrix.
+
+## Regression — Issue #1941: Cross-screen Chrome a11y (unassociated labels + id-less DataTables filter + row-chk without id/name)
+
+**Precondition:** Logged in as admin/admin, test project exists with test plan and builds present where applicable. DB freshly imported (fixtures as needed).
+
+**Repro steps (pre-fix):**
+1. Navigate to `gui/templates/plans/buildsView.html?tproject_id=1&tplan_id=1`.
+2. Open DevTools → Issues tab (Chrome).
+3. Observe `No label associated with a form field` (for "with execution status") and `A form field element should have an id or name attribute` from DataTables filter input (when table rendered).
+4. Check `plans/planUpdateTC.html`, `cfields/cfieldsAssignView.html` for `.row-chk` inputs lacking `id/name`.
+5. Check arbitrary DataTable screens (~80) — filter `<input>` lacks `id/name`.
+
+**Expected post-fix behavior:**
+1. buildsView: `label[for="fExecStatus"]` exists; Issues count for unassociated labels on this screen = 0.
+2. DataTables filter inputs have `id` and `name` (e.g. `buildTableSearch`, `tplanTableSearch`, `assignedTableSearch`, `availableTableSearch`).
+3. All `.row-chk` inputs have unique `id` (e.g. `rowChk-<tcid>`, `rowChk-assigned-<id>`, `rowChk-avail-<id>`).
+4. `planUpdateTC.html`, `cfieldsAssignView.html` no longer contribute row-chk a11y issues.
+5. No new console Errors/Warnings introduced during regression; Event Viewer clean.
+
+**Actual result (observed post-fix):** All checks PASS. Labels wired, filter inputs get id/name, row-chk have ids. Chrome Issues tab shows 0 relevant a11y violations for the tested screens. No new Error/Warning entries in Event Viewer.
+
+**PASS/FAIL:** PASS
