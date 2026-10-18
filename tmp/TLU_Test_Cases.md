@@ -44095,3 +44095,33 @@ project/plan switch POSTs unchanged; no new Event Viewer errors.
 
 **Overall: 8/8 PASS.** Follow-up (out of scope, filed as #1939): planView.html
 raises the same Chrome issue (count: 4) plus a field-without-id/name issue.
+
+## Regression — Issue #1939: planView label/field associations (Chrome Issues a11y)
+
+**Precondition:** TestLink 2.0.1 at http://localhost:8082 (fresh DB), logged in as admin/admin.
+Fixture created through the UI: test project #1 `A11yProj` (prefix `A11Y`) + test plan #2 `SmokePlan`.
+Headless Chrome via chrome-devtools MCP; DevTools Issues tab read via `list_console_messages types=["issue"]`.
+Branch `fix/issue-1939`, commit `b3f38542e`. Screen under test: `gui/templates/plans/planView.html?tproject_id=1`.
+
+**Repro steps (pre-fix behavior):**
+1. Open `http://localhost:8082/gui/templates/plans/planView.html?tproject_id=1` with 0 plans → Issues tab showed
+   `No label associated with a form field (count: 4)` + `A form field element should have an id or name attribute (count: 1)`.
+2. Create 1 plan → the second entry re-appeared as `(count: 2)` (1 row checkbox + DataTables search input).
+
+**Expected post-fix behavior:** Issues tab shows NO entries in any state (0 or N plans, any locale); DOM audit finds
+0 labels without `for=`/wrapping control and 0 form fields without `id`/`name`; all planView functionality unchanged.
+
+**Steps & actual results (POST-FIX, all executed):**
+1. Fresh reload of planView (1 plan) → Issues log: `<no console messages found>` — **PASS**
+2. DOM audit: `labelsNoFor=[]`, `fieldsNoIdName=[]`, search input `{id:tplanTableSearch,name:tplanTableSearch}`, row checkbox `id=rowChk-2` — **PASS**
+3. Create plan `TempPlan` via modal → rows [SmokePlan, TempPlan], toast "Test plan created"; attrs survive DataTable destroy/re-create; audit still 0/0 (2 plans) — **PASS**
+4. Edit modal (SmokePlan): `label[for=planName].click()` focuses `#planName` (same for `#planNotes`); a11y names `textbox "Name"`/`"Description"`; API-key row visible, `.api-key-label` = SPAN with computed `font-weight:600/display:block`; Copy → "API key copied to clipboard" → reverts to "Copy" — **PASS**
+5. Delete `TempPlan` → confirm shows plan name + warning → rows [SmokePlan], toast "Test plan deleted", count (1) — **PASS**
+6. Select-all `#chkAll` toggles row checkbox on/off — **PASS**
+7. Bulk Inactivate (1 selected) → toast "1 test plan(s) deactivated", toggle `off`; Bulk Activate → "1 test plan(s) activated", toggle `on`; Bulk with none selected → "Please select at least one test plan" — **PASS**
+8. DataTables search: `Smoke` → "Showing 1 to 1 of 1 entries"; `zzz-no-match` → "Showing 0 to 0 of 0 entries (filtered from 1 total entries)" (search input still functional with id/name wired); cleared → "Showing 1 to 1 of 1 entries" — **PASS**
+9. Locale switch en→ro→en: converted spans translate (`Nume`, `Cheie API`, `Atasamente`), Issues log empty in ro as well — **PASS**
+10. Event Viewer (`events` table): 8 rows, all `log_level 16` audit entries (login, project/plan created/deleted, role grants) — zero Error/Warning — **PASS**
+11. Syntax gate: inline `<script>` extracted → `node --check` OK; no i18n bundle touched (no new strings) — **PASS**
+
+**Result: 11/11 PASS.** Pre-fix symptom gone; no functional regressions observed on the tested matrix.
