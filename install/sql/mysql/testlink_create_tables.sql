@@ -601,6 +601,27 @@ CREATE TABLE /*prefix*/tc_exploratory_sessions (
 ) DEFAULT CHARSET=utf8;
 
 
+# ---------------------------------------------------------------------------
+# Exit Criteria - project-scoped registry of exit-criteria DEFINITIONS
+# (Refs #1936 / #1088). Net-new module: 1.9.20 has no exit-criteria entity.
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_exit_criteria (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `test_level` varchar(32) NOT NULL default 'system',
+  `entry_criteria` text,
+  `exit_criteria` text,
+  `metric` varchar(32) NOT NULL default 'none',
+  `target_value` decimal(10,2) default NULL,
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_ec_project` (`testproject_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',

@@ -289,6 +289,7 @@ abstract class tlObject implements iSerialization
                     'quality_objectives',
                     'quality_objective_links',
                     'nfr_requirements',
+                    'tc_exit_criteria',
                     'tc_exploratory_sessions',
                     'tc_reviews',
                     'tc_risk',
