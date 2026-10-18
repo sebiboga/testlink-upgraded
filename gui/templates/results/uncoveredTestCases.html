@@ -175,6 +175,16 @@ function loadData() {
           emptyTable: t('unc.allCovered', 'All Test Cases are covered')
         }
       });
+  setTimeout(function() {
+    var $wrap = $('#uncoveredTestCasesTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'uncoveredTestCasesTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'uncoveredTestCasesTableSearch');
+      }
+    }
+  }, 0);
 
       $('#footerInfo').html(t('unc.elapsedSeconds', 'Elapsed seconds') + ': ' + d.elapsed_time).show();
       toast(t('common.loaded', 'Loaded'));

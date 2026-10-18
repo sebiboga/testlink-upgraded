@@ -350,6 +350,16 @@ function renderResults(r) {
       { targets: 2, orderable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#searchReqSpecTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'searchReqSpecTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'searchReqSpecTableSearch');
+      }
+    }
+  }, 0);
   $('#footerInfo').text(TLi18n.t('reqspecsearch.matchCount', {n: r.count}));
 }
 

@@ -530,6 +530,16 @@ function renderResults(r) {
       $('<td>').html(o.actions).addClass('text-center')
     ).appendTo($body);
   });
+  setTimeout(function() {
+    var $wrap = $('#resTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'resTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'resTableSearch');
+      }
+    }
+  }, 0);
 
   // Enhance with DataTables when available (CDN loaded); otherwise keep the
   // plain table fallback so rows always display.

@@ -228,6 +228,16 @@ function render(notifs, totals) {
           $('#selectAll').prop('checked', total > 0 && checked === total);
           $('#theadCb').prop('checked', total > 0 && checked === total);
         });
+  setTimeout(function() {
+    var $wrap = $('#notifTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'notifTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'notifTableSearch');
+      }
+    }
+  }, 0);
       }
     });
   }

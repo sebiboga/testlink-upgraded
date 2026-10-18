@@ -417,6 +417,16 @@ function renderTable(items) {
       emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#testDataSetsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'testDataSetsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'testDataSetsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function findItem(group) {

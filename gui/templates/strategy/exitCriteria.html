@@ -426,6 +426,16 @@ function renderTable(items) {
       emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#exitCriteriaTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'exitCriteriaTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'exitCriteriaTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function findItem(id) {

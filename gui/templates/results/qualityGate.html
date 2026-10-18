@@ -299,6 +299,16 @@ function renderGates(data) {
   if (dt) { dt.destroy(); dt = null; }
   $('#tbl tbody').html(rows);
   dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: false });
+  setTimeout(function() {
+    var $wrap = $('#qualityGateTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'qualityGateTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'qualityGateTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function renderReq(m) {

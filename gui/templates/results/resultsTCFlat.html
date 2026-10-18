@@ -315,6 +315,16 @@ function renderTable(r) {
       }
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#resultsTCFlatTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'resultsTCFlatTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'resultsTCFlatTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function clearHeaderAria() {

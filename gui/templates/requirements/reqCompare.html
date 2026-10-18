@@ -217,6 +217,16 @@ function renderVersions(items) {
     verTable = $('#verTable').DataTable({
       paging: false, searching: true, info: false, ordering: true
     });
+  setTimeout(function() {
+    var $wrap = $('#reqCompareTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqCompareTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqCompareTableSearch');
+      }
+    }
+  }, 0);
   }
   TLi18n.apply();
 }

@@ -217,6 +217,16 @@ function loadResult() {
       $sec.append($('<div class="section-body"></div>').append($tbl));
       $('#reportArea').append($sec);
       $('#dtResults').DataTable({ pageLength: 25, order: [], language: { search: t('common.search', 'Search:') } });
+  setTimeout(function() {
+    var $wrap = $('#neverRunTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'neverRunTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'neverRunTableSearch');
+      }
+    }
+  }, 0);
 
       var footer = '';
       if (d.info_msg) footer += '<p class="info">' + esc(d.info_msg) + '</p>';

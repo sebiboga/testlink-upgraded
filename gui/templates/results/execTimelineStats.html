@@ -223,6 +223,16 @@ td.tot { font-weight: 700; color: #22242a; }
                 emptyTable: TLi18n.t('etl.noData')
             }
         });
+  setTimeout(function() {
+    var $wrap = $('#execTimelineStatsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'execTimelineStatsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'execTimelineStatsTableSearch');
+      }
+    }
+  }, 0);
         TLi18n.apply();
     }
 

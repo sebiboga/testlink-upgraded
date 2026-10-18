@@ -352,6 +352,16 @@ function renderTable(data) {
     paging: true, pageLength: 25, order: [[4, 'asc']],
     columnDefs: [{ targets: [0], type: 'num' }]
   });
+  setTimeout(function() {
+    var $wrap = $('#automationReportsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'automationReportsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'automationReportsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function fillFilters(filters, filter) {

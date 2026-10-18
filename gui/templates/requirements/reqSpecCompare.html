@@ -219,6 +219,16 @@ function renderRevisions(revisions) {
       paging: false, searching: true, info: false, ordering: true,
       order: [[0, 'desc']]
     });
+  setTimeout(function() {
+    var $wrap = $('#reqSpecCompareTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqSpecCompareTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqSpecCompareTableSearch');
+      }
+    }
+  }, 0);
   }
   TLi18n.apply();
 }

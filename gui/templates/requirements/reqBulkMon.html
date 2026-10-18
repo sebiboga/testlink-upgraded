@@ -225,6 +225,16 @@ function renderTable(items) {
       syncCheckAll();
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#reqBulkMonTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqBulkMonTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqBulkMonTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function openReq(reqId) {

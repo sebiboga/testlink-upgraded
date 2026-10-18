@@ -728,6 +728,16 @@ function initLinkedBugsTable() {
     order: [[0, 'asc']],
     columns: [null, null, null, null, null]
   });
+  setTimeout(function() {
+    var $wrap = $('#linkedBugsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'linkedBugsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'linkedBugsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 // Async fill of the Linked Bugs card: tcDetails arrives WITHOUT the live

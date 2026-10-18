@@ -264,6 +264,16 @@ function loadData() {
           emptyTable: t('tnrap.allExecuted', 'All test cases have been executed on at least one platform.')
         }
       });
+  setTimeout(function() {
+    var $wrap = $('#tcNotRunAnyPlatformTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tcNotRunAnyPlatformTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tcNotRunAnyPlatformTableSearch');
+      }
+    }
+  }, 0);
 
       $('#footerInfo').html(t('tnrap.elapsedSeconds', 'Elapsed seconds') + ': ' + d.elapsed_time).show();
       toast(t('common.loaded', 'Loaded'));

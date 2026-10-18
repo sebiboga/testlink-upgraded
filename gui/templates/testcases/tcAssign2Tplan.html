@@ -226,6 +226,16 @@ function renderPlans() {
         '<td>' + esc(p.platform) + roNote + '</td>' +
         '</tr>';
     });
+  setTimeout(function() {
+    var $wrap = $('#planTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'planTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'planTableSearch');
+      }
+    }
+  }, 0);
   });
   $('#planRows').html(rows);
   $('#planTable').css('display', '');

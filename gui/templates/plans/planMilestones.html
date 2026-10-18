@@ -373,6 +373,16 @@ function render(milestones, metrics) {
       { targets: [6], orderable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#msTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'msTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'msTableSearch');
+      }
+    }
+  }, 0);
 
   // legacy parity: with priorities disabled the medium column header becomes
   // the generic "% of test cases" label (th_perc_testcases); relabel through

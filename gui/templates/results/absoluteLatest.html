@@ -281,6 +281,16 @@ function renderTable(r) {
     order: [],
     language: { search: TLi18n.t('common.search') + ':' }
   });
+  setTimeout(function() {
+    var $wrap = $('#absoluteLatestTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'absoluteLatestTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'absoluteLatestTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function clearHeaderAria() {

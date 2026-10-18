@@ -548,6 +548,16 @@
           { targets: '6, 8', orderable: false }
         ]
       });
+  setTimeout(function() {
+    var $wrap = $('#projectsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'projectsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'projectsTableSearch');
+      }
+    }
+  }, 0);
 
       restoreColumnFilterState(projectsTbl);
       restoreGlobalSearchState(projectsTbl);

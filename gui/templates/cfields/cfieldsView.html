@@ -297,6 +297,16 @@ function renderTable(items) {
       { orderable: false, searchable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#cfieldsViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'cfieldsViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'cfieldsViewTableSearch');
+      }
+    }
+  }, 0);
 }
 
 /** Refs #1812: hand the Create/Edit job to the modern editor popup. */

@@ -427,6 +427,56 @@ function renderLabels(data) {
   if (dtLabels) { dtLabels.destroy(); dtLabels = null; }
   $('#tblLabels tbody').html(rows);
   dtLabels = $('#tblLabels').DataTable({ paging: false, info: false, order: [], columnDefs: [{ targets: [3, 4, 5, 6, 7, 8, 9], className: 'dt-right' }] });
+  setTimeout(function() {
+    var $wrap = $('#tblLabels').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblLabelsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblLabelsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblLabels').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblLabelsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblLabelsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblLabels').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblLabelsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblLabelsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblLabels').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblLabelsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblLabelsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblLabels').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblLabelsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblLabelsSearch');
+      }
+    }
+  }, 0);
   $('#labelsWrap').show();
 }
 
@@ -450,9 +500,59 @@ function renderSamples(data) {
       + '<td>' + esc(r.thread) + '</td>'
       + '</tr>';
   });
+  setTimeout(function() {
+    var $wrap = $('#tblSamples').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSamplesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSamplesSearch');
+      }
+    }
+  }, 0);
   if (dtSamples) { dtSamples.destroy(); dtSamples = null; }
   $('#tblSamples tbody').html(rows);
   dtSamples = $('#tblSamples').DataTable({ pageLength: 25, lengthChange: false, order: [] });
+  setTimeout(function() {
+    var $wrap = $('#tblSamples').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSamplesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSamplesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSamples').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSamplesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSamplesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSamples').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSamplesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSamplesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSamples').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSamplesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSamplesSearch');
+      }
+    }
+  }, 0);
   $('#samplesNote').text(TLi18n.t('perf.samplesNote', {
     shown: data.samples_shown, total: data.samples_total }));
   $('#samplesWrap').show();

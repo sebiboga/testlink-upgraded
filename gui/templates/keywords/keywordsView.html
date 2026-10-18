@@ -271,6 +271,16 @@ function render(items) {
       { targets: 3, orderable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#keywordsViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'keywordsViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'keywordsViewTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function openCreate() {

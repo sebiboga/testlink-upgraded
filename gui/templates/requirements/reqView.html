@@ -835,6 +835,16 @@ function renderCoverage(r) {
     columnDefs: [{ targets: '_all', defaultContent: '' }],
     bInfo: false
   });
+  setTimeout(function() {
+    var $wrap = $('#covTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'covTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'covTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function escAttr(s) {
@@ -1029,6 +1039,16 @@ function renderRelations(r) {
       delCell
     ]);
   });
+  setTimeout(function() {
+    var $wrap = $('#relTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'relTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'relTableSearch');
+      }
+    }
+  }, 0);
   var order = showProject ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 3, 5, 6];
   var columns = [];
   if (!showProject) {
@@ -1334,6 +1354,16 @@ function renderMonitors(r) {
   $.each(list, function(i, m) {
     rows.push([escapeHtml(m.login)]);
   });
+  setTimeout(function() {
+    var $wrap = $('#monitorsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'monitorsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'monitorsTableSearch');
+      }
+    }
+  }, 0);
   monitorsTable = $('#monitorsTable').DataTable({
     data: rows,
     paging: false,

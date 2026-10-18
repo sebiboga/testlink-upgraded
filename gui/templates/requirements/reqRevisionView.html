@@ -272,6 +272,16 @@ function renderCoverage(r) {
     columnDefs: [{ targets: '_all', defaultContent: '' }],
     bInfo: false
   });
+  setTimeout(function() {
+    var $wrap = $('#reqRevisionViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqRevisionViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqRevisionViewTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function openTC(tcId) {

@@ -524,6 +524,16 @@ $(function() {
     renderTabs(null);
     loadProjects(tp);
   });
+  setTimeout(function() {
+    var $wrap = $('#assignTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'assignTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'assignTableSearch');
+      }
+    }
+  }, 0);
 });
 
 // Issue #1611: draws the shared user/role-management tab bar, gated on the legacy

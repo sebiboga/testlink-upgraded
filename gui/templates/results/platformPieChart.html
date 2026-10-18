@@ -299,6 +299,16 @@ function renderTable(data) {
   }
   $('#tbl tbody').html(rows);
   dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: false });
+  setTimeout(function() {
+    var $wrap = $('#platformPieChartTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'platformPieChartTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'platformPieChartTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function renderContext(data) {

@@ -176,6 +176,16 @@ function renderInstalled(items) {
     pageLength: 25,
     columns: [null, null, null, null, { orderable: false, searchable: false }]
   });
+  setTimeout(function() {
+    var $wrap = $('#installedTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'installedTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'installedTableSearch');
+      }
+    }
+  }, 0);
   $('#installedEmpty').toggle(items.length === 0);
 }
 
@@ -191,6 +201,16 @@ function renderAvailable(items) {
         '<i class="fa fa-download"></i> ' + TLi18n.t('plugin.install') + '</button>'
     ]);
   });
+  setTimeout(function() {
+    var $wrap = $('#availableTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'availableTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'availableTableSearch');
+      }
+    }
+  }, 0);
   availableTable = $('#availableTable').DataTable({
     data: rows,
     order: [[0, 'asc']],

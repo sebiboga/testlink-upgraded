@@ -590,6 +590,16 @@ function renderRequirements(r) {
     columnDefs: [{ targets: '_all', defaultContent: '' }],
     bInfo: false
   });
+  setTimeout(function() {
+    var $wrap = $('#reqSpecViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqSpecViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqSpecViewTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function showHideActions(r) {

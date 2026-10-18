@@ -266,6 +266,96 @@ function loadData() {
           startRender: function(rowsInGroup, group) {
             var isCollapsed = !!collapsedGroups[group];
             rowsInGroup.nodes().each(function(n) { n.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#countBadge').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'countBadgeSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'countBadgeSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#reportArea').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reportAreaSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reportAreaSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#reportArea').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reportAreaSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reportAreaSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#reportArea').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reportAreaSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reportAreaSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#countBadge').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'countBadgeSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'countBadgeSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
             var n = rowsInGroup.count();
             var cnt = TLi18n.t(n === 1 ? 'ftc.groupItem' : 'ftc.groupItems', { count: n });
             var head = TLi18n.t('ftc.groupHeader', {
@@ -314,6 +404,36 @@ function loadData() {
             col.search(v ? '^' + v + '$' : '', true, false).draw();
             mutateResetVisible();
           });
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
         } else {
           $ctl = $('<input type="text" class="col-filter" name="colfilter_' + idx + '" data-col="' + idx + '" placeholder="' +
             esc(t('ftc.filterCol', 'Filter {col}').replace('{col}', label)) + '" />');

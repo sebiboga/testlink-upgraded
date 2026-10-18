@@ -458,6 +458,16 @@ function renderResults(r) {
           startRender: function (rowsInGroup, group) {
             var isCollapsed = isGroupCollapsed(group);
             rowsInGroup.nodes().each(function (rn) { rn.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#tcCreatedPerUserOnTestProjectTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tcCreatedPerUserOnTestProjectTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tcCreatedPerUserOnTestProjectTableSearch');
+      }
+    }
+  }, 0);
             var n = rowsInGroup.count();
             return $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group))
               .append($('<td/>').attr('colspan', visibleColumnCount()).append(

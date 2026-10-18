@@ -233,6 +233,16 @@ function render() {
     order: [[1, 'asc']],
     language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_' }
   });
+  setTimeout(function() {
+    var $wrap = $('#reqCreateTestCasesTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqCreateTestCasesTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqCreateTestCasesTableSearch');
+      }
+    }
+  }, 0);
   $('#createBtn').prop('disabled', true);
 }
 

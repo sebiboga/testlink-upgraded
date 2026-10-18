@@ -432,6 +432,16 @@ function renderTable(items) {
       { orderable: false, searchable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#rolesViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'rolesViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'rolesViewTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function toggleAllRights() {

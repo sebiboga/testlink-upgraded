@@ -380,6 +380,16 @@ function renderTable(items) {
       { orderable: false, searchable: false }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#codetrackerViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'codetrackerViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'codetrackerViewTableSearch');
+      }
+    }
+  }, 0);
   // View-only users get no manage affordances: collapse the Actions column the
   // way legacy omits the th_delete column (codeTrackerView.tpl).
   table.column(5).visible(canManage);

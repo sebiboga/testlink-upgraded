@@ -355,6 +355,16 @@ function renderTable(data) {
     paging: false, info: false, searching: false, order: [],
     columnDefs: [{ targets: [8], orderable: false }]
   });
+  setTimeout(function() {
+    var $wrap = $('#metricsTrendsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'metricsTrendsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'metricsTrendsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function fillFilters(filters, filter) {

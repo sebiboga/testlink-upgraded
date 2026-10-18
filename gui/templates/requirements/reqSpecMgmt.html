@@ -893,6 +893,16 @@ function renderSpecs(items) {
       { targets: 7, orderable: false, className: 'text-center' }
     ]
   });
+  setTimeout(function() {
+    var $wrap = $('#specTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'specTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'specTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function specTypeLabel(code) {
@@ -1038,6 +1048,16 @@ function renderReqs(items) {
       action
     ];
   });
+  setTimeout(function() {
+    var $wrap = $('#reqTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqTableSearch');
+      }
+    }
+  }, 0);
 
   reqTbl = $('#reqTable').DataTable({
     destroy: true,

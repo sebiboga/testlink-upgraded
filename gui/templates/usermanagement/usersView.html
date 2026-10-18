@@ -563,6 +563,16 @@ function renderTable(items) {
       startRender: function (rows, group) {
         var isCollapsed = !!collapsedGroups[group];
         rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#usersViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'usersViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'usersViewTableSearch');
+      }
+    }
+  }, 0);
         var n = rows.count();
         var cnt = TLi18n.t('usergrid.groupItem', '({count} item)').replace('{count}', n);
         if (n !== 1) { cnt = TLi18n.t('usergrid.groupItems', '({count} items)').replace('{count}', n); }

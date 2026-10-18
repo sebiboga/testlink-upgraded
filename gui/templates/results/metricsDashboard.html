@@ -506,6 +506,16 @@ function buildColumnFilters() {
       table.column(idx).search(this.value).draw();
       updateResetFiltersBtn();
     });
+  setTimeout(function() {
+    var $wrap = $('#metricsDashboardTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'metricsDashboardTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'metricsDashboardTableSearch');
+      }
+    }
+  }, 0);
   });
   updateResetFiltersBtn();
 }

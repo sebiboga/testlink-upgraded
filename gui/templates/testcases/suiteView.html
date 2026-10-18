@@ -483,6 +483,16 @@ function renderTc(rows) {
       order: [[0, 'asc']], language: { search: TLi18n.t('common.search') },
       columnDefs: [{ targets: 0, type: 'num' }]
     });
+  setTimeout(function() {
+    var $wrap = $('#tcTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tcTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tcTableSearch');
+      }
+    }
+  }, 0);
   }
 }
 
@@ -621,6 +631,16 @@ function renderAttachments(atts) {
       '<td>' + actions + '</td>' +
     '</tr>');
   });
+  setTimeout(function() {
+    var $wrap = $('#attTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'attTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'attTableSearch');
+      }
+    }
+  }, 0);
   $('#attTable').DataTable({
     pageLength: 10, lengthChange: false, searching: true,
     order: [[3, 'desc']], language: { search: TLi18n.t('common.search') }
@@ -790,6 +810,16 @@ function renderTableView(r) {
       '<td>' + escapeHtml(tc.summary || '') + '</td>' +
     '</tr>';
   });
+  setTimeout(function() {
+    var $wrap = $('#tvTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tvTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tvTableSearch');
+      }
+    }
+  }, 0);
   $tb.html(html);
 
   if (TV_TABLE && $.fn.DataTable.isDataTable('#tvTable')) {

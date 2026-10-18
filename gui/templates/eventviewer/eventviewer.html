@@ -396,6 +396,16 @@ function renderTable(items) {
       startRender: function (rows, group) {
         var isCollapsed = !!collapsedGroups[group];
         rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#eventviewerTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'eventviewerTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'eventviewerTableSearch');
+      }
+    }
+  }, 0);
         var n = rows.count();
         var suffix = n === 1 ? TLi18n.t('ev.item') : TLi18n.t('ev.items');
         return $('<tr/>').attr('data-key', encodeURIComponent(group))

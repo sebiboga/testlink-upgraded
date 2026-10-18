@@ -1124,6 +1124,16 @@ function renderUsersTable(keep) {
       }
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#assignTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'assignTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'assignTableSearch');
+      }
+    }
+  }, 0);
   // Restore the caller's view after an in-screen re-render (bulk Do). Same
   // pattern as the sibling project screen (usersAssignProject.html aggregated
   // renderAssignTable): the fresh wrapper ships an empty search box while the

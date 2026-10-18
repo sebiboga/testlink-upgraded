@@ -217,6 +217,16 @@ function renderTable(items) {
     pageLength: 25,
     columns: cols
   });
+  setTimeout(function() {
+    var $wrap = $('#reqMgrSystemViewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqMgrSystemViewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqMgrSystemViewTableSearch');
+      }
+    }
+  }, 0);
   $('#systemsTable').off('click', '[data-action="delete"]').on('click', '[data-action="delete"]', function() {
     deleteSystem($(this).data('id'));
   });

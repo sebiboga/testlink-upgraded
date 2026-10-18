@@ -354,6 +354,16 @@ function renderBugs(bugs, dash) {
     order: [[0, 'asc']],
     columns: [ null, null, null, null ]
   });
+  setTimeout(function() {
+    var $wrap = $('#bugsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'bugsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'bugsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 // Async live enrichment of the "Test case bugs" table: the base payload
@@ -421,6 +431,16 @@ function renderIssues(issues) {
       var c = it.label_colors && it.label_colors[lab] ? '#' + it.label_colors[lab] : '#6c757d';
       labelsHtml += '<span class="badge" style="background:' + esc(c) + ';">' + esc(lab) + '</span>';
     });
+  setTimeout(function() {
+    var $wrap = $('#issuesTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'issuesTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'issuesTableSearch');
+      }
+    }
+  }, 0);
     var st = it.status ? '<span class="badge" style="background:' + esc(it.color) + ';">' + esc(it.status) + '</span>' : '';
     rows.push([id, esc(it.title), labelsHtml, st]);
   });
@@ -496,6 +516,16 @@ function renderAssigned(a) {
       assignedActions(r)
     ]);
   });
+  setTimeout(function() {
+    var $wrap = $('#assignedTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'assignedTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'assignedTableSearch');
+      }
+    }
+  }, 0);
 
   if ($.fn.DataTable.isDataTable('#assignedTable')) $('#assignedTable').DataTable().destroy();
   $('#assignedTable tbody').empty();

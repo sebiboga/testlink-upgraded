@@ -323,6 +323,86 @@ var cols = [
           startRender: function (rowsInGroup, group) {
             var isCollapsed = !!collapsedGroups[group];
             rowsInGroup.nodes().each(function (n) { n.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#footerInfo').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'footerInfoSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'footerInfoSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#loadingBox').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'loadingBoxSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'loadingBoxSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#summaryCards').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'summaryCardsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'summaryCardsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#summaryCards').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'summaryCardsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'summaryCardsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#reportArea').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reportAreaSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reportAreaSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#emptyBox').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'emptyBoxSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'emptyBoxSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
             var n = rowsInGroup.count();
             var cnt = (n > 1 ? t('rb.groupItems', '({count} items)') : t('rb.groupItem', '({count} item)')).replace('{count}', n);
             return $('<tr/>').attr('data-key', encodeURIComponent(group))
@@ -352,6 +432,36 @@ var cols = [
           tableRef.column(idx).search(this.value).draw();
           updateReset();
         });
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#dtResults').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'dtResultsSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'dtResultsSearch');
+      }
+    }
+  }, 0);
       });
       function anyFilterActive() {
         var any = false;

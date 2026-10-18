@@ -364,6 +364,16 @@ function renderTable(items) {
     pageLength: 10,
     language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_' }
   });
+  setTimeout(function() {
+    var $wrap = $('#nfrRequirementsTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'nfrRequirementsTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'nfrRequirementsTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function typeIcon(code) {

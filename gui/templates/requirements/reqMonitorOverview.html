@@ -330,6 +330,16 @@ function renderTable(items) {
       startRender: function(rows, group) {
         var isCollapsed = isGroupCollapsed(group);
         rows.nodes().each(function(r) { r.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#reqMonitorOverviewTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'reqMonitorOverviewTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'reqMonitorOverviewTableSearch');
+      }
+    }
+  }, 0);
         var n = rows.count();
         var cnt = TLi18n.t(n === 1 ? 'rmo.grid.groupItem' : 'rmo.grid.groupItems', {count: n});
         var visibleCols = $('#rmoTable thead th').filter(function() { return $(this).css('display') !== 'none'; }).length;

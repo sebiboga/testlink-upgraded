@@ -308,6 +308,16 @@ function renderResult(data) {
   $('#tbl tbody').html(rows);
   dt = $('#tbl').DataTable({ paging: false, ordering: false, info: false, searching: true,
     language: { search: TLi18n.t('common.search') + ':', emptyTable: TLi18n.t('common.noData') } });
+  setTimeout(function() {
+    var $wrap = $('#cicdPublishTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'cicdPublishTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'cicdPublishTableSearch');
+      }
+    }
+  }, 0);
   $('#tbl_filter input[type="search"]').attr({ id: 'tblSearch', name: 'tblSearch' });
   $('#resultBox').show();
 }

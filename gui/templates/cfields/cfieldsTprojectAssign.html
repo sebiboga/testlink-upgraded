@@ -332,6 +332,26 @@ function render(r) {
       pageLength: 20, lengthMenu: pageLen, searching: false,
       order: [[5, 'asc']], columnDefs: [{ targets: [0, 5, 6, 7, 8, 9], orderable: false }]
     });
+  setTimeout(function() {
+    var $wrap = $('#availableTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'availableTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'availableTableSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#linkedTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'linkedTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'linkedTableSearch');
+      }
+    }
+  }, 0);
   }
   if (STATE.available.length) {
     dtAvailable = $('#availableTable').DataTable({

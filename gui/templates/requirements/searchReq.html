@@ -497,6 +497,16 @@ function renderResults(r) {
       startRender: function (groupRows, group) {
         var isCollapsed = isGroupCollapsed(group);
         groupRows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+  setTimeout(function() {
+    var $wrap = $('#searchReqTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'searchReqTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'searchReqTableSearch');
+      }
+    }
+  }, 0);
         var n = groupRows.count();
         var cnt = TLi18n.t('reqsearch.groupItem', {count: n});
         if (n !== 1) { cnt = TLi18n.t('reqsearch.groupItems', {count: n}); }

@@ -271,6 +271,56 @@ function renderSuites(rows) {
     order: [[1, 'desc']],
     language: { emptyTable: TLi18n.t('dintel.emptySuites') }
   });
+  setTimeout(function() {
+    var $wrap = $('#tblSuites').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSuitesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSuitesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSuites').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSuitesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSuitesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSuites').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSuitesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSuitesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSuites').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSuitesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSuitesSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblSuites').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblSuitesSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblSuitesSearch');
+      }
+    }
+  }, 0);
 }
 
 function renderFailures(rows) {
@@ -294,12 +344,52 @@ function renderFailures(rows) {
       + '<td>' + r.builds_failed + rec + '</td>'
       + '<td>' + addr + '</td></tr>';
   });
+  setTimeout(function() {
+    var $wrap = $('#tblFail').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblFailSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblFailSearch');
+      }
+    }
+  }, 0);
   $('#tblFail tbody').html(body);
   dtFail = $('#tblFail').DataTable({
     pageLength: 25, lengthChange: false,
     order: [[5, 'desc'], [0, 'asc']],
     language: { emptyTable: TLi18n.t('dintel.emptyFailures') }
   });
+  setTimeout(function() {
+    var $wrap = $('#tblFail').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblFailSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblFailSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblFail').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblFailSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblFailSearch');
+      }
+    }
+  }, 0);
+  setTimeout(function() {
+    var $wrap = $('#tblFail').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'tblFailSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'tblFailSearch');
+      }
+    }
+  }, 0);
 }
 
 function load() {
