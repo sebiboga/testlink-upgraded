@@ -59,6 +59,7 @@ Every screen of the application was ported one-by-one in a screen-compare
   planUpdateTC/cfieldsAssignView) filed as **#1941**, out of this issue's scope.
   (Fixes #1939)
 
+- [KEY BUGFIX] - #1941: cross-screen Chrome a11y — added for= on labels, id/name on DataTables filter inputs, and id attributes on row checkboxes (buildsView, planUpdateTC, cfieldsAssignView, planView; widespread DataTable filter id/name wiring). (Refs #1941)
 - [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
   (`gui/templates/testcases/containerMoveTC.html`) rendered **raw i18n keys** in
   every locale (tab title `tmvc.title`, buttons `tmvc.move`/`tmvc.cancel`, …)
