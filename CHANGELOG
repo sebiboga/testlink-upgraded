@@ -619,6 +619,29 @@ Every screen of the application was ported one-by-one in a screen-compare
   in the inline `esc()` helper (`s==null?''` missing its `:` else-branch - a SyntaxError
   that halted the whole script so nothing rendered). (Refs #1055)
 
+- [SCREEN] - #1937 (parent #1072): the **REST API Reference hub**
+  (`gui/templates/documentation/apiReference.html` + BFF
+  `api/apireference/index.php`) is added as the Documentation ASIDE section's
+  sixth entry, giving 2.0.1 a single in-app catalogue of every REST BFF
+  endpoint (1.9.20 had no API documentation screen at all). Net-new: a
+  machine-readable `GET ?action=init` index of **160 modules in 9 resource
+  groups** (session 8, admin 11, project 16, spec 30, requirements 22, plans
+  20, execute 13, reports 25, integrations 15) with **11 featured endpoints**,
+  the **9 error codes** (400/401/403/404/405/409/413/422/500) each with its
+  shipped error strings, **4 authentication rules** (session cookie, CSRF
+  header, same-origin proof enforced on state-changing methods only, session
+  timeout), the CI/CD publish formats (JUnit / JSON) and 5 related in-context
+  deep links (Documentation / Learn Testing / ISTQB / Accessibility Resources /
+  Test Strategy) - all with a live search filter (explicit no-match state), a
+  160-module badge with tooltip, method chips and a TLi18n locale switcher.
+  87 `apiref.*` + `footers.apiReference` keys in all 10 client bundles +
+  `$TLS_title_api_reference` in all 19 server locales; wired via
+  `$actions->apiReference` and the new `apiReference` Documentation ASIDE
+  item. Verified end-to-end (render, filter, EN->RO switch, related links,
+  ASIDE deep link, anon 401 state card, 400/403/405/500 state cards, BFF
+  contract 401/400/403/405 + foreign-origin matrix); Event Viewer clean;
+  3 screenshots; suite 26/26. (Refs #1937 / parent #1072)
+
 - [SCREEN] - #1911: the **Edit Execution** popup (`lib/execute/editExecution.php` ->
   `gui/templates/execute/editExecution.html`, BFF `api/executionedit/index.php`) is
   complete. The modern screen + BFF already existed from #825 and were kept; this pass
