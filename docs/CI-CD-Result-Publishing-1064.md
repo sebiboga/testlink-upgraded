@@ -23,7 +23,7 @@ The CI/CD Result Publishing screen accepts the result artifact produced by an ex
 
 ## Session 2 — finishing pass (tracking issue #1940, 2026-10-18)
 - **Bugfix `53a3065c3`:** every `no_right` denial was written to the Event Viewer as an ERROR row; both `tLog(..., 'ERROR')` calls now log `AUDIT` (`log_level=16`). Post-fix denial events: ids 11/12 (curl), 15 (browser); no new Error/Warning rows after the fix.
-- **Mandatory code review (1 BLOCKER + 4 SHOULD-FIX + 3 NIT), applied in `df6bc2564`:**
+- **Mandatory code review (1 BLOCKER + 4 SHOULD-FIX + 3 NIT), applied in `109c3865f`:**
   - BLOCKER — all five pipeline snippets were copy-paste broken: they sent no `Origin`/`Referer`/`X-Requested-With`, so `bffSameOriginGuard` answered 403 on every real pipeline call. Each snippet now carries `-H "X-Requested-With: XMLHttpRequest"` (properly indented).
   - DataTables filter label was hardcoded English — now `common.search` / `common.noData` via `language:`, and the search input gets `id/name=tblSearch`.
   - A JSON entry with no `status` silently published a *pass* — default is now `n` (not run).
