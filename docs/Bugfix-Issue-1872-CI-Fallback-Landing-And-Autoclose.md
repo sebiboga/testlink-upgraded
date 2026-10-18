@@ -366,3 +366,39 @@ route with **no code change**, after which this branch lands as-is.
 **Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix). The fix remains one-shot
 reproducible from §Fix above (or cherry-pick `18eb7695f`); the gates above are re-run after landing,
 then the issue closes with evidence.
+
+## Re-verification — fix-bug run 11 (2026-10-18, base `eb6784477`)
+
+Eleventh consecutive fix-bug run. Bug re-confirmed live on `origin/sebiboga @ eb6784477`
+(8 `-X theirs` / 0 `-X ours`; 5 local-only `"$BEFORE"..HEAD` auto-close REFS / 0 origin guards —
+identical topology to runs 1–10; measured `file:line` in the run-11 INVESTIGATION comment). The
+published 2-step patch (§Fix above) was re-applied byte-identically on local branch
+`fix/issue-1872-workflow-patch` → `4d906b931` (7 files, **18 insertions / 13 deletions**):
+
+| gate | measured (run 11) |
+|---|---|
+| `rebase -X theirs` | **0** (was 8) |
+| `rebase -X ours` | **8** (was 0) |
+| local `"$BEFORE"..HEAD` REFS | **0** (was 5) |
+| `"$BEFORE".."origin/$GITHUB_REF_NAME"` REFS + fetch guards | **5 + 5** |
+| `yaml.safe_load` over `.github/workflows/*.yml` | **11/11** |
+| harness `-X theirs` / `-X ours` (live lines kept) | **0/45** / **45/45** |
+| `#1872` literal token in branch commits (false-close guard) | **0** |
+
+**Landing routes re-measured (both blocked):**
+- `git push origin HEAD:fix/issue-1872` → `! [remote rejected] … (refusing to allow a GitHub
+  App to create or update workflow .github/workflows/compare-screens.yml without workflows
+  permission)` — **11th consecutive blocked run** (token minted this run).
+- **Contents API:** a non-workflow probe branch push was ACCEPTED
+  (`tmp/api-probe-run11`, empty commit, deleted afterwards), then
+  `PUT /repos/sebiboga/testlink-upgraded/contents/.github/workflows/fix-bug.yml` on that branch →
+  **HTTP 403 `Resource not accessible by integration`** — API route re-measured blocked.
+
+**Regression suite:** run-11 entry `Regression — Issue #1872 (re-run 2026-10-18, fix-bug run 11,
+base eb6784477)` appended (APPEND-ONLY); gate `TLU_REQUIRE_SUITE="Issue #1872"
+bash ai/verify_test_suites.sh` → **34 PASS / 0 FAIL / 0 SKIP**, exit 0 (926 → 927 suites, none lost).
+
+**Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix). The fix remains one-shot
+reproducible from §Fix above (or cherry-pick `4d906b931` once a `workflows`-scoped credential or
+the re-granted App permission exists); the gates above are re-run after landing, then the issue
+closes with evidence.
