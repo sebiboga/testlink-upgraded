@@ -2292,6 +2292,12 @@ function getActions(&$gui,$baseURL) {
   // (api/apireference) enforces session auth + same-origin on every route and
   // returns i18n KEYS only.
   $actions->apiReference = "/gui/templates/documentation/apiReference.html?{$ctx}";
+  // OpenAPI Specification viewer modernized screen (Dashio standalone page) -
+  // Refs #1944 (parent #1072). Generates and serves the machine-readable
+  // OpenAPI 3.1 document for the BFF layer (JSON/YAML download + in-page
+  // browser); the BFF (api/openapi) enforces session auth + same-origin on
+  // every route and returns i18n KEYS only for the screen labels.
+  $actions->openApiSpec = "/gui/templates/documentation/openApiSpec.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
