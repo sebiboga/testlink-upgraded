@@ -177,7 +177,7 @@ $groupOf = array(
     'staticpage' => 'integrations', 'documentation' => 'integrations',
     'learntesting' => 'integrations', 'istqb' => 'integrations',
     'accessibilityresources' => 'integrations', 'accessibilityaudit' => 'integrations',
-    'apireference' => 'integrations',
+    'apireference' => 'integrations', 'openapi' => 'integrations',
 );
 
 $groupMeta = array(

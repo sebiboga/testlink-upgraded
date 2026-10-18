@@ -40,16 +40,6 @@ doSessionStart();
 bffSameOriginGuard();
 
 $method = $_SERVER['REQUEST_METHOD'];
-if ($method !== 'GET' && $method !== 'HEAD') {
-    header('Content-Type: application/json; charset=utf-8');
-    header('X-Content-Type-Options: nosniff');
-    header('Cache-Control: no-store');
-    http_response_code(405);
-    header('Allow: GET, HEAD');
-    echo json_encode(array('status' => 'error', 'code' => 'method_not_allowed',
-                           'message' => 'Method not allowed'));
-    exit;
-}
 
 $action = (string)($_GET['action'] ?? 'init');
 
@@ -81,6 +71,18 @@ if (is_null($user)) {
 
 // Refs #1614: enforce the session-inactivity timeout once the user resolves.
 bffEnforceSession($db);
+
+$method = $_SERVER['REQUEST_METHOD'];
+if ($method !== 'GET' && $method !== 'HEAD') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    header('Cache-Control: no-store');
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    echo json_encode(array('status' => 'error', 'code' => 'method_not_allowed',
+                           'message' => 'Method not allowed'));
+    exit;
+}
 
 /**
  * Discover every api/<area>/index.php module on disk (same authoritative
@@ -116,6 +118,7 @@ function oas_featured_endpoints()
               'summary' => 'Probe the current session (logged-in state, user id, login).'),
         array('tag' => 'session', 'method' => 'GET',
               'path' => '/api/aside/index.php?action=init',
+              'query' => array(array('name' => 'action', 'enum' => array('init'), 'default' => 'init')),
               'summary' => 'Render the ASIDE menu for the current user and context.'),
         array('tag' => 'projects', 'method' => 'GET',
               'path' => '/api/projects/index.php',
@@ -143,18 +146,26 @@ function oas_featured_endpoints()
               'summary' => 'Record an execution result (testplan_execute on the owning project).'),
         array('tag' => 'reports', 'method' => 'GET',
               'path' => '/api/resultsimport/index.php?action=init',
+              'query' => array(array('name' => 'action', 'enum' => array('init'), 'default' => 'init')),
               'summary' => 'Prepare a TestLink-XML results import for a plan and build.'),
         array('tag' => 'reports', 'method' => 'POST',
               'path' => '/api/cicdpublish/index.php?action=publish',
+              'query' => array(array('name' => 'action', 'enum' => array('publish'), 'default' => 'publish')),
               'summary' => 'Publish a JUnit XML or JSON CI/CD result artifact (testplan_execute).'),
         array('tag' => 'attachments', 'method' => 'GET',
               'path' => '/api/attachments/index.php',
               'summary' => 'List attachments of an object (uploadedFile[] contract on upload).'),
         array('tag' => 'reports', 'method' => 'GET',
               'path' => '/api/reports/index.php?action=<report_action>',
+              'query' => array(array('name' => 'action', 'required' => true,
+                                     'description' => 'Report action id, e.g. general_metrics or results_by_tsuite.')),
               'summary' => 'Dispatch to a modern report by action id (testplan_metrics).'),
         array('tag' => 'meta', 'method' => 'GET',
               'path' => '/api/openapi/index.php?action=spec',
+              'query' => array(
+                  array('name' => 'action', 'enum' => array('spec'), 'default' => 'spec'),
+                  array('name' => 'format', 'enum' => array('json', 'yaml'), 'default' => 'json'),
+              ),
               'summary' => 'This OpenAPI 3.1 document (JSON or ?format=yaml).'),
     );
 }
@@ -189,6 +200,9 @@ function oas_build_spec($modules)
 {
     $paths = array();
     foreach (oas_featured_endpoints() as $ep) {
+        // OpenAPI path keys must not carry a query string: declare the query
+        // parameters instead (tools such as Swagger UI reject `?action=` keys).
+        $apiPath = explode('?', $ep['path'], 2)[0];
         $op = array(
             'tags'       => array($ep['tag']),
             'summary'    => $ep['summary'],
@@ -202,6 +216,26 @@ function oas_build_spec($modules)
                 '405' => array('$ref' => '#/components/responses/E405'),
             ),
         );
+        $params = array();
+        foreach (($ep['query'] ?? array()) as $q) {
+            $schema = array('type' => 'string');
+            if (isset($q['enum'])) {
+                $schema['enum'] = $q['enum'];
+            }
+            if (array_key_exists('default', $q)) {
+                $schema['default'] = $q['default'];
+            }
+            $param = array(
+                'name'     => $q['name'],
+                'in'       => 'query',
+                'required' => !empty($q['required']),
+                'schema'   => $schema,
+            );
+            if (!empty($q['description'])) {
+                $param['description'] = $q['description'];
+            }
+            $params[] = $param;
+        }
         if ($ep['method'] === 'POST') {
             $op['requestBody'] = array(
                 'required' => true,
@@ -215,15 +249,18 @@ function oas_build_spec($modules)
                 ),
             );
             // State-changing verbs must carry the shared CSRF header.
-            $op['parameters'] = array(array(
+            $params[] = array(
                 'name'        => 'X-Requested-With',
                 'in'          => 'header',
                 'required'    => true,
                 'description' => 'Shared CSRF guard: must be XMLHttpRequest.',
                 'schema'      => array('type' => 'string', 'enum' => array('XMLHttpRequest')),
-            ));
+            );
         }
-        $paths[$ep['path']][$ep['method']] = $op;
+        if ($params !== array()) {
+            $op['parameters'] = $params;
+        }
+        $paths[$apiPath][$ep['method']] = $op;
     }
 
     $errResponses = array();
@@ -270,7 +307,7 @@ function oas_build_spec($modules)
                     'type' => 'apiKey',
                     'in'   => 'cookie',
                     'name' => 'PHPSESSID',
-                    'description' => 'Session cookie issued by POST /api/auth/index.php (login admin/password flow). Anonymous callers receive HTTP 401 on every protected module.',
+                    'description' => 'Session cookie issued by POST /api/auth/login (login/password). Anonymous callers receive HTTP 401 on every protected module.',
                 ),
             ),
             'schemas' => array(
@@ -327,7 +364,7 @@ function oas_to_yaml($data, $indent = 0)
                 if (is_array($value) && $value !== array()) {
                     $out .= $pad . "-\n" . oas_to_yaml($value, $indent + 1);
                 } elseif (is_array($value)) {
-                    $out .= $pad . "- {}\n";
+                    $out .= $pad . "- []\n";
                 } else {
                     $out .= $pad . '- ' . oas_to_yaml($value, $indent + 1) . "\n";
                 }
@@ -336,7 +373,7 @@ function oas_to_yaml($data, $indent = 0)
                 if (is_array($value) && $value !== array()) {
                     $out .= $pad . $k . ":\n" . oas_to_yaml($value, $indent + 1);
                 } elseif (is_array($value)) {
-                    $out .= $pad . $k . ": {}\n";
+                    $out .= $pad . $k . ": []\n";
                 } else {
                     $out .= $pad . $k . ': ' . oas_to_yaml($value, $indent + 1) . "\n";
                 }
