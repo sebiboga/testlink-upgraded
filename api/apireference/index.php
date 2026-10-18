@@ -17,7 +17,8 @@
  *   200 {status, auth, ctx, totalModules, groups[], featured[], errors[],
  *        publish{}, related[]}
  *   400 unknown_action | 401 not_authenticated/session_expired
- *   405 method_not_allowed | 403 foreign-origin (bffSameOriginGuard)
+ *   405 method_not_allowed | 403 foreign-origin on state-changing methods
+ *   (bffSameOriginGuard skips GET/HEAD/OPTIONS)
  *
  * The endpoint CATALOGUE is discovered from the filesystem (glob over every
  * api/<area>/index.php module) so it can never drift from reality, then

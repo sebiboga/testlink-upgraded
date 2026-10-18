@@ -43993,3 +43993,41 @@ push probe (git route) and contents-API probe.
 cases 1–4 FAIL-by-design (bug live on default branch — fix cannot land); case 9 FAIL (git push
 wall); case 12 FAIL (contents API wall, re-measured). #1872 remains OPEN; durable patch in
 `docs/Bugfix-Issue-1872-CI-Fallback-Landing-And-Autoclose.md` §Fix.
+
+## Modernize — Issue #1937 (REST API Reference hub apiReference)
+
+Screen `gui/templates/documentation/apiReference.html` + BFF `api/apireference/index.php`
+(parent enhancement #1072). App http://localhost:8082, user admin/admin, session cookie in
+`/tmp/ck.txt`; anon checks run in an isolated browser context / cookie-less curl.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | `curl -b ck.txt /api/apireference/index.php` | 200, `status=ok`, groups/featured/errors/publish/related present | **200** — `totalModules=160`, 9 groups, 11 featured, 9 errors, 5 related, publish `{junit,json}` PASS |
+| 2 | anonymous `curl` to the same URL | 401 `not_authenticated` | **401** `{"status":"error","code":"not_authenticated"}` PASS |
+| 3 | `POST` with valid same-origin headers | 405 `method_not_allowed` (GET/HEAD only) | **405** `method_not_allowed` PASS |
+| 4 | `PUT`/`DELETE`/`PATCH` with valid Origin | 405 each | **405 / 405 / 405** PASS |
+| 5 | `POST` with `Origin: http://evil.example` | 403 same-origin guard | **403** `csrf_failed` guard message PASS |
+| 6 | `GET` with `Origin: http://evil.example` | 200 — `bffSameOriginGuard()` returns early for GET/HEAD/OPTIONS (`api/_guard.php:104`) | **200** — DISCOVERY: the documented contract wording said every foreign-origin request 403s; copy corrected in all 10 bundles + HTML fallback to "state-changing routes verify Origin/Referer first…" PASS |
+| 7 | `GET ?action=nope` | 400 `unknown_action` | **400** PASS |
+| 8 | `curl -I` (HEAD) | 200 | **200 OK** PASS |
+| 9 | `bash ai/verify_i18n_coverage.sh` | exit 0 | **PASS 9/9 bundles, 8714 keys, 0 missing** PASS |
+| 10 | `python3 -m json.tool` over all 10 `gui/templates/i18n/*.json` | all valid, still single-line flat | **10/10 OK**, 1-line diffs only PASS |
+| 11 | key-set parity of the 87 new keys across the 10 language data files before writing | identical sets | **87 keys × 10 languages, `ref ^ lang = []` for all** PASS |
+| 12 | `grep -rl TLS_title_api_reference locale/ \| wc -l` + `php -l locale/ro_RO/strings.txt` | 19 + no syntax errors | **19** + `No syntax errors detected` PASS |
+| 13 | `curl -b ck.txt /api/aside/index.php?action=init` → documentation section | 6th item `apiReference` → `/gui/templates/documentation/apiReference.html?tproject_id=0&tplan_id=0` | **present**, label `REST API Reference`, icon `fas fa-plug` PASS |
+| 14 | Screen load (EN): title, header, sub, badge, tooltip, auth list, errors, groups, featured, related, publish, footers, state card | all render from i18n | title/header `REST API Reference`; badge `160` + title `API modules discovered on this installation`; 4 auth rules; 9 error rows; 9 group cards (one group empty ⇒ skipped); 11 featured rows; 5 related cards; publish chip; `Generated on …` + `TestLink 2.0.1 - REST API Reference`; state card hidden PASS |
+| 15 | Type `publish` in the filter box | narrowed lists, empty msg hidden | 1 group / 1 featured / 0 related, empty msg `display:none` PASS |
+| 16 | Type `zzzzzz` | everything hidden, translated empty state | 0/0/0, `#emptyMsg` visible = `No matching entries.` PASS |
+| 17 | Clear the filter | lists restored | 9 / 11 / 5, empty msg hidden PASS |
+| 18 | Inspect the 5 related links | context-preserving hrefs, `target=_top` | 5/5 hrefs carry `?tproject_id=…&tplan_id=…` and `target="_top"` PASS |
+| 19 | Click **Refresh** | data reloads, timestamp updates, no console error | footer `11:29:18` → `11:29:42`, 9 groups, no console messages PASS |
+| 20 | Locale switcher EN → RO | reload with `?locale=ro`, whole screen translated | URL `…?locale=ro`; title `Referință API REST`; header/footer/placeholder/badge tooltip/400-row/group title/`Reîmprospătează` button all RO PASS |
+| 21 | Isolated context (no session) → open the screen | 401 state card, Login action | `Request error` / session-expired copy / `HTTP 401 - not_authenticated`, content hidden, `Log in` → `/login.php?note=expired` PASS |
+| 22 | `stateCard(400/403/405/500, 'some_code')` (RO) | correct translated messages, Login hidden for all non-401 | 4 RO messages verified, `#stLogin display:none` for all 4, code line `HTTP nnn - some_code` PASS |
+| 23 | Click **Documentation → REST API Reference** in the ASIDE shell | main frame loads the screen in-context | main frame URL `…/apiReference.html?tproject_id=0&tplan_id=0`, badge `160`, 9 groups PASS |
+| 24 | Console on the screen + full shell | no JS errors from the new screen | screen: **0 messages**; shell: only the pre-existing navBar a11y issue `No label associated with a form field (count: 2)` → filed as **bug #1938** (navBar `<label>`s lack `for=`; not screen-attributable) PASS |
+| 25 | `events` table after the whole pass | no new Error/Warning rows | 3 rows total, all `LOGIN` / `audit_login_succeeded` INFO — Event Viewer clean PASS |
+| 26 | `node --check` on the extracted inline script; `php -l` on `lib/functions/common.php`, `api/aside/index.php` | clean | `JS OK`, `No syntax errors detected` ×2 PASS |
+
+**Result: 26/26 PASS.** Screenshots: `docs/1937-apiref-normal.png` (EN full page),
+`docs/1937-apiref-401.png` (anon 401 state card), `docs/1937-apiref-shell.png` (in-shell RO).

@@ -113,7 +113,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="desc" data-i18n="apiref.authBody">Every api route follows the same rules:</div>
       <ul>
         <li><strong data-i18n="apiref.authCookie">Session cookie</strong> — <span data-i18n="apiref.authCookieDesc">log in through /login.php (or POST api/auth) and send the session cookie with every request; an anonymous caller receives HTTP 401 with code not_authenticated.</span></li>
-        <li><strong data-i18n="apiref.authOrigin">Same-origin only</strong> — <span data-i18n="apiref.authOriginDesc">requests with a foreign Origin/Referer are refused with HTTP 403, and state-changing routes only accept POST (HTTP 405 otherwise).</span></li>
+        <li><strong data-i18n="apiref.authOrigin">Same-origin only</strong> — <span data-i18n="apiref.authOriginDesc">state-changing routes verify Origin/Referer first — a foreign origin is refused with HTTP 403, and only POST is accepted (HTTP 405 otherwise).</span></li>
         <li><strong data-i18n="apiref.authTimeout">Session inactivity</strong> — <span data-i18n="apiref.authTimeoutDesc">a stale session expires server-side and answers HTTP 401 with code session_expired.</span></li>
         <li><strong data-i18n="apiref.authEnvelope">Error envelope</strong> — <span data-i18n="apiref.authEnvelopeDesc">errors are always JSON: { status: "error", code: "&lt;machine-code&gt;", message: "..." } — branch on HTTP status and code, never on the message text.</span></li>
       </ul>
