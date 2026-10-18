@@ -418,6 +418,10 @@ if ($action === 'init') {
         'featured' => $featured,
         'errors'   => $errors,
         'related'  => $related,
+        'modules'  => array_map(
+            function ($area) { return '/api/' . $area . '/index.php'; },
+            $modules
+        ),
     ));
     exit;
 }

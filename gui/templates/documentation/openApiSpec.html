@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="oas.header">OpenAPI Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #22242a; color: #fff; border: 1px solid #3a3d45; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #000; }
+.search-box { position: relative; flex: 1; max-width: 380px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.intro-card { margin: 16px 24px 0 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; border-left: 4px solid #4ECDC4; }
+.intro-card .title { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+.intro-card .desc { font-size: 13px; color: #555; line-height: 1.55; }
+.badge-count { display: inline-block; background: #4ECDC4; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; padding: 14px 24px 4px 24px; }
+.metric { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 14px 16px; border-top: 3px solid #4ECDC4; }
+.metric .val { font-size: 24px; font-weight: 700; color: #22242a; }
+.metric .lbl { font-size: 12px; color: #777; margin-top: 2px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; }
+.card .desc { font-size: 12.5px; color: #777; margin-bottom: 10px; }
+.security-card { margin: 0 24px 4px 24px; border-left: 4px solid #4ECDC4; }
+.security-card ul { margin: 0; padding-left: 18px; font-size: 13px; color: #555; line-height: 1.7; }
+.security-card ul li strong { color: #22242a; }
+.table-wrap { margin: 0 24px 12px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+.table-wrap table { margin-bottom: 0; width: 100%; }
+.table-wrap th { background: #22242a; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+.table-wrap td { font-size: 13px; vertical-align: middle; }
+.mono { font-family: Consolas, 'Courier New', monospace; font-size: 12.5px; }
+.method { display: inline-block; min-width: 46px; text-align: center; border-radius: 4px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; color: #fff; }
+.method.m-get { background: #2980b9; }
+.method.m-post { background: #27ae60; }
+.tag-chip { display: inline-block; border-radius: 10px; padding: 1px 9px; font-size: 11px; font-weight: 700; background: #eef7f6; color: #2f8f89; }
+.http-chip { display: inline-block; min-width: 44px; text-align: center; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 700; color: #fff; background: #22242a; }
+.codes { font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #777; }
+.modules-card { margin: 0 24px 4px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; border-left: 4px solid #3498db; }
+.modules-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.modules-card .desc { font-size: 12.5px; color: #777; margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: Consolas, 'Courier New', monospace; font-size: 11.5px; background: #f4f6f7; border: 1px solid #e1e5e8; color: #445; border-radius: 4px; padding: 2px 7px; }
+.endpoint-chip { font-family: Consolas, 'Courier New', monospace; font-size: 12px; background: #22242a; color: #4ECDC4; border-radius: 4px; padding: 3px 9px; }
+.related-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px; border-top: 4px solid #4ECDC4; }
+.related-card .title { font-size: 14.5px; font-weight: 700; color: #22242a; margin-bottom: 10px; }
+.related-card a { text-decoration: none; font-size: 13px; color: #2980b9; display: inline-flex; align-items: center; gap: 7px; }
+.related-card a:hover { color: #1c5d8c; text-decoration: underline; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.empty { padding: 24px; text-align: center; color: #999; font-size: 13px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.info { display:block; background: #eef7f6; color: #2f8f89; border: 1px solid #bfe3e0; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+#stateCard { display: none; margin: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 24px; text-align: center; border-top: 4px solid #c0392b; }
+#stateCard .st-icon { font-size: 40px; color: #c0392b; margin-bottom: 12px; }
+#stateCard .st-title { font-size: 17px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+#stateCard .st-msg { font-size: 13.5px; color: #666; margin-bottom: 14px; }
+#stateCard .st-code { display: inline-block; font-family: Consolas, monospace; font-size: 12px; background: #f4f6f7; border: 1px solid #e1e5e8; color: #445; border-radius: 4px; padding: 3px 10px; margin-bottom: 16px; }
+#stateCard .st-actions { display: flex; gap: 10px; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="oas.header">OpenAPI Specification</span>
+  <span class="sub" data-i18n="oas.headerSub">machine-readable OpenAPI 3.1 description of the TestLink 2.0.1 BFF API</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="dlJsonBtn"><i class="fa fa-download"></i> <span data-i18n="oas.dlJson">Download JSON</span></button>
+  <button class="btn-dark" id="dlYamlBtn"><i class="fa fa-file-code"></i> <span data-i18n="oas.dlYaml">Download YAML</span></button>
+  <button class="btn-dark" id="copyUrlBtn"><i class="fa fa-link"></i> <span data-i18n="oas.copyUrl">Copy spec URL</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="oas.searchPlaceholder" placeholder="Filter endpoints, paths, modules...">
+  </div>
+  <span style="flex:1"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div id="stateCard">
+  <div class="st-icon"><i class="fa fa-exclamation-triangle"></i></div>
+  <div class="st-title" id="stTitle"></div>
+  <div class="st-msg" id="stMsg"></div>
+  <div class="st-code" id="stCode"></div>
+  <div class="st-actions">
+    <button class="btn-teal" id="stRetry"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+    <a class="btn-dark" id="stLogin" href="/login.php?note=expired" style="display:none;"><i class="fa fa-sign-in-alt"></i> <span data-i18n="oas.loginBtn">Log in</span></a>
+  </div>
+</div>
+
+<div id="content">
+
+  <div class="intro-card">
+    <div class="title"><i class="fa fa-file-code" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="oas.introTitle">About this specification</span><span class="badge-count" id="openapiBadge">OpenAPI 3.1.0</span></div>
+    <div class="desc" data-i18n="oas.introBody">TestLink 2.0.1 generates a real OpenAPI 3.1 document for its REST BFF layer, live from this installation. It describes the shared session/X-Requested-With security contract, the curated integrator endpoints, the stable error envelope and the complete module inventory - ready to feed Swagger UI, Redoc, code generators or CI tooling. Download it as JSON or YAML, or point your tooling at the spec URL directly.</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="val" id="mVersion">2.0.1</div><div class="lbl" data-i18n="oas.meta.version">API version</div></div>
+    <div class="metric"><div class="val" id="mModules">0</div><div class="lbl" data-i18n="oas.meta.modules">BFF modules</div></div>
+    <div class="metric"><div class="val" id="mPaths">0</div><div class="lbl" data-i18n="oas.meta.paths">Documented paths</div></div>
+    <div class="metric"><div class="val" id="mOps">0</div><div class="lbl" data-i18n="oas.meta.ops">Operations</div></div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-cloud" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="oas.specTitle">Spec endpoints</span></div>
+  <div style="padding:0 24px 8px 24px;font-size:12.5px;color:#777;" data-i18n="oas.specDesc">Both routes require an authenticated session and return the generated document with a download disposition:</div>
+  <div class="modules-card">
+    <div class="chips">
+      <span class="endpoint-chip" id="specUrlJson">/api/openapi/index.php?action=spec</span>
+      <span class="endpoint-chip" id="specUrlYaml">/api/openapi/index.php?action=spec&amp;format=yaml</span>
+      <span class="chip" data-i18n="oas.specFormatJson">format: application/json</span>
+      <span class="chip" data-i18n="oas.specFormatYaml">format: text/yaml</span>
+    </div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-key" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="oas.securityTitle">Security scheme</span></div>
+  <div class="card security-card">
+    <div class="desc" data-i18n="oas.securityBody">The specification declares one security scheme and the shared request rules:</div>
+    <ul>
+      <li><strong data-i18n="oas.securityCookie">sessionCookie (apiKey, cookie PHPSESSID)</strong> — <span data-i18n="oas.securityCookieDesc">log in through POST /api/auth/login; an anonymous caller receives HTTP 401 with code not_authenticated.</span></li>
+      <li><strong data-i18n="oas.securityHeader">X-Requested-With header</strong> — <span data-i18n="oas.securityHeaderDesc">every state-changing verb (POST/PUT/DELETE) must send X-Requested-With: XMLHttpRequest (shared CSRF guard) or gets HTTP 403 csrf_failed.</span></li>
+      <li><strong data-i18n="oas.securityOrigin">Same-origin only</strong> — <span data-i18n="oas.securityOriginDesc">state-changing routes verify Origin/Referer first - a foreign origin is refused with HTTP 403 foreign_origin.</span></li>
+      <li><strong data-i18n="oas.securityTimeout">Session inactivity</strong> — <span data-i18n="oas.securityTimeoutDesc">a stale session expires server-side and answers HTTP 401 with code session_expired.</span></li>
+    </ul>
+  </div>
+
+  <div class="section-title"><i class="fa fa-list" style="color:#3498db;margin-right:6px;"></i><span data-i18n="oas.featuredTitle">Documented operations</span></div>
+  <div style="padding:0 24px 4px 24px;font-size:12.5px;color:#777;" data-i18n="oas.featuredDesc">The curated integrator endpoints included in the specification:</div>
+  <div class="table-wrap">
+    <table class="table" id="featuredTable">
+      <thead>
+        <tr>
+          <th data-i18n="oas.col.method">Method</th>
+          <th data-i18n="oas.col.path">Path</th>
+          <th data-i18n="oas.col.tag">Tag</th>
+          <th data-i18n="oas.col.summary">Summary</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><i class="fa fa-bolt" style="color:#e67e22;margin-right:6px;"></i><span data-i18n="oas.errorsTitle">Shared error envelope</span></div>
+  <div style="padding:0 24px 4px 24px;font-size:12.5px;color:#777;" data-i18n="oas.errorsDesc">The HTTP statuses and machine codes documented in components.responses:</div>
+  <div class="table-wrap">
+    <table class="table" id="errorsTable">
+      <thead>
+        <tr>
+          <th data-i18n="oas.col.http">HTTP</th>
+          <th data-i18n="oas.col.codes">Machine codes</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><i class="fa fa-cubes" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="oas.modulesTitle">Module inventory</span></div>
+  <div class="modules-card">
+    <div class="title"><i class="fa fa-database" style="color:#3498db;margin-right:6px;"></i><span data-i18n="oas.modulesTitle">Module inventory</span><span class="badge-count" id="moduleCount2">0</span></div>
+    <div class="desc" data-i18n="oas.modulesDesc">Every BFF module on this installation, exported in the spec as x-testlink-modules:</div>
+    <div class="chips" id="moduleChips"></div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="oas.relatedTitle">Related in TestLink</span></div>
+  <div class="grid" id="relatedGrid"></div>
+
+  <div class="empty" id="emptyMsg" data-i18n="oas.noMatch">No matching entries.</div>
+
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.openApiSpec">TestLink 2.0.1 - OpenAPI Specification</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/openapi/index.php';
+var DATA = { featured: [], errors: [], related: [], modules: [], specMeta: null };
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn, #stRetry', function() { load(true); });
+$(document).on('input', '#searchBox', function() { render(); });
+$(document).on('click', '#dlJsonBtn', function() {
+  window.location.href = (DATA.specMeta && DATA.specMeta.specUrl) || (API + '?action=spec');
+});
+$(document).on('click', '#dlYamlBtn', function() {
+  window.location.href = (DATA.specMeta && DATA.specMeta.specUrlYaml) || (API + '?action=spec&format=yaml');
+});
+$(document).on('click', '#copyUrlBtn', function() {
+  var url = location.origin + ((DATA.specMeta && DATA.specMeta.specUrl) || (API + '?action=spec'));
+  var done = function() { showFeedback('info', TLi18n.t('oas.copied')); setTimeout(function() { showFeedback('', ''); }, 2500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, function() { showFeedback('err', TLi18n.t('oas.copyFailed')); });
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); done(); }
+    catch (e) { showFeedback('err', TLi18n.t('oas.copyFailed')); }
+    document.body.removeChild(ta);
+  }
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function stateCard(http, code) {
+  var titleKey = 'oas.errTitle';
+  var msgKey = 'oas.state.500';
+  if (http === 401) { msgKey = 'oas.state.401'; }
+  else if (http === 403) { msgKey = 'oas.state.403'; }
+  else if (http === 400) { msgKey = 'oas.state.400'; }
+  else if (http === 405) { msgKey = 'oas.state.405'; }
+  $('#stTitle').text(TLi18n.t(titleKey));
+  $('#stMsg').text(TLi18n.t(msgKey));
+  $('#stCode').text('HTTP ' + http + (code ? ' - ' + code : ''));
+  $('#stLogin').toggle(http === 401);
+  $('#content').hide();
+  $('#stateCard').show();
+}
+
+function load(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    $('#stateCard').hide();
+    $('#content').show();
+    DATA.featured = r.featured || [];
+    DATA.errors = r.errors || [];
+    DATA.related = r.related || [];
+    DATA.specMeta = r.specMeta || null;
+    DATA.modules = r.modules || [];
+    var m = DATA.specMeta || {};
+    $('#mVersion').text(String(m.version || '2.0.1'));
+    $('#mModules').text(String(m.moduleCount || 0));
+    $('#mPaths').text(String(m.pathCount || 0));
+    $('#mOps').text(String(m.opCount || 0));
+    $('#openapiBadge').text('OpenAPI ' + (m.openapi || '3.1.0'));
+    $('#moduleCount2').text(String(m.moduleCount || 0));
+    if (m.specUrl) $('#specUrlJson').text(m.specUrl);
+    if (m.specUrlYaml) $('#specUrlYaml').text(m.specUrlYaml);
+    render();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var code = '';
+    var http = xhr.status || 0;
+    try {
+      var body = JSON.parse(xhr.responseText || '{}');
+      code = body.code || '';
+      if (!http && body.status === 'error') http = 400;
+    } catch (e) {}
+    if (http === 401) {
+      stateCard(401, code);
+      return;
+    }
+    stateCard(http || 500, code);
+  });
+}
+
+function matches(text, q) {
+  if (!q) return true;
+  return String(text || '').toLowerCase().indexOf(q) !== -1;
+}
+
+function render() {
+  var q = String($('#searchBox').val() || '').toLowerCase().trim();
+  var shown = renderFeatured(q) + renderErrors(q) + renderModules(q) + renderRelated(q);
+  $('#emptyMsg').toggle(shown === 0 && !!q);
+}
+
+function renderFeatured(q) {
+  var tb = $('#featuredTable tbody').empty();
+  var shown = 0;
+  $.each(DATA.featured, function(i, f) {
+    if (q && !matches(f.method + ' ' + f.path + ' ' + f.tag + ' ' + f.summary, q)) return;
+    shown++;
+    var m = String(f.method || '');
+    var mcls = m === 'GET' ? 'm-get' : 'm-post';
+    var tr = $('<tr></tr>')
+      .append($('<td></td>').append('<span class="method ' + mcls + '"></span>').find('span').text(m).end())
+      .append($('<td></td>').append('<span class="mono"></span>').find('span').text(f.path).end())
+      .append($('<td></td>').append('<span class="tag-chip"></span>').find('span').text(f.tag || '').end())
+      .append($('<td></td>').text(f.summary || ''));
+    tb.append(tr);
+  });
+  if (shown === 0) {
+    tb.append($('<tr></tr>').append(
+      $('<td colspan="4" style="text-align:center;color:#999;padding:16px;"></td>')
+        .text(TLi18n.t('oas.noMatch'))));
+  }
+  return shown;
+}
+
+function renderErrors(q) {
+  var tb = $('#errorsTable tbody').empty();
+  var shown = 0;
+  $.each(DATA.errors, function(i, e) {
+    if (q && !matches(e.http + ' ' + e.codes, q)) return;
+    shown++;
+    var tr = $('<tr></tr>')
+      .append($('<td></td>').append('<span class="http-chip">' + esc(e.http) + '</span>'))
+      .append($('<td></td>').append('<span class="codes"></span>').find('span').text(e.codes || '').end());
+    tb.append(tr);
+  });
+  return shown;
+}
+
+function renderModules(q) {
+  var c = $('#moduleChips').empty();
+  var shown = 0;
+  $.each(DATA.modules, function(i, path) {
+    if (q && !matches(path, q)) return;
+    shown++;
+    c.append($('<span class="chip"></span>').text(path));
+  });
+  return shown;
+}
+
+function renderRelated(q) {
+  var g = $('#relatedGrid').empty();
+  var shown = 0;
+  $.each(DATA.related, function(i, r) {
+    var label = TLi18n.t(r.labelKey);
+    if (q && !matches(label, q)) return;
+    shown++;
+    var ext = r.external === true;
+    var card = $('<div class="related-card"></div>');
+    var ttl = $('<div class="title"></div>')
+      .append('<i class="fa fa-link" style="color:#4ECDC4;margin-right:6px;"></i>')
+      .append(document.createTextNode(label));
+    card.append(ttl);
+    var a = $('<a href="#"></a>').attr('href', r.href)
+      .append('<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ')
+      .append(document.createTextNode(label));
+    if (ext) a.attr({ target: '_blank', rel: 'noopener noreferrer' });
+    else a.attr('target', '_top');
+    card.append($('<div></div>').append(a));
+    g.append(card);
+  });
+  return shown;
+}
+</script>
+</body>
+</html>
