@@ -4158,6 +4158,7 @@ $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit 
 // Test Strategy ASIDE section (api/aside/index.php:402-456)
 $TLS_title_test_strategy = "Stratégie de test"; // Refs #1843
 $TLS_href_test_strategy_overview = "Vue générale"; // Refs #1843
+$TLS_href_test_strategy_doc = "Documents de strategie de test";
 $TLS_href_test_strategy_intro = "Introduction"; // Refs #1843
 $TLS_href_test_strategy_objectives = "Objectifs"; // Refs #1843
 $TLS_href_test_strategy_scope = "Périmètre"; // Refs #1843

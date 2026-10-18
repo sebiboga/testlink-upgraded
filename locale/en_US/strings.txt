@@ -2279,6 +2279,7 @@ $TLS_title_test_spec = "Test Specification";
 $TLS_title_documentation = "Documentation";
 $TLS_title_test_strategy = "Test Strategy";
 $TLS_href_test_strategy_overview = "General Overview";
+$TLS_href_test_strategy_doc = "Test Strategy Documents";
 $TLS_href_test_strategy_intro = "Introduction";
 $TLS_href_test_strategy_objectives = "Objectives";
 $TLS_href_test_strategy_scope = "Scope";

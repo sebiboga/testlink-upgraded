@@ -3059,6 +3059,8 @@ function getActions(&$gui,$baseURL) {
   // chapters + chapter 19 Severity Configuration). Standalone Dashio pages fed
   // by api/strategy; any authenticated user may read them (Refs #1431).
   $actions->testStrategy = "/gui/templates/strategy/testStrategy.html?{$ctx}";
+  // Editable Test Strategy document registry (Refs #1943, parent #1052).
+  $actions->strategyDoc = "/gui/templates/strategy/strategyDoc.html?{$ctx}";
   $actions->testStrategyIntro = "/gui/templates/strategy/intro.html?{$ctx}";
   $actions->testStrategyObjectives = "/gui/templates/strategy/objectives.html?{$ctx}";
   $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";

@@ -421,6 +421,7 @@ if ($show('projects')) {
     $items = array();
     $stKeys = array(
         'href_test_strategy_overview' => 'testStrategy',
+        'href_test_strategy_doc' => 'strategyDoc',
         'href_test_strategy_intro' => 'testStrategyIntro',
         'href_test_strategy_objectives' => 'testStrategyObjectives',
         'href_test_strategy_scope' => 'testStrategyScope',
@@ -450,7 +451,8 @@ if ($show('projects')) {
         'href_test_strategy_maintainability' => 'testStrategyMaintainability',
     );
     $stIcons = array(
-        'testStrategy' => 'fas fa-book-open', 'testStrategyIntro' => 'fas fa-book',
+        'testStrategy' => 'fas fa-book-open', 'strategyDoc' => 'fas fa-file-signature',
+        'testStrategyIntro' => 'fas fa-book',
         'testStrategyObjectives' => 'fas fa-bullseye', 'testStrategyScope' => 'fas fa-expand-arrows-alt',
         'testStrategyApproach' => 'fas fa-compass', 'testStrategyLevels' => 'fas fa-layer-group',
         'testStrategyTypes' => 'fas fa-check-double', 'testStrategyExit' => 'fas fa-flag-checkered',

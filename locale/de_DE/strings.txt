@@ -3747,3 +3747,4 @@ $TLS_title_documentation_hub = "Dokumentations-Hub"; // Documentation hub (Refs 
 $TLS_title_istqb_syllabus = "ISTQB-Lehrplan"; // ISTQB Syllabus hub (Refs #1053)
 $TLS_title_api_reference = "REST-API-Referenz"; // REST API Reference hub (Refs #1937)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
+$TLS_href_test_strategy_doc = "Teststrategie-Dokumente"; // Test Strategy Documents (Refs #1943)
