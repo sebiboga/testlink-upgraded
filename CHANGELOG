@@ -308,6 +308,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   locales, `mt.*` (61) + `footers.metricsTrends` client keys in all 10 bundles (en+ro+de+es+fr+it+pt+ru
   translated; `ai/verify_i18n_coverage.sh` 9/9 PASS). Refs #1935 / parent #1073.
 
+- [SCREEN] - #1936: the **Exit Criteria definitions** registry
+  (`gui/templates/strategy/exitCriteria.html`, BFF `api/exitcriteria/index.php`) is added under the
+  Test Strategy ASIDE section. Implements slice 1 of feature #1088: per-test-level entry/exit
+  criteria with an optional measurable metric (progress %, pass rate %, failed/blocked counts,
+  requirement coverage %) and target value, CRUD via DataTable + Bootstrap modals (create/edit,
+  details view, delete with name- interpolated confirm), 4 metric tiles, level filter + text
+  search with explicit no-match / empty / no-project / no-right / error state cards. New
+  `tc_exit_criteria` table created lazily, mirrored in the installer SQL + `object.class.php`
+  whitelist. BFF checks `mgt_view_tc` (read) / `mgt_modify_tc` (write) on the ADDRESSED project
+  BEFORE resolution (no #1697 oracle), verb whitelist -> 405 before parameter probing, 400/401/
+  403/404/409 codes, AUDIT events `EXIT_CRITERIA_CREATE/SAVE/DELETE`. `ec.*` (70) +
+  `footers.exitCriteria` client keys in all 10 bundles (`ai/verify_i18n_coverage.sh` PASS);
+  aside entry reuses existing `$TLS_href_test_strategy_exit_criteria` (19 locales). Browser-verified
+  (admin full CRUD + 409 duplicate + client validation + ro locale + role-3 denial card; console
+  clean, Event Viewer 0 ERROR/WARNING). Suite 15/15, gate 34/0. Refs #1936 / parent #1088.
+
 - [FEATURE] - #1135: the modern **Add / Remove Test Cases** screen
   (`gui/templates/plans/planAddTCView.html`) regains the legacy platform-scoped
   "Check/uncheck all Test cases for [platform] for [adding|removal]" bulk controls
