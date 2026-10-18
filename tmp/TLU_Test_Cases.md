@@ -44031,3 +44031,19 @@ Screen `gui/templates/documentation/apiReference.html` + BFF `api/apireference/i
 
 **Result: 26/26 PASS.** Screenshots: `docs/1937-apiref-normal.png` (EN full page),
 `docs/1937-apiref-401.png` (anon 401 state card), `docs/1937-apiref-shell.png` (in-shell RO).
+
+## Regression — Documentation ASIDE section (Refs #1937, rule 14)
+
+Section regression after finishing the section's sixth entry (`apiReference`): each screen loaded
+in-session at `?tproject_id=0&tplan_id=0`, DOM sanity asserted, console checked.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1 | Load `documentation/documentation.html` | renders, 0 console messages | title `Documentatie` (RO session), console clean PASS |
+| 2 | Load `documentation/learnTesting.html` | renders, 0 console messages | title `Învață testarea`, console clean PASS |
+| 3 | Load `documentation/accessibilityResources.html` | renders, 0 console messages | title `Resurse de accesibilitate`, console clean PASS |
+| 4 | Load `documentation/istqbSyllabus.html` | renders, 0 console messages | title `Programa ISTQB`, console clean PASS |
+| 5 | Load `documentation/accessibilityAudit.html` | renders, 0 console messages | title `Accessibility Review`, console clean PASS |
+| 6 | Load `documentation/apiReference.html` (RO locale) | badge `160`, 9 groups, 11 featured rows, 9 error rows, 4 auth rules, 5 related links, empty-state + state card hidden | all asserted via DOM query, console clean PASS |
+
+**Result: 6/6 PASS, 0 console messages on every screen.**
