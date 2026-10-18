@@ -576,6 +576,31 @@ CREATE TABLE /*prefix*/tc_risks (
 
 
 # ---------------------------------------------------------------------------
+# Editable Test Strategy documents - project-scoped authored strategy with a
+# Draft/Review/Approved/Archived status workflow (Refs #1943 / #1052).
+# Net-new module: 1.9.20 ships only the static strategy hub, never an editor.
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/testproject_strategy_docs (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `status` varchar(16) NOT NULL default 'draft',
+  `version` int(10) unsigned NOT NULL default '1',
+  `sections` text,
+  `created_by` int(10) unsigned default NULL,
+  `author_id` int(10) unsigned default NULL,
+  `status_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  `status_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `uq_sdoc_project_name` (`testproject_id`,`name`),
+  KEY `idx_sdoc_project` (`testproject_id`),
+  KEY `idx_sdoc_status` (`testproject_id`,`status`)
+) DEFAULT CHARSET=utf8;
+
+
+# ---------------------------------------------------------------------------
 # Exploratory Testing Sessions - project-scoped registry of exploratory
 # sessions / test charters (Refs #1934 / #1071). Net-new module: 1.9.20 has
 # no exploratory-testing entity at all.
