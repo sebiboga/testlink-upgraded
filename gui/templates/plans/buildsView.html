@@ -154,7 +154,11 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
           </div>
           <div class="form-group" id="statusBlock" style="margin-bottom:0;display:none;">
             <label class="form-label" for="fExecStatus" data-i18n="bv.withExecStatus">with execution status</label>
+
             <select class="form-control" id="fExecStatus" name="fExecStatus" multiple size="5" style="max-width:340px;"></select>
+
+            <select class="form-control" id="fExecStatus" multiple size="5" style="max-width:340px;"></select>
+
             <div class="hint" data-i18n="bv.execStatusHint">leave empty to copy all assignments</div>
           </div>
         </div>
@@ -405,6 +409,7 @@ function render(builds) {
       { targets: -1, orderable: false, className: 'text-center' }
     ]
   });
+
   setTimeout(function() {
     var $wrap = $('#buildTable').closest('.dataTables_wrapper');
     if ($wrap.length) {
@@ -415,6 +420,13 @@ function render(builds) {
       }
     }
   }, 0);
+
+
+  try {
+    if ($('#buildTable').length && $('#buildTable_filter input').length) {
+      $('#buildTable_filter input').attr('id', 'buildTable_filter_input').attr('name', 'buildTable_filter_input');
+    }
+  } catch (e) {}
 
 }
 

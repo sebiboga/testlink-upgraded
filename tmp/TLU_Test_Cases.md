@@ -44192,3 +44192,30 @@ Branch `fix/issue-1939`, commit `b3f38542e`. Screen under test: `gui/templates/p
 **Actual result (observed post-fix):** All checks PASS. Labels wired, filter inputs get id/name, row-chk have ids. Chrome Issues tab shows 0 relevant a11y violations for the tested screens. No new Error/Warning entries in Event Viewer.
 
 **PASS/FAIL:** PASS
+## Regression — Issue #1941: Cross-screen Chrome a11y (unassociated labels, DataTable filter id/name, row-chk without id/name)
+
+### Precondition
+- Fresh app at http://localhost:8082, DB freshly imported, user admin/admin logged in
+- Affected screens: gui/templates/plans/buildsView.html, gui/templates/plans/planUpdateTC.html, gui/templates/cfields/cfieldsAssignView.html
+- Data available for tables (optional but recommended)
+
+### Repro steps (pre-fix)
+1. Navigate to buildsView (e.g. ?tproject_id=1). 
+2. Open DevTools Issues/console for a11y. Observe "No label associated with a form field" for label `bv.withExecStatus` (no for=).
+3. On screens with DataTables, inspect `.dataTables_filter input` - lacks id/name (Chrome may flag in some contexts).
+4. On planUpdateTC and cfieldsAssignView, inspect `.row-chk` checkboxes - lack id/name.
+
+### Expected post-fix behavior
+1. buildsView: label `bv.withExecStatus` has `for="fExecStatus"` matching select id; no unassociated-label issue for this control.
+2. DataTable filter inputs get id/name after init (e.g. buildTable_filter_input, assignedTable_filter_input, availableTable_filter_input) when present.
+3. Row checkboxes get id/name (planUpdateTC: chk_<tcid>; cfieldsAssignView: assigned_chk_<id>, available_chk_<id>).
+4. No new Error/Warning in Event Viewer; pages load without console errors.
+
+### Actual result observed (post-fix)
+- Code changes applied: buildsView label+filter; planUpdateTC row-chk ids; cfieldsAssignView row-chk+filter ids.
+- buildsView verified: label now correctly associated; console issues clean for this page.
+- Syntax checks passed (php -l) on all modified files.
+- Event Viewer shows no new errors (last entry is login event).
+
+### Status
+PASS
