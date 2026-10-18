@@ -17,6 +17,21 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1938: the modern **Top Navigation Bar** (`gui/templates/navbar/navBar.html`)
+  raised the Chrome Issues entry `No label associated with a form field (count: 2)` on
+  **every screen of the shell**: the Dashio port kept the two visual `<label>`s
+  (`navBar.html:47` `lblProject`, `:58` `lblPlan`) but never wired them to their selects,
+  so `select.labels` was empty and screen readers announced the project/test-plan pickers
+  without a name. Fix: add the missing `for="projectSelect"` / `for="planSelect"`
+  associations to the already-existing select ids (labels already carry the localized
+  text via `navb.*`, so no i18n keys were added; `aria-label` was rejected as a second
+  translatable string that can drift). Names, form POST contract (`testproject`/
+  `tplan_id`, `action=projectChange`/`planChange`) and JS untouched. Verified in Chrome:
+  Issues log empty, `label.control` resolves for both selects, project switch, plan switch
+  and locale switch en→ro→en all PASS, Event Viewer clean. Regression suite
+  "Regression — Issue #1938" 8/8 PASS. Follow-up same-class defects on planView filed as
+  #1939. (Fixes #1938)
+
 - [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
   (`gui/templates/testcases/containerMoveTC.html`) rendered **raw i18n keys** in
   every locale (tab title `tmvc.title`, buttons `tmvc.move`/`tmvc.cancel`, …)

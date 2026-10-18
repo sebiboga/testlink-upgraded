@@ -27,6 +27,7 @@ deep link to `lib/general/navBar.php` while authenticated
 4. [i18n Keys](#4-i18n-keys)
 5. [Security](#5-security)
 6. [Testing](#6-testing)
+7. [Bugfix — unassociated labels (Issue #1938)](#7-bugfix--unassociated-labels-issue-1938)
 
 ## 1. What the screen does
 
@@ -109,3 +110,50 @@ PASS): titleframe wiring, BFF contract (200/401/405/400), legacy shim, project
 switch 1→3→1 with `feature=reqSpecMgmt` round-trip and combo repopulation, plan
 change frameset rebuild, whoami→userInfo, logout→login→re-login, locale
 de/en, Event Viewer clean (AUDIT-only).
+
+## 7. Bugfix — unassociated labels (Issue #1938)
+
+Chrome DevTools raised **`No label associated with a form field (count: 2)`**
+on every screen of the shell (Refs #1938, bug reported while testing the
+REST API Reference screen). The Issues rule (`genericFormLabelHasNeitherForNorNestedInput`)
+fires once per `<label>` that has neither a `for` attribute nor a wrapped form
+field — and the titlebar renders on every page.
+
+**Root cause.** The Dashio port of the titlebar (commit `22c574cd2`, Refs #1547)
+kept the legacy *visual* labels but never wired them:
+`navBar.html:47` `<label id="lblProject">` had no `for`, its control
+`<select id="projectSelect">` sits at line 48 in the same `projectForm`;
+`navBar.html:58` `<label id="lblPlan">` vs `<select id="planSelect">` at
+line 60 in `planForm`. Without the `for`↔`id` pairing (and without wrapping),
+`HTMLLabelElement.control` is `null` and `select.labels` is empty, so both
+context pickers had **no accessible name**. Runtime localization only rewrites
+the label *text* (`render()` → `$('#lblProject').text(TLi18n.t('navb.testProject'))`),
+so the defect survived every locale. The legacy `navBar.tpl` contained no
+`<label>` elements at all (plain `{$labels.testproject}` text), so this was a
+regression introduced by the modernization, not carried over from 1.9.20.
+
+**Fix (minimal — 2 attributes).** `for="projectSelect"` on `lblProject` and
+`for="planSelect"` on `lblPlan`; both target ids that already exist and are
+unique in the frame document. The labels already carry the localized text, so
+**no i18n keys were added**. Alternatives rejected: `aria-label` would duplicate
+the translatable text into a second attribute that can drift from the `navb.*`
+bundles; wrapping the select inside the label would restructure both forms and
+risk the POST contract; `aria-labelledby` adds indirection with no gain over the
+native association. The form contract (`name="testproject"` / `name="tplan_id"`,
+`action=projectChange` / `planChange`, `switchTestProject()`) is untouched.
+
+**Verified** (headless Chrome, chrome-devtools MCP, fixtures project 1 + plans
+2/4 and project 3): Issues log on `index.php` empty (pre-fix entry
+`msgid=3 … (count: 2)` gone), 0 console issue/error/warn messages;
+`label.control === select` and `select.labels.length = 1` for both pickers;
+plan switch (→ `tplan_id=4` committed), project switch (→ `tproject_id=3`,
+plan combo hidden for the plan-less project, legacy parity) and locale switch
+en→ro ("Proiect de testare" / "Plan de testare", association intact) → en all
+PASS; Event Viewer clean (audit-only). Regression suite **Regression — Issue
+#1938** 8/8 PASS. Code review: APPROVE, no findings.
+
+**Files:** `gui/templates/navbar/navBar.html` (2 attributes), CHANGELOG entry,
+`docs/Modernize-Top-Navigation-Bar-navBar-Modernized.md` mirror.
+Follow-up (same class, other screen): **#1939** — `planView.html` raises the
+same issue (count: 4) plus a field-without-id/name — filed separately, not
+fixed here.
