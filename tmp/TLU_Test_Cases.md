@@ -44047,3 +44047,51 @@ in-session at `?tproject_id=0&tplan_id=0`, DOM sanity asserted, console checked.
 | 6 | Load `documentation/apiReference.html` (RO locale) | badge `160`, 9 groups, 11 featured rows, 9 error rows, 4 auth rules, 5 related links, empty-state + state card hidden | all asserted via DOM query, console clean PASS |
 
 **Result: 6/6 PASS, 0 console messages on every screen.**
+
+## Regression — Issue #1938: navBar project/test-plan selects unassociated labels
+
+**Precondition:** TestLink 2.0.1 at http://localhost:8082, logged in as admin/admin
+(fresh DB this run: fixtures created for the run — project 1 "Issue1938 Fixture
+Project" with plan 2 and plan 4, project 3 "Issue1938 Fixture Project Two" with
+no plans). Chrome headless via chrome-devtools MCP. Fix under test:
+`gui/templates/navbar/navBar.html` lines 47/58 — `for="projectSelect"` /
+`for="planSelect"` added (commit `4ad2c7dd6`).
+
+**Repro steps (pre-fix behavior):**
+1. Open http://localhost:8082/index.php, sign in admin/admin.
+2. DevTools → Issues log: `No label associated with a form field (count: 2)`.
+3. Query the titlebar iframe DOM: `<label id="lblProject">` / `<label id="lblPlan">`
+   have no `for`; `projectSelect.labels.length = 0`, `planSelect.labels.length = 0`
+   (accessible name missing for both context selects).
+
+**Expected post-fix behavior:** no Chrome label issue; each label `for` resolves to
+its select (`label.control` set, `select.labels.length = 1`, accessible name =
+localized "Test Project"/"Test Plan"); label text still localized on locale switch;
+project/plan switch POSTs unchanged; no new Event Viewer errors.
+
+**Test steps & results (executed post-fix):**
+1. Reload index.php → Issues log EMPTY (pre-fix entry msgid=3 gone); console has
+   0 issue/error/warn messages. **PASS**
+2. DOM check: `lblProject.for=projectSelect`, `control===projectSelect`,
+   `labels.length=1`; `lblPlan.for=planSelect`, `control===planSelect`,
+   `labels.length=1`. **PASS**
+3. Combos visible with fixture data (`display:block`, options populated)
+   → association holds, Issues log still empty. **PASS**
+4. Plan switch: select plan 4 → onchange submits planForm →
+   `/index.php?action=planChange` → navbar API `tplan_id=4`, combo shows plan 4.
+   **PASS**
+5. Project switch: select project 3 → `switchTestProject()` posts `testproject`/
+   `tproject_id=3` → navbar API `tproject_id=3`, `tplan_id=0`, plan combo hidden
+   for plan-less project (legacy parity). Switch back to project 1 → plan combo
+   visible again. **PASS**
+6. Locale switch en→ro (titlebar iframe reloads with `?locale=ro`): labels render
+   "Proiect de testare" / "Plan de testare" with `for` intact and resolving;
+   switch back to en. **PASS**
+7. Event Viewer (`events` table): only routine audit rows (LOGIN/CREATE,
+   log_level=16); no Error/Warning entries. **PASS**
+8. Code-review subagent over the diff: APPROVE, no findings (for/id unique per
+   document; no POST-contract/i18n/layout risk; no duplicate markup elsewhere).
+   **PASS**
+
+**Overall: 8/8 PASS.** Follow-up (out of scope, filed as #1939): planView.html
+raises the same Chrome issue (count: 4) plus a field-without-id/name issue.
