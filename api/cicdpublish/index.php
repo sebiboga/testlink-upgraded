@@ -133,8 +133,11 @@ function cpResolveProject($db, $user, $tbl)
         cpFail(400, 'invalid_request', 'No test project selected');
     }
     if (!$user->hasRight($db, 'testplan_execute', $tprojectId)) {
+        // Refs #1940: AUDIT, not ERROR - a denied read is a normal access
+        // decision, and an ERROR row per denial would pollute the Event
+        // Viewer on every permission probe (the #1833/#1807 lesson).
         tLog('BFF cicdpublish: user ' . intval($user->dbID ?? 0) .
-             ' has no testplan_execute right on tproject ' . $tprojectId, 'ERROR');
+             ' has no testplan_execute right on tproject ' . $tprojectId, 'AUDIT');
         cpFail(403, 'no_right', 'testplan_execute right required');
     }
     $name = testproject::getName($db, $tprojectId);
@@ -162,7 +165,7 @@ function cpResolvePlan($db, $user, $tbl, $tplanId)
     if (!$user->hasRight($db, 'testplan_execute', $owningProjectId, $tplanId, true)) {
         tLog('BFF cicdpublish: user ' . intval($user->dbID ?? 0) .
              ' has no testplan_execute right on owning project ' . $owningProjectId .
-             ' (tplan ' . intval($tplanId) . ')', 'ERROR');
+             ' (tplan ' . intval($tplanId) . ')', 'AUDIT');
         cpFail(403, 'no_right', 'testplan_execute right required');
     }
     $asserted = cpPosInt('tproject_id', 0);
