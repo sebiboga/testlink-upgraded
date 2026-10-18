@@ -363,7 +363,8 @@ function applyFilter() {
   if (items.length === 0) {
     if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
     $('#dataTable').hide();
-    $('#emptyState').show();
+    var msgKey = allItems.length > 0 ? 'sdoc.noMatch' : 'sdoc.noItems';
+    $('#emptyState').attr('data-i18n', msgKey).text(TLi18n.t(msgKey)).show();
   } else {
     $('#emptyState').hide();
     $('#dataTable').show();
