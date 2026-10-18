@@ -4,71 +4,572 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n="ts.exitHeader">Exit Criteria</title>
+<title>Exit Criteria</title>
+<!--
+  Exit Criteria definitions section (Refs #1936, parent feature #1088).
+  Dashio standalone page backed by api/exitcriteria. Project-scoped registry of
+  exit-criteria DEFINITIONS: test level, entry/exit text and an optional
+  measurable metric + target value (slice 1 of #1088 - the definition section;
+  the Release-Candidate report and dashboard are follow-ups).
+-->
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
 .header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
-.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
-.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
-.back a { color: #4ECDC4; text-decoration: none; font-size: 13px; font-weight: 600; }
-.back a:hover { color: #3dbdb5; }
-.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 20px 24px; }
-.col { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-top: 4px solid #3498db; }
-.col.entry { border-top-color: #e67e22; }
-.col.exit { border-top-color: #27ae60; }
-.col .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 12px; }
-.col ul { margin: 0; padding-left: 18px; font-size: 13px; color: #555; }
-.col li { margin-bottom: 8px; }
-.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 170px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.entry { border-left-color: #3aa89f; }
+.tile.exit { border-left-color: #5cb85c; }
+.tile.measurable { border-left-color: #e6b34d; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select, .toolbar input { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-level { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+.badge-level-unit { background: #7f8c96; }
+.badge-level-integration { background: #3aa89f; }
+.badge-level-system { background: #4ECDC4; color: #0d3f3c; }
+.badge-level-acceptance { background: #5cb85c; }
+.badge-level-regression { background: #e6b34d; }
+.badge-level-release { background: #22242a; }
+.badge-metric { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #eceff1; color: #444; }
+.badge-metric.on { background: #dff3f2; color: #0d7a74; }
+.criteria-cell { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 70px; font-family: monospace; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <i class="fas fa-flag-checkered" style="margin-right:8px;"></i><span data-i18n="ts.exitHeader">Exit Criteria</span>
-  <span data-i18n="ts.exitHeaderSub">conditions for completion of the testing effort</span>
+  <span data-i18n="ec.title">Exit Criteria</span>
+  <span class="sub" data-i18n="ec.subtitle">entry and exit criteria per test level of this test project</span>
   <span id="localeSwitcher" style="float:right;"></span>
 </div>
 
-<div class="toolbar">
-  <span class="back"><a href="/gui/templates/strategy/testStrategy.html" target="mainframe"><i class="fa fa-arrow-left"></i> <span data-i18n="ts.backToStrategy">Back to Test Strategy</span></a></span>
-  <span style="flex:1"></span>
-  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ec.refresh">Refresh</span></button>
 </div>
 
-<div class="two-col">
-  <div class="col entry">
-    <div class="title"><i class="fas fa-sign-in-alt" style="color:#e67e22;margin-right:6px;"></i><span data-i18n="ts.exitIn">Entry criteria (before testing starts)</span></div>
-    <ul>
-      <li data-i18n="ts.exitIn1">Build delivered to the test environment with a known change set.</li>
-      <li data-i18n="ts.exitIn2">Required test data and environments available.</li>
-      <li data-i18n="ts.exitIn3">Entry-level smoke tests pass.</li>
-    </ul>
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="ec.tileTotal">Criteria</div>
+    </div>
+    <div class="tile entry">
+      <div class="num" id="tileEntry">0</div>
+      <div class="lbl" data-i18n="ec.tileEntry">With entry</div>
+    </div>
+    <div class="tile exit">
+      <div class="num" id="tileExit">0</div>
+      <div class="lbl" data-i18n="ec.tileExit">With exit</div>
+    </div>
+    <div class="tile measurable">
+      <div class="num" id="tileMeasurable">0</div>
+      <div class="lbl" data-i18n="ec.tileMeasurable">Measurable</div>
+    </div>
   </div>
-  <div class="col exit">
-    <div class="title"><i class="fas fa-sign-out-alt" style="color:#27ae60;margin-right:6px;"></i><span data-i18n="ts.exitOut">Exit criteria (before release)</span></div>
-    <ul>
-      <li data-i18n="ts.exitOut1">All planned test cases executed with results recorded.</li>
-      <li data-i18n="ts.exitOut2">No open blocker or critical defects unresolved.</li>
-      <li data-i18n="ts.exitOut3">Defect backlog reviewed and residual risks accepted by stakeholders.</li>
-    </ul>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="ec.newCriterion">New criterion</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ec.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label data-i18n="ec.filterLevel">Level</label>
+    <select id="fLevel" onchange="applyFilter()">
+      <option value="" data-i18n="ec.allLevels">All levels</option>
+      <option value="unit" data-i18n="ec.levelUnit">Unit</option>
+      <option value="integration" data-i18n="ec.levelIntegration">Integration</option>
+      <option value="system" data-i18n="ec.levelSystem">System</option>
+      <option value="acceptance" data-i18n="ec.levelAcceptance">Acceptance</option>
+      <option value="regression" data-i18n="ec.levelRegression">Regression</option>
+      <option value="release" data-i18n="ec.levelRelease">Release</option>
+    </select>
+    <label data-i18n="ec.filterText">Search</label>
+    <input type="text" id="fText" oninput="applyFilter()" style="width:160px;">
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="ec.noItems">There are no exit criteria for this project yet.</div>
+    <div id="noMatch" class="empty-state" style="display:none;" data-i18n="ec.noMatch">No criterion matches the current filters.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="ec.colName">Name</th>
+          <th data-i18n="ec.colLevel">Level</th>
+          <th data-i18n="ec.colEntry">Entry criteria</th>
+          <th data-i18n="ec.colExit">Exit criteria</th>
+          <th data-i18n="ec.colMetric">Metric</th>
+          <th data-i18n="ec.colTarget">Target</th>
+          <th data-i18n="ec.colUpdated">Updated</th>
+          <th style="width:130px" data-i18n="ec.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 </div>
 
-<div class="footer"><span data-i18n="ts.exitHeader">Exit Criteria</span> - <span data-i18n="ts.header">Test Strategy</span></div>
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="ec.footer">TestLink 2.0.1 - Exit Criteria</span></div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="ec.modalNewTitle">New criterion</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="ec.fieldName">Criterion name</label>
+          <input type="text" id="fName" maxlength="255">
+        </div>
+        <div class="form-row">
+          <label data-i18n="ec.fieldLevel">Test level</label>
+          <select id="fLevelEdit">
+            <option value="unit" data-i18n="ec.levelUnit">Unit</option>
+            <option value="integration" data-i18n="ec.levelIntegration">Integration</option>
+            <option value="system" data-i18n="ec.levelSystem">System</option>
+            <option value="acceptance" data-i18n="ec.levelAcceptance">Acceptance</option>
+            <option value="regression" data-i18n="ec.levelRegression">Regression</option>
+            <option value="release" data-i18n="ec.levelRelease">Release</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ec.fieldEntry">Entry criteria</label>
+          <textarea id="fEntry" maxlength="20000" style="font-family:inherit;"></textarea>
+          <div class="hint" data-i18n="ec.fieldEntryHint">Conditions to start testing at this level.</div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ec.fieldExit">Exit criteria</label>
+          <textarea id="fExit" maxlength="20000" style="font-family:inherit;"></textarea>
+          <div class="hint" data-i18n="ec.fieldExitHint">Conditions to consider this level complete.</div>
+        </div>
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label data-i18n="ec.fieldMetric">Measurable metric</label>
+            <select id="fMetric" onchange="toggleTarget()">
+              <option value="none" data-i18n="ec.metricNone">None (text only)</option>
+              <option value="progress" data-i18n="ec.metricProgress">Execution progress %</option>
+              <option value="pass_rate" data-i18n="ec.metricPassRate">Pass rate %</option>
+              <option value="failed" data-i18n="ec.metricFailed">Failed test cases</option>
+              <option value="blocked" data-i18n="ec.metricBlocked">Blocked test cases</option>
+              <option value="req_coverage" data-i18n="ec.metricReqCoverage">Requirement coverage %</option>
+            </select>
+          </div>
+          <div style="flex:1;" id="targetRow">
+            <label data-i18n="ec.fieldTarget">Target value</label>
+            <input type="number" id="fTarget" step="0.01" min="0" max="100">
+            <div class="hint" id="targetHint" data-i18n="ec.fieldTargetHintPercent">Percentage target between 0 and 100.</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveCriterion()" data-i18n="ec.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="ec.modalDetailsTitle">Criterion details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="ec.modalDeleteTitle">Delete criterion</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="ec.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
+var API = '/api/exitcriteria/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+var PERCENT_METRICS = ['progress', 'pass_rate', 'req_coverage'];
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function levelLabel(l) {
+  var map = { unit: 'ec.levelUnit', integration: 'ec.levelIntegration',
+              system: 'ec.levelSystem', acceptance: 'ec.levelAcceptance',
+              regression: 'ec.levelRegression', release: 'ec.levelRelease' };
+  return TLi18n.t(map[l] || 'ec.levelSystem');
+}
+
+function metricLabel(m) {
+  var map = { none: 'ec.metricNone', progress: 'ec.metricProgress',
+              pass_rate: 'ec.metricPassRate', failed: 'ec.metricFailed',
+              blocked: 'ec.metricBlocked', req_coverage: 'ec.metricReqCoverage' };
+  return TLi18n.t(map[m] || 'ec.metricNone');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
 $(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
   });
 });
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('ec.noRight', 'ec.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('ec.noProject', 'ec.noProjectBody', true); return; }
+  showState('ec.errTitle', fallbackKey || 'ec.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'ec.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileEntry').text(s.entry || 0);
+    $('#tileExit').text(s.exit || 0);
+    $('#tileMeasurable').text(s.measurable || 0);
+    if (!canModify) { $('#btnNew').hide(); }
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('ec.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'ec.loadError'); });
+}
+
+function filtered() {
+  var fl = $('#fLevel').val();
+  var ft = ($('#fText').val() || '').toLowerCase();
+  return allItems.filter(function(it) {
+    if (fl && it.level !== fl) { return false; }
+    if (ft) {
+      var hay = (it.name + ' ' + it.entry_criteria + ' ' + it.exit_criteria).toLowerCase();
+      if (hay.indexOf(ft) === -1) { return false; }
+    }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (allItems.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
+    $('#dataTable').hide();
+    $('#noMatch').hide();
+    $('#emptyState').show();
+    return;
+  }
+  $('#emptyState').hide();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
+    $('#dataTable').hide();
+    $('#noMatch').show();
+  } else {
+    $('#noMatch').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' +
+    esc(it.name) + '</a>';
+  var entry = '<div class="criteria-cell" title="' + esc(it.entry_criteria) + '">' +
+    esc(it.entry_criteria || '-') + '</div>';
+  var exit = '<div class="criteria-cell" title="' + esc(it.exit_criteria) + '">' +
+    esc(it.exit_criteria || '-') + '</div>';
+  var metricOn = it.metric && it.metric !== 'none';
+  var metric = '<span class="badge-metric' + (metricOn ? ' on' : '') + '">' +
+    esc(metricLabel(it.metric)) + '</span>';
+  var target = (it.target_value === null || it.target_value === undefined)
+    ? '-' : esc(String(it.target_value));
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('ec.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('ec.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('ec.del')) + '"><i class="fa fa-trash"></i></button>';
+  }
+  return {
+    name: nameCell,
+    level: '<span class="badge-level badge-level-' + esc(it.level) + '">' +
+           esc(levelLabel(it.level)) + '</span>',
+    entry: entry,
+    exit: exit,
+    metric: metric,
+    target: target,
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'level'},
+      {data: 'entry'},
+      {data: 'exit'},
+      {data: 'metric'},
+      {data: 'target'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 7}],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function toggleTarget() {
+  var m = $('#fMetric').val();
+  if (m === 'none') {
+    $('#targetRow').hide();
+    $('#fTarget').val('');
+  } else {
+    $('#targetRow').show();
+    if (PERCENT_METRICS.indexOf(m) !== -1) {
+      $('#fTarget').attr('min', 0).attr('max', 100);
+      $('#targetHint').attr('data-i18n', 'ec.fieldTargetHintPercent').text(TLi18n.t('ec.fieldTargetHintPercent'));
+    } else {
+      $('#fTarget').attr('min', 0).removeAttr('max');
+      $('#targetHint').attr('data-i18n', 'ec.fieldTargetHintCount').text(TLi18n.t('ec.fieldTargetHintCount'));
+    }
+  }
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('ec.modalNewTitle'));
+  $('#fName').val('');
+  $('#fLevelEdit').val('system');
+  $('#fEntry').val('');
+  $('#fExit').val('');
+  $('#fMetric').val('none');
+  $('#fTarget').val('');
+  toggleTarget();
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('ec.modalEditTitle'));
+  $('#fName').val(it.name);
+  $('#fLevelEdit').val(it.level);
+  $('#fEntry').val(it.entry_criteria || '');
+  $('#fExit').val(it.exit_criteria || '');
+  $('#fMetric').val(it.metric || 'none');
+  $('#fTarget').val(it.target_value === null || it.target_value === undefined ? '' : it.target_value);
+  toggleTarget();
+  $('#editModal').modal('show');
+}
+
+function saveCriterion() {
+  var name = $.trim($('#fName').val());
+  var entry = $.trim($('#fEntry').val());
+  var exit = $.trim($('#fExit').val());
+  var metric = $('#fMetric').val();
+  if (!name) { toast(TLi18n.t('ec.errName'), 'err'); return; }
+  if (!entry && !exit) { toast(TLi18n.t('ec.errCriteria'), 'err'); return; }
+  var target = null;
+  if (metric !== 'none') {
+    var raw = $.trim($('#fTarget').val());
+    if (raw === '' || isNaN(Number(raw))) { toast(TLi18n.t('ec.errTarget'), 'err'); return; }
+    target = Number(raw);
+    if (PERCENT_METRICS.indexOf(metric) !== -1 && (target < 0 || target > 100)) {
+      toast(TLi18n.t('ec.errTarget'), 'err'); return;
+    }
+    if (PERCENT_METRICS.indexOf(metric) === -1 && target < 0) {
+      toast(TLi18n.t('ec.errTarget'), 'err'); return;
+    }
+  }
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    level: $('#fLevelEdit').val(),
+    entry_criteria: $('#fEntry').val(),
+    exit_criteria: $('#fExit').val(),
+    metric: metric,
+    target_value: target
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('ec.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('ec.errDuplicate'), 'err'); }
+    else { toast(TLi18n.t('ec.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  function row(labelKey, value) {
+    html += '<div class="form-row"><label>' + esc(TLi18n.t(labelKey)) + '</label><div>' +
+            value + '</div></div>';
+  }
+  row('ec.colName', esc(it.name));
+  row('ec.colLevel', '<span class="badge-level badge-level-' + esc(it.level) + '">' +
+      esc(levelLabel(it.level)) + '</span>');
+  row('ec.fieldEntry', esc(it.entry_criteria || '-'));
+  row('ec.fieldExit', esc(it.exit_criteria || '-'));
+  row('ec.colMetric', esc(metricLabel(it.metric)));
+  row('ec.colTarget', (it.target_value === null || it.target_value === undefined)
+      ? '-' : esc(String(it.target_value)));
+  row('ec.colUpdated', esc(it.update_ts || it.creation_ts || '-'));
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('ec.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('ec.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('ec.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
 </script>
 </body>
 </html>
