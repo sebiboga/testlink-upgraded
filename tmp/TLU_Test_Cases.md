@@ -43947,3 +43947,23 @@ push probe (git route) and contents-API probe (re-measured, run-1 measured it 40
 cases 1–4 FAIL-by-design (bug live on default branch — fix cannot land); case 9 FAIL (git push
 wall); case 12 FAIL (contents API wall, re-measured). #1872 remains OPEN; durable patch in
 `docs/Bugfix-Issue-1872-CI-Fallback-Landing-And-Autoclose.md` §Fix.
+
+## Modernize — Issue #1936 (Exit Criteria definitions)
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Login admin, open /gui/templates/strategy/exitCriteria.html?tproject_id=1 | Screen renders: teal header + locale switcher, 4 tiles, level filter, search, DataTable with 1 fixture row "System Test exit" | PASS |
+| 2 | Footer line | "Exit Criteria — TestLink" (no raw i18n key; fixed in 82c77a561 — used footers.exitCriteria) | PASS (after fix) |
+| 3 | + New criterion, name only, metric None, empty entry/exit, Save | Client validation: "Entry or exit criteria text is mandatory." | PASS |
+| 4 | Fill name Acceptance Gate + entry + exit, metric Pass rate % WITHOUT target, Save | Client validation: "A valid target value is required for the selected metric." | PASS |
+| 5 | Set target 98, Save | Toast "Exit criterion saved."; row appears; tiles 1→2 | PASS |
+| 6 | + New criterion, name "System Test exit" (duplicate) + texts, Save | Server 409: toast "A criterion with that name already exists."; modal stays open; no new row | PASS |
+| 7 | Edit "Acceptance Gate" | Modal pre-fills name/level/entry/exit/metric/target 98 | PASS |
+| 8 | Rename to "Acceptance Gate v2", target 99, Save | Toast saved; row + tiles updated | PASS |
+| 9 | View "Acceptance Gate v2" | Details modal shows all fields incl. Updated timestamp, read-only | PASS |
+| 10 | Level filter = Unit (no Unit rows) | DataTable empty; "No criterion matches the current filters." state card shown; emptyState hidden | PASS |
+| 11 | Reset filter = All levels | 2 rows restored | PASS |
+| 12 | Delete "Acceptance Gate v2" | Confirm modal interpolates name: Delete exit criterion "Acceptance Gate v2"? ; confirm → toast "Exit criterion deleted."; row removed; tiles back to 1 | PASS |
+| 13 | Locale switcher = Română | Page reloads locale=ro; all labels Romanian incl. footer; NO raw i18n keys in body | PASS |
+| 14 | Logout, login ecnorights (role 3), open screen | "Access denied" state card; no New button; no table | PASS |
+| 15 | Browser console (admin full pass) | No JS errors; only a11y label warnings on form fields (minor, non-blocking) | PASS |
