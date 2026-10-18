@@ -44,7 +44,7 @@
       <li class="combo nav-proj" id="projectComboLi" style="display:none;">
         <form style="display:inline" name="projectForm" id="projectForm"
               target="_top" action="/index.php?action=projectChange" method="post">
-          <label id="lblProject">Test Project</label>
+          <label id="lblProject" for="projectSelect">Test Project</label>
           <select name="testproject" id="projectSelect" style="position:relative; top:-1px;"
                   onchange="switchTestProject(this);"></select>
           <input type="hidden" name="tproject_id" id="tproj" value="" />
@@ -55,7 +55,7 @@
       <li class="combo comboTestPlan nav-plan" id="planComboLi" style="display:none;">
         <form style="display:inline" name="planForm" id="planForm"
               target="_top" action="/index.php?action=planChange" method="post">
-          <label id="lblPlan">Test Plan</label>
+          <label id="lblPlan" for="planSelect">Test Plan</label>
           <input type="hidden" name="tproject_id" id="planTprojectId" value="0" />
           <select name="tplan_id" id="planSelect" onchange="this.form.submit();"></select>
         </form>
