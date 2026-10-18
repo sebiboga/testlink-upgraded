@@ -236,7 +236,7 @@ checkbox id + filter-input wiring), `CHANGELOG`,
 `docs/Test-Plan-Management.md` mirror. Same-class defects on **other**
 screens (DataTables filter input on ~80 screens using `DataTable(`, `row-chk`
 in `planUpdateTC.html`/`cfieldsAssignView.html`) are out of this issue's
-scope and filed separately.
+scope and filed as **#1941**.
 
 PlanView edit modal after the fix — Name/Description labels associated,
 API-Key/Attachments captions converted to spans, row checkbox + search input

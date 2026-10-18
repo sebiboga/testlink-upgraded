@@ -56,7 +56,7 @@ Every screen of the application was ported one-by-one in a screen-compare
   locale switch en→ro→en all PASS, Event Viewer clean (audit-only). Regression
   suite "Regression — Issue #1939" 11/11 PASS. Same-class defects on other
   screens (DataTables filter input across ~80 screens, `row-chk` in
-  planUpdateTC/cfieldsAssignView) filed as follow-up, out of this issue's scope.
+  planUpdateTC/cfieldsAssignView) filed as **#1941**, out of this issue's scope.
   (Fixes #1939)
 
 - [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
