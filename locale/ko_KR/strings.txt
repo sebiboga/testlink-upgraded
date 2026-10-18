@@ -2478,4 +2478,5 @@ $TLS_title_learn_testing = "테스팅 배우기"; // Learn Testing hub (Refs #10
 $TLS_title_accessibility_resources = "접근성 리소스"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "문서 허브"; // Documentation hub (Refs #1060)
 $TLS_title_istqb_syllabus = "ISTQB 실러버스"; // ISTQB Syllabus hub (Refs #1053)
+$TLS_title_api_reference = "REST API 참조"; // REST API Reference hub (Refs #1937)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)

@@ -4151,6 +4151,7 @@ $TLS_title_learn_testing = "Apprendre le test"; // Learn Testing hub (Refs #1060
 $TLS_title_accessibility_resources = "Ressources d'accessibilité"; // Accessibility Resources hub (Refs #1059)
 $TLS_title_documentation_hub = "Centre de documentation"; // Documentation hub (Refs #1060)
 $TLS_title_istqb_syllabus = "Programme ISTQB"; // ISTQB Syllabus hub (Refs #1053)
+$TLS_title_api_reference = "Référence de l'API REST"; // REST API Reference hub (Refs #1937)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
 
 // ----- Issue #1843: $TLS_* keys defined in en_GB but missing from fr_FR (silent en_GB fallback + LOCALIZATION warnings) -----

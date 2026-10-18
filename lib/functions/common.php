@@ -2286,6 +2286,12 @@ function getActions(&$gui,$baseURL) {
   // Accessibility Audit / a11y gaps review (Dashio standalone page) - Refs #1055.
   // Returns WCAG 2.2 conformance review with per-criterion status.
   $actions->accessibilityAudit = "/gui/templates/documentation/accessibilityAudit.html?{$ctx}";
+  // REST API Reference hub modernized screen (Dashio standalone page) -
+  // Refs #1937 (parent #1072). Catalogues every api/** BFF module, the shared
+  // auth/error contract and the CI/CD publish endpoint; the BFF
+  // (api/apireference) enforces session auth + same-origin on every route and
+  // returns i18n KEYS only.
+  $actions->apiReference = "/gui/templates/documentation/apiReference.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

@@ -813,13 +813,14 @@ if (count($pluginsMenu) > 0 || $gm('plugin_management') === 'yes') {
 }
 
 // 12. Documentation --------------------------------------------------------
-// Refs #1060/#1059/#1053/#1055: the section now carries the modernized hubs
-// next to the Documentation hub. The hrefs resolve through $actions->learnTesting / $actions->accessibilityResources / $actions->istqbSyllabus / $actions->accessibilityAudit
+// Refs #1060/#1059/#1053/#1055/#1937: the section now carries the modernized hubs
+// next to the Documentation hub. The hrefs resolve through $actions->learnTesting / $actions->accessibilityResources / $actions->istqbSyllabus / $actions->accessibilityAudit / $actions->apiReference
 // (lib/functions/common.php), so they stay in-context like every other item.
 $learnHref = $u('learnTesting', '/gui/templates/documentation/learnTesting.html');
 $a11yHref = $u('accessibilityResources', '/gui/templates/documentation/accessibilityResources.html');
 $istqbHref = $u('istqbSyllabus', '/gui/templates/documentation/istqbSyllabus.html');
 $auditHref = $u('accessibilityAudit', '/gui/templates/documentation/accessibilityAudit.html');
+$apiRefHref = $u('apiReference', '/gui/templates/documentation/apiReference.html');
 $sections[] = array(
     'key' => 'documentation',
     'label' => lang_get('title_documentation'),
@@ -855,6 +856,12 @@ $sections[] = array(
             'label' => lang_get('title_istqb_syllabus'),
             'href' => (string)$istqbHref,
             'icon' => 'fas fa-certificate',
+        ),
+        array(
+            'id' => 'apiReference',
+            'label' => lang_get('title_api_reference'),
+            'href' => (string)$apiRefHref,
+            'icon' => 'fas fa-plug',
         ),
     ),
 );

@@ -206,6 +206,7 @@ $TLS_testplan = $TLS_test_plan; // node-type label (Refs #1823)
 $TLS_requirement = "Cerință"; // node-type label (Refs #1823)
 $TLS_requirement_spec = "Document cu specificații de cerință"; // node-type label (Refs #1823)
 $TLS_title_istqb_syllabus = "Programa ISTQB"; // ISTQB Syllabus hub (Refs #1053)
+$TLS_title_api_reference = "Referință API REST"; // REST API Reference hub (Refs #1937)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
 
 $TLS_audit_cfield_location_changed = "Custom field locations were saved on Test Project '{%1}'"; // Refs #1820
