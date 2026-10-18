@@ -44254,3 +44254,29 @@ Environment: localhost:8082, fresh DB fixture `tmp/fixtures_1943.php` (project S
 | 1943-26 | Aside entry | ASIDE → Test Strategy section | "Test Strategy Documents" link with fas fa-file-signature after General Overview, loads screen in mainframe | PASS |
 | 1943-27 | Event Viewer | `events` table after all tests | only log_level=16 (INFO) entries; STRATEGY_DOC_CREATE/SAVE/STATUS/DELETE audits present; zero ERROR/WARNING | PASS |
 | 1943-28 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 9/9 bundles PASS (8788 keys) | PASS |
+
+## Suite 1944 — Modernize: OpenAPI Specification viewer (openApiSpec) — Issue #1944 (Refs #1072)
+
+Environment: localhost:8082, fresh DB, user admin/admin, Chrome headless via MCP. Executed 2026-10-18. Tracking #1944; commits c8d29124b (BFF), 41fa7f827 (screen), b1f47ab60 (i18n/wiring).
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1944-1 | BFF init contract | `GET api/openapi/index.php` (session cookie) | 200; auth, ctx, specMeta{openapi,title,version,moduleCount,pathCount,opCount,specUrl,specUrlYaml}, featured[15], errors[9], related[4], modules[162] | PASS (c8d29124b) |
+| 1944-2 | BFF spec JSON | `GET ?action=spec` | 200 application/json; openapi=3.1.0, 11 paths, 15 operations, components.securitySchemes.sessionCookie, 9 components.responses, x-testlink-modules=162 | PASS |
+| 1944-3 | BFF spec YAML | `GET ?action=spec&format=yaml` | 200 text/yaml; parses with PyYAML (paths=11, openapi=3.1.0), no tabs, quoted scalars | PASS |
+| 1944-4 | BFF unknown action | `GET ?action=zzz` | 400 unknown_action | PASS |
+| 1944-5 | BFF bad format | `GET ?action=spec&format=xml` | 400 bad_format | PASS |
+| 1944-6 | BFF anonymous | `GET` no session (isolated context) | 401 not_authenticated, no payload leak | PASS |
+| 1944-7 | BFF origin/verb guard | `POST` (with and without `Origin`) | 403 same-origin proof required (bffSameOriginGuard, before auth) | PASS |
+| 1944-8 | BFF HEAD | `HEAD` init + spec | 200, correct headers, empty body | PASS |
+| 1944-9 | Download headers | `HEAD ?action=spec[&format=yaml]` | Content-Disposition attachment; filenames testlink-bff-openapi.json/.yaml; X-Content-Type-Options nosniff; Cache-Control no-store | PASS |
+| 1944-10 | Screen render EN | open openApiSpec.html (admin) | badge OpenAPI 3.1.0; tiles 2.0.1/162/11/15; spec endpoint chips; security card 4 rules; 15 operation rows; 9 error rows; 162 module chips; 4 related links; footer timestamp | PASS (41fa7f827) |
+| 1944-11 | Search filter | input `publish` / `zzzzzzzz` / clear | 1 op + 1 module + 1 related; then 0 module/0 error/0 related + exact no-match row; clear restores 15/9/162/4 | PASS |
+| 1944-12 | Copy spec URL | click Copy spec URL | clipboard receives absolute spec URL; info feedback "Spec URL copied to clipboard." | PASS |
+| 1944-13 | Locale switch RO | locale switcher → Română | header "Specificație OpenAPI", "Descarcă JSON", "Operațiuni documentate", state.401 translated; 0 raw `oas.*` keys | PASS (b1f47ab60) |
+| 1944-14 | Anon 401 state card | isolated browser context, no login | stateCard visible, "HTTP 401 - not_authenticated", content hidden, Log in → /login.php?note=expired | PASS |
+| 1944-15 | Aside entry | ASIDE → Documentation section | "OpenAPI Specification" link (fas fa-file-code) right after "REST API Reference", href openApiSpec.html?tproject_id&tplan_id | PASS |
+| 1944-16 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` | 9/9 bundles PASS, 8842 keys, 0 missing | PASS |
+| 1944-17 | Static syntax | `php -l` BFF/aside/common.php; `node --check` inline script | all clean (no SyntaxError class #1911/#1894) | PASS |
+| 1944-18 | Console clean | full session (init/search/copy/locale/refresh/anon) | zero console errors or warnings | PASS |
+| 1944-19 | Event Viewer | `events` table after all tests | only log_level=16 AUDIT LOGIN rows; zero ERROR(1)/WARNING(2) | PASS |
