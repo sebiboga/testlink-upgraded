@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="apiref.header">REST API Reference</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.search-box { position: relative; flex: 1; max-width: 420px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.intro-card { margin: 16px 24px 0 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; border-left: 4px solid #4ECDC4; }
+.intro-card .title { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+.intro-card .desc { font-size: 13px; color: #555; line-height: 1.55; }
+.badge-count { display: inline-block; background: #4ECDC4; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 700; margin-left: 8px; vertical-align: middle; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; }
+.card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.card .desc { font-size: 12.5px; color: #777; margin-bottom: 10px; }
+.auth-card { border-left: 4px solid #4ECDC4; }
+.auth-card ul { margin: 0; padding-left: 18px; font-size: 13px; color: #555; line-height: 1.7; }
+.auth-card ul li strong { color: #22242a; }
+.table-wrap { margin: 0 24px 12px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow-x: auto; }
+.table-wrap table { margin-bottom: 0; width: 100%; }
+.table-wrap th { background: #22242a; color: #fff; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+.table-wrap td { font-size: 13px; vertical-align: middle; }
+.mono { font-family: Consolas, 'Courier New', monospace; font-size: 12.5px; }
+.method { display: inline-block; min-width: 46px; text-align: center; border-radius: 4px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; color: #fff; }
+.method.m-get { background: #2980b9; }
+.method.m-post { background: #27ae60; }
+.method.m-multi { background: #8e44ad; }
+.http-chip { display: inline-block; min-width: 44px; text-align: center; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 700; color: #fff; background: #22242a; }
+.codes { font-family: Consolas, 'Courier New', monospace; font-size: 12px; color: #777; }
+.group-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px; border-left: 4px solid #3498db; }
+.group-card .ghead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.group-card .ghead .icon { font-size: 22px; color: #3498db; }
+.group-card .ghead .title { font-size: 15px; font-weight: 700; color: #22242a; }
+.group-card .ghead .cnt { margin-left: auto; background: #eef7f6; color: #2f8f89; border-radius: 10px; padding: 1px 9px; font-size: 11.5px; font-weight: 700; }
+.group-card .desc { font-size: 12.5px; color: #777; margin-bottom: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: Consolas, 'Courier New', monospace; font-size: 11.5px; background: #f4f6f7; border: 1px solid #e1e5e8; color: #445; border-radius: 4px; padding: 2px 7px; }
+.publish-card { margin: 0 24px 4px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; border-left: 4px solid #27ae60; }
+.publish-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.publish-card .desc { font-size: 12.5px; color: #777; margin-bottom: 8px; }
+.related-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px; border-top: 4px solid #4ECDC4; }
+.related-card .title { font-size: 14.5px; font-weight: 700; color: #22242a; margin-bottom: 10px; }
+.related-card a { text-decoration: none; font-size: 13px; color: #2980b9; display: inline-flex; align-items: center; gap: 7px; }
+.related-card a:hover { color: #1c5d8c; text-decoration: underline; }
+.empty { padding: 24px; text-align: center; color: #999; font-size: 13px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+#stateCard { display: none; margin: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 24px; text-align: center; border-top: 4px solid #c0392b; }
+#stateCard .st-icon { font-size: 40px; color: #c0392b; margin-bottom: 12px; }
+#stateCard .st-title { font-size: 17px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+#stateCard .st-msg { font-size: 13.5px; color: #666; margin-bottom: 14px; }
+#stateCard .st-code { display: inline-block; font-family: Consolas, monospace; font-size: 12px; background: #f4f6f7; border: 1px solid #e1e5e8; color: #445; border-radius: 4px; padding: 3px 10px; margin-bottom: 16px; }
+#stateCard .st-actions { display: flex; gap: 10px; justify-content: center; }
+.btn-dark { background: #22242a; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #000; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="apiref.header">REST API Reference</span>
+  <span class="sub" data-i18n="apiref.headerSub">endpoints, authentication and error contract of the TestLink 2.0.1 BFF</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="apiref.searchPlaceholder" placeholder="Filter endpoints, groups, routes...">
+  </div>
+  <span style="flex:1"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div id="stateCard">
+  <div class="st-icon"><i class="fa fa-exclamation-triangle"></i></div>
+  <div class="st-title" id="stTitle"></div>
+  <div class="st-msg" id="stMsg"></div>
+  <div class="st-code" id="stCode"></div>
+  <div class="st-actions">
+    <button class="btn-teal" id="stRetry"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+    <a class="btn-dark" id="stLogin" href="/login.php?note=expired" style="display:none;"><i class="fa fa-sign-in-alt"></i> <span data-i18n="apiref.loginBtn">Log in</span></a>
+  </div>
+</div>
+
+<div id="content">
+
+  <div class="intro-card">
+    <div class="title"><i class="fa fa-project-diagram" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="apiref.introTitle">About this API</span><span class="badge-count" id="moduleCount">0</span></div>
+    <div class="desc" data-i18n="apiref.introBody">TestLink 2.0.1 exposes its functionality through a JSON BFF (backend-for-frontend) layer under /api/. Every modern screen talks to these routes; external integrations (CI pipelines, scripts, tools) can call them the same way. All routes return JSON, use the session for authentication and enforce same-origin requests.</div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-key" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="apiref.authTitle">Authentication &amp; request contract</span></div>
+  <div class="grid">
+    <div class="card auth-card" style="grid-column: 1 / -1;">
+      <div class="desc" data-i18n="apiref.authBody">Every api route follows the same rules:</div>
+      <ul>
+        <li><strong data-i18n="apiref.authCookie">Session cookie</strong> — <span data-i18n="apiref.authCookieDesc">log in through /login.php (or POST api/auth) and send the session cookie with every request; an anonymous caller receives HTTP 401 with code not_authenticated.</span></li>
+        <li><strong data-i18n="apiref.authOrigin">Same-origin only</strong> — <span data-i18n="apiref.authOriginDesc">requests with a foreign Origin/Referer are refused with HTTP 403, and state-changing routes only accept POST (HTTP 405 otherwise).</span></li>
+        <li><strong data-i18n="apiref.authTimeout">Session inactivity</strong> — <span data-i18n="apiref.authTimeoutDesc">a stale session expires server-side and answers HTTP 401 with code session_expired.</span></li>
+        <li><strong data-i18n="apiref.authEnvelope">Error envelope</strong> — <span data-i18n="apiref.authEnvelopeDesc">errors are always JSON: { status: "error", code: "&lt;machine-code&gt;", message: "..." } — branch on HTTP status and code, never on the message text.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-bolt" style="color:#e67e22;margin-right:6px;"></i><span data-i18n="apiref.errorsTitle">HTTP status &amp; machine codes</span></div>
+  <div style="padding:0 24px 4px 24px;font-size:12.5px;color:#777;" data-i18n="apiref.errorsDesc">The stable error contract shared by every route:</div>
+  <div class="table-wrap">
+    <table class="table" id="errorsTable">
+      <thead>
+        <tr>
+          <th data-i18n="apiref.col.http">HTTP</th>
+          <th data-i18n="apiref.col.meaning">Meaning</th>
+          <th data-i18n="apiref.col.codes">Example machine codes</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><i class="fa fa-layer-group" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="apiref.catalogueTitle">Endpoint catalogue</span></div>
+  <div style="padding:0 24px 4px 24px;font-size:12.5px;color:#777;" data-i18n="apiref.catalogueDesc">Every api module discovered on this installation, grouped by area:</div>
+  <div class="grid" id="groupsGrid"></div>
+
+  <div class="section-title"><i class="fa fa-list" style="color:#3498db;margin-right:6px;"></i><span data-i18n="apiref.featuredTitle">Frequently used endpoints</span></div>
+  <div style="padding:0 24px 4px 24px;font-size:12.5px;color:#777;" data-i18n="apiref.featuredDesc">Start here when integrating with TestLink:</div>
+  <div class="table-wrap">
+    <table class="table" id="featuredTable">
+      <thead>
+        <tr>
+          <th data-i18n="apiref.col.method">Method</th>
+          <th data-i18n="apiref.col.endpoint">Endpoint</th>
+          <th data-i18n="apiref.col.description">Description</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section-title"><i class="fa fa-robot" style="color:#27ae60;margin-right:6px;"></i><span data-i18n="apiref.publishTitle">Automated result publishing (CI/CD)</span></div>
+  <div class="publish-card">
+    <div class="desc" data-i18n="apiref.publishBody">Pipeline jobs (GitHub Actions, GitLab CI, Jenkins, Azure DevOps) can publish test results directly — no browser, no XML dialect conversion. POST the CI artifact to the endpoint below with the session cookie of a user holding the test-plan execute right:</div>
+    <div class="chips">
+      <span class="chip" id="publishEndpoint">/api/cicdpublish/index.php?action=publish</span>
+      <span class="chip">format=junit</span>
+      <span class="chip">format=json</span>
+      <span class="chip" data-i18n="apiref.publishAuth">right: testplan_execute</span>
+    </div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="apiref.relatedTitle">Related in TestLink</span></div>
+  <div class="grid" id="relatedGrid"></div>
+
+  <div class="empty" id="emptyMsg" data-i18n="apiref.noMatch">No matching entries.</div>
+
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.apiReference">TestLink 2.0.1 - REST API Reference</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/apireference/index.php';
+var DATA = { groups: [], featured: [], errors: [], related: [], publish: null };
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn, #stRetry', function() { load(true); });
+$(document).on('input', '#searchBox', function() { render(); });
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function stateCard(http, code) {
+  var titleKey = 'apiref.errTitle';
+  var msgKey = 'apiref.state.500';
+  if (http === 401) { msgKey = 'apiref.state.401'; }
+  else if (http === 403) { msgKey = 'apiref.state.403'; }
+  else if (http === 400) { msgKey = 'apiref.state.400'; }
+  else if (http === 405) { msgKey = 'apiref.state.405'; }
+  $('#stTitle').text(TLi18n.t(titleKey));
+  $('#stMsg').text(TLi18n.t(msgKey));
+  $('#stCode').text('HTTP ' + http + (code ? ' - ' + code : ''));
+  $('#stLogin').toggle(http === 401);
+  $('#content').hide();
+  $('#stateCard').show();
+}
+
+function load(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    $('#stateCard').hide();
+    $('#content').show();
+    DATA.groups = r.groups || [];
+    DATA.featured = r.featured || [];
+    DATA.errors = r.errors || [];
+    DATA.related = r.related || [];
+    DATA.publish = r.publish || null;
+    $('#moduleCount').text(String(r.totalModules || 0));
+    if (DATA.publish && DATA.publish.endpoint) $('#publishEndpoint').text(DATA.publish.endpoint);
+    render();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var code = '';
+    var http = xhr.status || 0;
+    try {
+      var body = JSON.parse(xhr.responseText || '{}');
+      code = body.code || '';
+      if (!http && body.status === 'error') http = 400;
+    } catch (e) {}
+    if (http === 401) {
+      stateCard(401, code);
+      return;
+    }
+    stateCard(http || 500, code);
+  });
+}
+
+function matches(text, q) {
+  if (!q) return true;
+  return String(text || '').toLowerCase().indexOf(q) !== -1;
+}
+
+function render() {
+  var q = String($('#searchBox').val() || '').toLowerCase().trim();
+  renderErrors();
+  var shown = renderGroups(q) + renderFeatured(q) + renderRelated(q);
+  $('#emptyMsg').toggle(shown === 0);
+}
+
+function renderErrors() {
+  var tb = $('#errorsTable tbody').empty();
+  $.each(DATA.errors, function(i, e) {
+    var tr = $('<tr></tr>')
+      .append($('<td></td>').append('<span class="http-chip">' + esc(e.http) + '</span>'))
+      .append($('<td></td>').text(TLi18n.t(e.descKey)))
+      .append($('<td></td>').append('<span class="codes"></span>').find('span').text(e.codes || '').end());
+    tb.append(tr);
+  });
+}
+
+function renderGroups(q) {
+  var g = $('#groupsGrid').empty();
+  var shown = 0;
+  $.each(DATA.groups, function(i, grp) {
+    var title = TLi18n.t(grp.titleKey);
+    var desc = TLi18n.t(grp.descKey);
+    var paths = (grp.areas || []).join(' ');
+    if (q && !matches(title + ' ' + desc + ' ' + paths, q)) return;
+    shown++;
+    var card = $('<div class="group-card"></div>');
+    var head = $('<div class="ghead"></div>')
+      .append('<span class="icon"><i class="' + esc(grp.icon || 'fas fa-cube') + '"></i></span>')
+      .append('<span class="title"></span>').find('.title').text(title).end()
+      .append('<span class="cnt"></span>').find('.cnt').text(String(grp.count || 0)).end();
+    card.append(head);
+    card.append($('<div class="desc"></div>').text(desc));
+    var chips = $('<div class="chips"></div>');
+    $.each(grp.areas || [], function(j, path) {
+      chips.append($('<span class="chip"></span>').text(path));
+    });
+    card.append(chips);
+    g.append(card);
+  });
+  return shown;
+}
+
+function renderFeatured(q) {
+  var tb = $('#featuredTable tbody').empty();
+  var shown = 0;
+  $.each(DATA.featured, function(i, f) {
+    var desc = TLi18n.t(f.descKey);
+    if (q && !matches(f.method + ' ' + f.path + ' ' + desc, q)) return;
+    shown++;
+    var m = String(f.method || '');
+    var mcls = m === 'GET' ? 'm-get' : (m === 'POST' ? 'm-post' : 'm-multi');
+    var tr = $('<tr></tr>')
+      .append($('<td></td>').append('<span class="method ' + mcls + '"></span>').find('span').text(m).end())
+      .append($('<td></td>').append('<span class="mono"></span>').find('span').text(f.path).end())
+      .append($('<td></td>').text(desc));
+    tb.append(tr);
+  });
+  return shown;
+}
+
+function renderRelated(q) {
+  var g = $('#relatedGrid').empty();
+  var shown = 0;
+  $.each(DATA.related, function(i, r) {
+    var label = TLi18n.t(r.labelKey);
+    if (q && !matches(label, q)) return;
+    shown++;
+    var ext = r.external === true;
+    var card = $('<div class="related-card"></div>');
+    var ttl = $('<div class="title"></div>')
+      .append('<i class="fa fa-link" style="color:#4ECDC4;margin-right:6px;"></i>')
+      .append(document.createTextNode(label));
+    card.append(ttl);
+    var a = $('<a href="#"></a>').attr('href', r.href)
+      .append('<i class="fa ' + (ext ? 'fa-external-link-alt' : 'fa-arrow-right') + '"></i> ')
+      .append(document.createTextNode(label));
+    if (ext) a.attr({ target: '_blank', rel: 'noopener noreferrer' });
+    else a.attr('target', '_top');
+    card.append($('<div></div>').append(a));
+    g.append(card);
+  });
+  return shown;
+}
+</script>
+</body>
+</html>
