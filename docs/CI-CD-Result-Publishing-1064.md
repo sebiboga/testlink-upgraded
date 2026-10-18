@@ -21,6 +21,18 @@ The CI/CD Result Publishing screen accepts the result artifact produced by an ex
 - **BFF:** `/api/cicdpublish/index.php?action=init[&tproject_id=P][&tplan_id=N]` and `POST ?action=publish` (multipart: `tplan_id`, `build_id`, optional `platform_id`, `format`, `uploadedFile`).
 - Security: session auth + `bffSameOriginGuard` + `bffEnforceSession`; right `testplan_execute` on the owning project (write gate, same as the execution screens); asserting `tproject_id` is compared against the owning project only (no project-existence oracle); all IDs strictly validated positive integers; upload size-capped; XML parsed with `LIBXML_NONET`.
 
+## Session 2 — finishing pass (tracking issue #1940, 2026-10-18)
+- **Bugfix `53a3065c3`:** every `no_right` denial was written to the Event Viewer as an ERROR row; both `tLog(..., 'ERROR')` calls now log `AUDIT` (`log_level=16`). Post-fix denial events: ids 11/12 (curl), 15 (browser); no new Error/Warning rows after the fix.
+- **Mandatory code review (1 BLOCKER + 4 SHOULD-FIX + 3 NIT), applied in `df6bc2564`:**
+  - BLOCKER — all five pipeline snippets were copy-paste broken: they sent no `Origin`/`Referer`/`X-Requested-With`, so `bffSameOriginGuard` answered 403 on every real pipeline call. Each snippet now carries `-H "X-Requested-With: XMLHttpRequest"` (properly indented).
+  - DataTables filter label was hardcoded English — now `common.search` / `common.noData` via `language:`, and the search input gets `id/name=tblSearch`.
+  - A JSON entry with no `status` silently published a *pass* — default is now `n` (not run).
+  - `cfg/results/status_code` can map `unknown` → `u`, outside the `p/f/b/n` executions domain — mapped codes are now clamped with an `n` fallback.
+  - `copySnippet()` toasted "Snippet copied" even when `navigator.clipboard.writeText` rejected — it now falls back to `execCommand` and toasts `common.error` only on real failure.
+  - Publish success clears the file input (no accidental double-publish) and writes an AUDIT `events` row (`published N of M … build/plan`).
+- **Browser-pass fixes:** all 5 labels gained `for=` and the selects/file input `name=` (both Chrome a11y issues gone — console now zero messages); Refresh no longer leaves stale tiles/rows in the DOM (`load()` destroys the table and empties `#tiles`/`#tbl tbody`); `clearHeaderAria()` was dead code and is now wired at both call sites.
+- **Verification:** JUnit publish via screen 4/3/1/0; JSON publish 1/1/0/0; edge JSON (`status:"unknown"` + missing status) both clamp/default to `n`; client guards (`Select a build first.` / `Choose a results file to publish.`); copy toast; EN↔RO; anonymous → `login.php?note=expired`; role-3 → 403 `no_right` state card; Event Viewer clean post-fix; gates: suite `TLU_REQUIRE_SUITE="Issue #1064"` 34/34 PASS, i18n 9/9 PASS (8714 keys).
+
 ## Refs
-- Issue #1064
+- Issue #1064 (parent feature), tracking issue #1940
 - Screenshots: see wiki page

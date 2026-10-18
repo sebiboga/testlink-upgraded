@@ -42531,6 +42531,51 @@ with 1 TC); logged in as `admin/admin`; app at `http://localhost:8082`.
 10. **MANDATORY GATE for this suite.** *Steps:*
     `TLU_REQUIRE_SUITE="Issue #1064" bash ai/verify_test_suites.sh`.
     *Expected:* EXIT=0 with the own-suite-heading check passing.
+
+**Session 2 re-verification (2026-10-18, tracking issue #1940; fixture `tmp/fixtures_1940.php` -> tproject `CICD1940`, plan `C40 CI Plan`, build `C40 build 1`, platform `Chrome`, no-rights user `c1940norights` id 2, artifacts `tmp/junit_1940.xml` / `tmp/json_1940.json` / `tmp/bad_1940.xml` / `tmp/empty_1940.xml`).**
+
+5R. **Errors & client validation re-run live (re: case 5).** *Steps:* curl POST `action=publish` with no `uploadedFile`; `format=xml`; `tmp/bad_1940.xml`; empty file; foreign `build_id=999` / `platform_id=999` / missing `tplan_id`. Browser: Publish with build `(All)`; Publish with build but no file.
+   *Expected:* 400 `missing_file` / 400 `unsupported_format` / 422 `parse_error` / 400 `invalid_request`; toasts for client-side guards.
+   *Actual:* all five BFF paths returned exactly those codes; toasts `Select a build first.` and `Choose a results file to publish.` **PASS.**
+
+6R. **Permission & HTTP edges re-verified (re: case 6).** *Steps:* curl GET/POST `action=init`+`action=publish` as `c1940norights`; anonymous GET; GET on `action=publish`; POST `action=init` (CSRF); browser as no-rights user and as anonymous (isolated context).
+   *Expected:* 403 `no_right` for no-rights; 401 `not_authenticated` for anonymous; 405 GET publish; 403 CSRF POST init; state card / login redirect on screen.
+   *Actual:* curl: 403 `{code:no_right}` (init+publish), 401 `{code:not_authenticated}`, 405, 403 CSRF guard. Browser no-rights: state card `Access denied / You do not hold the test execution right on this test project. / no_right` (screenshot `docs/1940-cicdpublish-norights.png`). Anonymous: redirect to `login.php?note=expired`. **PASS.**
+
+7R. **Screen, a11y, locales, console (re: case 7).** *Steps:* render screen; run Chrome DevTools a11y/console checks; switch locale EN->RO->EN; click Copy; click Refresh twice.
+   *Expected:* all widgets render; zero console issues; full RO translation; copy toast; Refresh clears results.
+   *Actual:* a11y fixes applied this session — `for=` on all 5 labels + `name` on the 4 selects/file input, DataTables search input set to `id/name=tblSearch` -> console **zero** messages (was 2 issues). RO renders all keys translated, no raw keys (screenshot `docs/1940-cicdpublish-ro.png`). Copy -> toast `Snippet copied`. Refresh now empties `#tiles`/`#tbl tbody` and hides `#resultBox` (stale-DOM bug fixed; `clearHeaderAria()` wired — was dead code), no aria-label stacking after repeated publishes. **PASS.**
+
+8R. **Publish via screen: JUnit + JSON (re: case 8).** *Steps:* select build `C40 build 1` + platform `Chrome`, upload `junit_1940.xml`, Publish; then switch format to `JSON`, upload `json_1940.json`, Publish.
+   *Expected:* tiles 4/3/1/0 then 1/1/0/0; rows with status/outcome badges; toast.
+   *Actual:* first publish -> tiles 4/3/1/0, rows Passed/Failed/Not run + Published/Not found, partial toast; second publish -> tiles 1/1/0/0, row `C40-1 Login works / C40-1 / Passed / Published` (screenshot `docs/1940-cicdpublish-result.png`). **PASS.**
+
+9R. **Event Viewer clean after bugfix (re: case 9).** *Steps:* `SELECT id,log_level,description FROM events`; compare pre-fix vs post-fix denial rows.
+   *Expected:* no new Error/Warning rows after commit `53a3065c3`; denials logged as AUDIT.
+   *Actual:* pre-fix denials wrote `log_level=1` ERROR rows (events id 5, 9) — root cause `tLog(...,'ERROR')` in `api/cicdpublish/index.php` changed to `'AUDIT'` (commit `53a3065c3`). Post-fix denials are `log_level=16` (ids 11, 12 via curl; id 15 via browser). `WHERE log_level IN (1,2)` shows **no new** rows after the fix. **PASS.**
+
+10R. **MANDATORY GATE (re: case 10).** *Steps:* `TLU_REQUIRE_SUITE="Issue #1064" bash ai/verify_test_suites.sh` on this candidate.
+   *Expected:* EXIT=0, own-suite-heading check passing.
+   *Actual:* run recorded in the final checkpoint comment on issue #1940.
+
+**Mandatory code review (subagent) round — findings applied & re-verified (2026-10-18).**
+
+11R. **BLOCKER: pipeline snippets were rejected by the CSRF guard.** *Steps:* inspect the 5 `SNIPPETS` curls (no `Origin`/`Referer`/`X-Requested-With` -> `bffSameOriginGuard` 403); fix; re-render.
+   *Expected:* every snippet carries a header the guard accepts; rendered guide shows it.
+   *Actual:* `-H "X-Requested-With: XMLHttpRequest"` added to all 5 snippets with matching indentation (GitHub Actions / GitLab / Jenkins / Azure / Generic); live snapshot shows the header in all 5 `<pre>` blocks. **PASS.**
+
+12R. **SHOULD-FIXES: i18n DataTables label, JSON status defaults, status clamp, copy toast.** *Steps:* publish via screen and read the filter label; publish `tmp/json_1940_edge.json` (one entry `status:"unknown"`, one with NO `status`) via curl; trigger the copy path.
+   *Expected:* `Search:` from `common.search` (not a hardcoded DataTables string); both entries not-run, never a silent pass; out-of-domain map tokens clamped to p/f/b/n; success toast only on a real copy.
+   *Actual:* DataTables init now `language: { search: common.search+':', emptyTable: common.noData }` and renders `Search:` with `id/name=tblSearch`; edge JSON -> summary 2/2/0/0 with **both rows status `n`** (`executions.id` 18 = former `unknown`, 19 = missing status), rows marked `passed`→clamp never writes `u`; `copySnippet()` rejection now falls back to `execCommand` and toasts `common.error` on true failure. Console **zero** messages. **PASS.**
+
+13R. **Review UX/dead-code fixes.** *Steps:* publish then inspect the file input; grep `currentData`/`buildParams(extra)`.
+   *Expected:* file input cleared after success (no accidental double-publish); dead code gone.
+   *Actual:* `$('#fFile').val('')` runs in the success handler (verified: value `''` after a 4/3/1/0 publish); `currentData` and the unused `extra` parameter removed. Publish success now also writes an AUDIT `events` row (`published N of M executions ... build B / plan P`, `log_level=16`, verified as events id 18). **PASS.**
+
+14R. **MANDATORY GATE after review fixes.** *Steps:* `TLU_REQUIRE_SUITE="Issue #1064" bash ai/verify_test_suites.sh`.
+   *Expected:* EXIT=0, none lost.
+   *Actual:* 34 PASS / 0 FAIL / 0 SKIP, EXIT=0 (re-run after this block was appended).
+
 ## Regression — Issue #1854: check_string() false positive on suite name (inverted caller polarity)
 
 **Precondition:** fixture `tmp/fixtures_1852.php` imported (`php tmp/fixtures_1852.php`) →
