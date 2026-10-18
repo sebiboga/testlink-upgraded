@@ -250,6 +250,33 @@ Every screen of the application was ported one-by-one in a screen-compare
   hidden until `can_modify` is known. The header `aria-label` stacking also affects other
   destroy+re-init screens and is filed as #1931. Refs #1930 / parent #1066.
 
+- [SCREEN] - #1944 (parent #1072): the **OpenAPI Specification** viewer
+  (`gui/templates/documentation/openApiSpec.html`, BFF `api/openapi/index.php`)
+  publishes the machine-readable half of parent #1072 that the #1937 REST
+  reference hub left open: it **generates a real OpenAPI 3.1 document** live
+  from the installation and serves it as JSON or YAML. The screen shows a live
+  `OpenAPI 3.1.0` badge, four metric tiles (API version / BFF modules /
+  documented paths / operations), the two spec routes with copy + download
+  actions, the shared security scheme (session cookie + `X-Requested-With`
+  CSRF header + same-origin + session inactivity), the 15 documented
+  operations and 9 shared error statuses, the full module inventory (162
+  modules, discovered by globbing `api/<area>/index.php` so it can never
+  drift) and related deep links; a live filter, translated no-match state and
+  `oas.*` i18n in all 10 bundles. The BFF serves
+  `GET|HEAD ?action=init` (screen context) and `GET|HEAD ?action=spec[&format=json|yaml]`
+  (the document: 11 paths / 15 operations, `sessionCookie` security scheme,
+  `components.responses` E400–E500, `x-testlink-modules`, `x-testlink-contract`),
+  with session auth + `bffSameOriginGuard` + `bffEnforceSession` and 400/401/403/405
+  machine codes. Net-new for 2.0.1: neither 1.9.20 nor the initial BFF layer
+  shipped any OpenAPI artifact. Wiring: `$actions->openApiSpec` in
+  `lib/functions/common.php`, the ASIDE Documentation entry after REST API
+  Reference (icon `fas fa-file-code`), and `$TLS_title_openapi_spec` in **all
+  19** server locales. Browser-verified (admin + anon): full render, search
+  filter + no-match, copy spec URL, Romanian locale, 401 state card with login
+  bounce, ASIDE entry, console clean; YAML output parses with PyYAML; Event
+  Viewer INFO-only (LOGIN audits). Suite `Suite 1944` = 19/19 PASS in
+  `tmp/TLU_Test_Cases.md`. Docs mirror `docs/OpenAPI-Specification-Modernized.md`,
+  wiki page + 5 screenshots. Refs #1944 / parent #1072.
 - [SCREEN] - #1943 (parent #1052): the **Test Strategy Documents** registry
   (`gui/templates/strategy/strategyDoc.html`, BFF `api/strategydoc/index.php`) adds the first
   **editable** artifact of the Test Strategy feature: a project-scoped registry of
