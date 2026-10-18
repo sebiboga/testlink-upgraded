@@ -43896,3 +43896,28 @@ PHP/DB/UI involved. Fix commit lives on local branch `fix/issue-1872-workflow-pa
 11. Push permission re-measured: `git push origin HEAD:fix/issue-1872-run8` (workflow commit) → `! [remote rejected] … without workflows permission`; same token pushes non-workflow artifacts (docs/suite commits) → accepted. **PASS** (blocker is content-path-specific, unchanged from runs 1–7).
 
 **Result:** 11/11 PASS. Gate: `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` → see FINDINGS comment (run 8) for the measured PASS/FAIL tally.
+
+## Regression — Issue #1872 (re-run 2026-10-18, fix-bug run 9, base `f8ea0a5ab`)
+
+Precondition: fresh checkout of `sebiboga/testlink-upgraded`, `git fetch origin`, base
+`origin/sebiboga @ f8ea0a5ab`. Re-run of the 11-case `Regression — Issue #1872` suite against
+the current default branch, plus the run-9 push probe.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | `git grep -c "rebase -X theirs" origin/sebiboga -- .github/workflows/` | pre-fix: 8 (bug live) | **8** — bug live (FAIL pre-fix, as expected) |
+| 2 | `git grep -c "rebase -X ours" origin/sebiboga -- .github/workflows/` | pre-fix: 0 | **0** |
+| 3 | `git grep -nE '"\$BEFORE"\.\.HEAD' origin/sebiboga -- .github/workflows/` | pre-fix: 5 | **5** (fix-bug:261, fix-bug-oldest:264, investigate-fix:313, implement-task-oldest:279, implement-task-newest:281) |
+| 4 | `git grep -n 'origin/\$GITHUB_REF_NAME' origin/sebiboga -- .github/workflows/` | pre-fix: 0 | **0** |
+| 5 | Apply docs §Fix step 1 (8 sed swaps) on `fix/issue-1872-workflow-patch` | theirs 0 / ours 8 | **0 / 8** PASS |
+| 6 | Apply docs §Fix step 2 (python patcher, 5 sites) | local REFS 0; origin REFS 5 + 5 fetch guards | **0 / 5 + 5** PASS |
+| 7 | `python3 -c "yaml.safe_load"` over `.github/workflows/*.yml` | 11/11 | **11/11** PASS |
+| 8 | 2-strategy harness (base 100 / live +45 / stale rewrite 46) | theirs 0/45, ours 45/45 | **0/45** and **45/45** PASS |
+| 9 | `git push origin HEAD:refs/heads/fix/issue-1872-run9` (patch branch, fresh token) | post-fix expectation: accepted; actual blocker: rejected `without workflows permission` | **REJECTED** (9th consecutive) — FAIL, blocker persists |
+| 10 | `git log origin/sebiboga..fix/issue-1872-workflow-patch --format=%B \| grep -c "#1872"` | 0 (no false auto-close) | **0** PASS |
+| 11 | `TLU_REQUIRE_SUITE="Issue #1872" bash ai/verify_test_suites.sh` after this append | exit 0, no suite lost | executed at commit time — result recorded in the run-9 FINDINGS comment on the issue |
+
+**Run 9 result:** cases 5–8, 10 PASS (fix verified locally, byte-identical to runs 1–8);
+cases 1–4 FAIL-by-design (bug live on default branch — fix cannot land); case 9 FAIL (push wall,
+re-measured with a token minted 2026-10-18T02:24Z). #1872 remains OPEN; durable patch in
+`docs/Bugfix-Issue-1872-CI-Fallback-Landing-And-Autoclose.md` §Fix.

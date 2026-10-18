@@ -282,3 +282,37 @@ blocked by the same App-installation-level permission; no SSH key / alternate cr
 on the runner. Landable (non-workflow) artifacts of this run — the suite append
 `Regression — Issue #1872 (re-run … run 8, base b30bc309f)` and this docs section — were pushed
 to `origin/fix/issue-1872`. **Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix).
+
+## Re-verification — fix-bug run 9 (2026-10-18, base `f8ea0a5ab`)
+
+Ninth consecutive fix-bug run, first on a new day/token generation. Bug re-confirmed live on
+`origin/sebiboga @ f8ea0a5ab` (8 `-X theirs` / 0 `-X ours`; 5 local-only `"$BEFORE"..HEAD`
+auto-close REFS / 0 origin guards — identical topology to runs 1–8; measured line numbers in the
+run-9 INVESTIGATION comment). The published 2-step patch (§Fix above) was re-applied
+byte-identically on local branch `fix/issue-1872-workflow-patch` → `9abaa8060` (7 files,
+**18 insertions / 13 deletions**):
+
+| gate | measured (run 9) |
+|---|---|
+| `rebase -X theirs` | **0** (was 8) |
+| `rebase -X ours` | **8** (was 0) |
+| local `"$BEFORE"..HEAD` REFS | **0** (was 5) |
+| `"$BEFORE".."origin/$GITHUB_REF_NAME"` REFS + fetch guards | **5 + 5** |
+| `yaml.safe_load` over `.github/workflows/*.yml` | **11/11** |
+| harness `-X theirs` / `-X ours` (live lines kept) | **0/45** / **45/45** |
+| `#1872` literal token in branch commits (false-close guard) | **0** |
+
+**Push wall re-measured with a freshly minted token** (`ghs_15368_…`, `iat` 2026-10-18T02:24Z —
+not a stale-token artifact): `git push origin HEAD:refs/heads/fix/issue-1872-run9` →
+`! [remote rejected] … (refusing to allow a GitHub App to create or update workflow
+.github/workflows/compare-screens.yml without workflows permission)` — **9th consecutive blocked
+run**. Credential inventory unchanged: single App token (`GH_TOKEN == GITHUB_TOKEN ==
+wiki-remote token`), `gh api repos/… → permissions.push:false`, no SSH key / netrc / alternate
+secret. Corroborated this run: `11f0a9718` (bot, 2026-10-05, "the bot token cannot push it" →
+YAML preserved in **#1850**) and `git log origin/sebiboga -- .github/workflows/` showing **zero**
+bot-authored workflow commits ever.
+
+**Issue stays OPEN** (rulebook §7: no fake-close for an unpushed fix). The fix remains
+one-shot reproducible from §Fix above; it lands the moment a human or `workflows`-scoped
+credential applies the two steps (or cherry-picks `9abaa8060`), after which the gates in the
+table are re-run and the issue closed with evidence.
