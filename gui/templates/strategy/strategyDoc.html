@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Strategy Documents</title>
+<!--
+  Editable Test Strategy document registry screen (Refs #1943, parent #1052).
+  Dashio standalone page backed by api/strategydoc. Project-scoped registry of
+  AUTHORED Test Strategy documents: name + status workflow (draft -> review ->
+  approved -> archived) + version counter + 9 structured sections. 1.9.20 ships
+  only the static strategy hub and the generated report - never an editor.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.warn { border-left-color: #e05c5c; }
+.tile.amber { border-left-color: #e6b34d; }
+.tile.dark { border-left-color: #22242a; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; }
+.st-draft { background: #7f8c96; }
+.st-review { background: #e6b34d; }
+.st-approved { background: #3aa89f; }
+.st-archived { background: #22242a; }
+.ver-chip { display: inline-block; background: #eef6f5; color: #2d8e88; border: 1px solid #cde7e5; border-radius: 3px; padding: 1px 8px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row textarea { resize: vertical; min-height: 56px; }
+.detail-row { border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { display: inline-block; min-width: 170px; color: #777; font-weight: 600; }
+.sec-title { font-weight: 700; color: #2d8e88; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; margin-top: 10px; }
+.sec-body { white-space: pre-wrap; color: #333; margin: 2px 0 0; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="sdoc.title">Test Strategy Documents</span>
+  <span class="sub" data-i18n="sdoc.subtitle">author and maintain the project test strategy</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard" role="alert">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh" aria-hidden="true"></i> <span data-i18n="sdoc.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="sdoc.tileTotal">Documents</div>
+    </div>
+    <div class="tile dark">
+      <div class="num" id="tileDraft">0</div>
+      <div class="lbl" data-i18n="sdoc.statusDraft">Draft</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileReview">0</div>
+      <div class="lbl" data-i18n="sdoc.statusReview">Under review</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileApproved">0</div>
+      <div class="lbl" data-i18n="sdoc.statusApproved">Approved</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileArchived">0</div>
+      <div class="lbl" data-i18n="sdoc.statusArchived">Archived</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" style="display:none;" onclick="openNew()"><i class="fa fa-plus" aria-hidden="true"></i> <span data-i18n="sdoc.newDoc">New document</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh" aria-hidden="true"></i> <span data-i18n="sdoc.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label for="fFilterStatus" data-i18n="sdoc.filterStatus">Status</label>
+    <select id="fFilterStatus" onchange="applyFilter()">
+      <option value="" data-i18n="sdoc.allStatuses">All statuses</option>
+      <option value="draft" data-i18n="sdoc.statusDraft">Draft</option>
+      <option value="review" data-i18n="sdoc.statusReview">Under review</option>
+      <option value="approved" data-i18n="sdoc.statusApproved">Approved</option>
+      <option value="archived" data-i18n="sdoc.statusArchived">Archived</option>
+    </select>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="sdoc.noItems">There are no test strategy documents for this project yet.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="sdoc.colName">Name</th>
+          <th data-i18n="sdoc.colStatus">Status</th>
+          <th data-i18n="sdoc.colVersion">Version</th>
+          <th data-i18n="sdoc.colAuthor">Last author</th>
+          <th data-i18n="sdoc.colUpdated">Updated</th>
+          <th style="width:160px" data-i18n="sdoc.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="sdoc.footer">TestLink 2.0.1 - Test Strategy Documents</span></div>
+
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="sdoc.modalNewTitle">New test strategy document</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row" style="display:flex;gap:12px;">
+          <div style="flex:2;">
+            <label for="fName" data-i18n="sdoc.fieldName">Name</label>
+            <input type="text" id="fName" maxlength="255">
+          </div>
+          <div style="flex:1;">
+            <label for="fStatus" data-i18n="sdoc.fieldStatus">Status</label>
+            <select id="fStatus">
+              <option value="draft" data-i18n="sdoc.statusDraft">Draft</option>
+              <option value="review" data-i18n="sdoc.statusReview">Under review</option>
+              <option value="approved" data-i18n="sdoc.statusApproved">Approved</option>
+              <option value="archived" data-i18n="sdoc.statusArchived">Archived</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;">
+          <div class="form-row" style="flex:1 1 45%;"><label for="fObjectives" data-i18n="sdoc.secObjectives">Quality objectives</label><textarea id="fObjectives" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fScope" data-i18n="sdoc.secScope">Scope</label><textarea id="fScope" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fApproach" data-i18n="sdoc.secApproach">Approach and techniques</label><textarea id="fApproach" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fEntry" data-i18n="sdoc.secEntry">Entry criteria</label><textarea id="fEntry" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fExit" data-i18n="sdoc.secExit">Exit criteria</label><textarea id="fExit" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fEnvironments" data-i18n="sdoc.secEnvironments">Test environments</label><textarea id="fEnvironments" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fTools" data-i18n="sdoc.secTools">Tools and integrations</label><textarea id="fTools" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 45%;"><label for="fRoles" data-i18n="sdoc.secRoles">Roles and responsibilities</label><textarea id="fRoles" maxlength="20000"></textarea></div>
+          <div class="form-row" style="flex:1 1 100%;"><label for="fRisks" data-i18n="sdoc.secRisks">Risks and mitigations</label><textarea id="fRisks" maxlength="20000"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveDoc()" data-i18n="sdoc.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="sdoc.modalDetailsTitle">Test strategy document</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Status modal -->
+<div class="modal fade" id="statusModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="sdoc.modalStatusTitle">Change status</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="statusMsg" style="font-size:13px;color:#555;"></p>
+        <div class="form-row">
+          <label for="fNewStatus" data-i18n="sdoc.fieldNewStatus">New status</label>
+          <select id="fNewStatus">
+            <option value="draft" data-i18n="sdoc.statusDraft">Draft</option>
+            <option value="review" data-i18n="sdoc.statusReview">Under review</option>
+            <option value="approved" data-i18n="sdoc.statusApproved">Approved</option>
+            <option value="archived" data-i18n="sdoc.statusArchived">Archived</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnStatus" onclick="doStatus()" data-i18n="sdoc.apply">Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="sdoc.modalDeleteTitle">Delete test strategy document</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="sdoc.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/strategydoc/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+var statusId = 0;
+var SECTION_FIELDS = {
+  objectives: '#fObjectives',
+  scope: '#fScope',
+  approach: '#fApproach',
+  entry_criteria: '#fEntry',
+  exit_criteria: '#fExit',
+  environments: '#fEnvironments',
+  tools: '#fTools',
+  roles: '#fRoles',
+  risks: '#fRisks'
+};
+var SECTION_KEYS = Object.keys(SECTION_FIELDS);
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function statusLabel(s) {
+  var map = { draft: 'sdoc.statusDraft', review: 'sdoc.statusReview',
+              approved: 'sdoc.statusApproved', archived: 'sdoc.statusArchived' };
+  return TLi18n.t(map[s] || 'sdoc.statusDraft');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('sdoc.noRight', 'sdoc.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('sdoc.noProject', 'sdoc.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('sdoc.noProject', 'sdoc.noProjectBody', true); return; }
+  showState('sdoc.errTitle', fallbackKey || 'sdoc.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'sdoc.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileDraft').text(s.draft || 0);
+    $('#tileReview').text(s.review || 0);
+    $('#tileApproved').text(s.approved || 0);
+    $('#tileArchived').text(s.archived || 0);
+    $('#btnNew').toggle(canModify);
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('sdoc.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'sdoc.loadError'); });
+}
+
+function filtered() {
+  var fs = $('#fFilterStatus').val();
+  return allItems.filter(function(it) {
+    if (fs && it.status !== fs) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('sdoc.view')) + '" aria-label="' + esc(TLi18n.t('sdoc.view')) + '"><i class="fa fa-eye" aria-hidden="true"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('sdoc.edit')) + '" aria-label="' + esc(TLi18n.t('sdoc.edit')) + '"><i class="fa fa-pencil" aria-hidden="true"></i></button>' +
+      '<button class="action-btn" onclick="openStatus(' + it.id + ')" title="' +
+      esc(TLi18n.t('sdoc.changeStatus')) + '" aria-label="' + esc(TLi18n.t('sdoc.changeStatus')) + '"><i class="fa fa-flag" aria-hidden="true"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('sdoc.del')) + '" aria-label="' + esc(TLi18n.t('sdoc.del')) + '"><i class="fa fa-trash" aria-hidden="true"></i></button>';
+  }
+  return {
+    name: nameCell,
+    status: '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
+    version: '<span class="ver-chip">v' + esc(it.version) + '</span>',
+    author: esc(it.author_login || it.created_by_login || ''),
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions,
+    sort_ts: it.update_ts || it.creation_ts || ''
+  };
+}
+
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'status'},
+      {data: 'version'},
+      {data: 'author'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 5}],
+    order: [[4, 'desc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+  setTimeout(function() {
+    var $wrap = $('#dataTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'strategyDocTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'strategyDocTableSearch');
+      }
+    }
+  }, 0);
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('sdoc.modalNewTitle'));
+  $('#fName').val('');
+  $('#fStatus').val('draft');
+  $.each(SECTION_FIELDS, function(k, sel) { $(sel).val(''); });
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('sdoc.modalEditTitle'));
+  $('#fName').val(it.name);
+  $('#fStatus').val(it.status);
+  $.each(SECTION_FIELDS, function(k, sel) { $(sel).val(''); });
+  $('#btnSave').prop('disabled', true).text(TLi18n.t('sdoc.loading'));
+  $.getJSON(API + '?action=doc&tproject_id=' + encodeURIComponent(tprojectId) + '&id=' + id, function(r) {
+    var d = r.doc || {};
+    $('#fName').val(d.name || it.name);
+    $('#fStatus').val(d.status || it.status);
+    var sec = d.sections || {};
+    $.each(SECTION_FIELDS, function(k, sel) { $(sel).val(sec[k] || ''); });
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    toast(TLi18n.t('sdoc.errLoadDoc'), 'err');
+  }).always(function() {
+    $('#btnSave').prop('disabled', false).text(TLi18n.t('sdoc.save'));
+    $('#editModal').modal('show');
+  });
+}
+
+function saveDoc() {
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('sdoc.errName'), 'err'); return; }
+  var sections = {};
+  $.each(SECTION_FIELDS, function(k, sel) { sections[k] = $(sel).val(); });
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    status: $('#fStatus').val(),
+    sections: sections
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function(r) {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t(editId > 0 ? 'sdoc.msgSaved' : 'sdoc.msgCreated') +
+      (r && r.version ? ' (v' + r.version + ')' : ''), 'ok');
+    load();
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('sdoc.errDuplicate'), 'err'); }
+    else { toast(TLi18n.t('sdoc.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  $.getJSON(API + '?action=doc&tproject_id=' + encodeURIComponent(tprojectId) + '&id=' + id, function(r) {
+    var d = r.doc || {};
+    function row(labelKey, val) {
+      return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
+    }
+    var html = '';
+    html += row('sdoc.fieldName', d.name);
+    html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('sdoc.fieldStatus')) + '</span>' +
+            '<span class="badge-status st-' + esc(d.status) + '">' + esc(statusLabel(d.status)) + '</span>' +
+            ' <span class="ver-chip" style="margin-left:6px;">v' + esc(d.version) + '</span></div>';
+    html += row('sdoc.colAuthor', d.author_login || d.created_by_login || '');
+    html += row('sdoc.statusBy', d.status_by_login || '-');
+    html += row('sdoc.colUpdated', d.update_ts || d.creation_ts);
+    var sec = d.sections || {};
+    $.each(SECTION_KEYS, function(i, k) {
+      var val = sec[k] || '';
+      html += '<div class="detail-row" style="border:none;padding-top:10px;">' +
+        '<div class="sec-title">' + esc(TLi18n.t('sdoc.sec_' + k)) + '</div>' +
+        '<div class="sec-body">' + (val ? esc(val) : '<span style="color:#bbb;">-</span>') + '</div></div>';
+    });
+    $('#detailsBody').html(html);
+    $('#detailsModal').modal('show');
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    toast(TLi18n.t('sdoc.errLoadDoc'), 'err');
+  });
+}
+
+function openStatus(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  statusId = id;
+  $('#statusMsg').text(TLi18n.t('sdoc.statusFor', {name: it.name}) + ' (' + statusLabel(it.status) + ')');
+  $('#fNewStatus').val(it.status);
+  $('#statusModal').modal('show');
+}
+
+function doStatus() {
+  $('#btnStatus').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=status', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: statusId, status: $('#fNewStatus').val()})
+  }).done(function() {
+    $('#statusModal').modal('hide');
+    toast(TLi18n.t('sdoc.msgStatus'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('sdoc.errStatus') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnStatus').prop('disabled', false); });
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('sdoc.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('sdoc.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('sdoc.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+</script>
+</body>
+</html>
