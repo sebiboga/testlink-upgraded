@@ -44349,3 +44349,7 @@ Second screen of parent #1064 (the sibling `cicdPublish` is the results half, su
 | 1940-21 | Event Viewer | `events` table after all tests | zero ERROR/WARNING rows (log_level 1-3); reference screen writes no audit rows | PASS |
 | 1940-22 | Static syntax | `php -l api/cicd/index.php`; `node --check` on inline JS | No syntax errors | PASS |
 | 1940-23 | Screenshots | capture for wiki/docs | 4 PNGs: normal, search, RO, 401 | PASS |
+| 1940-24 | Code review — step-only search | type "prepare" | 1 matching step shown AND no "No matching entries." message (step count now included in the empty-state decision) | PASS (5aeb6a489) |
+| 1940-25 | Code review — error catalogue | inspect error table after review | 9 rows incl. `session_expired` (401) and `file_too_large` (413), matching the publish endpoint's real codes | PASS (5aeb6a489) |
+| 1940-26 | Code review — footer placement | inspect DOM | `#footerText` + brand footer are OUTSIDE `#content`, so they stay visible in the 401/403 error state | PASS (5aeb6a489) |
+| 1940-27 | Code review — method chip + no raw server text | inspect | method chip wired from `r.methods`; the fail handler no longer echoes the raw `body.message` | PASS (5aeb6a489) |
