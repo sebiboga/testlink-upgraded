@@ -285,6 +285,30 @@ Every screen of the application was ported one-by-one in a screen-compare
   PASS in `tmp/TLU_Test_Cases.md` (gate 34 PASS / 0 FAIL). Docs mirror
   `docs/Test-Type-Coverage-Modernized.md`, wiki page + 6 screenshots.
   Refs #1945 / parent #1052.
+- [SCREEN] - #1940 (parent #1064): the **CI/CD Integration hub**
+  (`gui/templates/documentation/cicdHub.html`, BFF `api/cicd/index.php`) is the
+  documentation half of parent #1064 whose sibling `cicdPublish` (results half,
+  #1940) already shipped: a net-new in-app reference that explains the API-based
+  publish workflow (5 steps), the two supported result formats (JUnit XML / JSON),
+  the two auth options (session cookie / API key), the 7 documented error codes and
+  ships 4 copy-ready pipeline examples (GitHub Actions / GitLab CI / Jenkins / curl)
+  that POST to `api/cicdpublish?action=publish` — every snippet carries the
+  `X-Requested-With: XMLHttpRequest` header the shared CSRF guard requires, plus
+  4 related deep links (publish / automation reports / REST reference / OpenAPI).
+  The BFF serves `GET|HEAD ?action=init` returning i18n KEYS + catalogue DATA only
+  (no server-side markup; snippets rendered client-side through `.text()`), with
+  session auth + `bffSameOriginGuard` + `bffEnforceSession` and 400/401/403/405
+  machine codes. Net-new for 2.0.1: neither 1.9.20 nor 2.0.1 shipped any CI/CD
+  integration screen. Wiring: `$actions->cicdHub` in `lib/functions/common.php`,
+  the ASIDE Documentation entry after OpenAPI Specification (icon
+  `fas fa-code-branch`), 69 `cicdhub.*` keys in **all 10** client bundles and
+  `$TLS_title_cicd_hub` in **all 19** server locales. Browser-verified (admin +
+  anon): full render (5 steps / 2 formats / 2 auth / 4 examples / 7 errors /
+  4 related), `junit` filter, no-match empty state, copy toast, EN↔RO locale,
+  401 state card with login bounce, refresh, back button, console clean; Event
+  Viewer clean. Suite `Suite 1940` = 23/23 PASS in `tmp/TLU_Test_Cases.md`.
+  Docs mirror `docs/CICD-Integration-Hub-Modernized.md`, wiki page + 4 screenshots.
+  Refs #1940 / parent #1064.
 - [SCREEN] - #1944 (parent #1072): the **OpenAPI Specification** viewer
   (`gui/templates/documentation/openApiSpec.html`, BFF `api/openapi/index.php`)
   publishes the machine-readable half of parent #1072 that the #1937 REST

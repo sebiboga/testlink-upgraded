@@ -83,12 +83,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div id="stateCard">
   <div class="st-icon"><i class="fa fa-exclamation-triangle"></i></div>
-  <div class="st-title" id="stTitle">Error</div>
+  <div class="st-title" id="stTitle"></div>
   <div class="st-msg" id="stMsg"></div>
   <div class="st-code" id="stCode"></div>
   <div class="st-actions">
-    <a class="btn-teal" id="stLogin" href="/login.php?note=expired" style="display:none;text-decoration:none;"><i class="fa fa-sign-in-alt"></i> <span data-i18n="cicdhub.loginBtn">Log in</span></a>
-    <button class="btn-dark" id="stRetry"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+    <button class="btn-teal" id="stRetry"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+    <a class="btn-dark" id="stLogin" href="/login.php?note=expired" style="display:none;text-decoration:none;"><i class="fa fa-sign-in-alt"></i> <span data-i18n="cicdhub.loginBtn">Log in</span></a>
   </div>
 </div>
 
@@ -99,7 +99,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="desc" data-i18n="cicdhub.aboutText">Run your automated tests anywhere &#8212; GitHub Actions, GitLab CI, Jenkins or any shell &#8212; and publish the result file to TestLink. The publish endpoint parses JUnit XML or a simple JSON structure and records the execution status against the matching test cases of a test plan.</div>
     <div style="margin-top:12px;font-size:13px;color:#445;">
       <strong data-i18n="cicdhub.endpointLabel">Publish endpoint:</strong>
-      <span class="method-chip">POST</span>
+      <span class="method-chip" id="methodChip">POST</span>
       <span class="ep-chip" id="endpointChip">/api/cicdpublish/index.php?action=publish</span>
     </div>
   </div>
@@ -129,10 +129,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="cicdhub.relatedTitle">Related in TestLink</span></div>
   <div class="grid" id="relatedGrid"></div>
   <div class="empty" id="emptyMsg" style="display:none;" data-i18n="cicdhub.noResults">No matching entries.</div>
-
-  <div class="footer" id="footerText"></div>
-  <div class="footer"><span data-i18n="footers.cicdHub">TestLink 2.0.1 - CI/CD Integration hub</span></div>
 </div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.cicdHub">TestLink 2.0.1 - CI/CD Integration hub</span></div>
 
 <div id="toast"></div>
 
@@ -194,6 +194,7 @@ function load(clearFeedback) {
     SNIPPETS = {};
     $.each(DATA.examples, function (i, e) { SNIPPETS[e.id] = e.snippet || ''; });
     if (r.endpoint) $('#endpointChip').text(r.endpoint);
+    if (r.methods && r.methods.length) $('#methodChip').text(r.methods.join('|'));
     render();
     $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
@@ -203,7 +204,6 @@ function load(clearFeedback) {
       code = body.code || '';
       if (!http && body.status === 'error') http = 400;
     } catch (e) {}
-    try { var b2 = JSON.parse(xhr.responseText).message; if (b2) showFeedback('err', b2); } catch (e) {}
     stateCard(http || 500, code);
   });
 }
@@ -212,8 +212,8 @@ function matches(text, q) { if (!q) return true; return String(text || '').toLow
 
 function render() {
   var q = String($('#searchBox').val() || '').toLowerCase().trim();
-  renderSteps(q);
-  var shown = renderFormats(q) + renderAuth(q) + renderExamples(q) + renderErrors(q) + renderRelated(q);
+  var shown = renderSteps(q);
+  shown += renderFormats(q) + renderAuth(q) + renderExamples(q) + renderErrors(q) + renderRelated(q);
   $('#emptyMsg').toggle(shown === 0);
 }
 
@@ -231,6 +231,7 @@ function renderSteps(q) {
       .append('<div class="st-desc">' + esc(desc) + '</div>'));
   });
   if (q && n === 0) g.hide(); else g.show();
+  return n;
 }
 
 function renderFormats(q) {
@@ -301,7 +302,6 @@ function renderRelated(q) {
     var label = TLi18n.t(r.labelKey);
     if (q && !matches(label, q)) return;
     n++;
-    var a = '<a href="' + esc(r.href) + '" target="_top"><i class="fa fa-arrow-right"></i> ' + esc(label) + '</a>';
     g.append($('<div class="card principle"></div>')
       .append('<div class="icon"><i class="fa fa-link"></i></div>')
       .append('<div class="title">' + esc(label) + '</div>')

@@ -168,7 +168,9 @@ $errors = array(
     array('id' => 'invalid_request',     'http' => 400),
     array('id' => 'no_right',            'http' => 403),
     array('id' => 'not_authenticated',   'http' => 401),
+    array('id' => 'session_expired',     'http' => 401),
     array('id' => 'method_not_allowed',  'http' => 405),
+    array('id' => 'file_too_large',      'http' => 413),
 );
 
 // Related modern screens inside TestLink (deep-link the current context).
