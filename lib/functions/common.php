@@ -2298,6 +2298,13 @@ function getActions(&$gui,$baseURL) {
   // browser); the BFF (api/openapi) enforces session auth + same-origin on
   // every route and returns i18n KEYS only for the screen labels.
   $actions->openApiSpec = "/gui/templates/documentation/openApiSpec.html?{$ctx}";
+  // CI/CD Integration hub modernized screen (Dashio standalone page) -
+  // Refs #1940 (parent #1064). Documents the API-based publish workflow, the
+  // supported result formats, the auth options and copy-ready example pipelines
+  // that call the sibling publish endpoint (api/cicdpublish); the BFF
+  // (api/cicd) enforces session auth + same-origin on every route and returns
+  // i18n KEYS + catalogue DATA only.
+  $actions->cicdHub = "/gui/templates/documentation/cicdHub.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

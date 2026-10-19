@@ -827,6 +827,7 @@ $istqbHref = $u('istqbSyllabus', '/gui/templates/documentation/istqbSyllabus.htm
 $auditHref = $u('accessibilityAudit', '/gui/templates/documentation/accessibilityAudit.html');
 $apiRefHref = $u('apiReference', '/gui/templates/documentation/apiReference.html');
 $oasHref = $u('openApiSpec', '/gui/templates/documentation/openApiSpec.html');
+$cicdHref = $u('cicdHub', '/gui/templates/documentation/cicdHub.html');
 $sections[] = array(
     'key' => 'documentation',
     'label' => lang_get('title_documentation'),
@@ -874,6 +875,12 @@ $sections[] = array(
             'label' => lang_get('title_openapi_spec'),
             'href' => (string)$oasHref,
             'icon' => 'fas fa-file-code',
+        ),
+        array(
+            'id' => 'cicdHub',
+            'label' => lang_get('title_cicd_hub'),
+            'href' => (string)$cicdHref,
+            'icon' => 'fas fa-code-branch',
         ),
     ),
 );

@@ -2483,3 +2483,4 @@ $TLS_title_openapi_spec = "OpenAPI 명세"; // OpenAPI Specification viewer (Ref
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
 $TLS_href_test_strategy_doc = "테스트 전략 문서"; // Test Strategy Documents (Refs #1943)
 $TLS_href_test_strategy_coverage = "테스트 유형 범위";
+$TLS_title_cicd_hub = "CI/CD 통합"; // CI/CD Integration hub (Refs #1940)

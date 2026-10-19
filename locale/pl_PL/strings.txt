@@ -3881,3 +3881,4 @@ $TLS_title_openapi_spec = "Specyfikacja OpenAPI"; // OpenAPI Specification viewe
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
 $TLS_href_test_strategy_doc = "Dokumenty strategii testowania"; // Test Strategy Documents (Refs #1943)
 $TLS_href_test_strategy_coverage = "Pokrycie typów testów";
+$TLS_title_cicd_hub = "Integracja CI/CD"; // CI/CD Integration hub (Refs #1940)
