@@ -576,6 +576,30 @@ CREATE TABLE /*prefix*/tc_risks (
 
 
 # ---------------------------------------------------------------------------
+# Test Type Coverage matrix - project-scoped tracking of the 13 canonical
+# #1052 test types (6 functional + 7 non-functional) with status/owner/
+# description; stored rows overlay the canonical catalogue emitted by the BFF.
+# Net-new module: 1.9.20 ships only the static testTypes prose chapter.
+# (Refs #1945 / #1052)
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_test_type_coverage (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `type_key` varchar(64) NOT NULL default '',
+  `status` varchar(16) NOT NULL default 'not_planned',
+  `description` text,
+  `owner` varchar(128) NOT NULL default '',
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `uq_ttc_project_type` (`testproject_id`,`type_key`),
+  KEY `idx_ttc_project` (`testproject_id`),
+  KEY `idx_ttc_status` (`testproject_id`,`status`)
+) DEFAULT CHARSET=utf8;
+
+
+# ---------------------------------------------------------------------------
 # Editable Test Strategy documents - project-scoped authored strategy with a
 # Draft/Review/Approved/Archived status workflow (Refs #1943 / #1052).
 # Net-new module: 1.9.20 ships only the static strategy hub, never an editor.
