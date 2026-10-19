@@ -422,6 +422,8 @@ if ($show('projects')) {
     $stKeys = array(
         'href_test_strategy_overview' => 'testStrategy',
         'href_test_strategy_doc' => 'strategyDoc',
+        // Refs #1945 (parent #1052): project-scoped test type coverage matrix.
+        'href_test_strategy_coverage' => 'testTypeCoverage',
         'href_test_strategy_intro' => 'testStrategyIntro',
         'href_test_strategy_objectives' => 'testStrategyObjectives',
         'href_test_strategy_scope' => 'testStrategyScope',
@@ -452,6 +454,7 @@ if ($show('projects')) {
     );
     $stIcons = array(
         'testStrategy' => 'fas fa-book-open', 'strategyDoc' => 'fas fa-file-signature',
+        'testTypeCoverage' => 'fas fa-clipboard-check',
         'testStrategyIntro' => 'fas fa-book',
         'testStrategyObjectives' => 'fas fa-bullseye', 'testStrategyScope' => 'fas fa-expand-arrows-alt',
         'testStrategyApproach' => 'fas fa-compass', 'testStrategyLevels' => 'fas fa-layer-group',

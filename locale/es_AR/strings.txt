@@ -3254,3 +3254,4 @@ $TLS_title_api_reference = "Referencia de la API REST"; // REST API Reference hu
 $TLS_title_openapi_spec = "Especificación OpenAPI"; // OpenAPI Specification viewer (Refs #1944)
 $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit / a11y gaps review (Refs #1055)
 $TLS_href_test_strategy_doc = "Documentos de estrategia de prueba"; // Test Strategy Documents (Refs #1943)
+$TLS_href_test_strategy_coverage = "Cobertura de tipos de prueba";

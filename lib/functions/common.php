@@ -3067,6 +3067,9 @@ function getActions(&$gui,$baseURL) {
   $actions->testStrategy = "/gui/templates/strategy/testStrategy.html?{$ctx}";
   // Editable Test Strategy document registry (Refs #1943, parent #1052).
   $actions->strategyDoc = "/gui/templates/strategy/strategyDoc.html?{$ctx}";
+  // Test Type Coverage matrix (Refs #1945, parent #1052): project-scoped
+  // tracking of the 13 canonical test types (status / owner / description).
+  $actions->testTypeCoverage = "/gui/templates/strategy/testTypeCoverage.html?{$ctx}";
   $actions->testStrategyIntro = "/gui/templates/strategy/intro.html?{$ctx}";
   $actions->testStrategyObjectives = "/gui/templates/strategy/objectives.html?{$ctx}";
   $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";

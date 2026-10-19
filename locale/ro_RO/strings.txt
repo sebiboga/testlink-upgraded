@@ -28,6 +28,7 @@ $TLS_title_documentation = 'Documentație';
 $TLS_title_test_strategy = 'Strategia de Testare';
 $TLS_href_test_strategy_overview = 'Prezentare Generală';
 $TLS_href_test_strategy_doc = "Documente strategie de testare";
+$TLS_href_test_strategy_coverage = "Acoperire tipuri de teste";
 $TLS_href_test_strategy_intro = 'Introducere';
 $TLS_href_test_strategy_objectives = 'Obiective';
 $TLS_href_test_strategy_scope = 'Domeniul';
