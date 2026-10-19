@@ -44319,3 +44319,33 @@ Environment: localhost:8082, freshly imported DB (project TCO1945 / prefix TC4 /
 | 1945-30 | Console clean | full session (render, edit, details, reset, filters, search, locale, 404/403/401 states) after review fixes | zero console messages (the DataTables search-field a11y issue was fixed) | PASS (b816e271d) |
 | 1945-31 | Event Viewer | `events` table after all tests | only log_level=16 AUDIT rows (LOGIN/LOGOUT + TESTTYPE_SAVE, TESTTYPE_RESET); zero ERROR/WARNING rows, no PHP warnings | PASS |
 | 1945-32 | Screenshots | capture for wiki/docs | 6 PNGs: normal, RO locale, edit modal, details modal, 404 state, 403 state | PASS |
+
+## Modernize — Issue #1940 (CI/CD Integration hub `cicdHub`, screen + BFF + i18n, parent #1064)
+
+Second screen of parent #1064 (the sibling `cicdPublish` is the results half, suite `Modernize — Issue #1064`). Net-new: 1.9.20/2.0.1 shipped no CI/CD integration screen. Env: app http://localhost:8082 (admin/admin), MariaDB testlink/testlink; fresh DB per run (no fixture required — the hub is a static reference catalogue).
+
+| Case | Title | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1940-1 | BFF anonymous | `GET /api/cicd/index.php?action=init` with no cookie | 401 `{"status":"error","code":"not_authenticated"}` | PASS |
+| 1940-2 | BFF authenticated init | `GET ?action=init` as admin | 200 `status:ok`, `endpoint=/api/cicdpublish/index.php?action=publish`, `methods=[POST]`, 5 steps, 2 formats, 2 authModes, 4 examples, 7 errors, 4 related | PASS |
+| 1940-3 | BFF HEAD | `HEAD ?action=init` as admin | 200 (read-only, no body) | PASS |
+| 1940-4 | BFF unknown action | `GET ?action=bogus` as admin | 400 `unknown_action` | PASS |
+| 1940-5 | BFF method guard | `POST ?action=init` as admin with same-origin header | 405 `method_not_allowed`, `Allow: GET, HEAD` | PASS |
+| 1940-6 | BFF same-origin guard | `POST` with no origin/XRW header | 403 (bffSameOriginGuard) | PASS |
+| 1940-7 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` after adding 69 `cicdhub.*` keys | 9/9 bundles PASS, 8975 keys, 0 missing | PASS |
+| 1940-8 | Server locale labels | `grep -l title_cicd_hub locale/*/strings.txt` | present in all 19 locales; `$TLS_title_cicd_hub = "CI/CD Integration"` (en) resolves | PASS |
+| 1940-9 | Aside entry | ASIDE API → Documentation section | new item id `cicdHub`, label "CI/CD Integration", href `cicdHub.html?...`, icon `fas fa-code-branch`, after `openApiSpec` | PASS |
+| 1940-10 | Screen render EN | open cicdHub.html as admin | endpoint chip, 5 steps, 2 format cards, 2 auth cards, 4 example cards + snippets + copy buttons, 7 error rows, 4 related cards, 2 footers, 0 raw `cicdhub.*` keys | PASS |
+| 1940-11 | Example snippet content | inspect first snippet | GitHub Actions YAML; every snippet carries `-H "X-Requested-With: XMLHttpRequest"` and posts to `action=publish` | PASS |
+| 1940-12 | Search filter | type `junit` in search box | 2 formats, 4 examples, 1 error (missing_file desc), 0 related | PASS |
+| 1940-13 | No-match empty state | type `zzzznomatch` | empty state visible, errors table hidden, related 0 | PASS |
+| 1940-14 | Search reset | clear search box | full content restored (4 related) | PASS |
+| 1940-15 | Copy button | click first copy button | toast "Copied to clipboard" (class ok) | PASS |
+| 1940-16 | Locale switch RO | `?locale=ro` | header "Integrare CI/CD", steps/errors/related/footer fully translated, 0 raw keys | PASS |
+| 1940-17 | 401 state card | isolated anonymous context → open screen | state card "Could not load… / Your session expired…", `HTTP 401 - not_authenticated`, Log in link `/login.php?note=expired`, content hidden | PASS |
+| 1940-18 | Refresh button | click Refresh | data reloads (4 examples again), errors table visible, state card hidden | PASS |
+| 1940-19 | Back button | click Documentation | navigates to `/gui/templates/documentation/documentation.html` preserving context | PASS |
+| 1940-20 | Console clean | full browser session | no console errors (only the expected 401 network line in the anon context) | PASS |
+| 1940-21 | Event Viewer | `events` table after all tests | zero ERROR/WARNING rows (log_level 1-3); reference screen writes no audit rows | PASS |
+| 1940-22 | Static syntax | `php -l api/cicd/index.php`; `node --check` on inline JS | No syntax errors | PASS |
+| 1940-23 | Screenshots | capture for wiki/docs | 4 PNGs: normal, search, RO, 401 | PASS |
