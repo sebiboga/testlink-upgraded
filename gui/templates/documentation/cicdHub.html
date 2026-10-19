@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="cicdhub.header">CI/CD Integration</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d45; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e57; }
+.search-box { position: relative; flex: 1; max-width: 420px; }
+.search-box input { width: 100%; padding: 7px 12px 7px 32px; border-radius: 4px; border: 1px solid #3a3d45; background: #2c2f36; color: #eee; font-size: 13px; }
+.search-box i { position: absolute; left: 10px; top: 9px; color: #888; font-size: 13px; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.principle { border-top: 4px solid #4ECDC4; }
+.card .icon { font-size: 30px; color: #4ECDC4; margin-bottom: 10px; }
+.card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.card .desc { font-size: 12.5px; color: #777; }
+.intro-card { margin: 16px 24px 0 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; border-left: 4px solid #4ECDC4; }
+.intro-card .title { font-size: 16px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+.intro-card .desc { font-size: 13px; color: #555; line-height: 1.55; }
+.steps { padding: 0 24px 10px 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+.step { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 16px 18px; flex: 1 1 180px; border-top: 4px solid #3498db; }
+.step .num { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: #3498db; color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 8px; }
+.step .st-title { font-size: 13.5px; font-weight: 700; color: #22242a; margin-bottom: 5px; }
+.step .st-desc { font-size: 12px; color: #777; }
+.ep-chip { display: inline-block; font-family: Consolas, monospace; font-size: 12.5px; background: #eefaf8; border: 1px solid #b9e8e3; color: #1c6b64; border-radius: 4px; padding: 4px 10px; margin-left: 8px; }
+.method-chip { display: inline-block; font-size: 11px; font-weight: 700; background: #22242a; color: #4ECDC4; border-radius: 3px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+.snippet { background: #22242a; color: #e6e6e6; border-radius: 6px; padding: 14px 16px; font-family: Consolas, monospace; font-size: 11.5px; line-height: 1.5; white-space: pre; overflow-x: auto; margin-top: 12px; }
+.copybar { display: flex; justify-content: flex-end; margin-top: 10px; }
+.btn-mini { background: #4ECDC4; color: #fff; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.btn-mini:hover { background: #3dbdb5; }
+.err-table { width: calc(100% - 48px); margin: 0 24px 10px 24px; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.err-table th, .err-table td { text-align: left; padding: 10px 16px; font-size: 13px; border-bottom: 1px solid #eee; }
+.err-table th { background: #f7f9fa; color: #445; font-weight: 700; }
+.err-table td.code { font-family: Consolas, monospace; color: #c0392b; }
+.err-table .http-chip { display: inline-block; font-size: 11px; font-weight: 700; background: #fdeceb; color: #c0392b; border-radius: 3px; padding: 2px 8px; }
+.empty { padding: 30px 24px; color: #999; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+#stateCard { display: none; margin: 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 24px; text-align: center; border-top: 4px solid #c0392b; }
+#stateCard .st-icon { font-size: 40px; color: #c0392b; margin-bottom: 12px; }
+#stateCard .st-title { font-size: 17px; font-weight: 700; color: #22242a; margin-bottom: 8px; }
+#stateCard .st-msg { font-size: 13.5px; color: #666; margin-bottom: 14px; }
+#stateCard .st-code { display: inline-block; font-family: Consolas, monospace; font-size: 12px; background: #f4f6f7; border: 1px solid #e1e5e8; color: #445; border-radius: 4px; padding: 3px 10px; margin-bottom: 16px; }
+#stateCard .st-actions { display: flex; gap: 10px; justify-content: center; }
+#toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; display: none; z-index: 999; }
+#toast.ok { background: #2ecc71; } #toast.err { background: #c0392b; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="cicdhub.header">CI/CD Integration</span>
+  <span class="sub" data-i18n="cicdhub.headerSub">publish automated test results from your pipeline</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="backBtn"><i class="fa fa-arrow-left"></i> <span data-i18n="cicdhub.back">Documentation</span></button>
+  <div class="search-box">
+    <i class="fa fa-search"></i>
+    <input type="text" id="searchBox" data-i18n-placeholder="cicdhub.searchPlaceholder" placeholder="Search this hub...">
+  </div>
+  <span style="flex:1"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div id="stateCard">
+  <div class="st-icon"><i class="fa fa-exclamation-triangle"></i></div>
+  <div class="st-title" id="stTitle">Error</div>
+  <div class="st-msg" id="stMsg"></div>
+  <div class="st-code" id="stCode"></div>
+  <div class="st-actions">
+    <a class="btn-teal" id="stLogin" href="/login.php?note=expired" style="display:none;text-decoration:none;"><i class="fa fa-sign-in-alt"></i> <span data-i18n="cicdhub.loginBtn">Log in</span></a>
+    <button class="btn-dark" id="stRetry"><i class="fa fa-refresh"></i> <span data-i18n="common.retry">Retry</span></button>
+  </div>
+</div>
+
+<div id="content">
+
+  <div class="intro-card">
+    <div class="title"><i class="fa fa-code-branch" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="cicdhub.aboutTitle">Publish automated results from CI/CD</span></div>
+    <div class="desc" data-i18n="cicdhub.aboutText">Run your automated tests anywhere &#8212; GitHub Actions, GitLab CI, Jenkins or any shell &#8212; and publish the result file to TestLink. The publish endpoint parses JUnit XML or a simple JSON structure and records the execution status against the matching test cases of a test plan.</div>
+    <div style="margin-top:12px;font-size:13px;color:#445;">
+      <strong data-i18n="cicdhub.endpointLabel">Publish endpoint:</strong>
+      <span class="method-chip">POST</span>
+      <span class="ep-chip" id="endpointChip">/api/cicdpublish/index.php?action=publish</span>
+    </div>
+  </div>
+
+  <div class="section-title"><i class="fa fa-list-ol" style="color:#3498db;margin-right:6px;"></i><span data-i18n="cicdhub.stepsTitle">How it works</span></div>
+  <div class="steps" id="stepsGrid"></div>
+
+  <div class="section-title"><i class="fa fa-file-code" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="cicdhub.formatsTitle">Supported result formats</span></div>
+  <div class="grid" id="formatsGrid"></div>
+
+  <div class="section-title"><i class="fa fa-key" style="color:#3498db;margin-right:6px;"></i><span data-i18n="cicdhub.authTitle">Authentication</span></div>
+  <div class="grid" id="authGrid"></div>
+
+  <div class="section-title"><i class="fa fa-terminal" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="cicdhub.examplesTitle">Example pipelines</span></div>
+  <div class="grid" id="examplesGrid"></div>
+
+  <div class="section-title"><i class="fa fa-exclamation-circle" style="color:#c0392b;margin-right:6px;"></i><span data-i18n="cicdhub.errorsTitle">Error codes</span></div>
+  <table class="err-table" id="errorsTable">
+    <thead><tr>
+      <th data-i18n="cicdhub.colHttp">HTTP</th>
+      <th data-i18n="cicdhub.colCode">Code</th>
+      <th data-i18n="cicdhub.colMeaning">Meaning</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="section-title"><i class="fa fa-external-link-alt" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="cicdhub.relatedTitle">Related in TestLink</span></div>
+  <div class="grid" id="relatedGrid"></div>
+  <div class="empty" id="emptyMsg" style="display:none;" data-i18n="cicdhub.noResults">No matching entries.</div>
+
+  <div class="footer" id="footerText"></div>
+  <div class="footer"><span data-i18n="footers.cicdHub">TestLink 2.0.1 - CI/CD Integration hub</span></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/cicd/index.php';
+var DATA = { steps: [], formats: [], authModes: [], examples: [], errors: [], related: [] };
+var SNIPPETS = {};
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var t = $('#toast');
+  t.attr('class', kind || '').text(msg).fadeIn(120);
+  setTimeout(function () { t.fadeOut(200); }, 1800);
+}
+
+function showFeedback(kind, msg) { $('#feedbackMsg').attr('class', kind).text(msg); }
+
+function stateCard(http, code) {
+  var msgKey = 'cicdhub.state.500';
+  if (http === 401) { msgKey = 'cicdhub.state.401'; }
+  else if (http === 403) { msgKey = 'cicdhub.state.403'; }
+  else if (http === 400) { msgKey = 'cicdhub.state.400'; }
+  else if (http === 405) { msgKey = 'cicdhub.state.405'; }
+  $('#stTitle').text(TLi18n.t('cicdhub.errTitle'));
+  $('#stMsg').text(TLi18n.t(msgKey));
+  $('#stCode').text('HTTP ' + http + (code ? ' - ' + code : ''));
+  $('#stLogin').toggle(http === 401);
+  $('#content').hide();
+  $('#stateCard').show();
+}
+
+function load(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    $('#stateCard').hide();
+    $('#content').show();
+    DATA.steps = r.steps || [];
+    DATA.formats = r.formats || [];
+    DATA.authModes = r.authModes || [];
+    DATA.examples = r.examples || [];
+    DATA.errors = r.errors || [];
+    DATA.related = r.related || [];
+    SNIPPETS = {};
+    $.each(DATA.examples, function (i, e) { SNIPPETS[e.id] = e.snippet || ''; });
+    if (r.endpoint) $('#endpointChip').text(r.endpoint);
+    render();
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var code = '', http = xhr.status || 0;
+    try {
+      var body = JSON.parse(xhr.responseText || '{}');
+      code = body.code || '';
+      if (!http && body.status === 'error') http = 400;
+    } catch (e) {}
+    try { var b2 = JSON.parse(xhr.responseText).message; if (b2) showFeedback('err', b2); } catch (e) {}
+    stateCard(http || 500, code);
+  });
+}
+
+function matches(text, q) { if (!q) return true; return String(text || '').toLowerCase().indexOf(q) !== -1; }
+
+function render() {
+  var q = String($('#searchBox').val() || '').toLowerCase().trim();
+  renderSteps(q);
+  var shown = renderFormats(q) + renderAuth(q) + renderExamples(q) + renderErrors(q) + renderRelated(q);
+  $('#emptyMsg').toggle(shown === 0);
+}
+
+function renderSteps(q) {
+  var g = $('#stepsGrid').empty();
+  var n = 0;
+  $.each(DATA.steps, function (i, s) {
+    var title = TLi18n.t('cicdhub.step.' + s.id);
+    var desc = TLi18n.t('cicdhub.step.' + s.id + '.desc');
+    if (q && !matches(title + ' ' + desc, q)) return;
+    n++;
+    g.append($('<div class="step"></div>')
+      .append('<div class="num">' + (i + 1) + '</div>')
+      .append('<div class="st-title">' + esc(title) + '</div>')
+      .append('<div class="st-desc">' + esc(desc) + '</div>'));
+  });
+  if (q && n === 0) g.hide(); else g.show();
+}
+
+function renderFormats(q) {
+  var g = $('#formatsGrid').empty(), n = 0;
+  $.each(DATA.formats, function (i, f) {
+    var title = TLi18n.t('cicdhub.format.' + f.id);
+    var desc = TLi18n.t('cicdhub.format.' + f.id + '.desc');
+    if (q && !matches(title + ' ' + desc + ' ' + f.badge, q)) return;
+    n++;
+    g.append($('<div class="card principle"></div>')
+      .append('<div class="icon"><i class="' + esc(f.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + ' <span class="method-chip">' + esc(f.badge) + '</span></div>')
+      .append('<div class="desc">' + esc(desc) + '</div>'));
+  });
+  return n;
+}
+
+function renderAuth(q) {
+  var g = $('#authGrid').empty(), n = 0;
+  $.each(DATA.authModes, function (i, a) {
+    var title = TLi18n.t('cicdhub.auth.' + a.id);
+    var desc = TLi18n.t('cicdhub.auth.' + a.id + '.desc');
+    if (q && !matches(title + ' ' + desc, q)) return;
+    n++;
+    g.append($('<div class="card"></div>')
+      .append('<div class="icon"><i class="' + esc(a.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append('<div class="desc">' + esc(desc) + '</div>'));
+  });
+  return n;
+}
+
+function renderExamples(q) {
+  var g = $('#examplesGrid').empty(), n = 0;
+  $.each(DATA.examples, function (i, ex) {
+    var title = TLi18n.t('cicdhub.example.' + ex.id);
+    if (q && !matches(title + ' ' + (ex.snippet || ''), q)) return;
+    n++;
+    var card = $('<div class="card principle"></div>')
+      .append('<div class="icon"><i class="' + esc(ex.icon) + '"></i></div>')
+      .append('<div class="title">' + esc(title) + '</div>')
+      .append($('<pre class="snippet"></pre>').text(ex.snippet || ''))
+      .append('<div class="copybar"><button class="btn-mini" data-snippet="' + esc(ex.id) + '"><i class="fa fa-copy"></i> ' + esc(TLi18n.t('cicdhub.copy')) + '</button></div>');
+    g.append(card);
+  });
+  return n;
+}
+
+function renderErrors(q) {
+  var tb = $('#errorsTable tbody').empty(), n = 0;
+  $.each(DATA.errors, function (i, e) {
+    var code = TLi18n.t('cicdhub.code.' + e.id);
+    var meaning = TLi18n.t('cicdhub.code.' + e.id + '.desc');
+    if (q && !matches(code + ' ' + meaning + ' ' + e.id, q)) return;
+    n++;
+    tb.append($('<tr></tr>')
+      .append($('<td></td>').append('<span class="http-chip">' + esc(e.http) + '</span>'))
+      .append($('<td class="code"></td>').text(e.id))
+      .append($('<td></td>').text(meaning)));
+  });
+  $('#errorsTable').toggle(n > 0);
+  return n;
+}
+
+function renderRelated(q) {
+  var g = $('#relatedGrid').empty(), n = 0;
+  $.each(DATA.related, function (i, r) {
+    var label = TLi18n.t(r.labelKey);
+    if (q && !matches(label, q)) return;
+    n++;
+    var a = '<a href="' + esc(r.href) + '" target="_top"><i class="fa fa-arrow-right"></i> ' + esc(label) + '</a>';
+    g.append($('<div class="card principle"></div>')
+      .append('<div class="icon"><i class="fa fa-link"></i></div>')
+      .append('<div class="title">' + esc(label) + '</div>')
+      .append('<div style="margin-top:10px;font-size:13px;"><a href="' + esc(r.href) + '" target="_top" style="color:#2980b9;text-decoration:none;"><i class="fa fa-arrow-right"></i> ' + esc(TLi18n.t('cicdhub.open')) + '</a></div>'));
+  });
+  return n;
+}
+
+function copySnippet(id) {
+  var text = SNIPPETS[id] || '';
+  function legacyCopy() {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    toast(TLi18n.t(ok ? 'cicdhub.copied' : 'common.error'), ok ? 'ok' : 'err');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { toast(TLi18n.t('cicdhub.copied'), 'ok'); },
+      function () { legacyCopy(); });
+  } else { legacyCopy(); }
+}
+
+$(document).on('click', '#refreshBtn', function () { load(true); });
+$(document).on('click', '#stRetry', function () { load(true); });
+$(document).on('input', '#searchBox', function () { render(); });
+$(document).on('click', '[data-snippet]', function () { copySnippet($(this).attr('data-snippet')); });
+$(document).on('click', '#backBtn', function () {
+  window.location.href = '/gui/templates/documentation/documentation.html' + window.location.search;
+});
+</script>
+</body>
+</html>
