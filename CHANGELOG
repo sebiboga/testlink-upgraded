@@ -250,6 +250,41 @@ Every screen of the application was ported one-by-one in a screen-compare
   hidden until `can_modify` is known. The header `aria-label` stacking also affects other
   destroy+re-init screens and is filed as #1931. Refs #1930 / parent #1066.
 
+- [SCREEN] - #1945 (parent #1052): the **Test Type Coverage matrix**
+  (`gui/templates/strategy/testTypeCoverage.html`, BFF `api/testtypecoverage/index.php`)
+  is the Test Strategy ASIDE section's third entry and delivers the
+  project-scoped half of parent #1052 that the static prose chapter left open: a
+  net-new (1.9.20 has no test-type tracking entity at all) 13-row coverage matrix
+  over the canonical catalogue (6 functional + 7 non-functional), each type
+  carrying a status (`not_planned`/`planned`/`in_progress`/`done`/`not_applicable`),
+  an owner and a description. The screen shows six live metric tiles, group and
+  status filters, a DataTables grid (localized `ttc.type.*` label + machine key
+  chip, group/status badges, owner, description tooltip, last update), Edit and
+  Details modals, a Reset-to-defaults confirm and 401/403/404/load-error state
+  cards. The BFF is a true upsert (`GET ?action=init|list`,
+  `POST ?action=save|delete`, session auth + `bffSameOriginGuard` +
+  `bffEnforceSession`), checks rights on the ADDRESSED project before resolving
+  it (reads `mgt_view_tc`|`mgt_modify_tc`, writes `mgt_modify_tc`) and answers
+  400/401/403/404/405/500 machine codes; writes emit `TESTTYPE_SAVE` /
+  `TESTTYPE_RESET` AUDIT events. Schema `tc_test_type_coverage` ships in the
+  installer plus a lazy `CREATE TABLE IF NOT EXISTS`. Wiring:
+  `$actions->testTypeCoverage` in `lib/functions/common.php`, the ASIDE Test
+  Strategy entry after Test Strategy Documents, `$TLS_href_test_strategy_coverage`
+  in **all 19** server locales and `ttc.*` (64 keys, incl. the 13 `ttc.type.*`
+  catalogue labels) + `footers.testTypeCoverage` in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS, 8907 keys). Mandatory code review
+  applied: catalogue labels localized (were English-only), the INSERT race now
+  falls back to the UPDATE path instead of a 409, a bogus project on writes → 404,
+  a JSON 500 `set_exception_handler`, `is_scalar` guard on `action`, byte-capped
+  description (TEXT = 65535 bytes), HEAD accepted as a read, plus a11y fixes
+  (DataTables search id/name, toast `role="status"`, modal/icon `aria-label`s,
+  `jsArg()`-escaped inline handler arguments). Browser-verified (curl + Chrome):
+  render, edit/save round-trip, details, reset, filters, DataTables search,
+  Romanian locale, 404/403/401 states, read-only role path (13 View buttons, no
+  Edit/Reset), console clean; Event Viewer AUDIT-only. Suite `Suite 1945` = 32/32
+  PASS in `tmp/TLU_Test_Cases.md` (gate 34 PASS / 0 FAIL). Docs mirror
+  `docs/Test-Type-Coverage-Modernized.md`, wiki page + 6 screenshots.
+  Refs #1945 / parent #1052.
 - [SCREEN] - #1944 (parent #1072): the **OpenAPI Specification** viewer
   (`gui/templates/documentation/openApiSpec.html`, BFF `api/openapi/index.php`)
   publishes the machine-readable half of parent #1072 that the #1937 REST
