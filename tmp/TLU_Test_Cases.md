@@ -44280,3 +44280,42 @@ Environment: localhost:8082, fresh DB, user admin/admin, Chrome headless via MCP
 | 1944-17 | Static syntax | `php -l` BFF/aside/common.php; `node --check` inline script | all clean (no SyntaxError class #1911/#1894) | PASS |
 | 1944-18 | Console clean | full session (init/search/copy/locale/refresh/anon) | zero console errors or warnings | PASS |
 | 1944-19 | Event Viewer | `events` table after all tests | only log_level=16 AUDIT LOGIN rows; zero ERROR(1)/WARNING(2) | PASS |
+
+## Suite 1945 — Modernize: Test Type Coverage matrix (testTypeCoverage) — Issue #1945 (Refs #1052)
+
+Environment: localhost:8082, freshly imported DB (project TCO1945 / prefix TC4 / id 1, 3 tracked rows: performance=in_progress, security=planned, accessibility=done), user admin/admin, additional users norights (role 3) and viewer1945 (role 7 tester = mgt_view_tc only), Chrome via MCP, MariaDB CLI. Executed 2026-10-19. Tracking #1945; commits 7636f80d3 (BFF), 7a503e0a9 (screen), 0c233b4c6 (i18n/wiring), 68a5bb3ed (fixup), b816e271d (code-review fixes).
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1945-1 | BFF init contract | `GET api/testtypecoverage/index.php?action=init&tproject_id=1` (session) | 200; context{tproject_id,name,prefix,can_view,can_modify}, domains.statuses[5]/groups[2], stats{total 13, tracked 3, done 1, in_progress 1, planned 1, not_planned 10, functional 6, non_functional 7}, items[13] in catalogue order with is_stored overlay | PASS |
+| 1945-2 | BFF list action | `GET ?action=list&tproject_id=1` | 200, same 13 rows as init.items | PASS |
+| 1945-3 | BFF save create (upsert) | `POST ?action=save` `{tproject_id:1,type_key:usability,status:planned,...}` + Origin | 200 `{status:ok, id>0, message:Created}`, row persisted | PASS |
+| 1945-4 | BFF save update | repeat same payload status=done | 200 `{message:Saved}` (same id, no duplicate row) | PASS |
+| 1945-5 | BFF bad status | `status:"zzz"` | 400 `bad_status` | PASS |
+| 1945-6 | BFF unknown type | `type_key:"nope"` | 404 `type_not_found` (catalogue whitelist) | PASS |
+| 1945-7 | BFF reset/delete | `?action=delete` on stored then on unstored type | 200 `{deleted:1}` then 404 `not_tracked` | PASS |
+| 1945-8 | BFF anonymous | no session cookie | 401 `not_authenticated` | PASS |
+| 1945-9 | BFF unknown action | `?action=zzz` | 400 `unknown_action` | PASS |
+| 1945-10 | BFF verb + CSRF guard | `PUT ?action=save` with Origin / without Origin | 405 `wrong_method` (Allow: GET, HEAD, POST) / 403 same-origin proof required (guard runs before verb gate) | PASS |
+| 1945-11 | BFF HEAD | `HEAD ?action=init&tproject_id=1` | 200 (HEAD advertised and accepted as a read) | PASS (b816e271d) |
+| 1945-12 | BFF write on foreign project | `POST save {tproject_id:9999,...}` | 404 `tproject_not_found`, no orphan row inserted | PASS (b816e271d) |
+| 1945-13 | BFF non-scalar action | `?action[]=init` | 400 `invalid_parameter`, no PHP "Array to string conversion" in the JSON body | PASS (b816e271d) |
+| 1945-14 | BFF read-only role | login viewer1945 (role 7) → init + save | init 200 `can_view:true, can_modify:false`; save 403 `no_right` | PASS |
+| 1945-15 | BFF no-rights role | login norights (role 3) → init | 403 `no_right` (view path) | PASS |
+| 1945-16 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` after adding 51 ttc.* + 13 ttc.type.* keys | 9/9 bundles PASS, 8907 keys, 0 missing | PASS |
+| 1945-17 | Static syntax | `php -l api/testtypecoverage/index.php` | No syntax errors (fix for error-free event log) | PASS |
+| 1945-18 | Aside entry | ASIDE → Test Strategy section → "Test Type Coverage" | link present (href_test_strategy_coverage → testTypeCoverage.html, fas fa-clipboard-check), opens the screen with tproject context | PASS (0c233b4c6) |
+| 1945-19 | Screen render EN | open testTypeCoverage.html as admin | project chip TCO1945 (TC4); tiles 13/3/1/1/1/10; 13 rows with type, group badge, status badge, owner, description, updated, View/Edit/Reset actions; footer count + timestamp | PASS (7a503e0a9, re-verified b816e271d) |
+| 1945-20 | Edit + save round-trip | click Edit on performance, change owner/status, Save | modal prefills "Performance testing (performance)"; modal closes, toast "Test type coverage saved.", row + tiles update, row keeps Reset action | PASS (b816e271d) |
+| 1945-21 | Details modal | click View on a row | modal shows type, key, group, status, owner, description, timestamps; Close (aria-label="Close") works | PASS (b816e271d) |
+| 1945-22 | Reset to defaults | click Reset on a stored row → confirm | confirm text `Reset "Performance testing" to its default values?`; toast "Test type reset to defaults.", row reverts to not_planned/empty, Reset button disappears, tiles revert | PASS |
+| 1945-23 | Group/status filters | functional / non_functional / no-match option | 6 rows / 7 rows / localized empty state `ttc.noMatch`; restore → 13 | PASS |
+| 1945-24 | DataTables search | type `zap`, then `qqqqq`, then clear | 1 Security row; 0 entries with "Showing 0 to 0 of 0 entries (filtered…)"; clear restores 13; search input now has id/name `ttcTableSearch` | PASS (b816e271d) |
+| 1945-25 | Locale switch RO | `?locale=ro` / switcher | lang=ro, header "Acoperire tipuri de teste", catalogue rows localized ("Testare funcțională", "Testare de performanță"), edit prefill + reset confirm localized, 0 raw `ttc.*` keys on screen | PASS (b816e271d) |
+| 1945-26 | 404 state card | `?tproject_id=9999` | state card "No test project" (warn), main matrix hidden, no console error | PASS |
+| 1945-27 | 403 state card | login norights → open screen | state card "No permission", matrix hidden, no unhandled error | PASS |
+| 1945-28 | 401 expiry redirect | isolated anonymous context → open screen | redirect to `/login.php?note=expired` ("Session expired…") | PASS |
+| 1945-29 | Read-only rendering | login viewer1945 → open screen | 13 rows, 13 View buttons, 0 Edit, 0 Reset; stored statuses/owners visible (in_progress/Perf Team) | PASS |
+| 1945-30 | Console clean | full session (render, edit, details, reset, filters, search, locale, 404/403/401 states) after review fixes | zero console messages (the DataTables search-field a11y issue was fixed) | PASS (b816e271d) |
+| 1945-31 | Event Viewer | `events` table after all tests | only log_level=16 AUDIT rows (LOGIN/LOGOUT + TESTTYPE_SAVE, TESTTYPE_RESET); zero ERROR/WARNING rows, no PHP warnings | PASS |
+| 1945-32 | Screenshots | capture for wiki/docs | 6 PNGs: normal, RO locale, edit modal, details modal, 404 state, 403 state | PASS |
