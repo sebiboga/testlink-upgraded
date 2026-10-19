@@ -374,7 +374,8 @@ function buildRow(it) {
     status: '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
     owner: esc(it.owner),
     description: '<div class="desc-cell" title="' + esc(it.description) + '">' + esc(it.description) + '</div>',
-    updated: esc(it.update_ts || it.creation_ts || '')
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
   };
 }
 
@@ -389,9 +390,10 @@ function renderTable(items) {
       {data: 'status'},
       {data: 'owner'},
       {data: 'description'},
-      {data: 'updated'}
+      {data: 'updated'},
+      {data: 'actions'}
     ],
-    columnDefs: [{orderable: false, targets: 0}],
+    columnDefs: [{orderable: false, targets: [0, 6]}, {className: 'col-actions', targets: 6}],
     order: [],
     pageLength: 25,
     language: {
