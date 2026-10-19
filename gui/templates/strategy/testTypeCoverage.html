@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Type Coverage</title>
+<!--
+  Test Type Coverage matrix screen (Refs #1945, parent feature #1052).
+  Dashio standalone page backed by api/testtypecoverage. Project-scoped
+  coverage over the 13 canonical test types of the #1052 catalogue (6
+  functional + 7 non-functional): each type has a status (not planned /
+  planned / in progress / done / not applicable), an owner and a description.
+  The canonical catalogue is emitted by the BFF; stored rows overlay it and a
+  row can be reset to its defaults.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.warn { border-left-color: #e05c5c; }
+.tile.amber { border-left-color: #e6b34d; }
+.tile.dark { border-left-color: #22242a; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.st-not_planned { background: #9aa3ab; }
+.st-planned { background: #3aa89f; }
+.st-in_progress { background: #e6b34d; }
+.st-done { background: #4caf7d; }
+.st-not_applicable { background: #6b7280; }
+.badge-group { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.grp-functional { background: #eef6f5; color: #2d8e88; border: 1px solid #cde7e5; }
+.grp-non_functional { background: #f3f0fb; color: #6b4fbb; border: 1px solid #ddd6f3; }
+.key-chip { font-family: monospace; font-size: 11px; color: #999; margin-left: 6px; }
+.desc-cell { color: #666; font-size: 12px; max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.reset { color: #e6b34d; }
+.action-btn.reset:hover { color: #b98d2f; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select, .form-row textarea { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row input[readonly] { background: #f5f5f5; color: #666; }
+.form-row textarea { resize: vertical; min-height: 70px; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.detail-row { border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { display: inline-block; width: 170px; color: #777; font-weight: 600; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ttc.title">Test Type Coverage</span>
+  <span class="sub" data-i18n="ttc.subtitle">track which test types this project actually applies</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile dark">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="ttc.tileTotal">Test types</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileTracked">0</div>
+      <div class="lbl" data-i18n="ttc.tileTracked">Tracked</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileDone">0</div>
+      <div class="lbl" data-i18n="ttc.statusDone">Done</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileInProgress">0</div>
+      <div class="lbl" data-i18n="ttc.statusInProgress">In progress</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tilePlanned">0</div>
+      <div class="lbl" data-i18n="ttc.statusPlanned">Planned</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileNotPlanned">0</div>
+      <div class="lbl" data-i18n="ttc.statusNotPlanned">Not planned</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label for="fFilterGroup" data-i18n="ttc.filterGroup">Group</label>
+    <select id="fFilterGroup" onchange="applyFilter()">
+      <option value="" data-i18n="ttc.allGroups">All groups</option>
+      <option value="functional" data-i18n="ttc.groupFunctional">Functional</option>
+      <option value="non_functional" data-i18n="ttc.groupNonFunctional">Non-functional</option>
+    </select>
+    <label for="fFilterStatus" data-i18n="ttc.filterStatus">Status</label>
+    <select id="fFilterStatus" onchange="applyFilter()">
+      <option value="" data-i18n="ttc.allStatuses">All statuses</option>
+      <option value="not_planned" data-i18n="ttc.statusNotPlanned">Not planned</option>
+      <option value="planned" data-i18n="ttc.statusPlanned">Planned</option>
+      <option value="in_progress" data-i18n="ttc.statusInProgress">In progress</option>
+      <option value="done" data-i18n="ttc.statusDone">Done</option>
+      <option value="not_applicable" data-i18n="ttc.statusNotApplicable">Not applicable</option>
+    </select>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="ttc.noMatch">No test type matches the current filters.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="ttc.colType">Test type</th>
+          <th data-i18n="ttc.colGroup">Group</th>
+          <th data-i18n="ttc.colStatus">Status</th>
+          <th data-i18n="ttc.colOwner">Owner</th>
+          <th data-i18n="ttc.colDescription">Description</th>
+          <th data-i18n="ttc.colUpdated">Updated</th>
+          <th style="width:120px" data-i18n="ttc.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.testTypeCoverage">TestLink 2.0.1 - Test Type Coverage</span></div>
+
+<!-- Edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="ttc.modalEditTitle">Test type coverage</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label for="fType" data-i18n="ttc.colType">Test type</label>
+          <input type="text" id="fType" readonly>
+        </div>
+        <div class="form-row">
+          <label for="fStatus" data-i18n="ttc.fieldStatus">Status</label>
+          <select id="fStatus">
+            <option value="not_planned" data-i18n="ttc.statusNotPlanned">Not planned</option>
+            <option value="planned" data-i18n="ttc.statusPlanned">Planned</option>
+            <option value="in_progress" data-i18n="ttc.statusInProgress">In progress</option>
+            <option value="done" data-i18n="ttc.statusDone">Done</option>
+            <option value="not_applicable" data-i18n="ttc.statusNotApplicable">Not applicable</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="fOwner" data-i18n="ttc.fieldOwner">Owner</label>
+          <input type="text" id="fOwner" maxlength="128">
+        </div>
+        <div class="form-row">
+          <label for="fDescription" data-i18n="ttc.fieldDescription">Description</label>
+          <textarea id="fDescription" maxlength="20000"></textarea>
+          <div class="hint" data-i18n="ttc.fieldDescriptionHint">How this test type is applied in this project.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveType()" data-i18n="ttc.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="ttc.modalDetailsTitle">Test type details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reset confirm modal -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="ttc.modalResetTitle">Reset test type</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="resetMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e6b34d;color:#fff;" id="btnReset" onclick="doReset()" data-i18n="ttc.reset">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/testtypecoverage/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+var canModify = false;
+var editKey = '';
+var resetKey = '';
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function statusLabel(s) {
+  var map = { not_planned: 'ttc.statusNotPlanned', planned: 'ttc.statusPlanned',
+              in_progress: 'ttc.statusInProgress', done: 'ttc.statusDone',
+              not_applicable: 'ttc.statusNotApplicable' };
+  return TLi18n.t(map[s] || 'ttc.statusNotPlanned');
+}
+function groupLabel(g) {
+  return TLi18n.t(g === 'non_functional' ? 'ttc.groupNonFunctional' : 'ttc.groupFunctional');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('ttc.noRight', 'ttc.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('ttc.noProject', 'ttc.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('ttc.noProject', 'ttc.noProjectBody', true); return; }
+  showState('ttc.errTitle', fallbackKey || 'ttc.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'ttc.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileTracked').text(s.tracked || 0);
+    $('#tileDone').text(s.done || 0);
+    $('#tileInProgress').text(s.in_progress || 0);
+    $('#tilePlanned').text(s.planned || 0);
+    $('#tileNotPlanned').text(s.not_planned || 0);
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('ttc.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'ttc.loadError'); });
+}
+
+function filtered() {
+  var fg = $('#fFilterGroup').val(), fs = $('#fFilterStatus').val();
+  return allItems.filter(function(it) {
+    if (fg && it.group !== fg) { return false; }
+    if (fs && it.status !== fs) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+    return;
+  }
+  $('#emptyState').hide();
+  $('#dataTable').show();
+  renderTable(items);
+}
+
+function findItem(key) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].type_key === key) { return allItems[i]; } }
+  return null;
+}
+
+function buildRow(it) {
+  var typeCell = '<a href="javascript:void(0)" onclick="openDetails(\'' + esc(it.type_key) + '\')">' +
+    esc(it.label) + '</a><span class="key-chip">' + esc(it.type_key) + '</span>';
+  var actions = '<button class="action-btn" onclick="openDetails(\'' + esc(it.type_key) + '\')" title="' +
+    esc(TLi18n.t('ttc.view')) + '" aria-label="' + esc(TLi18n.t('ttc.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(\'' + esc(it.type_key) + '\')" title="' +
+      esc(TLi18n.t('ttc.edit')) + '" aria-label="' + esc(TLi18n.t('ttc.edit')) + '"><i class="fa fa-pencil"></i></button>';
+    if (it.is_stored) {
+      actions += '<button class="action-btn reset" onclick="askReset(\'' + esc(it.type_key) + '\')" title="' +
+        esc(TLi18n.t('ttc.resetAction')) + '" aria-label="' + esc(TLi18n.t('ttc.resetAction')) + '"><i class="fa fa-undo"></i></button>';
+    }
+  }
+  return {
+    type: typeCell,
+    group: '<span class="badge-group grp-' + esc(it.group) + '">' + esc(groupLabel(it.group)) + '</span>',
+    status: '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span>',
+    owner: esc(it.owner),
+    description: '<div class="desc-cell" title="' + esc(it.description) + '">' + esc(it.description) + '</div>',
+    updated: esc(it.update_ts || it.creation_ts || '')
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'type'},
+      {data: 'group'},
+      {data: 'status'},
+      {data: 'owner'},
+      {data: 'description'},
+      {data: 'updated'}
+    ],
+    columnDefs: [{orderable: false, targets: 0}],
+    order: [],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function openEdit(key) {
+  var it = findItem(key);
+  if (!it) { return; }
+  editKey = key;
+  $('#fType').val(it.label + ' (' + key + ')');
+  $('#fStatus').val(it.status);
+  $('#fOwner').val(it.owner);
+  $('#fDescription').val(it.description);
+  $('#editModal').modal('show');
+}
+
+function saveType() {
+  var payload = {
+    tproject_id: tprojectId,
+    type_key: editKey,
+    status: $('#fStatus').val(),
+    owner: $('#fOwner').val(),
+    description: $('#fDescription').val()
+  };
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('ttc.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'bad_status') { toast(TLi18n.t('ttc.errBadStatus'), 'err'); }
+    else { toast(TLi18n.t('ttc.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(key) {
+  var it = findItem(key);
+  if (!it) { return; }
+  var html = '';
+  function row(labelKey, val) {
+    return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
+  }
+  html += row('ttc.colType', it.label);
+  html += row('ttc.key', it.type_key);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('ttc.colGroup')) + '</span>' +
+          '<span class="badge-group grp-' + esc(it.group) + '">' + esc(groupLabel(it.group)) + '</span></div>';
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('ttc.fieldStatus')) + '</span>' +
+          '<span class="badge-status st-' + esc(it.status) + '">' + esc(statusLabel(it.status)) + '</span></div>';
+  html += row('ttc.fieldOwner', it.owner);
+  html += row('ttc.fieldDescription', it.description);
+  html += row('ttc.colUpdated', it.update_ts || it.creation_ts);
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function askReset(key) {
+  var it = findItem(key);
+  if (!it) { return; }
+  resetKey = key;
+  $('#resetMsg').text(TLi18n.t('ttc.resetConfirm', {name: it.label}));
+  $('#resetModal').modal('show');
+}
+
+function doReset() {
+  $('#btnReset').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, type_key: resetKey})
+  }).done(function() {
+    $('#resetModal').modal('hide');
+    toast(TLi18n.t('ttc.msgReset'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'not_tracked') { toast(TLi18n.t('ttc.notTracked'), 'err'); }
+    else { toast(TLi18n.t('ttc.errReset') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnReset').prop('disabled', false); });
+}
+</script>
+</body>
+</html>
