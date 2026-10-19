@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "マトリックスを読み込めませんでした",
  "ttc.loadError": "テストタイプのカバレッジを読み込めませんでした。",
  "ttc.key": "キー",
- "footers.testTypeCoverage": "TestLink 2.0.1 - テストタイプのカバレッジ"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - テストタイプのカバレッジ",
+ "ttc.type.functional": "機能テスト",
+ "ttc.type.integration": "統合テスト",
+ "ttc.type.system": "システムテスト",
+ "ttc.type.e2e": "エンドツーエンドテスト",
+ "ttc.type.regression": "回帰テスト",
+ "ttc.type.uat": "ユーザーアクセプタンステスト（UAT）",
+ "ttc.type.performance": "性能テスト",
+ "ttc.type.security": "セキュリティテスト",
+ "ttc.type.usability": "ユーザビリティテスト",
+ "ttc.type.accessibility": "アクセシビリティテスト",
+ "ttc.type.compatibility": "互換性テスト",
+ "ttc.type.reliability": "信頼性テスト",
+ "ttc.type.maintainability": "保守性テスト"
 }

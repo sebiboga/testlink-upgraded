@@ -92,7 +92,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 <div class="state-card" id="stateCard">
   <h3 id="stateTitle"></h3>
   <p id="stateBody"></p>
-  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh" aria-hidden="true"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
 </div>
 
 <div id="mainArea">
@@ -124,7 +124,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   </div>
 
   <div class="toolbar">
-    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh" aria-hidden="true"></i> <span data-i18n="ttc.refresh">Refresh</span></button>
     <span style="flex:1"></span>
     <label for="fFilterGroup" data-i18n="ttc.filterGroup">Group</label>
     <select id="fFilterGroup" onchange="applyFilter()">
@@ -172,7 +172,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" data-i18n="ttc.modalEditTitle">Test type coverage</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -213,7 +213,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" data-i18n="ttc.modalDetailsTitle">Test type details</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body" id="detailsBody"></div>
       <div class="modal-footer">
@@ -229,7 +229,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" data-i18n="ttc.modalResetTitle">Reset test type</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <p id="resetMsg"></p>
@@ -242,7 +242,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -263,6 +263,13 @@ function esc(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// Escape a value for an inline handler ARGUMENT. JSON.stringify builds a
+// double-quoted JS string literal (escaping quotes/backslashes/control chars);
+// esc() then protects that literal inside the double-quoted HTML attribute.
+// esc() alone is NOT safe there: entity decoding happens before JS parsing, so
+// &#39; would come back as a bare quote in a single-quoted JS context.
+function jsArg(v) { return esc(JSON.stringify(v == null ? '' : String(v))); }
+
 function toast(msg, kind) {
   var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
   setTimeout(function() { el.fadeOut(300); }, 2600);
@@ -276,6 +283,13 @@ function statusLabel(s) {
 }
 function groupLabel(g) {
   return TLi18n.t(g === 'non_functional' ? 'ttc.groupNonFunctional' : 'ttc.groupFunctional');
+}
+// The catalogue label travels in English from the server; prefer the localized
+// ttc.type.<key> bundle entry and fall back to the server label when a bundle
+// (or a future catalogue entry) has no translation yet.
+function typeLabel(it) {
+  var key = 'ttc.type.' + it.type_key;
+  return TLi18n.has(key) ? TLi18n.t(key) : it.label;
 }
 
 function showState(key, bodyKey, warn) {
@@ -340,7 +354,7 @@ function filtered() {
 function applyFilter() {
   var items = filtered();
   if (items.length === 0) {
-    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); }
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
     $('#dataTable').hide();
     $('#emptyState').show();
     return;
@@ -356,16 +370,16 @@ function findItem(key) {
 }
 
 function buildRow(it) {
-  var typeCell = '<a href="javascript:void(0)" onclick="openDetails(\'' + esc(it.type_key) + '\')">' +
-    esc(it.label) + '</a><span class="key-chip">' + esc(it.type_key) + '</span>';
-  var actions = '<button class="action-btn" onclick="openDetails(\'' + esc(it.type_key) + '\')" title="' +
-    esc(TLi18n.t('ttc.view')) + '" aria-label="' + esc(TLi18n.t('ttc.view')) + '"><i class="fa fa-eye"></i></button>';
+  var typeCell = '<a href="javascript:void(0)" onclick="openDetails(' + jsArg(it.type_key) + ')">' +
+    esc(typeLabel(it)) + '</a><span class="key-chip">' + esc(it.type_key) + '</span>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + jsArg(it.type_key) + ')" title="' +
+    esc(TLi18n.t('ttc.view')) + '" aria-label="' + esc(TLi18n.t('ttc.view')) + '"><i class="fa fa-eye" aria-hidden="true"></i></button>';
   if (canModify) {
-    actions += '<button class="action-btn" onclick="openEdit(\'' + esc(it.type_key) + '\')" title="' +
-      esc(TLi18n.t('ttc.edit')) + '" aria-label="' + esc(TLi18n.t('ttc.edit')) + '"><i class="fa fa-pencil"></i></button>';
+    actions += '<button class="action-btn" onclick="openEdit(' + jsArg(it.type_key) + ')" title="' +
+      esc(TLi18n.t('ttc.edit')) + '" aria-label="' + esc(TLi18n.t('ttc.edit')) + '"><i class="fa fa-pencil" aria-hidden="true"></i></button>';
     if (it.is_stored) {
-      actions += '<button class="action-btn reset" onclick="askReset(\'' + esc(it.type_key) + '\')" title="' +
-        esc(TLi18n.t('ttc.resetAction')) + '" aria-label="' + esc(TLi18n.t('ttc.resetAction')) + '"><i class="fa fa-undo"></i></button>';
+      actions += '<button class="action-btn reset" onclick="askReset(' + jsArg(it.type_key) + ')" title="' +
+        esc(TLi18n.t('ttc.resetAction')) + '" aria-label="' + esc(TLi18n.t('ttc.resetAction')) + '"><i class="fa fa-undo" aria-hidden="true"></i></button>';
     }
   }
   return {
@@ -379,8 +393,12 @@ function buildRow(it) {
   };
 }
 
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
 function renderTable(items) {
-  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
   var rows = $.map(items, function(it) { return [buildRow(it)]; });
   table = $('#dataTable').DataTable({
     data: rows,
@@ -401,13 +419,23 @@ function renderTable(items) {
       emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#dataTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'ttcTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'ttcTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function openEdit(key) {
   var it = findItem(key);
   if (!it) { return; }
   editKey = key;
-  $('#fType').val(it.label + ' (' + key + ')');
+  $('#fType').val(typeLabel(it) + ' (' + key + ')');
   $('#fStatus').val(it.status);
   $('#fOwner').val(it.owner);
   $('#fDescription').val(it.description);
@@ -445,7 +473,7 @@ function openDetails(key) {
   function row(labelKey, val) {
     return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val || '-') + '</div>';
   }
-  html += row('ttc.colType', it.label);
+  html += row('ttc.colType', typeLabel(it));
   html += row('ttc.key', it.type_key);
   html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('ttc.colGroup')) + '</span>' +
           '<span class="badge-group grp-' + esc(it.group) + '">' + esc(groupLabel(it.group)) + '</span></div>';
@@ -462,7 +490,7 @@ function askReset(key) {
   var it = findItem(key);
   if (!it) { return; }
   resetKey = key;
-  $('#resetMsg').text(TLi18n.t('ttc.resetConfirm', {name: it.label}));
+  $('#resetMsg').text(TLi18n.t('ttc.resetConfirm', {name: typeLabel(it)}));
   $('#resetModal').modal('show');
 }
 

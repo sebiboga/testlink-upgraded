@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "No se pudo cargar la matriz",
  "ttc.loadError": "No se pudo cargar la cobertura de tipos de prueba.",
  "ttc.key": "Clave",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Cobertura de tipos de prueba"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Cobertura de tipos de prueba",
+ "ttc.type.functional": "Pruebas funcionales",
+ "ttc.type.integration": "Pruebas de integración",
+ "ttc.type.system": "Pruebas de sistemas",
+ "ttc.type.e2e": "Pruebas de extremo a extremo",
+ "ttc.type.regression": "Pruebas de regresión",
+ "ttc.type.uat": "Pruebas de aceptación de usuario (UAT)",
+ "ttc.type.performance": "Pruebas de rendimiento",
+ "ttc.type.security": "Pruebas de seguridad",
+ "ttc.type.usability": "Pruebas de usabilidad",
+ "ttc.type.accessibility": "Pruebas de accesibilidad",
+ "ttc.type.compatibility": "Pruebas de compatibilidad",
+ "ttc.type.reliability": "Pruebas de fiabilidad",
+ "ttc.type.maintainability": "Pruebas de mantenibilidad"
 }

@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "Matricea nu a putut fi încărcată",
  "ttc.loadError": "Acoperirea tipurilor de teste nu a putut fi încărcată.",
  "ttc.key": "Cheie",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Acoperire tipuri de teste"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Acoperire tipuri de teste",
+ "ttc.type.functional": "Testare funcțională",
+ "ttc.type.integration": "Testare de integrare",
+ "ttc.type.system": "Testare de sistem",
+ "ttc.type.e2e": "Testare end-to-end",
+ "ttc.type.regression": "Testare de regresie",
+ "ttc.type.uat": "Testare de acceptanță a utilizatorului (UAT)",
+ "ttc.type.performance": "Testare de performanță",
+ "ttc.type.security": "Testare de securitate",
+ "ttc.type.usability": "Testare de utilizabilitate",
+ "ttc.type.accessibility": "Testare de accesibilitate",
+ "ttc.type.compatibility": "Testare de compatibilitate",
+ "ttc.type.reliability": "Testare de fiabilitate",
+ "ttc.type.maintainability": "Testare de mentenabilitate"
 }

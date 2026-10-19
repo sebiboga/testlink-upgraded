@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "Impossible de charger la matrice",
  "ttc.loadError": "Impossible de charger la couverture des types de tests.",
  "ttc.key": "Clé",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Couverture des types de tests"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Couverture des types de tests",
+ "ttc.type.functional": "Tests fonctionnels",
+ "ttc.type.integration": "Tests d'intégration",
+ "ttc.type.system": "Tests système",
+ "ttc.type.e2e": "Tests de bout en bout",
+ "ttc.type.regression": "Tests de régression",
+ "ttc.type.uat": "Tests d'acceptation utilisateur (UAT)",
+ "ttc.type.performance": "Tests de performance",
+ "ttc.type.security": "Tests de sécurité",
+ "ttc.type.usability": "Tests d'utilisabilité",
+ "ttc.type.accessibility": "Tests d'accessibilité",
+ "ttc.type.compatibility": "Tests de compatibilité",
+ "ttc.type.reliability": "Tests de fiabilité",
+ "ttc.type.maintainability": "Tests de maintenabilité"
 }

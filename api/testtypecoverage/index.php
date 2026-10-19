@@ -31,7 +31,12 @@
  *   - reads  require mgt_view_tc OR mgt_modify_tc on the project
  *   - writes require mgt_modify_tc on the project
  *   - unauthenticated -> 401; unknown action -> 400; wrong verb -> 405;
- *     an unknown/non-catalogue type_key -> 404; bad status -> 400
+ *     an unknown/non-catalogue type_key -> 404; bad status -> 400;
+ *     a nonexistent test project -> 404 (reads and writes alike)
+ *
+ * Writes are a true upsert: when the INSERT loses the race on
+ * uq_ttc_project_type the save falls back to the UPDATE path, and any uncaught
+ * exception is mapped by set_exception_handler() to a JSON 500 server_error.
  *
  * Writes emit AUDIT events (TESTTYPE_SAVE / TESTTYPE_RESET) so the Event
  * Viewer tracks the module activity.
@@ -51,6 +56,17 @@ bffSameOriginGuard();
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
+
+// Same convention as the other BFFs: any uncaught DB/PHP exception must answer
+// the documented JSON contract instead of an HTML 500 (database.class.php
+// throws whenever X-Requested-With is set on the request).
+set_exception_handler(function ($e) {
+    error_log('api/testtypecoverage: ' . $e->getMessage());
+    if (!headers_sent()) { http_response_code(500); }
+    echo json_encode(array('status' => 'error', 'code' => 'server_error',
+        'message' => 'Internal error'));
+    exit;
+});
 
 $db = null;
 doDBConnect($db);
@@ -75,7 +91,10 @@ if (is_null($user)) {
 }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : '';
+// is_scalar(): action[]=x would otherwise emit a PHP 8 "Array to string
+// conversion" warning INTO the JSON body.
+$action = (isset($_REQUEST['action']) && is_scalar($_REQUEST['action']))
+    ? trim((string)$_REQUEST['action']) : '';
 
 /** Allowed coverage statuses. */
 function ttcStatuses() {
@@ -240,6 +259,29 @@ function ttcStats($items) {
     return $s;
 }
 
+/** UPDATE an existing coverage row (shared by the save and the race-fallback). */
+function ttcUpdateRow($db, $t, $id, $tpid, $status, $description, $owner) {
+    $db->exec_query(
+        "UPDATE {$t} SET status = '" . $db->prepare_string($status) . "'," .
+        " description = '" . $db->prepare_string($description) . "'," .
+        " owner = '" . $db->prepare_string($owner) . "'," .
+        " update_ts = NOW()" .
+        " WHERE id = " . intval($id) .
+        " AND testproject_id = " . intval($tpid));
+}
+
+/** Fire the AUDIT event of a successful save/reset. */
+function ttcLog($code, $message, $tpid) {
+    $event = new stdClass();
+    $event->message = $message;
+    $event->logLevel = 'AUDIT';
+    $event->source = 'GUI';
+    $event->objectID = intval($tpid);
+    $event->objectType = 'testprojects';
+    $event->code = $code;
+    logEvent($event);
+}
+
 // --------------------------------------------------------------------------
 // Routing
 // --------------------------------------------------------------------------
@@ -247,20 +289,21 @@ function ttcStats($items) {
 $t = ttcEnsureSchema($db);
 $tpid = ttcResolveTproject();
 
-if ($tpid <= 0) {
-    http_response_code(400);
-    echo json_encode(array('status' => 'error', 'code' => 'no_testproject',
-        'message' => 'No test project selected'));
-    exit;
-}
-
-// Verb gate BEFORE the rights check, so an unsupported verb (PUT/DELETE/PATCH)
-// always answers 405 regardless of the caller's rights.
-if ($method !== 'GET' && $method !== 'POST') {
+// Verb gate FIRST, so an unsupported verb (PUT/DELETE/PATCH) always answers
+// 405 regardless of the caller's rights or the selected project (doc contract
+// says wrong verb -> 405). HEAD is advertised in Allow and is a plain read.
+if ($method !== 'GET' && $method !== 'HEAD' && $method !== 'POST') {
     header('Allow: GET, HEAD, POST');
     http_response_code(405);
     echo json_encode(array('status' => 'error', 'code' => 'wrong_method',
         'message' => 'Method not allowed'));
+    exit;
+}
+
+if ($tpid <= 0) {
+    http_response_code(400);
+    echo json_encode(array('status' => 'error', 'code' => 'no_testproject',
+        'message' => 'No test project selected'));
     exit;
 }
 
@@ -284,6 +327,15 @@ if ($isWrite) {
 
 if ($action === '') {
     $action = $isWrite ? 'save' : 'init';
+}
+
+// Writes must address a REAL project too (rights were checked above, so this
+// leaks nothing): without it a bogus id would insert an orphan row and answer ok.
+if ($isWrite && ttcProjectInfo($db, $tpid) === null) {
+    http_response_code(404);
+    echo json_encode(array('status' => 'error', 'code' => 'tproject_not_found',
+        'message' => 'Test project not found'));
+    exit;
 }
 
 // ---- reads -----------------------------------------------------------------
@@ -343,7 +395,12 @@ if ($action === 'save') {
             'message' => 'Invalid status'));
         exit;
     }
-    $description = ttcField($body, 'description', 20000);
+    // TEXT column = 65535 BYTES, not chars: a 4-byte emoji makes a naive
+    // 20000-char cap overflow the column and raise a strict-mode error.
+    $description = ttcField($body, 'description', 15000);
+    if (strlen($description) > 65000) {
+        $description = mb_strcut($description, 0, 65000, 'UTF-8');
+    }
     $owner = ttcField($body, 'owner', 128);
 
     $existing = $db->fetchFirstRow(
@@ -352,13 +409,7 @@ if ($action === 'save') {
 
     if (is_array($existing) && $existing) {
         try {
-            $db->exec_query(
-                "UPDATE {$t} SET status = '" . $db->prepare_string($status) . "'," .
-                " description = '" . $db->prepare_string($description) . "'," .
-                " owner = '" . $db->prepare_string($owner) . "'," .
-                " update_ts = NOW()" .
-                " WHERE id = " . intval($existing['id']) .
-                " AND testproject_id = " . intval($tpid));
+            ttcUpdateRow($db, $t, $existing['id'], $tpid, $status, $description, $owner);
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(array('status' => 'error', 'code' => 'save_failed',
@@ -366,15 +417,8 @@ if ($action === 'save') {
             exit;
         }
 
-        $event = new stdClass();
-        $event->message = 'Test type saved: ' . $typeKey . ' -> ' . $status .
-                          ' (project ' . $tpid . ')';
-        $event->logLevel = 'AUDIT';
-        $event->source = 'GUI';
-        $event->objectID = $tpid;
-        $event->objectType = 'testprojects';
-        $event->code = 'TESTTYPE_SAVE';
-        logEvent($event);
+        ttcLog('TESTTYPE_SAVE', 'Test type saved: ' . $typeKey . ' -> ' . $status .
+            ' (project ' . $tpid . ')', $tpid);
 
         echo json_encode(array('status' => 'ok', 'type_key' => $typeKey,
             'id' => intval($existing['id']), 'message' => 'Saved'));
@@ -391,13 +435,24 @@ if ($action === 'save') {
             $db->prepare_string($owner) . "', " . intval($userId) . ", NOW())");
     } catch (Exception $e) {
         // A concurrent create may have won the race on uq_ttc_project_type.
+        // This endpoint IS an upsert, so fall back to the UPDATE path instead
+        // of failing a perfectly valid double-submitted Save with 409.
         $dupe = $db->fetchFirstRow(
             "SELECT id FROM {$t} WHERE testproject_id = " . intval($tpid) .
             " AND type_key = '" . $db->prepare_string($typeKey) . "'");
         if (is_array($dupe) && $dupe) {
-            http_response_code(409);
-            echo json_encode(array('status' => 'error', 'code' => 'duplicate_type',
-                'message' => 'This test type is already tracked'));
+            try {
+                ttcUpdateRow($db, $t, $dupe['id'], $tpid, $status, $description, $owner);
+            } catch (Exception $e2) {
+                http_response_code(500);
+                echo json_encode(array('status' => 'error', 'code' => 'save_failed',
+                    'message' => 'Could not save the test type'));
+                exit;
+            }
+            ttcLog('TESTTYPE_SAVE', 'Test type saved: ' . $typeKey . ' -> ' . $status .
+                ' (project ' . $tpid . ')', $tpid);
+            echo json_encode(array('status' => 'ok', 'type_key' => $typeKey,
+                'id' => intval($dupe['id']), 'message' => 'Saved'));
             exit;
         }
         http_response_code(500);
@@ -413,15 +468,8 @@ if ($action === 'save') {
         exit;
     }
 
-    $event = new stdClass();
-    $event->message = 'Test type tracked: ' . $typeKey . ' -> ' . $status .
-                      ' (project ' . $tpid . ')';
-    $event->logLevel = 'AUDIT';
-    $event->source = 'GUI';
-    $event->objectID = $tpid;
-    $event->objectType = 'testprojects';
-    $event->code = 'TESTTYPE_SAVE';
-    logEvent($event);
+    ttcLog('TESTTYPE_SAVE', 'Test type tracked: ' . $typeKey . ' -> ' . $status .
+        ' (project ' . $tpid . ')', $tpid);
 
     echo json_encode(array('status' => 'ok', 'type_key' => $typeKey,
         'id' => $newId, 'message' => 'Created'));
@@ -458,15 +506,8 @@ if ($action === 'delete') {
         exit;
     }
 
-    $event = new stdClass();
-    $event->message = 'Test type reset to defaults: ' . $typeKey .
-                      ' (project ' . $tpid . ')';
-    $event->logLevel = 'AUDIT';
-    $event->source = 'GUI';
-    $event->objectID = $tpid;
-    $event->objectType = 'testprojects';
-    $event->code = 'TESTTYPE_RESET';
-    logEvent($event);
+    ttcLog('TESTTYPE_RESET', 'Test type reset to defaults: ' . $typeKey .
+        ' (project ' . $tpid . ')', $tpid);
 
     echo json_encode(array('status' => 'ok', 'deleted' => 1,
         'type_key' => $typeKey, 'message' => 'Reset'));

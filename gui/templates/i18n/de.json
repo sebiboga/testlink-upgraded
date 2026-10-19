@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "Matrix konnte nicht geladen werden",
  "ttc.loadError": "Die Testart-Abdeckung konnte nicht geladen werden.",
  "ttc.key": "Schlüssel",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Testart-Abdeckung"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Testart-Abdeckung",
+ "ttc.type.functional": "Funktionale Tests",
+ "ttc.type.integration": "Integrationstests",
+ "ttc.type.system": "Systemtests",
+ "ttc.type.e2e": "End-to-End-Tests",
+ "ttc.type.regression": "Regressionstests",
+ "ttc.type.uat": "User-Acceptance-Testing (UAT)",
+ "ttc.type.performance": "Leistungstests",
+ "ttc.type.security": "Sicherheitstests",
+ "ttc.type.usability": "Usability-Tests",
+ "ttc.type.accessibility": "Barrierefreiheitstests",
+ "ttc.type.compatibility": "Kompatibilitätstests",
+ "ttc.type.reliability": "Zuverlässigkeitstests",
+ "ttc.type.maintainability": "Wartbarkeitstests"
 }

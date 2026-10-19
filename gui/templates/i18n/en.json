@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "Could not load the matrix",
  "ttc.loadError": "Could not load the test type coverage.",
  "ttc.key": "Key",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Test Type Coverage"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Test Type Coverage",
+ "ttc.type.functional": "Functional testing",
+ "ttc.type.integration": "Integration testing",
+ "ttc.type.system": "System testing",
+ "ttc.type.e2e": "End-to-end testing",
+ "ttc.type.regression": "Regression testing",
+ "ttc.type.uat": "User Acceptance Testing (UAT)",
+ "ttc.type.performance": "Performance testing",
+ "ttc.type.security": "Security testing",
+ "ttc.type.usability": "Usability testing",
+ "ttc.type.accessibility": "Accessibility testing",
+ "ttc.type.compatibility": "Compatibility testing",
+ "ttc.type.reliability": "Reliability testing",
+ "ttc.type.maintainability": "Maintainability testing"
 }

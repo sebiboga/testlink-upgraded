@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "Не удалось загрузить матрицу",
  "ttc.loadError": "Не удалось загрузить покрытие типов тестов.",
  "ttc.key": "Ключ",
- "footers.testTypeCoverage": "TestLink 2.0.1 - Покрытие типов тестов"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - Покрытие типов тестов",
+ "ttc.type.functional": "Функциональное тестирование",
+ "ttc.type.integration": "Интеграционное тестирование",
+ "ttc.type.system": "Системное тестирование",
+ "ttc.type.e2e": "Сквозное тестирование",
+ "ttc.type.regression": "Регрессионное тестирование",
+ "ttc.type.uat": "Приемочное тестирование (UAT)",
+ "ttc.type.performance": "Тестирование производительности",
+ "ttc.type.security": "Тестирование безопасности",
+ "ttc.type.usability": "Тестирование удобства использования",
+ "ttc.type.accessibility": "Тестирование доступности",
+ "ttc.type.compatibility": "Тестирование совместимости",
+ "ttc.type.reliability": "Тестирование надёжности",
+ "ttc.type.maintainability": "Тестирование удобства сопровождения"
 }

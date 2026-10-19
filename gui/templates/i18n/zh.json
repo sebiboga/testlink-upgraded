@@ -8895,5 +8895,18 @@
  "ttc.errTitle": "无法加载矩阵",
  "ttc.loadError": "无法加载测试类型覆盖。",
  "ttc.key": "键",
- "footers.testTypeCoverage": "TestLink 2.0.1 - 测试类型覆盖"
+ "footers.testTypeCoverage": "TestLink 2.0.1 - 测试类型覆盖",
+ "ttc.type.functional": "功能测试",
+ "ttc.type.integration": "集成测试",
+ "ttc.type.system": "系统测试",
+ "ttc.type.e2e": "端到端测试",
+ "ttc.type.regression": "回归测试",
+ "ttc.type.uat": "用户验收测试（UAT）",
+ "ttc.type.performance": "性能测试",
+ "ttc.type.security": "安全测试",
+ "ttc.type.usability": "可用性测试",
+ "ttc.type.accessibility": "无障碍测试",
+ "ttc.type.compatibility": "兼容性测试",
+ "ttc.type.reliability": "可靠性测试",
+ "ttc.type.maintainability": "可维护性测试"
 }
