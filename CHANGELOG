@@ -309,6 +309,26 @@ Every screen of the application was ported one-by-one in a screen-compare
   Viewer clean. Suite `Suite 1940` = 23/23 PASS in `tmp/TLU_Test_Cases.md`.
   Docs mirror `docs/CICD-Integration-Hub-Modernized.md`, wiki page + 4 screenshots.
   Refs #1940 / parent #1064.
+- [SCREEN] - #1947: the **Attachment Upload** legacy controller
+  (`lib/attachments/attachmentupload.php`) — the last attachment controller still
+  rendering Smarty (its siblings `attachmentdelete.php` #1638 and
+  `attachmentdownload.php` #1794 were already 302 shims) — is retired to a
+  session-guarded, non-mutating **302 shim** into the modern popup
+  `gui/templates/attachments/attachmentUpload.html` + BFF
+  `api/attachments/index.php`. An anonymous deep link bounces to
+  `login.php?note=expired` (destination preserved); an authenticated navigation
+  gets `attachmentUpload.html?id=<n>&table=<t>` (the legacy `tableName` alias is
+  forwarded as `table`). The legacy GET side effect that primed
+  `$_SESSION['s_upload_id']` / `$_SESSION['s_upload_tableName']` from the query
+  string is dropped, so opening the URL can no longer arm a subsequent upload
+  into any table; uploads now require a POST behind `bffSameOriginGuard()` and
+  the object-ownership proof (`api/_attachauth.php`, Refs #1768). Verified:
+  `php -l` clean; all shim branches; modern popup render after the redirect
+  (fixture `tmp/fixtures_1947.php`); BFF `list` 200 / `upload` 200 / unowned 403;
+  console clean; Event Viewer 0 new Error/Warning. Suite `Issue #1947` = 13/13
+  PASS (gate 34 PASS / 0 FAIL). Docs mirror
+  `docs/Attachment-Upload-Download-Modernized.md` §3b + addendum, wiki + 2
+  screenshots. Refs #1947 (siblings #1638/#1794, #1768).
 - [SCREEN] - #1946 (parent #1072): the **Webhook Subscriptions** manager
   (`gui/templates/system/webhooks.html`, BFF `api/webhooks/index.php`) adds the
   third delivery slice of parent #1072 after the REST reference hub (#1937) and

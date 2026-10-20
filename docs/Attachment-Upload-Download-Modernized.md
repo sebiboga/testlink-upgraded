@@ -72,6 +72,32 @@ large, 500 internal.
   the BFF requires the attachment to belong to the requested `fk_table`/`fk_id`
   (forged delete → 404), matching the modern multi-object architecture.
 
+## 3b. Legacy controllers retired to shims (Refs #1947)
+
+The three legacy attachment controllers no longer render Smarty; each is a
+session-guarded, **non-mutating** 302 shim into the modern popup:
+
+| Legacy controller | Retired in | Redirects to |
+|---|---|---|
+| `lib/attachments/attachmentdelete.php` | #1638 | `attachmentDelete.html` |
+| `lib/attachments/attachmentdownload.php` | #1794 | `attachmentsdownload` BFF (or `attachments` BFF in apikey mode) |
+| `lib/attachments/attachmentupload.php` | **#1947** | `attachmentUpload.html` |
+
+`attachmentupload.php` was the **last attachment controller still rendering
+Smarty**. Its legacy flow authorized only the global `config_get('attachments')->enabled`
+flag and, after a plain GET, stashed `$_SESSION['s_upload_id']` /
+`$_SESSION['s_upload_tableName']` straight from the query string, priming a
+subsequent POST upload into **any** table. The shim drops that GET side effect
+(simply opening the URL can no longer prime an upload) and forwards `id` plus
+`table` (or the legacy alias `tableName`) to the modern popup. Anonymous deep
+links bounce to `login.php?note=expired` (the legacy `testlinkInitPage`
+contract). Upload writes now require a POST behind `bffSameOriginGuard()` and
+the object-ownership proof in `api/_attachauth.php` (Refs #1768).
+
+The modern JS entry point `openFileUploadWindow()`
+(`gui/javascript/testlink_library.js:456`) already targets the `.html` popup, so
+no live caller reaches the legacy controller.
+
 ## 4. i18n Keys
 
 `att.*` (14 keys in all 10 locale bundles `en/ro/de/es/fr/it/ja/pt/ru/zh`):
@@ -97,3 +123,21 @@ download link, confirm-modal delete, empty state, `Max file size 1.0 MB`), `php 
 clean on the BFF + 4 patched emitters, JSON-valid 10 bundles, no modern reference
 to `lib/attachments/attachmentdownload.php`, clean console, Event Viewer clean
 (only pre-existing AUDIT/INFO rows).
+
+### Addendum — Issue #1947 (upload shim + verification)
+
+Suite 1947 **13/13 PASS** (gate 34 PASS / 0 FAIL), fixture
+`php tmp/fixtures_1947.php` (project `ATT1947`, tcversion 15, one attachment):
+shim `php -l` clean and no `->display()`; anonymous deep link → `login.php?note=expired`
+with destination preserved; authenticated GET → 302 `attachmentUpload.html?id=15&table=tcversions`;
+legacy `tableName` alias forwarded as `table`; no-params → `id=0`; shim is
+non-mutating on GET **and** POST; modern popup renders after the redirect
+(header / object label / `Max file size 1.0 MB`); BFF `list` 200 with the fixture
+row, `upload` 200 `uploaded:1`, unowned object 403 (fail-closed #1768);
+`openFileUploadWindow()` already points at the `.html`; console clean, Event
+Viewer has no new Error/Warning rows; `att.*` present in all 10 bundles
+(`ai/verify_i18n_coverage.sh` 9/9 PASS, 9058 keys).
+
+Screenshots: `docs/screenshots/issue-1947-attachmentUpload-shim-01.png`
+(modern popup reached via the legacy URL) and `-02.png` (fixture attachment
+listed).
