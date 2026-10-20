@@ -61,6 +61,16 @@ header('Cache-Control: no-store');
 $db = null;
 doDBConnect($db);
 
+// Failed queries throw (database.class.php) under X-Requested-With; make sure
+// every uncaught error leaves the JSON contract intact and leaks nothing.
+set_exception_handler(function ($e) {
+    error_log('api/webhooks: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(array('status' => 'error', 'code' => 'server_error',
+        'message' => 'Internal error'));
+    exit;
+});
+
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
@@ -77,8 +87,12 @@ if (is_null($user)) {
     exit;
 }
 
+// Session inactivity timeout (#1614) - keeps the idle-session contract.
+bffEnforceSession($db);
+
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$action = isset($_REQUEST['action']) ? trim((string)$_REQUEST['action']) : '';
+$action = (isset($_REQUEST['action']) && is_scalar($_REQUEST['action']))
+    ? trim((string)$_REQUEST['action']) : '';
 
 /** Allowed event topics (labels live client-side: whk.topic.<key>). */
 function whkTopics() {
@@ -111,7 +125,8 @@ function whkEnsureSchema($db) {
         " last_test_code INT NOT NULL DEFAULT 0," .
         " last_test_ok TINYINT(1) NOT NULL DEFAULT 0," .
         " PRIMARY KEY (id)," .
-        " KEY idx_whk_project (testproject_id)" .
+        " KEY idx_whk_project (testproject_id)," .
+        " UNIQUE KEY uq_whk_project_name (testproject_id, name)" .
         " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
     return $t;
 }
@@ -191,6 +206,52 @@ function whkCleanUrl($url) {
     return $url;
 }
 
+/**
+ * True when the host literal is a loopback / link-local / unspecified address.
+ * Numeric IPs only: a DNS name that resolves to a private IP is intentionally
+ * out of scope (LAN targets such as `jenkins.internal` must keep working).
+ */
+function whkHostIsLocal($host) {
+    $host = strtolower(trim((string)$host, "[]"));
+    if ($host === '' || $host === 'localhost' || strpos($host, '.localhost') !== false) {
+        return true;
+    }
+    // IPv6 loopback / unspecified / link-local
+    if (strpos($host, ':') !== false) {
+        if ($host === '::' || $host === '::1') { return true; }
+        if (preg_match('#^fe80:#', $host)) { return true; }
+        return false;
+    }
+    if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        return false;
+    }
+    $long = ip2long($host);
+    if ($long === false) { return false; }
+    $long = sprintf('%u', $long);
+    // 127.0.0.0/8, 169.254.0.0/16 (link-local / cloud metadata), 0.0.0.0/8
+    return (($long >= sprintf('%u', ip2long('127.0.0.0')) && $long <= sprintf('%u', ip2long('127.255.255.255'))))
+        || ($long >= sprintf('%u', ip2long('169.254.0.0')) && $long <= sprintf('%u', ip2long('169.254.255.255')))
+        || ($long >= sprintf('%u', ip2long('0.0.0.0')) && $long <= sprintf('%u', ip2long('0.255.255.255')));
+}
+
+/**
+ * Guard the outbound test delivery against loopback/link-local/metadata
+ * targets (SSRF). Private-LAN RFC1918 hosts stay allowed on purpose (the
+ * canonical consumers are Jenkins/GitLab runners on the LAN); an install that
+ * needs loopback targets can opt in with $tlCfg->webhooksAllowLocalTargets.
+ */
+function whkAssertDeliverableHost($url) {
+    global $tlCfg;
+    $parts = parse_url($url);
+    $host = is_array($parts) ? ($parts['host'] ?? '') : '';
+    if (whkHostIsLocal($host)) {
+        $allow = isset($tlCfg->webhooksAllowLocalTargets)
+            && $tlCfg->webhooksAllowLocalTargets;
+        if (!$allow) { return false; }
+    }
+    return true;
+}
+
 /** Row -> API item (the secret is never echoed back). */
 function whkItem($r) {
     return array(
@@ -255,7 +316,7 @@ function whkFail($http, $code, $message, $extra = array()) {
 }
 
 /** AUDIT event helper. */
-function whkLog($message, $code, $tpid, $userId) {
+function whkLog($message, $code, $tpid) {
     $event = new stdClass();
     $event->message = $message;
     $event->logLevel = 'AUDIT';
@@ -291,6 +352,8 @@ function whkDeliver($url, $secret, $body) {
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_CONNECTTIMEOUT => $timeout,
             CURLOPT_MAXREDIRS => 0,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
         ));
         $resp = curl_exec($ch);
         $errno = curl_errno($ch);
@@ -344,21 +407,27 @@ if ($tpid <= 0) {
     whkFail(400, 'no_testproject', 'No test project selected');
 }
 
+// verb gate BEFORE the rights check (a foreign verb must answer 405, not 403).
+if ($method !== 'GET' && $method !== 'HEAD' && $method !== 'POST') {
+    header('Allow: GET, HEAD, POST');
+    whkFail(405, 'wrong_method', 'Method not allowed');
+}
+
 // rights BEFORE project resolution (no existence oracle - #1697).
 $isWrite = ($method === 'POST');
 if ($isWrite) {
     if (!whkCanModify($user, $db, $tpid)) {
         whkFail(403, 'no_right', 'No permission to manage webhook subscriptions');
     }
+    // rights were checked above, so this leaks nothing: without it a bogus
+    // tproject_id would insert an orphan row and answer ok.
+    if (whkProjectInfo($db, $tpid) === null) {
+        whkFail(404, 'tproject_not_found', 'Test project not found');
+    }
 } else {
     if (!whkCanView($user, $db, $tpid)) {
         whkFail(403, 'no_right', 'No permission to view webhook subscriptions');
     }
-}
-
-if ($method !== 'GET' && $method !== 'HEAD' && $method !== 'POST') {
-    header('Allow: GET, HEAD, POST');
-    whkFail(405, 'wrong_method', 'Method not allowed');
 }
 
 if ($action === '') {
@@ -406,12 +475,15 @@ if ($action === 'save') {
     if ($url === null) {
         whkFail(400, 'bad_url', 'URL must be http(s) without embedded credentials');
     }
+    if (!whkAssertDeliverableHost($url)) {
+        whkFail(400, 'bad_url', 'URL must not target loopback, link-local or metadata addresses');
+    }
     $topic = whkField($body, 'topic', 64, 'execution_completed');
     if (!in_array($topic, whkTopics(), true)) {
         whkFail(400, 'bad_topic', 'Invalid event topic');
     }
     $isActive = (whkInt($body, 'is_active') !== 0) ? 1 : 0;
-    $hasSecret = array_key_exists('secret', $body);
+    $hasSecret = array_key_exists('secret', $body) && $body['secret'] !== null;
     $secret = $hasSecret ? whkField($body, 'secret', 128) : null;
 
     // duplicate name inside the same project -> 409
@@ -439,26 +511,35 @@ if ($action === 'save') {
             "is_active = " . $isActive . ", update_ts = NOW() " .
             "WHERE id = " . intval($id) . " AND testproject_id = " . intval($tpid));
         whkLog('Webhook updated: ' . $name . ' (id ' . $id . ')',
-               'WEBHOOK_SAVE', $tpid, $userId);
+               'WEBHOOK_SAVE', $tpid);
         echo json_encode(array('status' => 'ok', 'id' => intval($id),
             'message' => 'Saved'));
         exit;
     }
 
-    $db->exec_query(
-        "INSERT INTO {$t} (testproject_id, name, url, topic, secret, is_active," .
-        " created_by, update_ts) VALUES (" .
-        intval($tpid) . ", '" . $db->prepare_string($name) . "', " .
-        "'" . $db->prepare_string($url) . "', " .
-        "'" . $db->prepare_string($topic) . "', " .
-        "'" . $db->prepare_string($secret === null ? '' : $secret) . "', " .
-        $isActive . ", " . intval($userId) . ", NOW())");
-    $newId = (int)$db->insert_id('tc_webhooks');
+    try {
+        $db->exec_query(
+            "INSERT INTO {$t} (testproject_id, name, url, topic, secret, is_active," .
+            " created_by, update_ts) VALUES (" .
+            intval($tpid) . ", '" . $db->prepare_string($name) . "', " .
+            "'" . $db->prepare_string($url) . "', " .
+            "'" . $db->prepare_string($topic) . "', " .
+            "'" . $db->prepare_string($secret === null ? '' : $secret) . "', " .
+            $isActive . ", " . intval($userId) . ", NOW())");
+    } catch (Exception $e) {
+        // unique (testproject_id, name) race -> same 409 as the check above.
+        if (stripos($e->getMessage(), 'Duplicate') !== false
+            || stripos($e->getMessage(), 'uq_whk_project_name') !== false) {
+            whkFail(409, 'duplicate_name', 'A webhook with this name already exists');
+        }
+        throw $e;
+    }
+    $newId = (int)$db->insert_id($t);
     if ($newId <= 0) {
         whkFail(500, 'insert_failed', 'Could not create webhook subscription');
     }
     whkLog('Webhook created: ' . $name . ' (id ' . $newId . ')',
-           'WEBHOOK_CREATE', $tpid, $userId);
+           'WEBHOOK_CREATE', $tpid);
     echo json_encode(array('status' => 'ok', 'id' => $newId,
         'message' => 'Created'));
     exit;
@@ -475,7 +556,7 @@ if ($action === 'delete') {
         "DELETE FROM {$t} WHERE id = " . intval($id) .
         " AND testproject_id = " . intval($tpid));
     whkLog('Webhook deleted: ' . $row['name'] . ' (id ' . $id . ')',
-           'WEBHOOK_DELETE', $tpid, $userId);
+           'WEBHOOK_DELETE', $tpid);
     echo json_encode(array('status' => 'ok', 'deleted' => 1,
         'message' => 'Deleted'));
     exit;
@@ -490,6 +571,9 @@ if ($action === 'test') {
     }
     if (!whkCleanUrl((string)$row['url'])) {
         whkFail(400, 'bad_url', 'URL must be http(s) without embedded credentials');
+    }
+    if (!whkAssertDeliverableHost((string)$row['url'])) {
+        whkFail(400, 'bad_url', 'URL must not target loopback, link-local or metadata addresses');
     }
     $payload = json_encode(array(
         'event' => 'webhook.test',
@@ -508,7 +592,7 @@ if ($action === 'test') {
         ($result['ok'] ? 1 : 0) . " WHERE id = " . intval($id) .
         " AND testproject_id = " . intval($tpid));
     whkLog('Webhook test delivery: ' . $row['name'] . ' (id ' . $id . ', HTTP ' .
-           $result['http_code'] . ')', 'WEBHOOK_TEST', $tpid, $userId);
+           $result['http_code'] . ')', 'WEBHOOK_TEST', $tpid);
 
     if (!$result['ok']) {
         whkFail(502, 'delivery_failed', 'The endpoint did not accept the delivery',

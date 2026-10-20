@@ -162,7 +162,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="editTitle" data-i18n="whk.modalNewTitle">New subscription</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
@@ -202,11 +202,11 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" data-i18n="whk.modalDetailsTitle">Subscription details</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body" id="detailsBody"></div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
       </div>
     </div>
   </div>
@@ -218,7 +218,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" data-i18n="whk.modalDeleteTitle">Delete subscription</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
       </div>
       <div class="modal-body">
         <p id="deleteMsg"></p>
@@ -231,7 +231,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -363,14 +363,14 @@ function lastTestCell(it) {
 function buildRow(it) {
   var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
   var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
-    esc(TLi18n.t('whk.view')) + '"><i class="fa fa-eye"></i></button>';
+    esc(TLi18n.t('whk.view')) + '" aria-label="' + esc(TLi18n.t('whk.view')) + '"><i class="fa fa-eye" aria-hidden="true"></i></button>';
   if (canModify) {
     actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
-      esc(TLi18n.t('whk.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      esc(TLi18n.t('whk.edit')) + '" aria-label="' + esc(TLi18n.t('whk.edit')) + '"><i class="fa fa-pencil" aria-hidden="true"></i></button>' +
       '<button class="action-btn" onclick="sendTest(' + it.id + ')" title="' +
-      esc(TLi18n.t('whk.sendTest')) + '"><i class="fa fa-paper-plane"></i></button>' +
+      esc(TLi18n.t('whk.sendTest')) + '" aria-label="' + esc(TLi18n.t('whk.sendTest')) + '"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>' +
       '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
-      esc(TLi18n.t('whk.del')) + '"><i class="fa fa-trash"></i></button>';
+      esc(TLi18n.t('whk.del')) + '" aria-label="' + esc(TLi18n.t('whk.del')) + '"><i class="fa fa-trash" aria-hidden="true"></i></button>';
   }
   return {
     name: nameCell,
@@ -409,7 +409,7 @@ function renderTable(items) {
     language: {
       search: '', searchPlaceholder: TLi18n.t('common.search'),
       lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
-      info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      info: TLi18n.t('common.pageInfo'),
       paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
       emptyTable: TLi18n.t('whk.noMatch'), zeroRecords: TLi18n.t('whk.noMatch')
     }

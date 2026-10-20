@@ -686,7 +686,8 @@ CREATE TABLE /*prefix*/tc_webhooks (
   `last_test_code` int NOT NULL default '0',
   `last_test_ok` tinyint(1) NOT NULL default '0',
   PRIMARY KEY  (`id`),
-  KEY `idx_whk_project` (`testproject_id`)
+  KEY `idx_whk_project` (`testproject_id`),
+  UNIQUE KEY `uq_whk_project_name` (`testproject_id`,`name`)
 ) DEFAULT CHARSET=utf8;
 
 
