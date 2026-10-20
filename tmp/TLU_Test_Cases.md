@@ -44390,3 +44390,30 @@ Modernized the Webhook subscriptions manager (webhooks) as a standalone Dashio p
 
 ### Addendum results
 1946-16: PASS | 1946-17: PASS | 1946-18: PASS | 1946-19: PASS | 1946-20: PASS | 1946-21: PASS | 1946-22: PASS | 1946-23: PASS
+
+## Modernize — Issue #1947: Attachment Upload popup legacy shim (`attachmentupload.php`) + modern `attachmentUpload.html`/`api/attachments` (Refs #1947, #1768, #1638, #1794)
+
+Screen `gui/templates/attachments/attachmentUpload.html` + BFF `api/attachments/index.php`
+(`?action=list|upload|delete|download`). This run retired the LAST attachment controller
+still rendering Smarty (`lib/attachments/attachmentupload.php`); its siblings
+`attachmentdelete.php` (#1638) and `attachmentdownload.php` (#1794) were already 302 shims.
+Fixture: `php tmp/fixtures_1947.php` → project `ATT1947` (id 12), suite 13, testcase 14,
+tcversion 15 (nodes_hierarchy type 4), one attachment `fixture1947.txt` on `tcversions`/15.
+
+### Cases
+1947-01 SoT: `lib/attachments/attachmentupload.php` no longer renders Smarty — `php -l` clean, no `->display()` | PASS
+1947-02 Anon deep link `?id=15&table=tcversions` -> login bounce (`login.php?note=expired`, destination preserved), never the popup | PASS
+1947-03 Authed GET `?id=15&table=tcversions` -> 302 Location `/gui/templates/attachments/attachmentUpload.html?id=15&table=tcversions` | PASS
+1947-04 Authed GET with legacy alias `?id=15&tableName=executions` -> 302 with `&table=executions` forwarded | PASS
+1947-05 Authed GET without params -> 302 to popup with `id=0` | PASS
+1947-06 Non-mutating: the shim writes nothing to the session (legacy primed s_upload_id/s_upload_tableName via GET); POST also just 302s | PASS
+1947-07 Modern popup renders after redirect (browser): header "Attachments", object label "(tcversions #15)", Max file size 1.0 MB | PASS
+1947-08 BFF `?action=list&table=tcversions&id=15` -> 200 with `fixture1947.txt` (title "ATT1947 Fixture", 31 B) | PASS
+1947-09 BFF `?action=upload` (POST, same-origin, tcversions/15) -> 200 `uploaded:1` | PASS
+1947-10 BFF ownership proof: an unknown/unowned object -> 403 `Forbidden: no rights on the attachment owner` (fail-closed, Refs #1768) | PASS
+1947-11 `openFileUploadWindow()` in `gui/javascript/testlink_library.js:456` already targets the modern `.html` (no legacy `.php` caller remains) | PASS
+1947-12 Console clean (0 messages) after navigating the legacy URL -> popup; Event Viewer has 0 new Error/Warning rows (AUDIT only) | PASS
+1947-13 i18n `att.*` present in all 10 bundles (14 keys each); `ai/verify_i18n_coverage.sh` 9/9 PASS, 9058 keys | PASS
+
+### Results
+1947-01: PASS | 1947-02: PASS | 1947-03: PASS | 1947-04: PASS | 1947-05: PASS | 1947-06: PASS | 1947-07: PASS | 1947-08: PASS | 1947-09: PASS | 1947-10: PASS | 1947-11: PASS | 1947-12: PASS | 1947-13: PASS
