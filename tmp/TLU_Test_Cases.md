@@ -44377,3 +44377,16 @@ Modernized the Webhook subscriptions manager (webhooks) as a standalone Dashio p
 
 ### Results
 1946-01: PASS | 1946-02: PASS | 1946-03: PASS | 1946-04: PASS | 1946-05: PASS | 1946-06: PASS | 1946-07: PASS | 1946-08: PASS | 1946-09: PASS | 1946-10: PASS | 1946-11: PASS | 1946-12: PASS | 1946-13: PASS | 1946-14: PASS | 1946-15: PASS
+
+### Addendum — code-review fixes (commit 9cb41e038)
+1946-16 BFF: loopback test target (http://127.0.0.1:...) -> 400 'bad_url' (SSRF guard), metadata 169.254.169.254 -> 400
+1946-17 BFF: RFC1918/LAN target (http://jenkins.internal:8080/...) still allowed -> 200 created
+1946-18 BFF: bogus tproject_id on save -> 404 'tproject_not_found' (no orphan row inserted)
+1946-19 BFF: verb gate before rights — role-3 PUT -> 405 (not 403); role-3 GET init -> 403
+1946-20 BFF: session-inactivity enforced (bffEnforceSession wired) and unhandled errors return JSON 500 'server_error' (not HTML)
+1946-21 BFF: JSON 'secret': null on edit keeps the stored secret (length unchanged)
+1946-22 Screen: a11y — labels for= fStatus/fTopic/fName/fUrl/fTopicSel/fSecret, DataTables search id/name, modal close aria-label=Close, toast role=status; Chrome Issues console clean (0)
+1946-23 Screen: DataTables empty/no-match + length menu + info + paginate localized via common.*/whk.noMatch (en + ro, no raw keys)
+
+### Addendum results
+1946-16: PASS | 1946-17: PASS | 1946-18: PASS | 1946-19: PASS | 1946-20: PASS | 1946-21: PASS | 1946-22: PASS | 1946-23: PASS
