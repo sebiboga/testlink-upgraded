@@ -671,6 +671,25 @@ CREATE TABLE /*prefix*/tc_exit_criteria (
 ) DEFAULT CHARSET=utf8;
 
 
+CREATE TABLE /*prefix*/tc_webhooks (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `name` varchar(255) NOT NULL default '',
+  `url` varchar(500) NOT NULL default '',
+  `topic` varchar(64) NOT NULL default 'execution_completed',
+  `secret` varchar(128) NOT NULL default '',
+  `is_active` tinyint(1) NOT NULL default '1',
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  `last_test_ts` datetime default NULL,
+  `last_test_code` int NOT NULL default '0',
+  `last_test_ok` tinyint(1) NOT NULL default '0',
+  PRIMARY KEY  (`id`),
+  KEY `idx_whk_project` (`testproject_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
