@@ -4109,3 +4109,4 @@ $TLS_title_accessibility_audit = "Accessibility Review"; // Accessibility Audit 
 $TLS_href_test_strategy_doc = "Teststrategiedocumenten"; // Test Strategy Documents (Refs #1943)
 $TLS_href_test_strategy_coverage = "Dekking testtypen";
 $TLS_title_cicd_hub = "CI/CD-integratie"; // CI/CD Integration hub (Refs #1940)
+$TLS_title_webhooks = "Webhook-abonnementen"; // Webhook subscriptions manager (Refs #1946)

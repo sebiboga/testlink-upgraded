@@ -4251,3 +4251,4 @@ $TLS_testing_a_requirement = "Exigence"; // Refs #1843
 $TLS_title_res_by_l1l2_testsuite = "Résultats par suite de tests"; // Refs #1843
 $TLS_title_res_by_l1l2_testsuitte = "Résultats par suite de tests"; // Refs #1843
 $TLS_title_cicd_hub = "Intégration CI/CD"; // CI/CD Integration hub (Refs #1940)
+$TLS_title_webhooks = "Abonnements webhook"; // Webhook subscriptions manager (Refs #1946)

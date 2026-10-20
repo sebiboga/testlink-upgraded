@@ -2305,6 +2305,11 @@ function getActions(&$gui,$baseURL) {
   // (api/cicd) enforces session auth + same-origin on every route and returns
   // i18n KEYS + catalogue DATA only.
   $actions->cicdHub = "/gui/templates/documentation/cicdHub.html?{$ctx}";
+  // Webhook subscriptions manager modernized screen (Dashio standalone page) -
+  // Refs #1946 (parent #1072). Project-scoped outbound integrations with signed
+  // test deliveries; the BFF (api/webhooks) enforces session auth + same-origin
+  // and mgt_view_tc (reads) / mgt_modify_tc (writes) on the ADDRESSED project.
+  $actions->webhooks = "/gui/templates/system/webhooks.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
