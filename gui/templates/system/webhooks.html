@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webhook Subscriptions</title>
+<!--
+  Webhook subscriptions manager (Refs #1946, parent feature #1072).
+  Dashio standalone page backed by api/webhooks. Project-scoped registry of
+  webhook subscriptions: endpoint URL, event topic, active flag, optional
+  HMAC secret, and a real signed test delivery.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.ok { border-left-color: #3aa89f; }
+.tile.fail { border-left-color: #e05c5c; }
+.tile.warn { border-left-color: #e6b34d; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-topic { background: #2f323a; color: #ddd; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-active { background: #3aa89f; }
+.badge-inactive { background: #7f8c96; }
+.badge-test-ok { background: #3aa89f; }
+.badge-test-fail { background: #e05c5c; }
+.badge-test-none { background: #cfcfcf; color: #666; }
+.secret-chip { background: #eef; color: #334; border: 1px solid #dde; border-radius: 3px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+.url-cell { font-family: monospace; font-size: 12px; word-break: break-all; max-width: 320px; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input, .form-row select { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.payload-box { background: #f7f7f9; border: 1px solid #e3e3e8; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.switch-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.switch-row label { margin: 0; font-size: 12px; color: #555; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="whk.title">Webhook Subscriptions</span>
+  <span class="sub" data-i18n="whk.subtitle">project-scoped outbound integrations with signed test deliveries</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="whk.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="whk.tileTotal">Subscriptions</div>
+    </div>
+    <div class="tile ok">
+      <div class="num" id="tileActive">0</div>
+      <div class="lbl" data-i18n="whk.tileActive">Active</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileInactive">0</div>
+      <div class="lbl" data-i18n="whk.tileInactive">Inactive</div>
+    </div>
+    <div class="tile ok">
+      <div class="num" id="tileOk">0</div>
+      <div class="lbl" data-i18n="whk.tileTestedOk">Test OK</div>
+    </div>
+    <div class="tile fail">
+      <div class="num" id="tileFail">0</div>
+      <div class="lbl" data-i18n="whk.tileTestedFailed">Test failed</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileNever">0</div>
+      <div class="lbl" data-i18n="whk.tileNeverTested">Never tested</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="whk.new">New subscription</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="whk.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <label data-i18n="whk.filterStatus">Status</label>
+    <select id="fStatus" onchange="applyFilter()">
+      <option value="" data-i18n="whk.allStatuses">All</option>
+      <option value="1" data-i18n="whk.statusActive">Active</option>
+      <option value="0" data-i18n="whk.statusInactive">Inactive</option>
+    </select>
+    <label data-i18n="whk.filterTopic">Topic</label>
+    <select id="fTopic" onchange="applyFilter()">
+      <option value="" data-i18n="whk.allTopics">All topics</option>
+    </select>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="whk.noItems">There are no webhook subscriptions for this project yet.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="whk.colName">Name</th>
+          <th data-i18n="whk.colUrl">Endpoint URL</th>
+          <th data-i18n="whk.colTopic">Topic</th>
+          <th data-i18n="whk.colStatus">Status</th>
+          <th data-i18n="whk.colSecret">Secret</th>
+          <th data-i18n="whk.colLastTest">Last test</th>
+          <th data-i18n="whk.colUpdated">Updated</th>
+          <th style="width:150px" data-i18n="whk.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.webhooks">TestLink 2.0.1 - Webhook Subscriptions</span></div>
+
+<!-- Create / edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle" data-i18n="whk.modalNewTitle">New subscription</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="whk.fieldName">Name</label>
+          <input type="text" id="fName" maxlength="255">
+        </div>
+        <div class="form-row">
+          <label data-i18n="whk.fieldUrl">Endpoint URL (http/https)</label>
+          <input type="text" id="fUrl" maxlength="500" placeholder="https://ci.example.com/webhook">
+          <div class="hint" data-i18n="whk.fieldUrlHint">Deliveries are POSTed to this URL as JSON. Credentials embedded in the URL are refused.</div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="whk.fieldTopic">Event topic</label>
+          <select id="fTopicSel"></select>
+        </div>
+        <div class="switch-row">
+          <input type="checkbox" id="fActive" checked>
+          <label for="fActive" data-i18n="whk.fieldActive">Active</label>
+        </div>
+        <div class="form-row">
+          <label data-i18n="whk.fieldSecret">HMAC secret (optional)</label>
+          <input type="text" id="fSecret" maxlength="128" autocomplete="off">
+          <div class="hint" id="secretHint" data-i18n="whk.fieldSecretHint">If set, every delivery carries X-TestLink-Signature: sha256=&lt;HMAC-SHA256 of the body with this secret&gt;. On edit, leave empty to keep the current secret.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="btnSave" onclick="saveHook()" data-i18n="whk.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="whk.modalDetailsTitle">Subscription details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="whk.modalDeleteTitle">Delete subscription</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnDelete" onclick="doDelete()" data-i18n="whk.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/webhooks/index.php';
+var table = null;
+var allItems = [];
+var topics = [];
+var tprojectId = 0;
+var canModify = false;
+var editId = 0;
+var deleteId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 3000);
+}
+
+function topicLabel(t) {
+  return TLi18n.t('whk.topic.' + t);
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('whk.noRight', 'whk.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('whk.noProject', 'whk.noProjectBody', true); return; }
+  showState('whk.errTitle', fallbackKey || 'whk.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'whk.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    canModify = !!r.context.can_modify;
+    tprojectId = r.context.tproject_id;
+    $('#projectInfo').text(r.context.tproject_name + ' (' + r.context.tproject_prefix + ')');
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileActive').text(s.active || 0);
+    $('#tileInactive').text(s.inactive || 0);
+    $('#tileOk').text(s.tested_ok || 0);
+    $('#tileFail').text(s.tested_failed || 0);
+    $('#tileNever').text(s.never_tested || 0);
+    if (!canModify) { $('#btnNew').hide(); }
+    topics = (r.domains && r.domains.events) || [];
+    fillTopicSelects();
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('whk.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'whk.loadError'); });
+}
+
+function fillTopicSelects() {
+  var keepT = $('#fTopic').val();
+  var keepE = $('#fTopicSel').val();
+  var f = $('#fTopic').empty().append($('<option>').val('').text(TLi18n.t('whk.allTopics')));
+  var e = $('#fTopicSel').empty();
+  $.each(topics, function(i, t) {
+    f.append($('<option>').val(t).text(topicLabel(t)));
+    e.append($('<option>').val(t).text(topicLabel(t)));
+  });
+  if (keepT) { $('#fTopic').val(keepT); }
+  if (keepE) { $('#fTopicSel').val(keepE); }
+}
+
+function filtered() {
+  var fs = $('#fStatus').val(), ft = $('#fTopic').val();
+  return allItems.filter(function(it) {
+    if (fs !== '' && String(it.is_active) !== fs) { return false; }
+    if (ft && it.topic !== ft) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function lastTestCell(it) {
+  if (!it.last_test_ts) {
+    return '<span class="badge-status badge-test-none">' + esc(TLi18n.t('whk.neverTested')) + '</span>';
+  }
+  var badge = it.last_test_ok
+    ? '<span class="badge-status badge-test-ok">' + esc(TLi18n.t('whk.testOk')) + '</span>'
+    : '<span class="badge-status badge-test-fail">' + esc(TLi18n.t('whk.testFail')) + '</span>';
+  return badge + ' <span style="color:#888;font-size:11px;">HTTP ' + it.last_test_code +
+    ' &middot; ' + esc(it.last_test_ts) + '</span>';
+}
+
+function buildRow(it) {
+  var nameCell = '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('whk.view')) + '"><i class="fa fa-eye"></i></button>';
+  if (canModify) {
+    actions += '<button class="action-btn" onclick="openEdit(' + it.id + ')" title="' +
+      esc(TLi18n.t('whk.edit')) + '"><i class="fa fa-pencil"></i></button>' +
+      '<button class="action-btn" onclick="sendTest(' + it.id + ')" title="' +
+      esc(TLi18n.t('whk.sendTest')) + '"><i class="fa fa-paper-plane"></i></button>' +
+      '<button class="action-btn del" onclick="askDelete(' + it.id + ')" title="' +
+      esc(TLi18n.t('whk.del')) + '"><i class="fa fa-trash"></i></button>';
+  }
+  return {
+    name: nameCell,
+    url: '<span class="url-cell">' + esc(it.url) + '</span>',
+    topic: '<span class="badge-topic">' + esc(topicLabel(it.topic)) + '</span>',
+    status: it.is_active
+      ? '<span class="badge-status badge-active">' + esc(TLi18n.t('whk.statusActive')) + '</span>'
+      : '<span class="badge-status badge-inactive">' + esc(TLi18n.t('whk.statusInactive')) + '</span>',
+    secret: it.secret_set
+      ? '<span class="secret-chip">' + esc(TLi18n.t('whk.secretSet')) + '</span>'
+      : '<span style="color:#aaa">' + esc(TLi18n.t('whk.secretNone')) + '</span>',
+    lastTest: lastTestCell(it),
+    updated: esc(it.update_ts || it.creation_ts || ''),
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'url'},
+      {data: 'topic'},
+      {data: 'status'},
+      {data: 'secret'},
+      {data: 'lastTest'},
+      {data: 'updated'},
+      {data: 'actions'}
+    ],
+    columnDefs: [{orderable: false, targets: 7}],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function openNew() {
+  editId = 0;
+  $('#editTitle').text(TLi18n.t('whk.modalNewTitle'));
+  $('#fName').val(''); $('#fUrl').val(''); $('#fActive').prop('checked', true);
+  $('#fSecret').val('').prop('placeholder', '');
+  fillTopicSelects();
+  $('#editModal').modal('show');
+}
+
+function openEdit(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  editId = id;
+  $('#editTitle').text(TLi18n.t('whk.modalEditTitle'));
+  $('#fName').val(it.name); $('#fUrl').val(it.url);
+  fillTopicSelects();
+  $('#fTopicSel').val(it.topic);
+  $('#fActive').prop('checked', !!it.is_active);
+  $('#fSecret').val('').prop('placeholder',
+    it.secret_set ? TLi18n.t('whk.secretKeptPlaceholder') : '');
+  $('#editModal').modal('show');
+}
+
+function saveHook() {
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('whk.errName'), 'err'); return; }
+  var url = $.trim($('#fUrl').val());
+  if (!url) { toast(TLi18n.t('whk.errUrl'), 'err'); return; }
+  var payload = {
+    tproject_id: tprojectId,
+    id: editId,
+    name: name,
+    url: url,
+    topic: $('#fTopicSel').val(),
+    is_active: $('#fActive').is(':checked') ? 1 : 0
+  };
+  var secret = $('#fSecret').val();
+  if (editId === 0 || secret !== '') { payload.secret = secret; }
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function() {
+    $('#editModal').modal('hide');
+    toast(TLi18n.t('whk.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'duplicate_name') { toast(TLi18n.t('whk.errDuplicate'), 'err'); }
+    else if (code === 'bad_url') { toast(TLi18n.t('whk.errBadUrl'), 'err'); }
+    else if (code === 'bad_topic') { toast(TLi18n.t('whk.errBadTopic'), 'err'); }
+    else { toast(TLi18n.t('whk.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.colName')) + '</label><div>' + esc(it.name) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.fieldUrl')) + '</label><div class="payload-box">' + esc(it.url) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.fieldTopic')) + '</label><div>' + esc(topicLabel(it.topic)) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.colStatus')) + '</label><div>' +
+          (it.is_active ? esc(TLi18n.t('whk.statusActive')) : esc(TLi18n.t('whk.statusInactive'))) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.colSecret')) + '</label><div>' +
+          (it.secret_set ? esc(TLi18n.t('whk.secretSet')) : esc(TLi18n.t('whk.secretNone'))) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.colLastTest')) + '</label><div>' + lastTestCell(it) + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.colUpdated')) + '</label><div>' +
+          esc(it.update_ts || it.creation_ts || '') + '</div></div>';
+  html += '<div class="form-row"><label>' + esc(TLi18n.t('whk.detailsDelivery')) + '</label><div class="hint" style="font-size:12px;">' +
+          esc(TLi18n.t('whk.detailsDeliveryBody')) + '</div></div>';
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+
+function sendTest(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  toast(TLi18n.t('whk.testing'), 'ok');
+  $.ajax({
+    url: API + '?action=test', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: id})
+  }).done(function(r) {
+    var t = (r && r.test) || {};
+    toast(TLi18n.t('whk.msgDelivered', {code: t.http_code, ms: t.duration_ms}), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = '', detail = null;
+    try {
+      var j = JSON.parse(xhr.responseText) || {};
+      code = j.code || '';
+      detail = j.detail || null;
+    } catch (e) {}
+    if (code === 'delivery_failed' && detail) {
+      toast(TLi18n.t('whk.msgDeliveryFailed', {code: detail.http_code, err: detail.error || ''}), 'err');
+    } else {
+      toast(TLi18n.t('whk.errTest') + (code ? ' (' + code + ')' : ''), 'err');
+    }
+    load();
+  });
+}
+
+function askDelete(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  deleteId = id;
+  $('#deleteMsg').text(TLi18n.t('whk.deleteConfirm', {name: it.name}));
+  $('#deleteModal').modal('show');
+}
+
+function doDelete() {
+  $('#btnDelete').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=delete', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, id: deleteId})
+  }).done(function() {
+    $('#deleteModal').modal('hide');
+    toast(TLi18n.t('whk.msgDeleted'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    toast(TLi18n.t('whk.errDelete') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnDelete').prop('disabled', false); });
+}
+
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
+</script>
+</body>
+</html>
