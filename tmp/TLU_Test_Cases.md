@@ -44353,3 +44353,27 @@ Second screen of parent #1064 (the sibling `cicdPublish` is the results half, su
 | 1940-25 | Code review — error catalogue | inspect error table after review | 9 rows incl. `session_expired` (401) and `file_too_large` (413), matching the publish endpoint's real codes | PASS (5aeb6a489) |
 | 1940-26 | Code review — footer placement | inspect DOM | `#footerText` + brand footer are OUTSIDE `#content`, so they stay visible in the 401/403 error state | PASS (5aeb6a489) |
 | 1940-27 | Code review — method chip + no raw server text | inspect | method chip wired from `r.methods`; the fail handler no longer echoes the raw `body.message` | PASS (5aeb6a489) |
+
+## Issue #1946 — Modernize: Webhook subscriptions manager (webhooks) — COMPLETE
+### Summary
+Modernized the Webhook subscriptions manager (webhooks) as a standalone Dashio page with a REST BFF, full i18n, ASIDE/actions wiring, and append-only test coverage. CRUD + signed test delivery implemented.
+
+### Test Cases
+1946-01 BFF: GET /api/webhooks?action=init&tproject_id=1 -> 200, domains include 6 topics, stats/counts present (admin)
+1946-02 BFF: list includes fixture item (CI notify v2) with fields (id,name,url,topic,status,secret,format,last_test_status,last_test_http,last_test_at,updated_at)
+1946-03 BFF: duplicate create -> HTTP 409, code 'duplicate_name'
+1946-04 BFF: test delivery to bad URL -> HTTP 502 'delivery_failed' with detail.ok=false,http_code,error,duration_ms
+1946-05 BFF: file:/// URL -> HTTP 400 'bad_url'
+1946-06 BFF: anon -> 401 'not_authenticated'; whknorights (role 3, WEB1) -> 403 'no_right'
+1946-07 BFF: foreign-project delete -> 404 'webhook_not_found'
+1946-08 BFF: PUT -> 405; update keeps secret when secret key absent
+1946-09 Aside: System shows 'Webhook Subscriptions' gated by view_tc (linked to webhooks.html)
+1946-10 Screen: loads, cards/tiles, filters, DataTable, i18n keys rendered
+1946-11 Create: modal -> save -> appears in table; tiles update (admin, WEB1)
+1946-12 Test: send test -> updates Last test to Failed/OK with HTTP/status
+1946-13 Delete: confirm -> removed; toast 'Deleted'
+1946-14 RTL/permissions: norights cannot write (BFF 403) (verified)
+1946-15 Events: no new Error/Warning after browser tests (Event Viewer)
+
+### Results
+1946-01: PASS | 1946-02: PASS | 1946-03: PASS | 1946-04: PASS | 1946-05: PASS | 1946-06: PASS | 1946-07: PASS | 1946-08: PASS | 1946-09: PASS | 1946-10: PASS | 1946-11: PASS | 1946-12: PASS | 1946-13: PASS | 1946-14: PASS | 1946-15: PASS
