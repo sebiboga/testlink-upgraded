@@ -309,8 +309,32 @@ Every screen of the application was ported one-by-one in a screen-compare
   Viewer clean. Suite `Suite 1940` = 23/23 PASS in `tmp/TLU_Test_Cases.md`.
   Docs mirror `docs/CICD-Integration-Hub-Modernized.md`, wiki page + 4 screenshots.
   Refs #1940 / parent #1064.
-- [SCREEN] - #1944 (parent #1072): the **OpenAPI Specification** viewer
-  (`gui/templates/documentation/openApiSpec.html`, BFF `api/openapi/index.php`)
+- [SCREEN] - #1946 (parent #1072): the **Webhook Subscriptions** manager
+  (`gui/templates/system/webhooks.html`, BFF `api/webhooks/index.php`) adds the
+  third delivery slice of parent #1072 after the REST reference hub (#1937) and
+  the OpenAPI spec (#1944): a project-scoped registry of outbound webhook
+  subscriptions (name / endpoint URL / event topic / active flag / optional HMAC
+  secret) with a **real signed test delivery**. Net-new for 2.0.1: neither
+  1.9.20 nor the initial BFF shipped any webhook entity. The screen shows six
+  metric tiles (subscriptions / active / inactive / test OK / test failed /
+  never tested), status + topic filters with a translated no-match state, a
+  DataTable (Name / URL / Topic / Status / Secret / Last test / Updated /
+  Actions), create/edit/details/delete modals and a test-delivery result modal;
+  the HMAC secret is never echoed back (Set/None chips only) and deliveries
+  carry `X-TestLink-Event` + `X-TestLink-Signature: sha256=<hmac>`. BFF
+  `GET|HEAD ?action=init|list` + `POST ?action=save|delete|test` with session
+  auth + `bffSameOriginGuard` + `bffEnforceSession`; rights `mgt_view_tc`/
+  `mgt_modify_tc` on the ADDRESSED project BEFORE resolution (no #1697 oracle)
+  and the write path proves the project exists (no orphan rows); loopback/
+  link-local/metadata delivery targets refused (SSRF), wrong verb answers 405
+  before the rights check; stable 400/401/403/404/405/409/500/502 codes. Wiring:
+  `$actions->webhooks` in `lib/functions/common.php`, the ASIDE System entry
+  gated on `view_tc`, `tc_webhooks` DDL, `$TLS_title_webhooks` in all 19 locales
+  and `whk.*` in all 10 client bundles incl. a dedicated `whk.noMatch` key.
+  Browser-verified (admin + role-3): full CRUD, signed test delivery, duplicate
+  409, credentials-in-URL 400, tiles/filters, Romanian locale, 403 state card,
+  console clean (0 issues); Event Viewer AUDIT-only. Refs #1946 / parent #1072.
+- [SCREEN] - #1944 (parent #1072): the **OpenAPI Specification** viewer  (`gui/templates/documentation/openApiSpec.html`, BFF `api/openapi/index.php`)
   publishes the machine-readable half of parent #1072 that the #1937 REST
   reference hub left open: it **generates a real OpenAPI 3.1 document** live
   from the installation and serves it as JSON or YAML. The screen shows a live
