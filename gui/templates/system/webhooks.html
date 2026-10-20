@@ -120,13 +120,13 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <button class="btn-teal" id="btnNew" onclick="openNew()"><i class="fa fa-plus"></i> <span data-i18n="whk.new">New subscription</span></button>
     <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="whk.refresh">Refresh</span></button>
     <span style="flex:1"></span>
-    <label data-i18n="whk.filterStatus">Status</label>
+    <label for="fStatus" data-i18n="whk.filterStatus">Status</label>
     <select id="fStatus" onchange="applyFilter()">
       <option value="" data-i18n="whk.allStatuses">All</option>
       <option value="1" data-i18n="whk.statusActive">Active</option>
       <option value="0" data-i18n="whk.statusInactive">Inactive</option>
     </select>
-    <label data-i18n="whk.filterTopic">Topic</label>
+    <label for="fTopic" data-i18n="whk.filterTopic">Topic</label>
     <select id="fTopic" onchange="applyFilter()">
       <option value="" data-i18n="whk.allTopics">All topics</option>
     </select>
@@ -166,16 +166,16 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label data-i18n="whk.fieldName">Name</label>
+          <label for="fName" data-i18n="whk.fieldName">Name</label>
           <input type="text" id="fName" maxlength="255">
         </div>
         <div class="form-row">
-          <label data-i18n="whk.fieldUrl">Endpoint URL (http/https)</label>
+          <label for="fUrl" data-i18n="whk.fieldUrl">Endpoint URL (http/https)</label>
           <input type="text" id="fUrl" maxlength="500" placeholder="https://ci.example.com/webhook">
           <div class="hint" data-i18n="whk.fieldUrlHint">Deliveries are POSTed to this URL as JSON. Credentials embedded in the URL are refused.</div>
         </div>
         <div class="form-row">
-          <label data-i18n="whk.fieldTopic">Event topic</label>
+          <label for="fTopicSel" data-i18n="whk.fieldTopic">Event topic</label>
           <select id="fTopicSel"></select>
         </div>
         <div class="switch-row">
@@ -183,7 +183,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
           <label for="fActive" data-i18n="whk.fieldActive">Active</label>
         </div>
         <div class="form-row">
-          <label data-i18n="whk.fieldSecret">HMAC secret (optional)</label>
+          <label for="fSecret" data-i18n="whk.fieldSecret">HMAC secret (optional)</label>
           <input type="text" id="fSecret" maxlength="128" autocomplete="off">
           <div class="hint" id="secretHint" data-i18n="whk.fieldSecretHint">If set, every delivery carries X-TestLink-Signature: sha256=&lt;HMAC-SHA256 of the body with this secret&gt;. On edit, leave empty to keep the current secret.</div>
         </div>
@@ -408,9 +408,22 @@ function renderTable(items) {
     pageLength: 25,
     language: {
       search: '', searchPlaceholder: TLi18n.t('common.search'),
-      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+      lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
+      info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+      emptyTable: TLi18n.t('whk.noMatch'), zeroRecords: TLi18n.t('whk.noMatch')
     }
   });
+  setTimeout(function() {
+    var $wrap = $('#dataTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'whkTableSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'whkTableSearch');
+      }
+    }
+  }, 0);
 }
 
 function findItem(id) {

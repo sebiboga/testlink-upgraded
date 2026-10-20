@@ -8998,6 +8998,7 @@
  "whk.filterTopic": "イベント",
  "whk.allTopics": "すべてのイベント",
  "whk.noItems": "このプロジェクトにウェブフックサスクリプションはありません。",
+ "whk.noMatch": "現在のフィルターに一致するサブスクリプションはありません。",
  "whk.colName": "名前",
  "whk.colUrl": "対先URL",
  "whk.colTopic": "イベント",

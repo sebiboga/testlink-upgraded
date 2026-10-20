@@ -8998,6 +8998,7 @@
  "whk.filterTopic": "Evento",
  "whk.allTopics": "Todos os eventos",
  "whk.noItems": "Ainda não há assinaturas de webhook neste projeto.",
+ "whk.noMatch": "Nenhuma subscrição corresponde aos filtros atuais.",
  "whk.colName": "Nome",
  "whk.colUrl": "URL de destino",
  "whk.colTopic": "Evento",

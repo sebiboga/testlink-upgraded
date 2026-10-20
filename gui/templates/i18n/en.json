@@ -8998,6 +8998,7 @@
  "whk.filterTopic": "Topic",
  "whk.allTopics": "All topics",
  "whk.noItems": "There are no webhook subscriptions for this project yet.",
+ "whk.noMatch": "No subscription matches the current filters.",
  "whk.colName": "Name",
  "whk.colUrl": "Endpoint URL",
  "whk.colTopic": "Topic",
