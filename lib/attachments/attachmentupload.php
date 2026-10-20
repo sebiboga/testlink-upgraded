@@ -1,104 +1,65 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
- * This script is distributed under the GNU General Public License 2 or later. 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
  *
  * @filesource attachmentupload.php
  *
- * Upload dialog for attachments
- * Multiple file upload via HTML5 attribute
+ * 2.0.1 shim - Refs #1947 (screen #1623-series attachments modernisation): the
+ * legacy Smarty Attachment Upload popup
+ * (gui/templates/dashio/attachments/attachmentupload.tpl) was replaced by the
+ * modern Dashio popup gui/templates/attachments/attachmentUpload.html + the
+ * api/attachments BFF (`?action=upload|list`). This controller is kept as a
+ * session-guarded, non-mutating redirect shim so old deep links and the legacy
+ * openFileUploadWindow() helper keep resolving: anonymous users are sent to the
+ * login screen (legacy testlinkInitPage behaviour) and authenticated users land
+ * on the modern popup with the owning object (fk_table + fk_id) forwarded.
+ *
+ * Siblings already retired the same way: attachmentdelete.php (#1638) and
+ * attachmentdownload.php (#1794); this was the last attachment controller still
+ * rendering Smarty.
+ *
+ * WHY the legacy page was unsafe: it authorized NOTHING but the global
+ * `config_get('attachments')->enabled` flag and - after a plain GET - stashed
+ * `$_SESSION['s_upload_id']` / `$_SESSION['s_upload_tableName']` straight from
+ * the query string, then let a POST upload insert into ANY table. The BFF now
+ * proves the caller holds the object-owner right (api/_attachauth.php, Refs
+ * #1768) before an upload, and writes require a POST behind
+ * bffSameOriginGuard().
+ *
+ * The shim NEVER mutates anything (the legacy GET side effect of writing the
+ * session upload target is dropped), so simply opening this URL can no longer
+ * prime a subsequent upload.
 **/
-
 require_once('../../config.inc.php');
 require_once('../functions/common.php');
-require_once('../functions/attachments.inc.php');
-testlinkInitPage($db,false,false,"checkRights");
-  
-$args = init_args();
-$gui = new stdClass();
-$gui->uploaded = false;
-$gui->msg = null;
-$gui->tableName = $args->tableName;
-$gui->import_limit = TL_REPOSITORY_MAXFILESIZE;
-$gui->id = $args->id;
 
-if ($args->bPostBack) {
-  $fInfo = isset($_FILES['uploadedFile']) ? $_FILES['uploadedFile'] : null;
-  $id = $_SESSION['s_upload_id'];
-  $gui->tableName = $_SESSION['s_upload_tableName'];
+// Anonymous -> login bounce comes from checkSessionValid() inside
+// testlinkInitPage(); no rights callback is passed because the legacy
+// checkRights() only gated on the global attachments flag while the modern
+// BFF re-checks both the flag and the object ownership.
+testlinkInitPage($db, FALSE, false, null);
 
-  if ($fInfo && $id && $gui->tableName != "") {
-    $opt = null;
-    if (trim($gui->tableName) == 'executions') {
-      $opt['allow_empty_title'] = true;
-    }  
-
-    $l2d = count($fInfo);
-    for($fdx=0; $fdx <= $l2d; $fdx++) {
-      $fSize = isset($fInfo['size'][$fdx]) ? $fInfo['size'][$fdx] : 0;
-      $fTmpName = isset($fInfo['tmp_name'][$fdx]) ? 
-                        $fInfo['tmp_name'][$fdx] : '';
-
-      $fin = array();
-      $fin['size'] = $fSize;
-      $fin['tmp_name'] = $fTmpName;
-      $fin['type'] = $fInfo['type'][$fdx];
-      $fin['name'] = $fInfo['name'][$fdx];
-      $fin['error'] = $fInfo['error'][$fdx];
-      
-      if ($fSize && $fTmpName != "") {
-        $docRepo = tlAttachmentRepository::create($db);
-        
-        $uploadOP = $docRepo->insertAttachment($id,$gui->tableName,$args->title,$fin,$opt);
-        $gui->uploaded = $uploadOP->statusOK; 
-        if ($gui->uploaded) {
-          logAuditEvent(TLS("audit_attachment_created",
-                        $args->title,$fin['name']),
-                        "CREATE",$id,"attachments");
-        } 
-      } else {
-        $gui->msg  = getFileUploadErrorMessage($fin,$uploadOP);
-      } 
-    }
-  }
-}
-else
-{
-  $_SESSION['s_upload_tableName'] = $args->tableName;
-  $_SESSION['s_upload_id'] = $args->id;
+$id = isset($_REQUEST['id']) && is_scalar($_REQUEST['id'])
+    ? intval($_REQUEST['id']) : 0;
+$table = isset($_REQUEST['table']) && is_scalar($_REQUEST['table'])
+    ? trim((string) $_REQUEST['table']) : '';
+// legacy helper used `tableName` on some call sites
+if ($table === '' && isset($_REQUEST['tableName']) && is_scalar($_REQUEST['tableName'])) {
+    $table = trim((string) $_REQUEST['tableName']);
 }
 
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);
-$smarty->display('attachmentupload.tpl');
+$base = strval($_SESSION['basehref'] ?? '');
+if ($base === '') {
+    $base = '/';
+}
+$base = rtrim($base, '/');
 
-/**
- * @return object returns the arguments for the page
- */
-function init_args()
-{
-  $iParams = array(
-    //the id (attachments.fk_id) of the object, to which the attachment belongs to 
-    "id" => array("GET",tlInputParameter::INT_N),
-    //the table to which the fk_id refers to (attachments.fk_table) of the attachment 
-    "tableName" => array("GET",tlInputParameter::STRING_N,0,250),
-    //the title of the attachment (attachments.title) 
-    "title" => array("POST",tlInputParameter::STRING_N,0,250),
-  );
-  $args = new stdClass();
-  I_PARAMS($iParams,$args);
-  
-  $args->bPostBack = sizeof($_POST);
-  
-  return $args;
+$url = $base . '/gui/templates/attachments/attachmentUpload.html';
+$url .= '?id=' . $id;
+if ($table !== '') {
+    $url .= '&table=' . rawurlencode($table);
 }
 
-/**
- * @param $db resource the database connection handle
- * @param $user the current active user
- * @return boolean returns true if the page can be accessed
- */
-function checkRights(&$db,&$user)
-{
-  return (config_get("attachments")->enabled);
-}
+header('Location: ' . $url);
+exit;
