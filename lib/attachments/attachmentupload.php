@@ -50,7 +50,11 @@ if ($table === '' && isset($_REQUEST['tableName']) && is_scalar($_REQUEST['table
 }
 
 $base = strval($_SESSION['basehref'] ?? '');
-if ($base === '') {
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Only a same-app root-relative base is
+// accepted; anything else falls back to '/'.
+$base = str_replace(array("\r", "\n"), '', $base);
+if ($base === '' || $base[0] !== '/') {
     $base = '/';
 }
 $base = rtrim($base, '/');
