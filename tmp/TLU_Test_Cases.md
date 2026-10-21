@@ -44656,3 +44656,86 @@ no new Error/Warning rows in `events`.
 - Result: PASS
 
 **All parts PASS.** `php -l` clean on `api/solr/index.php`, `lib/functions/common.php`, `api/aside/index.php`; `ai/verify_i18n_coverage.sh` 9/9 PASS.
+
+
+## Suite — Issue #1951: Risk Coverage Matrix (Risk-Based Testing coverage reporting)
+
+**Screen:** `gui/templates/risk/riskCoverageMatrix.html`  
+**BFF:** `api/riskcoveragematrix/index.php`  
+**Wiring:** `$actions->riskCoverageMatrix` (`lib/functions/common.php`), ASIDE section **Risk Register / Risk Coverage Matrix** (`api/aside/index.php`)  
+**Fixtures:** `tmp/fixtures_1951.php` (project `RiskCoverage Demo` / `RCM` with 4 risks, plan scope, executed/passed/failed tests, requirement coverage, 1 defect; project `RiskCoverage Empty` with 0 risks; role-3 user `rcmnorights`)  
+**Locale:** `rcmtx.*` + `footers.riskCoverageMatrix` in **en,ro,de,es,fr,it,ja,pt,ru,zh**; `$TLS_title_risk_coverage_matrix` in **19** server locales  
+**Refs:** #1951 / parent #1066. **Fixes:** #1952 (tc_risks lazy-schema helper returned an array → `Array` table created, migrated and dropped)
+
+### Test Case 1951.1: Screen render (project scope)
+- When logged in as `admin` and opening `?tproject_id=1&locale=en`
+- Then the header shows "Risk Coverage Matrix", the verdict banner reads "Not ready for release" with the body text listing total / avg coverage / avg mitigation / high-risk-low-coverage / failing-test counts, the 7 KPI tiles show 4 Risks / 2 High risk / low coverage / 67% Avg coverage / 33% Avg mitigation / 37 Residual risk / 1 Defects / 1 Not linked, the scope combobox offers "Whole project" and the test plan, and the DataTable lists all 4 risks sorted by level/score.
+- Result: PASS
+
+### Test Case 1951.2: Execution + mitigation + residual model
+- When inspecting the rows for the fixture
+- Then "Data loss on export" (critical, linked to test case + requirement, execution failed) shows Coverage 100%, Mitigation 0% (failing test does not mitigate), Residual risk 15, flag `FAILED`; "Payment gateway outage" (medium, passed test) shows Coverage 100%, Mitigation 100%, Residual risk 0, flag `OK`; "Session hijack" (high, never executed) shows Coverage 0%, Mitigation 0%, Residual risk 12, flags `HR/LC` + `UNTESTED`; "Unmapped regulatory risk" (high, unlinked) shows Coverage 0%, Mitigation 0%, Residual risk 10, flags `HR/LC` + `NO LINK`. The detail modal for the failing critical risk shows Versions / Executed / Passing / Failing / Blocked / Linked defects and the requirement coverage block.
+- Result: PASS
+
+### Test Case 1951.3: Plan scope
+- When changing the scope combobox to the test plan
+- Then the report reloads with the same payload filtered to the plan (context.tplan_id set) and the same counts are shown for the fixture plan.
+- Result: PASS
+
+### Test Case 1951.4: Filters
+- When filtering by Level = High
+- Then only "Session hijack" and "Unmapped regulatory risk" remain. Filtering by Coverage state = Uncovered shows "Session hijack"; Coverage state = Not linked shows "Unmapped regulatory risk"; toggling "Flagged only" shows both high-risk/low-coverage risks; clearing filters restores all 4 rows.
+- Result: PASS
+
+### Test Case 1951.5: Locale switcher (Română)
+- When switching the header locale switcher to Română
+- Then the screen re-renders in Romanian ("Matrice de acoperire a riscurilor", verdict "Negresit pentru eliberare", tiles translated, column headers "Risc / Nivel / Scor / Acoperit de / Acoperire / Mitigare / Rezidual / Marcaje / Actiuni", flags translated) with no raw `rcmtx.*` keys.
+- Result: PASS
+
+### Test Case 1951.6: ASIDE wiring
+- When opening the ASIDE while logged in with `view_tc`/`mgt_view_tc`
+- Then the Risk section becomes expandable with two entries: "Risk Register" and "Risk Coverage Matrix", both pointing to their respective modern screens with the project/test plan context.
+- Result: PASS
+
+### Test Case 1951.7: BFF contract — routes and methods
+- When calling `api/riskcoveragematrix/index.php`:
+  - `GET ?action=init&tproject_id=N` → 200 with status ok, context/domains/stats/verdict/items
+  - `GET ?action=report&tproject_id=N` → same payload as init
+  - `GET ?action=projects` → 200 with the list of visible projects
+  - `HEAD ?action=init&tproject_id=N` → 200
+  - `POST ?action=init&tproject_id=N` → 405 `wrong_method` with `Allow: GET, HEAD` (same-origin guard still applies)
+  - `PUT ?action=init&tproject_id=N` → 405
+- Result: PASS
+
+### Test Case 1951.8: BFF contract — auth and rights
+- When unauthenticated → GET `?action=init&tproject_id=1` → 401 `not_authenticated`. Role-3 user `rcmnorights` with no project rights → `?action=init` with no project → 400 `no_testproject`; `?action=init&tproject_id=1` → 403 `no_right`; `?action=init&tproject_id=99999` → 403 `no_right` (no existence oracle - rights checked before resolution). `?action=projects` for `rcmnorights` → 200 with an empty projects list. Admin for unknown project → 404 `tproject_not_found`.
+- Result: PASS
+
+### Test Case 1951.9: BFF contract — scope and bad input
+- When `?action=init&tproject_id=1&tplan_id=2` → context.scope `plan` with the plan name. `?action=init&tproject_id=1&tplan_id=99999` → 404 `tplan_not_found`. `?action=bogus&tproject_id=1` → 400 `unknown_action`. `?action=init` with no tproject_id and no session project → 400 `no_testproject`.
+- Result: PASS
+
+### Test Case 1951.10: Empty project state
+- When opening `?tproject_id=<empty project>` with no risks
+- Then the verdict banner shows "No risk data", all KPI tiles are 0, the empty state message is shown, the table is hidden, and the footer shows "0 risks".
+- Result: PASS
+
+### Test Case 1951.11: Unknown project in the browser
+- When opening `?tproject_id=99999` as admin
+- Then the state card shows "No test project" with the explanatory body and the main area is hidden.
+- Result: PASS
+
+### Test Case 1951.12: Role-3 user in the browser
+- When opening the screen as `rcmnorights` (no rights)
+- Then the state card shows "No permission" / "You do not have the right to view the risk coverage of this project." and the main area is hidden.
+- Result: PASS
+
+### Test Case 1951.13: Bug fix verification (#1952) — no Array table, no E_WARNING
+- After the fix: `SHOW TABLES LIKE 'Array'` is empty; `tc_risks` contains the rows (copied from the stray `Array` table). The Risk Register loads correctly. Event Viewer shows **0 new Error/Warning** entries attributable to `api/risk`, `api/riskcoveragematrix` or the helpers; only audit events remain. `php -l` clean on `api/riskcoveragematrix/index.php`, `api/_riskschema.php`, `api/risk/index.php`.
+- Result: PASS
+
+### Test Case 1951.14: i18n gate and docs wiring
+- When running `bash ai/verify_i18n_coverage.sh` → 9/9 bundles PASS (9231 keys). The CHANGELOG contains `[SCREEN] - #1951` and `[KEY BUGFIX] - #1952`; the docs mirror `docs/Risk-Coverage-Matrix-Modernized.md` is added; the GitHub Wiki page for the screen is updated with EN and RO screenshots.
+- Result: PASS
+
+**All parts PASS.** The screen reuses the Dashio palette and the patterns of the Risk Register (header/tiles/toolbar/table/modals). No Smarty was used; all strings go through `TLi18n`.
