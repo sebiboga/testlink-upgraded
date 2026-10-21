@@ -120,10 +120,10 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <label data-i18n="ecv.plan">Test plan</label>
     <select id="selPlan" onchange="onPlanChange()"></select>
     <label data-i18n="ecv.build">Build</label>
-    <select id="selBuild" onchange="evaluate()"></select>
+    <select id="selBuild" onchange="runEvaluation()"></select>
     <label data-i18n="ecv.platform">Platform</label>
-    <select id="selPlatform" onchange="evaluate()"></select>
-    <button class="btn-teal" id="btnEvaluate" onclick="evaluate()"><i class="fa fa-play"></i> <span data-i18n="ecv.evaluate">Evaluate</span></button>
+    <select id="selPlatform" onchange="runEvaluation()"></select>
+    <button class="btn-teal" id="btnEvaluate" onclick="runEvaluation()"><i class="fa fa-play"></i> <span data-i18n="ecv.evaluate">Evaluate</span></button>
     <button class="btn-dark" onclick="reload()"><i class="fa fa-refresh"></i> <span data-i18n="ecv.refresh">Refresh</span></button>
   </div>
 
@@ -408,16 +408,16 @@ function loadInit() {
     for (var j = 0; j < plans.length; j++) { if (plans[j].id === tplanId) { keep = true; } }
     if (!keep) { tplanId = plans[0].id; }
     $('#selPlan').val(tplanId);
-    evaluate();
+    runEvaluation();
   }).fail(function(xhr) { apiFail(xhr, 'ecv.loadError'); });
 }
 
 function onPlanChange() {
   tplanId = parseInt($('#selPlan').val(), 10) || 0;
-  evaluate();
+  runEvaluation();
 }
 
-function evaluate() {
+function runEvaluation() {
   if (!tplanId) {
     showState('ecv.noPlans', 'ecv.noPlansBody', true);
     return;
