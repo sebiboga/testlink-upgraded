@@ -44573,3 +44573,79 @@ no new Error/Warning rows in `events`.
 `action=init&tplan_id=0 → 400` "no test plan selected" state; `events` count unchanged.
 
 **All parts PASS.** `php -l` clean on all 45 touched files.
+
+## Issue #1950: Apache SOLR integration (solrIntegration)
+
+**Screen**: `gui/templates/system/solrIntegration.html` — **BFF**: `api/solr/index.php` — **parent feature**: #1087 (net-new: 1.9.20/2.0.1 shipped no SOLR support)
+**Precondition** (fresh DB): `php tmp/fixtures_1950.php` reuses/creates test project `SOLR1950` (prefix SLR) and grants admin (id 1) project role 8 so the rights checks pass. Login admin/admin at `http://localhost:8082`. Table `tc_solr_config` is created lazily by the BFF.
+
+### Test Case 1950.1: Screen loads with connection settings (admin)
+- Given logged in as admin, GET `gui/templates/system/solrIntegration.html?tproject_id=1`
+- Then the Dashio header "SOLR Integration" + subtitle, the four tiles (Configured/Enabled/Last test/Latency), the "Connection settings" panel (enable checkbox, endpoint, core, timeout) and the "Search preview" panel with `*:*` render, and the project chip shows `SOLR1950 (SLR)`.
+- Result: PASS
+
+### Test Case 1950.2: BFF init returns context, settings, lastTest, limits
+- When GET `api/solr/index.php?action=init&tproject_id=1`
+- Then 200 `ok`; `context.name=SOLR1950`, `context.prefix=SLR`, `context.can_write=1`; `settings` has `enabled/endpoint/core/timeout_ms`; `lastTest` carries `ts/code/ok/latency_ms`; `limits.timeout_min_ms=500`, `timeout_max_ms=15000`.
+- Result: PASS
+
+### Test Case 1950.3: Save valid settings (admin)
+- When POST `?action=save` `{tproject_id:1,enabled:1,endpoint:"http://solr.example.com:8983/solr",core:"testlink",timeout_ms:3000}`
+- Then 200 `ok`; the toast "SOLR settings saved." shows; the Configured/Enabled tiles flip to "Yes"; the row is persisted in `tc_solr_config`.
+- Result: PASS
+
+### Test Case 1950.4: Bad endpoint rejected
+- When POST `?action=save` with endpoint `ftp://solr.example.com/solr`
+- Then 400 `bad_endpoint` and client-side toast "Enter an absolute http(s) endpoint (no credentials).".
+- Result: PASS
+
+### Test Case 1950.5: Bad core rejected
+- When POST `?action=save` with core `bad core!`
+- Then 400 `bad_core` and client-side toast "Enter a valid core name.".
+- Result: PASS
+
+### Test Case 1950.6: Connection test updates the Last-test tile
+- When POST `?action=test` against an unreachable endpoint
+- Then 502 `connection_failed`; the Last-test tile shows "Failed" + a latency, and `tc_solr_config.last_test_ok=0`, `last_test_latency_ms>0`; the toast shows "Connection test failed (connection_failed)".
+- Result: PASS
+
+### Test Case 1950.7: Loopback endpoint is refused (SSRF guard)
+- When POST `?action=save` with endpoint `http://127.0.0.1:8983/solr` then POST `?action=test`
+- Then 400 `blocked_target` (no outbound request); toast "The configured endpoint is a loopback/link-local address and is blocked.".
+- Result: PASS
+
+### Test Case 1950.8: Search preview surfaces a failure cleanly
+- When POST `?action=preview` `{q:"*:*"}` against an unreachable endpoint
+- Then 502 `connection_failed`; the preview summary stays hidden and a toast error is shown.
+- Result: PASS
+
+### Test Case 1950.9: Not-configured guard
+- Given no endpoint/core saved, POST `?action=test` or `?action=preview`
+- Then 400 `not_configured` and toast "Save an endpoint and a core first.".
+- Result: PASS
+
+### Test Case 1950.10: Locale switcher (Română)
+- When switching the header locale switcher to Română
+- Then the whole screen re-renders in Romanian ("Integrare SOLR", "Setări de conexiune", "Previzualizare căutare", "Rulează previzualizarea", footer "TestLink 2.0.1 - Integrare SOLR") with no raw `solr.*` keys.
+- Result: PASS
+
+### Test Case 1950.11: BFF contract — anonymous / verbs / unknown action / missing project
+- When: GET `?action=init` without a session → 401 `not_authenticated`; GET `?action=bogus` → 405 `method_not_allowed` (`allow: POST`); PUT `?action=init` → 405; POST `?action=nope` → 400 `unknown_action`; GET `?action=init&tproject_id=9999` → 404 `tproject_not_found`.
+- Result: PASS
+
+### Test Case 1950.12: BFF contract — CSRF same-origin guard
+- When POST `?action=save` with `Origin: http://evil.example.com`
+- Then 403 JSON "Forbidden: missing or mismatched same-origin proof (CSRF protection)".
+- Result: PASS
+
+### Test Case 1950.13: Event Viewer — audit events, no new Error/Warning
+- When performing save + test
+- Then `events` gains AUDIT rows `SOLR_CONFIG_SAVE` / `SOLR_TEST` (object_type `testprojects`, object_id = the project) and **no** new `log_level` Error/Warning row attributable to `api/solr` or the screen.
+- Result: PASS
+
+### Test Case 1950.14: ASIDE deep link
+- When navigating the ASIDE System chapter while logged in with `view_tc`
+- Then a "SOLR Integration" entry appears and opens `gui/templates/system/solrIntegration.html`.
+- Result: PASS
+
+**All parts PASS.** `php -l` clean on `api/solr/index.php`, `lib/functions/common.php`, `api/aside/index.php`; `ai/verify_i18n_coverage.sh` 9/9 PASS.
