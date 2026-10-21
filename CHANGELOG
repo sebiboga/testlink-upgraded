@@ -176,7 +176,9 @@ Every screen of the application was ported one-by-one in a screen-compare
   on the ADDRESSED project BEFORE it is resolved (the #1697 no-oracle lesson);
   the endpoint is http/https only, credentials/query/fragment refused, redirects
   never followed, loopback/link-local/metadata targets blocked (`blocked_target`)
-  unless `$tlCfg->solrAllowLocalTargets` opts in, with a 512 KB response cap and
+  at **both save and test** time (trailing-dot FQDNs, IPv4-mapped/decimal/hex
+  literals and ULA `fd00::/8` all caught) unless `$tlCfg->solrAllowLocalTargets`
+  opts in, with a 512 KB streaming response cap and
   400/401/403/404/405/500/502 machine codes. New `tc_solr_config` table (lazy
   `CREATE TABLE IF NOT EXISTS` + installer DDL + `object.class.php` whitelist);
   writes emit `SOLR_CONFIG_SAVE` / `SOLR_TEST` AUDIT events. Wiring:

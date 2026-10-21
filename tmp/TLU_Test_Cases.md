@@ -44614,6 +44614,13 @@ no new Error/Warning rows in `events`.
 - Then 400 `blocked_target` (no outbound request); toast "The configured endpoint is a loopback/link-local address and is blocked.".
 - Result: PASS
 
+### Test Case 1950.15: SSRF guard hardening (review follow-up)
+- When POST `?action=save` (enabled) with alternate loopback/metadata literals `http://localhost.:8983/solr`, `http://[::ffff:127.0.0.1]:8983/solr`, `http://2130706433:8983/solr`, `http://0x7f000001:8983/solr`, `http://[fd00:ec2::254]/`, `http://[fe80::1]/`
+- Then each returns 400 `blocked_target` at save time and the RO toast shown is the loopback/link-local message.
+- When `http://solr.example.com:8983/solr` is saved then GET `?action=test` (405) / PUT `?action=init` (405)
+- Then the responses carry `Allow: POST` and `Allow: GET, HEAD, POST` headers respectively.
+- Result: PASS
+
 ### Test Case 1950.8: Search preview surfaces a failure cleanly
 - When POST `?action=preview` `{q:"*:*"}` against an unreachable endpoint
 - Then 502 `connection_failed`; the preview summary stays hidden and a toast error is shown.

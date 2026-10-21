@@ -65,10 +65,18 @@ and the CSRF same-origin guard), `404` (`tproject_not_found`), `405`
 - **CSRF**: every non-safe verb passes the shared `bffSameOriginGuard()`.
 - **SSRF**: the endpoint is http/https only, embedded credentials are refused,
   redirects are never followed, and loopback/link-local/metadata targets are
-  refused (`blocked_target`) unless `$tlCfg->solrAllowLocalTargets` opts in; LAN
-  targets stay allowed so an on-premise SOLR keeps working.
-- **Resource caps**: 512 KB response cap, connect timeout capped at 2 s, total
-  timeout 500–15000 ms; `set_exception_handler` keeps the JSON contract on error.
+  refused (`blocked_target`) at **both save and test time** unless
+  `$tlCfg->solrAllowLocalTargets` opts in; LAN targets stay allowed so an
+  on-premise SOLR keeps working. The host-literal check tolerates no textual
+  trickery: trailing-dot FQDNs (`localhost.`), IPv4-mapped IPv6
+  (`::ffff:127.0.0.1`), unique-local IPv6 incl. the AWS IMDS ULA (`fd00:ec2::254`)
+  and decimal/hex IPv4 literals (`2130706433`, `0x7f000001`) are all caught.
+  A DNS name that *resolves* to a private address is out of scope (LAN hostnames
+  such as `solr.internal` must keep working).
+- **Resource caps**: the 512 KB response cap is enforced *while streaming*
+  (`CURLOPT_WRITEFUNCTION` aborts early), connect timeout capped at 2 s, total
+  timeout clamped to 500–15000 ms; `set_exception_handler` keeps the JSON
+  contract on error.
 - **Audit**: writes emit `SOLR_CONFIG_SAVE` / `SOLR_TEST` AUDIT events
   (`object_type=testprojects`) so the Event Viewer tracks the module.
 
