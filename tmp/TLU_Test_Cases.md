@@ -44512,3 +44512,64 @@ tcversion 15 (nodes_hierarchy type 4), one attachment `fixture1947.txt` on `tcve
 
 ### Automated evidence
 `php tmp/verify_1948.php` → **23 passed, 0 failed**.
+
+## Regression — Issue #1949: Legacy 302 shims sanitize `$_SESSION['basehref']` (open-redirect / CRLF hardening)
+
+**Precondition:** running instance at http://localhost:8082, fresh DB, logged in as `admin`
+(curl cookie jar). A session-poisoning helper is placed under `tmp/` (git-ignored):
+`tmp/poison1949b.php` sets `$_SESSION['basehref'] = 'https://evil.example/phish/'`;
+`tmp/poison1949.php` sets the CRLF variant `"https://evil.example/phish\r\nX-Injected: yes"`;
+`tmp/restore1949.php` resets it to `http://localhost:8082/`. Run each with the login cookie
+(`curl -b jar <url>`) to poison the SAME session the shim requests will use.
+
+**Part A — open-redirect (pre-fix behavior: 302 to `https://evil.example/...`)**
+1. Log in via curl (`POST /login.php` `tl_login=admin&tl_password=admin&action=login`).
+2. Poison: `curl -b jar http://localhost:8082/tmp/poison1949b.php`.
+3. Request each shim and read `Location`:
+   `lib/testcases/tcCreateFromIssue.php?tproject_id=1&container_id=2`,
+   `lib/execute/execNavigator.php`, `lib/general/mainPage.php`,
+   `lib/attachments/attachmentdownload.php?id=1`,
+   `lib/keywords/keywordsImport.php?tproject_id=1`, `lib/events/eventviewer.php`,
+   `lib/usermanagement/usersView.php`, `lib/plan/planTCNavigator.php`,
+   `lib/cfields/cfieldsEdit.php?do_action=create`, `lib/testcases/scriptAdd.php`.
+**Expected (post-fix):** every response is `302` with a ROOT-RELATIVE `Location`
+starting `/phish/...` — the evil host/scheme is gone; no redirect can leave the origin.
+**Actual:** PASS — all 10 shims (and the full 40-site sweep) returned e.g.
+`Location: /phish/gui/templates/testcases/tcCreateFromIssue.html?tproject_id=1&containerID=2`.
+
+**Part B — CRLF payload (pre-fix behavior: silent 200, NO Location, `E_WARNING` in `events`)**
+1. Poison: `curl -b jar http://localhost:8082/tmp/poison1949.php`.
+2. `curl -b jar -i http://localhost:8082/lib/execute/execNavigator.php` (and
+   `tcCreateFromIssue.php`, `attachmentdownload.php?id=1`).
+**Expected (post-fix):** `302` with a SINGLE same-origin `Location` header — CRLF stripped,
+no PHP `E_WARNING` "Header may not contain more than a single header" row written.
+**Actual:** PASS — `302 Location: /phishX-Injected: yes/gui/templates/execute/execNavigator.html?...`;
+`events` gained no new row (pre-fix attempt had persisted exactly one `log_level=2` row).
+
+**Part C — clean-session regression (no poison)**
+1. Restore: `curl -b jar http://localhost:8082/tmp/restore1949.php` (sets
+   `$_SESSION['basehref'] = 'http://localhost:8082/'`).
+2. Request ALL hardened shim entry points: tcCreateFromIssue, execNavigator, mainPage,
+   attachmentdownload, attachmentdelete, keywordsImport/Export, eventviewer, eventinfo,
+   bugAdd, bugDelete, execSetResults, usersView, usersEdit, rolesEdit, platformsEdit,
+   platformsImport, planTCNavigator, planAddTCNavigator, priorityBarChart, platformPieChart,
+   keywordBarChart, overallPieChart, topLevelSuitesBarChart, testCasesWithCF,
+   printDocOptions, cfieldsEdit, cfieldsTprojectAssign, reqMgrSystemEdit, scriptAdd,
+   scriptDelete, tcExecute, reqTcAssign, reqSpecListTree, searchMgmt, show_help,
+   project_req_spec_mgmt, editExecution, keywordsEdit, gettestcasesummary,
+   getrequirementnodes, reqEdit (refuse-unknown branch), reqSpecEdit (same).
+**Expected:** every shim still `302`s to its correct modern `/gui/templates/...` screen with
+the original query strings intact; `gettestcasesummary` XHR → 405, document → 302.
+**Actual:** PASS — 40/40 correct `Location`s (measured with curl `-i`), including
+`keywordsEdit` POST `do_create` → `303 Location: /gui/templates/keywords/keywordsView.html?tproject_id=1&...`
+with the legacy write executed (audit event `Keyword 'issue1949k' was created`).
+
+**Part D — browser + Event Viewer**
+1. Fresh browser login (`admin`/`admin`), navigate to `lib/execute/execNavigator.php?tplan_id=1`.
+**Expected:** 302 lands on `gui/templates/execute/execNavigator.html` (modern screen renders);
+no new Error/Warning rows in `events`.
+**Actual:** PASS — URL after redirect `.../execNavigator.html?tplan_id=0&tproject_id=0`
+(shim contract unchanged); the only console/network error is the pre-existing BFF
+`action=init&tplan_id=0 → 400` "no test plan selected" state; `events` count unchanged.
+
+**All parts PASS.** `php -l` clean on all 45 touched files.
