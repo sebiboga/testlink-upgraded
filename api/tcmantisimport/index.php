@@ -377,6 +377,14 @@ if ($action === 'import') {
         || ($_FILES['uploadedFile']['error'] ?? -1) !== UPLOAD_ERR_OK) {
         $errCode = isset($_FILES['uploadedFile']) && is_array($_FILES['uploadedFile'])
             ? intval($_FILES['uploadedFile']['error'] ?? -1) : -1;
+        // A PHP ini/form size rejection is the SAME user condition as exceeding
+        // the app cap below, so report it with the same code/message family
+        // instead of a generic invalid_request.
+        if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+            http_response_code(413);
+            tcmi_out(['status' => 'error', 'code' => 'file_too_large',
+                      'message' => 'File too large']);
+        }
         http_response_code(400);
         tcmi_out(['status' => 'error', 'code' => 'invalid_request',
                   'message' => 'File upload failed (error code: ' . $errCode . ')']);
