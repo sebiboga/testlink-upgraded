@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOLR Integration</title>
+<!--
+  Apache SOLR integration screen (Refs #1950, parent feature #1087).
+  Dashio standalone page backed by api/solr. Project-scoped SOLR connection
+  (endpoint / core / timeout), connection test and search preview.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 170px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 24px; font-weight: 700; color: #22242a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.ok { border-left-color: #3aa89f; }
+.tile.fail { border-left-color: #e05c5c; }
+.tile.warn { border-left-color: #e6b34d; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9bd8d3; cursor: not-allowed; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-dark:disabled { opacity: .5; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; }
+.panel h3 { margin: 0 0 16px; font-size: 16px; color: #22242a; }
+.form-row { margin-bottom: 14px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row input[type=text], .form-row input[type=number] { width: 100%; border: 1px solid #ddd; border-radius: 4px; padding: 7px 9px; font-size: 13px; }
+.form-row input:disabled { background: #f5f5f5; color: #888; }
+.form-row .hint { color: #999; font-size: 11px; margin-top: 3px; }
+.switch-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.switch-row label { margin: 0; font-size: 13px; color: #444; font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; }
+.preview-bar { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.preview-bar .grow { flex: 1 1 320px; margin-bottom: 0; }
+.preview-summary { margin: 14px 0 8px; color: #555; font-size: 13px; }
+.preview-table { width: 100%; border-collapse: collapse; }
+.preview-table th { background: #22242a; color: #fff; font-size: 12px; text-align: left; padding: 8px 12px; }
+.preview-table td { border-bottom: 1px solid #eee; padding: 8px 12px; font-size: 13px; }
+.preview-table td.id { font-family: monospace; font-size: 12px; width: 34%; word-break: break-all; }
+.empty-state { padding: 26px; text-align: center; color: #888; font-size: 13px; }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.badge-status { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; display: inline-block; }
+.badge-ok { background: #3aa89f; }
+.badge-fail { background: #e05c5c; }
+.badge-none { background: #cfcfcf; color: #666; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="solr.title">SOLR Integration</span>
+  <span class="sub" data-i18n="solr.subtitle">project-scoped Apache SOLR connection and search preview</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="solr.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile" id="tileCfgWrap">
+      <div class="num" id="tileConfigured">-</div>
+      <div class="lbl" data-i18n="solr.tileConfigured">Configured</div>
+    </div>
+    <div class="tile ok" id="tileEnabledWrap">
+      <div class="num" id="tileEnabled">-</div>
+      <div class="lbl" data-i18n="solr.tileEnabled">Enabled</div>
+    </div>
+    <div class="tile" id="tileTestWrap">
+      <div class="num" id="tileLastTest">-</div>
+      <div class="lbl" data-i18n="solr.tileLastTest">Last test</div>
+    </div>
+    <div class="tile" id="tileLatencyWrap">
+      <div class="num" id="tileLatency">-</div>
+      <div class="lbl" data-i18n="solr.tileLatency">Latency</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-teal" id="btnSave" onclick="saveSettings()"><i class="fa fa-save"></i> <span data-i18n="solr.save">Save</span></button>
+    <button class="btn-dark" id="btnTest" onclick="testConnection()"><i class="fa fa-plug"></i> <span data-i18n="solr.test">Test connection</span></button>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="solr.refresh">Refresh</span></button>
+    <span style="flex:1"></span>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="panel">
+    <h3 data-i18n="solr.settingsTitle">Connection settings</h3>
+    <div class="switch-row">
+      <input type="checkbox" id="fEnabled">
+      <label for="fEnabled" data-i18n="solr.fieldEnabled">Enable the SOLR integration for this test project</label>
+    </div>
+    <div class="grid2">
+      <div class="form-row">
+        <label for="fEndpoint" data-i18n="solr.fieldEndpoint">SOLR base endpoint</label>
+        <input type="text" id="fEndpoint" placeholder="http://solr.example.com:8983/solr">
+        <div class="hint" data-i18n="solr.fieldEndpointHint">Absolute http(s) URL of the SOLR server, without the core and without embedded credentials.</div>
+      </div>
+      <div class="form-row">
+        <label for="fCore" data-i18n="solr.fieldCore">Core / collection</label>
+        <input type="text" id="fCore" placeholder="testlink">
+        <div class="hint" data-i18n="solr.fieldCoreHint">Letters, digits, dot, dash and underscore only.</div>
+      </div>
+      <div class="form-row">
+        <label for="fTimeout" data-i18n="solr.fieldTimeout">Timeout (ms)</label>
+        <input type="number" id="fTimeout" min="500" max="15000" step="100" value="3000">
+        <div class="hint" data-i18n="solr.fieldTimeoutHint">Between 500 and 15000 ms.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3 data-i18n="solr.previewTitle">Search preview</h3>
+    <div class="preview-bar">
+      <div class="form-row grow">
+        <label for="fQuery" data-i18n="solr.query">Query</label>
+        <input type="text" id="fQuery" value="*:*">
+        <div class="hint" data-i18n="solr.queryHint">SOLR query syntax, e.g. <code>*:*</code> or <code>title:login</code>.</div>
+      </div>
+      <button class="btn-teal" id="btnPreview" onclick="runPreview()"><i class="fa fa-search"></i> <span data-i18n="solr.runPreview">Run preview</span></button>
+    </div>
+    <div class="preview-summary" id="previewSummary" style="display:none;"></div>
+    <table class="preview-table" id="previewTable" style="display:none;">
+      <thead>
+        <tr>
+          <th data-i18n="solr.colId">Document id</th>
+          <th data-i18n="solr.colTitle">Title</th>
+        </tr>
+      </thead>
+      <tbody id="previewBody"></tbody>
+    </table>
+    <div class="empty-state" id="previewEmpty" style="display:none;" data-i18n="solr.noDocs">No documents matched the query.</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="footer"><span data-i18n="footers.solrIntegration">TestLink 2.0.1 - SOLR Integration</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/solr/index.php';
+var tprojectId = 0;
+var canWrite = false;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 3200);
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('solr.stateNoRight', 'solr.stateNoRightBody', false); return; }
+  if (xhr.status === 404) { showState('solr.stateNoProject', 'solr.stateNoProjectBody', true); return; }
+  showState('solr.errTitle', fallbackKey || 'solr.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'solr.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function applyTestTile(lastTest) {
+  var lt = lastTest || {};
+  var badge = $('#tileLastTest');
+  $('#tileTestWrap').removeClass('ok fail warn');
+  if (!lt.ts) {
+    badge.html('<span class="badge-status badge-none">' + esc(TLi18n.t('solr.notTested')) + '</span>');
+    $('#tileTestWrap').addClass('warn');
+    $('#tileLatency').text('-');
+    return;
+  }
+  if (lt.ok) {
+    badge.html('<span class="badge-status badge-ok">' + esc(TLi18n.t('solr.testOk')) + '</span>');
+    $('#tileTestWrap').addClass('ok');
+  } else {
+    badge.html('<span class="badge-status badge-fail">' + esc(TLi18n.t('solr.testFail')) + '</span>');
+    $('#tileTestWrap').addClass('fail');
+  }
+  $('#tileLatency').text(lt.latency_ms ? lt.latency_ms + ' ms' : '-');
+}
+
+function load() {
+  $.getJSON(API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId), function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    tprojectId = r.context.tproject_id;
+    canWrite = !!r.context.can_write;
+    $('#projectInfo').text(r.context.name + ' (' + r.context.prefix + ')');
+    var s = r.settings || {};
+    $('#fEnabled').prop('checked', !!s.enabled);
+    $('#fEndpoint').val(s.endpoint || '');
+    $('#fCore').val(s.core || '');
+    $('#fTimeout').val(s.timeout_ms || 3000);
+    $('#fEnabled, #fEndpoint, #fCore, #fTimeout, #btnSave').prop('disabled', !canWrite);
+    $('#btnTest, #btnPreview, #fQuery').prop('disabled', !canWrite);
+    var configured = (s.endpoint !== '' && s.core !== '');
+    $('#tileConfigured').text(configured ? TLi18n.t('solr.yes') : TLi18n.t('solr.no'));
+    $('#tileCfgWrap').toggleClass('ok', configured).toggleClass('warn', !configured);
+    $('#tileEnabled').text(s.enabled ? TLi18n.t('solr.yes') : TLi18n.t('solr.no'));
+    $('#tileEnabledWrap').toggleClass('ok', !!s.enabled).toggleClass('warn', !s.enabled);
+    applyTestTile(r.lastTest);
+    $('#previewSummary, #previewTable, #previewEmpty').hide();
+  }).fail(function(xhr) { apiFail(xhr, 'solr.loadError'); });
+}
+
+function saveSettings() {
+  var enabled = $('#fEnabled').is(':checked') ? 1 : 0;
+  var endpoint = $.trim($('#fEndpoint').val());
+  var core = $.trim($('#fCore').val());
+  var timeout = parseInt($('#fTimeout').val(), 10) || 0;
+  if (enabled && !endpoint) { toast(TLi18n.t('solr.errEndpoint'), 'err'); return; }
+  if (enabled && !core) { toast(TLi18n.t('solr.errCore'), 'err'); return; }
+  if (timeout < 500 || timeout > 15000) { toast(TLi18n.t('solr.errTimeout'), 'err'); return; }
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, enabled: enabled,
+      endpoint: endpoint, core: core, timeout_ms: timeout})
+  }).done(function() {
+    toast(TLi18n.t('solr.msgSaved'), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = ''; try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'bad_endpoint') { toast(TLi18n.t('solr.errEndpoint'), 'err'); }
+    else if (code === 'bad_core') { toast(TLi18n.t('solr.errCore'), 'err'); }
+    else if (code === 'bad_timeout') { toast(TLi18n.t('solr.errTimeout'), 'err'); }
+    else { toast(TLi18n.t('solr.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnSave').prop('disabled', false); });
+}
+
+function testConnection() {
+  $('#btnTest').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=test', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId})
+  }).done(function(r) {
+    var t = (r && r.test) || {};
+    toast(TLi18n.t('solr.msgTestOk', {ms: t.latency_ms, n: t.num_found}), 'ok');
+    load();
+  }).fail(function(xhr) {
+    var code = '';
+    try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'not_configured') { toast(TLi18n.t('solr.notConfigured'), 'err'); }
+    else { toast(TLi18n.t('solr.msgTestFail') + (code ? ' (' + code + ')' : ''), 'err'); }
+    load();
+  }).always(function() { $('#btnTest').prop('disabled', !canWrite); });
+}
+
+function runPreview() {
+  var q = $.trim($('#fQuery').val()) || '*:*';
+  $('#btnPreview').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=preview', type: 'POST', contentType: 'application/json',
+    data: JSON.stringify({tproject_id: tprojectId, q: q})
+  }).done(function(r) {
+    var docs = r.docs || [];
+    $('#previewSummary').show().text(TLi18n.t('solr.docsFound', {n: r.num_found, ms: r.latency_ms}));
+    $('#previewBody').empty();
+    if (docs.length === 0) {
+      $('#previewTable').hide();
+      $('#previewEmpty').show();
+      return;
+    }
+    $('#previewEmpty').hide();
+    $('#previewTable').show();
+    $.each(docs, function(i, d) {
+      var tr = $('<tr>');
+      tr.append($('<td>').addClass('id').text(d.id || ''));
+      tr.append($('<td>').text(d.title || ''));
+      $('#previewBody').append(tr);
+    });
+  }).fail(function(xhr) {
+    var code = '';
+    try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (code === 'not_configured') { toast(TLi18n.t('solr.notConfigured'), 'err'); }
+    else { toast(TLi18n.t('solr.errPreview') + (code ? ' (' + code + ')' : ''), 'err'); }
+  }).always(function() { $('#btnPreview').prop('disabled', !canWrite); });
+}
+</script>
+</body>
+</html>
