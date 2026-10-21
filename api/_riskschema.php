@@ -17,14 +17,20 @@
  * Create the tc_risks table when it is missing and return its (prefixed)
  * table name.
  *
+ * IMPORTANT: the returned value is the table NAME (a string), not the map
+ * returned by tlObjectWithDB::getDBTables() - interpolating that map into a
+ * query yields the literal "Array" and silently creates/reads a table with
+ * that name.
+ *
  * @param object $db Database handle.
  * @return string Table name honouring DB_TABLE_PREFIX.
  */
 function tlRiskEnsureSchema($db)
 {
     $t = tlObjectWithDB::getDBTables(array('tc_risks'));
+    $table = $t['tc_risks'];
     $db->exec_query(
-        "CREATE TABLE IF NOT EXISTS {$t} (" .
+        "CREATE TABLE IF NOT EXISTS {$table} (" .
         " id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
         " testproject_id INT UNSIGNED NOT NULL DEFAULT 0," .
         " name VARCHAR(255) NOT NULL DEFAULT ''," .
@@ -46,5 +52,5 @@ function tlRiskEnsureSchema($db)
         " KEY idx_risk_project (testproject_id)," .
         " KEY idx_risk_status (testproject_id, status)" .
         " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
-    return $t;
+    return $table;
 }
