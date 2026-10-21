@@ -3109,6 +3109,9 @@ function getActions(&$gui,$baseURL) {
   $actions->testStrategyLevels = "/gui/templates/strategy/testLevels.html?{$ctx}";
   $actions->testStrategyTypes = "/gui/templates/strategy/testTypes.html?{$ctx}";
   $actions->testStrategyExit = "/gui/templates/strategy/exitCriteria.html?{$ctx}";
+  // Exit Criteria evaluation dashboard (Refs #1953, parent #1088): assesses
+  // the exit criteria of a project against a test plan (met / not met).
+  $actions->exitCriteriaEvaluation = "/gui/templates/strategy/exitCriteriaEvaluation.html?{$ctx}";
   $actions->testStrategyEnvironments = "/gui/templates/strategy/environments.html?{$ctx}";
   $actions->testStrategyRoles = "/gui/templates/strategy/roles.html?{$ctx}";
   $actions->testStrategyTools = "/gui/templates/strategy/tools.html?{$ctx}";

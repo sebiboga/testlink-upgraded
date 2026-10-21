@@ -4283,3 +4283,4 @@ $TLS_title_cicd_hub = "Integração CI/CD"; // CI/CD Integration hub (Refs #1940
 $TLS_title_webhooks = "Assinaturas de webhook"; // Webhook subscriptions manager (Refs #1946)
 $TLS_title_solr_integration = "Integração SOLR"; // Apache SOLR integration (Refs #1950)
 $TLS_title_risk_coverage_matrix = "Matriz de cobertura de riscos"; // "Risk Coverage Matrix" (Refs #1951)
+$TLS_href_test_strategy_exit_evaluation = "Avaliação dos critérios de saída"; // Exit Criteria Evaluation (Refs #1953)

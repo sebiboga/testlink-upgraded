@@ -446,6 +446,8 @@ if ($show('projects')) {
         'href_test_strategy_levels' => 'testStrategyLevels',
         'href_test_strategy_types' => 'testStrategyTypes',
         'href_test_strategy_exit_criteria' => 'testStrategyExit',
+        // Refs #1953 (parent #1088): exit criteria evaluation dashboard.
+        'href_test_strategy_exit_evaluation' => 'exitCriteriaEvaluation',
         'href_test_strategy_environments' => 'testStrategyEnvironments',
         'href_test_strategy_roles' => 'testStrategyRoles',
         'href_test_strategy_tools' => 'testStrategyTools',
@@ -474,6 +476,7 @@ if ($show('projects')) {
         'testStrategyObjectives' => 'fas fa-bullseye', 'testStrategyScope' => 'fas fa-expand-arrows-alt',
         'testStrategyApproach' => 'fas fa-compass', 'testStrategyLevels' => 'fas fa-layer-group',
         'testStrategyTypes' => 'fas fa-check-double', 'testStrategyExit' => 'fas fa-flag-checkered',
+        'exitCriteriaEvaluation' => 'fas fa-clipboard-check',
         'testStrategyEnvironments' => 'fas fa-server', 'testStrategyRoles' => 'fas fa-users',
         'testStrategyTools' => 'fas fa-wrench', 'testStrategyCommunication' => 'fas fa-comments',
         'testStrategyDeliverables' => 'fas fa-file-alt', 'testStrategyMetrics' => 'fas fa-chart-line',
