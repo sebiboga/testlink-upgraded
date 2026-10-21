@@ -93,33 +93,14 @@ function riskTable() {
     return $t['tc_risks'];
 }
 
-/** Idempotent lazy schema migration so a freshly imported DB works unchanged. */
+/**
+ * Idempotent lazy schema migration so a freshly imported DB works unchanged.
+ * The DDL is shared with api/riskcoveragematrix/index.php through
+ * api/_riskschema.php so the two consumers can never drift apart.
+ */
 function riskEnsureSchema($db) {
-    $t = riskTable();
-    $db->exec_query(
-        "CREATE TABLE IF NOT EXISTS {$t} (" .
-        " id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
-        " testproject_id INT UNSIGNED NOT NULL DEFAULT 0," .
-        " name VARCHAR(255) NOT NULL DEFAULT ''," .
-        " impact TINYINT UNSIGNED NOT NULL DEFAULT 3," .
-        " likelihood TINYINT UNSIGNED NOT NULL DEFAULT 3," .
-        " severity TINYINT UNSIGNED NOT NULL DEFAULT 3," .
-        " priority TINYINT UNSIGNED NOT NULL DEFAULT 3," .
-        " status VARCHAR(16) NOT NULL DEFAULT 'open'," .
-        " owner VARCHAR(128) NOT NULL DEFAULT ''," .
-        " mitigation TEXT NULL," .
-        " requirement_id INT UNSIGNED NULL," .
-        " tcase_id INT UNSIGNED NULL," .
-        " notes TEXT NULL," .
-        " created_by INT UNSIGNED NULL," .
-        " creation_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," .
-        " update_ts DATETIME NULL," .
-        " PRIMARY KEY (id)," .
-        " UNIQUE KEY uq_risk_project_name (testproject_id, name)," .
-        " KEY idx_risk_project (testproject_id)," .
-        " KEY idx_risk_status (testproject_id, status)" .
-        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
-    return $t;
+    require_once(__DIR__ . '/../_riskschema.php');
+    return tlRiskEnsureSchema($db);
 }
 
 /** Read the JSON request body (POST routes). */

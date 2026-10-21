@@ -162,6 +162,25 @@ Every screen of the application was ported one-by-one in a screen-compare
   re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
   assign panel, `php -l`). Refs #1922.
 
+- [FEATURE] - #1951 (parent #1066): new **Risk Coverage Matrix** BFF API
+  (`api/riskcoveragematrix/index.php`) — the read-only report layer that turns the
+  risk registry (`tc_risks`) into coverage data. For every risk of the addressed
+  test project it resolves the linked test case / requirement, computes the
+  **coverage** (share of the linked versions actually executed) and the
+  **mitigation** (share of the linked versions whose latest result is a pass — a
+  failing test exposes a risk, it does not retire it), derives the **residual
+  risk** left after execution (`score × (100 − mitigation) / 100`) and flags the
+  **high risk / low coverage** worklist (`level ≥ high` AND `coverage < 50 %`)
+  that a release decision needs. The report is scoped to the whole project or to
+  a single test plan, ends in a **release verdict** (`ready` / `at_risk` /
+  `not_ready` / `no_data`) and reports the requirement coverage of the linked
+  requirements. Session based, read only (no write verb at all), `bffSameOriginGuard`
+  + `bffEnforceSession`, rights (`mgt_view_tc` OR `mgt_modify_tc`) checked on the
+  ADDRESSED project BEFORE it is resolved (the #1697 no-oracle lesson) with
+  400/401/403/404/405 machine codes; the `tc_risks` table is created lazily
+  (`api/_riskschema.php`, shared with the risk registry BFF). Fixture
+  `tmp/fixtures_1951.php`. Refs #1951 / parent #1066.
+
 - [SCREEN] - #1950 (parent #1087): the **Apache SOLR integration** screen
   (`gui/templates/system/solrIntegration.html`, BFF `api/solr/index.php`) is the
   smallest coherent slice of the unimplemented "Integration with Apache SOLR"
