@@ -44739,3 +44739,90 @@ no new Error/Warning rows in `events`.
 - Result: PASS
 
 **All parts PASS.** The screen reuses the Dashio palette and the patterns of the Risk Register (header/tiles/toolbar/table/modals). No Smarty was used; all strings go through `TLi18n`.
+
+## Suite — Issue #1953: Exit Criteria Evaluation dashboard (exit criteria evaluation for a test plan)
+
+**Screen:** `gui/templates/strategy/exitCriteriaEvaluation.html`
+**BFF:** `api/exitcriteriaevaluation/index.php`
+**Wiring:** `$actions->exitCriteriaEvaluation` (`lib/functions/common.php`), ASIDE section **Test Strategy / Exit Criteria Evaluation** (`api/aside/index.php`)
+**Fixtures:** `tmp/fixtures_1953.php` (project `ECV1953` / prefix `EV` with 7 exit criteria over 5 test cases in plan `EV Plan`, 2 builds, 1 platform; project `ECV1953 EMPTY` / prefix `EM` with 0 criteria; role-3 user `ecvnorights`)
+**Locale:** `ecv.*` (92 keys) + `footers.exitCriteriaEvaluation` in **en,ro,de,es,fr,it,ja,pt,ru,zh**; `$TLS_href_test_strategy_exit_evaluation` in **19** server locales
+**Refs:** #1953 / parent #1088.
+
+### Test Case 1953.1: Screen render (project + plan scope)
+- When logged in as `admin` and opening `?tproject_id=1&tplan_id=3&locale=en`
+- Then the header shows "Exit Criteria Evaluation", the toolbar offers the project (ECV1953), the plan (EV Plan), the build ("All builds" / EV Build 1 / EV Build 2) and the platform ("All platforms" / EV Platform 1) selectors plus the Evaluate and Refresh buttons, the verdict banner reads "Not ready" with the body "At least one measurable exit criterion is not met." and the counts "Met 1 · Not met 3 · Manual 1 · N/A 2", the 6 KPI tiles show 7 Criteria / 7 Measurable / 1 Met / 3 Not met / 1 Manual / 14% Met %, the plan-results strip shows 7 Assigned / 6 Executed / 1 Not run / 3 Passed / 2 Failed / 1 Blocked / 85.7% Progress / 50% Pass rate, the "By test level" table lists the 5 levels with a Regression row of 0 criteria, and the criteria DataTable lists all 7 criteria.
+- Result: PASS
+
+### Test Case 1953.2: Metric semantics (min / max / manual)
+- When inspecting the fixture criteria
+- Then "EV Progress" (progress %, target 80, direction minimum) shows 85.7% ≥ 80% (minimum) → Met; "EV Pass Rate" (pass_rate %, target 90, minimum) shows 50% < 90% → Not met; "EV Failed" (failed count, target 0, maximum) shows 2 ≤ 0 → Not met; "EV Blocked" (blocked count, target 0, maximum) shows 1 > 0 → Not met; "EV Requirement Coverage" (req_coverage %, target 70, minimum) shows 50% < 70% → Not met; "EV Manual Sign-off" (metric `none`) shows "Manual review" and is never judged automatically; "EV No Target" (no target value) shows "Not evaluated". The three convention hints read "Percentage metrics (progress, pass rate, requirement coverage) are minimums: the criterion is met when actual ≥ target", "Count metrics (failed, blocked) are maximums: the criterion is met when actual ≤ target" and "A criterion without a measurable metric is never judged automatically".
+- Result: PASS
+
+### Test Case 1953.3: Build and platform filters
+- When selecting build `EV Build 2` in the toolbar
+- Then the screen re-evaluates (`…&action=evaluate&tplan_id=3&tproject_id=1&build_id=2`) and the strip becomes 7 Assigned / 1 Executed / 6 Not run / 0 Passed / 1 Failed / 0 Blocked / 14.3% Progress / 0% Pass rate. When additionally selecting platform `EV Platform 1` the request carries `&build_id=2&platform_id=1` and only the platform's 2 assignments are counted.
+- Result: PASS
+
+### Test Case 1953.4: Verdict matrix
+- When the fixture plan is evaluated with all builds
+- Then the verdict is `not_ready` (counts met=1, not_met=3, manual=1, na=2). When only `EV Platform 1` is selected the plan has 2 assigned / 2 executed / 2 passed → progress 100% and the verdict becomes `ready`. A plan with no assigned test case yields `no_data` ("This test plan has no assigned test case to evaluate."), a project with no criteria yields the empty state, and a project whose criteria are all manual yields `manual`.
+- Result: PASS
+
+### Test Case 1953.5: Criteria table, search and details modal
+- When searching "EV Progress" in the criteria DataTable
+- Then only the matching criteria remain and clearing the search restores all 7 rows. Clicking a criterion name opens the details modal with the test level, the metric, the comparison line ("85.7% ≥ 80% (minimum)"), the status, the entry criteria and the exit criteria; the Close button dismisses it.
+- Result: PASS
+
+### Test Case 1953.6: Locale switcher (Română)
+- When opening the screen with `?locale=ro`
+- Then everything renders in Romanian ("Evaluarea criteriilor de ieșire", verdict "NEÎNDEPLINIT", tiles "Criterii / Măsurabile / Îndeplinite / Neîndeplinite / Manuale / % îndeplinite", column header "Nivel de test", strip labels "Alocate / Executate / Neexecutate / Trecute / Eșuate / Blocate / Progres / Rată de trecere", footer "7 criterii de ieșire.") with **no raw `ecv.*` key** rendered anywhere on the page.
+- Result: PASS
+
+### Test Case 1953.7: ASIDE wiring
+- When opening the ASIDE while logged in with the Test Strategy section expanded
+- Then it contains both "Exit Criteria" → `exitCriteria.html` and "Exit Criteria Evaluation" → `exitCriteriaEvaluation.html`, both carrying the current project/plan context, the evaluation entry with the `fas fa-clipboard-check` icon.
+- Result: PASS
+
+### Test Case 1953.8: BFF contract — routes and methods
+- When calling `api/exitcriteriaevaluation/index.php`:
+  - `GET ?action=projects` → 200 with the list of visible projects
+  - `GET ?action=init&tproject_id=1` → 200 with context (project, plans, builds, platforms) and the metric/level catalogues
+  - `GET ?action=evaluate&tplan_id=3&tproject_id=1` → 200 with context, verdict, metrics, levels and the criteria array
+  - `HEAD ?action=evaluate&tplan_id=3&tproject_id=1` → 200
+  - `POST ?action=evaluate&tplan_id=3&tproject_id=1` → 405 `method_not_allowed` with `Allow: GET, HEAD` (same-origin guard still applies)
+  - `GET ?action=bogus` → 400 `unknown_action`
+- Result: PASS
+
+### Test Case 1953.9: BFF contract — auth and rights
+- When unauthenticated → `GET ?action=evaluate&tplan_id=3` → 401 `not_authenticated`. Role-3 user `ecvnorights` with no project rights → `?action=init&tproject_id=1` → 403 `no_right` and `?action=evaluate&tplan_id=3&tproject_id=1` → 403 `no_right`; `?action=projects` for `ecvnorights` → 200 with an **empty** projects list. A POST with a foreign `Origin` header → 403 (same-origin guard).
+- Result: PASS
+
+### Test Case 1953.10: BFF contract — scope and bad input
+- When `?action=evaluate&tplan_id=99999` → 404 `tplan_not_found`; `?action=evaluate&tplan_id=3&tproject_id=99999` → 404 `tproject_not_found`; `?action=evaluate&tplan_id=4&tproject_id=1` (plan of another project) → 404 `project_mismatch`; `?action=evaluate&tplan_id[]=3` (array parameter) → 400 `invalid_parameter`; `?action=evaluate` with no tplan_id → 400 `invalid_request`.
+- Result: PASS
+
+### Test Case 1953.11: Empty project / no-plan state
+- When switching the project selector to `ECV1953 EMPTY` (0 exit criteria)
+- Then the empty state "This test project has no exit criteria yet." is shown, the criteria table is hidden, the verdict reads "No data", all tiles are 0 and the footer shows "0 exit criteria.". When a project has no test plan at all, the state card reads "No test plan" / "This test project has no test plan to evaluate." and the plan selector is disabled.
+- Result: PASS
+
+### Test Case 1953.12: Unknown project / plan in the browser
+- When opening `?tproject_id=99999` as admin
+- Then the state card shows "Not found" / "The requested test project, test plan or exit criterion could not be found." and the main area is hidden — the screen does **not** silently fall back to the first accessible project. Opening `?tproject_id=1&tplan_id=4` (a plan belonging to another project) shows the same "Not found" state.
+- Result: PASS
+
+### Test Case 1953.13: Role-3 user in the browser
+- When opening the screen as `ecvnorights` (no rights on any project)
+- Then the state card shows "No test project" / "No test project is accessible for your account." and the main area is hidden.
+- Result: PASS
+
+### Test Case 1953.14: Bug fix verification — dead build/platform filters
+- The first implementation named the global evaluation function `evaluate()`. Because inline `onchange`/`onclick` handlers resolve names through `document` **before** `window`, `document.evaluate` (the XPath API) shadowed it: the console logged 3 × `Uncaught TypeError: Failed to execute 'evaluate' on 'Document': 2 arguments required, but only 0 present. (0 args)` and the build selector, the platform selector and the Evaluate button were all dead. After renaming the function to `runEvaluation()` (the BFF `action=evaluate` contract is unchanged) all three controls issue their request and the browser console is clean — verified by driving the three controls in the browser and asserting the emitted URLs carry `build_id` / `platform_id`.
+- Result: PASS
+
+### Test Case 1953.15: i18n gate, Event Viewer and docs wiring
+- When running `bash ai/verify_i18n_coverage.sh` → 9/9 bundles PASS (9324 keys) and `python3 -m json.tool` is clean on all 10 bundles. The `events` table shows **no new Error/Warning entry** attributable to `api/exitcriteriaevaluation` — only the 2 expected AUDIT rows produced by the deliberate 403 probes. The CHANGELOG contains `[SCREEN] - #1953`; the docs mirror `docs/Exit-Criteria-Evaluation-Modernized.md` is added and the GitHub Wiki page carries the EN and RO screenshots.
+- Result: PASS
+
+**All parts PASS.** The screen reuses the Dashio palette and the patterns of the sibling Exit Criteria screen (header/toolbar/tiles/tables/modals). No Smarty was used; all strings go through `TLi18n`.
