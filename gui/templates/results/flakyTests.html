@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flaky / Unstable Test Cases</title>
+<!--
+  Flaky / Unstable Test Cases report (Refs #1954).
+
+  Net-new modern Reports-menu screen. TestLink 1.9.20 showed the CURRENT
+  status of a test case (the last execution) but never the PATTERN of its
+  execution history, so a test case that fails once in a while stayed
+  invisible. This screen reports, for every test-case version linked to a
+  test plan, whether its execution history is inconsistent (flaky: at least
+  one pass AND at least one fail), uniform (stable), not proven yet (fewer
+  than the configured number of executions) or never executed.
+
+  The numbers come from api/flakytests/index.php (actions init / report /
+  history); see that file for the documented semantics (the unit is the
+  test-case VERSION, every execution row counts, blocked executions never
+  make a version flaky).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 122px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.flaky { background: #e05c5c; }
+.badge-v.stable { background: #2f9e44; }
+.badge-v.unproven { background: #e6b34d; color: #3d2c05; }
+.badge-v.not_run { background: #b9bec7; color: #333; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.passed { background: #2f9e44; }
+.badge-st.failed { background: #e05c5c; }
+.badge-st.blocked { background: #3a7bd5; }
+.badge-st.not_run { background: #b9bec7; color: #333; }
+.btn-hist { background: #4ECDC4; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.btn-hist:hover { background: #3dbdb5; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 720px; max-width: 94vw; max-height: 88vh; overflow: hidden; display: flex; flex-direction: column; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; overflow: auto; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.hist-table th { background: #f2f4f7; color: #445; text-align: left; padding: 7px 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+.hist-table td { border-bottom: 1px solid #eee; padding: 7px 9px; vertical-align: top; }
+.hist-empty { color: #999; padding: 18px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-random" style="margin-right:8px;"></i>
+  <span data-i18n="flaky.title">Flaky / Unstable Test Cases</span>
+  <span class="sub" data-i18n="flaky.subtitle">inconsistent execution history</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="flaky.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="flaky.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="flaky.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="flaky.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <label for="selMinExec" data-i18n="flaky.minExec">Min. executions</label>
+  <select id="selMinExec"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="flaky.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="flaky.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="flaky.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="flaky.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="flaky.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="flaky.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="flaky.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="flaky.ctxMinExec">Min. executions</span><span class="v" id="ctxMinExec">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="flaky.summaryTitle">Flakiness summary</span></h3>
+    <div class="cards">
+      <div class="card"><div class="k" data-i18n="flaky.kpiLinked">Linked versions</div><div class="v" id="sLinked">0</div></div>
+      <div class="card info"><div class="k" data-i18n="flaky.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="flaky.kpiFlaky">Flaky</div><div class="v" id="sFlaky">0</div></div>
+      <div class="card good"><div class="k" data-i18n="flaky.kpiStable">Stable</div><div class="v" id="sStable">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="flaky.kpiUnproven">Unproven</div><div class="v" id="sUnproven">0</div></div>
+      <div class="card"><div class="k" data-i18n="flaky.kpiNotRun">Not run</div><div class="v" id="sNotRun">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="flaky.kpiFlakyRate">Flaky rate %</div><div class="v" id="sFlakyRate">0%</div></div>
+      <div class="card info"><div class="k" data-i18n="flaky.kpiAvgExec">Avg. executions</div><div class="v" id="sAvgExec">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="flaky.tableCaption">Test-case versions of the plan with their flakiness verdict</caption>
+      <thead>
+        <tr>
+          <th data-i18n="flaky.colCase">Test case</th>
+          <th data-i18n="flaky.colExternalId">ID</th>
+          <th data-i18n="flaky.colSuite">Suite</th>
+          <th data-i18n="flaky.colVerdict">Verdict</th>
+          <th data-i18n="flaky.colExecutions">Executions</th>
+          <th data-i18n="flaky.colPassed">Passed</th>
+          <th data-i18n="flaky.colFailed">Failed</th>
+          <th data-i18n="flaky.colBlocked">Blocked</th>
+          <th data-i18n="flaky.colFlips">Flips</th>
+          <th data-i18n="flaky.colLastStatus">Last status</th>
+          <th data-i18n="flaky.colLastRun">Last run</th>
+          <th data-i18n="flaky.colBuilds">Builds</th>
+          <th data-i18n="flaky.colActions">History</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.flakyTests"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="histModal">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="histModalTitle">
+    <div class="modalhead"><i class="fa fa-clock-rotate-left"></i> <span id="histModalTitle" data-i18n="flaky.historyTitle">Execution history</span></div>
+    <div class="modalbody" id="histModalBody"></div>
+    <div class="modalfoot">
+      <button onclick="closeHistModal()"><span data-i18n="flaky.closeModal">Close</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/flakytests/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'flaky.deniedTitle',  body: 'flaky.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'flaky.deniedTitle',  body: 'flaky.expiredBody' },
+    no_right:          { cls: 'deny', title: 'flaky.deniedTitle',  body: 'flaky.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'flaky.notFoundTitle', body: 'flaky.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'flaky.notFoundTitle', body: 'flaky.mismatchBody' },
+    tcase_not_found:   { cls: 'warn', title: 'flaky.notFoundTitle', body: 'flaky.caseNotFoundBody' },
+    invalid_request:   { cls: 'warn', title: 'flaky.badRequestTitle', body: 'flaky.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'flaky.badRequestTitle', body: 'flaky.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'flaky.serverErrorTitle', body: 'flaky.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('flaky.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+var VERDICTS = [
+  ['flaky',    'flaky.verdictFlaky'],
+  ['stable',   'flaky.verdictStable'],
+  ['unproven', 'flaky.verdictUnproven'],
+  ['not_run',  'flaky.verdictNotRun']
+];
+
+var STATUSES = [
+  ['passed',  'flaky.statusPassed'],
+  ['failed',  'flaky.statusFailed'],
+  ['blocked', 'flaky.statusBlocked'],
+  ['not_run', 'flaky.statusNotRun']
+];
+
+function renderBanner(s) {
+  var html = '';
+  if (s.flaky > 0) {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+         + esc(TLi18n.t('flaky.bannerFlaky', { count: s.flaky, total: s.executed_versions })) + '</span></div>';
+  } else if (s.executed_versions > 0) {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+         + esc(TLi18n.t('flaky.bannerClean', { total: s.executed_versions })) + '</span></div>';
+  } else {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('flaky.bannerNone')) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(buildLabel(data.filter.build_id));
+  $('#ctxPlatform').text(platformLabel(data.filter.platform_id));
+  $('#ctxMinExec').text(data.filter.min_exec);
+  $('#sLinked').text(s.linked_versions);
+  $('#sExecuted').text(s.executed_versions);
+  $('#sFlaky').text(s.flaky);
+  $('#sStable').text(s.stable);
+  $('#sUnproven').text(s.unproven);
+  $('#sNotRun').text(s.not_run);
+  $('#sFlakyRate').text((parseFloat(s.flaky_rate_pct) || 0) + '%');
+  $('#sAvgExec').text(s.avg_executions);
+}
+
+function buildLabel(id) {
+  if (!id) { return TLi18n.t('flaky.allBuilds'); }
+  var found = '—';
+  $.each(currentData && currentData.filters ? currentData.filters.builds : [], function (i, b) {
+    if (String(b.id) === String(id)) { found = b.name; }
+  });
+  return found;
+}
+
+function platformLabel(id) {
+  if (!id) { return TLi18n.t('flaky.allPlatforms'); }
+  var found = '—';
+  $.each(currentData && currentData.filters ? currentData.filters.platforms : [], function (i, p) {
+    if (String(p.id) === String(id)) { found = p.name; }
+  });
+  return found;
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    var builds = [];
+    $.each(r.builds, function (j, b) { builds.push(b.name); });
+    rows += '<tr>'
+      + '<td><strong>' + esc(r.tcase_name) + '</strong></td>'
+      + '<td>' + esc(r.external_id) + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td><span class="badge-v ' + esc(r.verdict) + '">' + esc(TLi18n.t(verdictKey(r.verdict))) + '</span></td>'
+      + '<td>' + (parseInt(r.executions, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.passed, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.failed, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.blocked, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.flips, 10) || 0) + '</td>'
+      + '<td><span class="badge-st ' + esc(r.last_status) + '">' + esc(TLi18n.t(statusKey(r.last_status))) + '</span></td>'
+      + '<td>' + esc(r.last_ts || '-') + '</td>'
+      + '<td>' + esc(builds.join(', ') || '-') + '</td>'
+      + '<td><button type="button" class="btn-hist" data-tcv="' + parseInt(r.tcversion_id, 10) + '" '
+      + 'data-name="' + esc(r.tcase_name) + '"><i class="fa fa-clock-rotate-left"></i> '
+      + esc(TLi18n.t('flaky.history')) + '</button></td>'
+      + '</tr>';
+  });
+  if (dt) {
+    dt.destroy();
+    dt = null;
+  }
+  if (rows === '') {
+    // Empty state: a single colspan cell. DataTables must NOT be (re)initialized
+    // on this row - it would read 1 cell against the 13 <th> and abort with its
+    // "Incorrect column count" warning (tn/18) on every empty filter result.
+    $('#tbl tbody').html('<tr><td colspan="13" style="color:#999;text-align:center;">'
+      + esc(TLi18n.t('flaky.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [12], orderable: false }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'flakyTestsTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'flakyTestsTableSearch'); }
+    }
+  }, 0);
+}
+
+function verdictKey(v) {
+  var key = 'flaky.verdictNotRun';
+  $.each(VERDICTS, function (i, it) { if (it[0] === v) { key = it[1]; } });
+  return key;
+}
+
+function statusKey(v) {
+  var key = 'flaky.statusNotRun';
+  $.each(STATUSES, function (i, it) { if (it[0] === v) { key = it[1]; } });
+  return key;
+}
+
+function fillFilters(filters, filter) {
+  var build = '<option value="0">' + esc(TLi18n.t('flaky.allBuilds')) + '</option>';
+  $.each(filters.builds, function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('flaky.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+
+  var minOpts = '';
+  $.each([1, 2, 3, 5, 10], function (i, v) {
+    minOpts += '<option value="' + v + '">' + v + '</option>';
+  });
+  $('#selMinExec').html(minOpts).val(String(filter && filter.min_exec ? filter.min_exec : 2));
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('flaky.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('flaky.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: tplanId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.set('build_id', b); }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.set('platform_id', p); }
+  var m = $('#selMinExec').val();
+  if (m && m !== '0') { params.set('min_exec', m); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderBanner(data.summary);
+    renderTable(data);
+    $('#stateBox').html('');
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+/* ------------------------------------------------------------ history modal */
+
+function closeHistModal() {
+  $('#histModal').removeClass('show');
+}
+
+function openHistModal(tcv, name) {
+  $('#histModal').addClass('show');
+  $('#histModalBody').html('<div class="hist-empty"><span class="spinner" style="border-color:#4ECDC4;border-top-color:transparent;display:inline-block;width:16px;height:16px;border-radius:50%;animation:spin .8s linear infinite;"></span> '
+    + esc(TLi18n.t('flaky.loading')) + '</div>');
+  var params = new URLSearchParams({ action: 'history', tplan_id: q('tplan_id'), tcversion_id: tcv });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.set('build_id', b); }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.set('platform_id', p); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      $('#histModalBody').html('<div class="hist-empty">' + esc(TLi18n.t('flaky.historyError')) + '</div>');
+      return;
+    }
+    var html = '<div style="font-weight:700;margin-bottom:2px;">' + esc(name || '') + '</div>'
+      + '<div style="color:#7b8794;font-size:12px;margin-bottom:12px;">'
+      + esc(TLi18n.t('flaky.historySubtitle', { count: data.history.length })) + '</div>';
+    if (!data.history.length) {
+      html += '<div class="hist-empty">' + esc(TLi18n.t('flaky.historyEmpty')) + '</div>';
+    } else {
+      html += '<table class="hist-table"><thead><tr>'
+        + '<th data-i18n="flaky.colTime">Date</th>'
+        + '<th data-i18n="flaky.colStatus">Status</th>'
+        + '<th data-i18n="flaky.colBuild">Build</th>'
+        + '<th data-i18n="flaky.colPlatform">Platform</th>'
+        + '<th data-i18n="flaky.colTester">Tester</th>'
+        + '<th data-i18n="flaky.colDuration">Duration (s)</th>'
+        + '<th data-i18n="flaky.colNotes">Notes</th>'
+        + '</tr></thead><tbody>';
+      $.each(data.history, function (i, h) {
+        html += '<tr>'
+          + '<td>' + esc(h.execution_ts) + '</td>'
+          + '<td><span class="badge-st ' + esc(h.status) + '">' + esc(TLi18n.t(statusKey(h.status))) + '</span></td>'
+          + '<td>' + esc(h.build_name || '-') + '</td>'
+          + '<td>' + esc(h.platform_name || '-') + '</td>'
+          + '<td>' + esc(h.tester_name || '-') + '</td>'
+          + '<td>' + (parseInt(h.duration, 10) || 0) + '</td>'
+          + '<td>' + esc(h.notes || '') + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    $('#histModalBody').html(html);
+    TLi18n.apply($('#histModalBody'));
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    $('#histModalBody').html('<div class="hist-empty">'
+      + esc(TLi18n.t('flaky.historyError')) + ' <span class="code">'
+      + esc((body && body.code) || ('http_' + xhr.status)) + '</span></div>');
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows || currentData.rows.length === 0) {
+    toast(TLi18n.t('flaky.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('flaky.colCase'), TLi18n.t('flaky.colExternalId'), TLi18n.t('flaky.colSuite'),
+    TLi18n.t('flaky.colVerdict'), TLi18n.t('flaky.colExecutions'), TLi18n.t('flaky.colPassed'),
+    TLi18n.t('flaky.colFailed'), TLi18n.t('flaky.colBlocked'), TLi18n.t('flaky.colFlips'),
+    TLi18n.t('flaky.colLastStatus'), TLi18n.t('flaky.colLastRun'), TLi18n.t('flaky.colBuilds')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    var builds = [];
+    $.each(r.builds, function (j, b) { builds.push(b.name); });
+    lines.push($.map([r.tcase_name, r.external_id, r.suite_path, TLi18n.t(verdictKey(r.verdict)),
+      r.executions, r.passed, r.failed, r.blocked, r.flips,
+      TLi18n.t(statusKey(r.last_status)), r.last_ts, builds.join(', ')], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'flaky-tests-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('flaky.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    // window.close() only works on a script-opened window; when the report is
+    // opened as a normal link it would silently do nothing, so fall back to
+    // the TestLink home page.
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#histModal').on('click', function (e) {
+    if (e.target === this) { closeHistModal(); }
+  });
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape') { closeHistModal(); }
+  });
+  // Delegated: the table body is re-rendered on every filter change, so a
+  // per-row handler would be lost after the first DataTables redraw.
+  $('#tbl tbody').on('click', '.btn-hist', function () {
+    openHistModal(parseInt($(this).attr('data-tcv'), 10), $(this).attr('data-name'));
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>
