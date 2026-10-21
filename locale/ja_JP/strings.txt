@@ -4597,3 +4597,4 @@ $TLS_href_test_strategy_coverage = "テストタイプのカバレッジ";
 $TLS_title_cicd_hub = "CI/CD 連携"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Webhook購読"; // Webhook subscriptions manager (Refs #1946)
 $TLS_title_solr_integration = "SOLR 連携"; // Apache SOLR integration (Refs #1950)
+$TLS_title_risk_coverage_matrix = "リスクカバレッジマトリクス"; // "Risk Coverage Matrix" (Refs #1951)

@@ -2353,6 +2353,13 @@ function getActions(&$gui,$baseURL) {
   // Rights (mgt_view_tc / mgt_modify_tc for reads, mgt_modify_tc for writes)
   // are enforced by the BFF api/risk on every route.
   $actions->riskRegister = "/gui/templates/risk/riskRegister.html?{$ctx}";
+  // Risk Coverage Matrix (Dashio standalone page) - Refs #1951, parent feature
+  // #1066. Net-new module (no legacy twin): the READ ONLY coverage report over
+  // the risks of the registry - coverage of the linked test case / requirement,
+  // residual risk after execution, the high risk / low coverage worklist and
+  // the release verdict. Rights (mgt_view_tc / mgt_modify_tc for reads) are
+  // enforced by the BFF api/riskcoveragematrix on every route.
+  $actions->riskCoverageMatrix = "/gui/templates/risk/riskCoverageMatrix.html?{$ctx}";
   // Exploratory Testing Sessions registry (Dashio standalone page) - Refs
   // #1934, parent feature #1071. Net-new module (no legacy twin): project-
   // scoped exploratory sessions with charter, status, time box, tester,

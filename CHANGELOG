@@ -162,24 +162,49 @@ Every screen of the application was ported one-by-one in a screen-compare
   re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
   assign panel, `php -l`). Refs #1922.
 
-- [FEATURE] - #1951 (parent #1066): new **Risk Coverage Matrix** BFF API
-  (`api/riskcoveragematrix/index.php`) — the read-only report layer that turns the
-  risk registry (`tc_risks`) into coverage data. For every risk of the addressed
-  test project it resolves the linked test case / requirement, computes the
-  **coverage** (share of the linked versions actually executed) and the
-  **mitigation** (share of the linked versions whose latest result is a pass — a
-  failing test exposes a risk, it does not retire it), derives the **residual
-  risk** left after execution (`score × (100 − mitigation) / 100`) and flags the
-  **high risk / low coverage** worklist (`level ≥ high` AND `coverage < 50 %`)
-  that a release decision needs. The report is scoped to the whole project or to
-  a single test plan, ends in a **release verdict** (`ready` / `at_risk` /
-  `not_ready` / `no_data`) and reports the requirement coverage of the linked
-  requirements. Session based, read only (no write verb at all), `bffSameOriginGuard`
-  + `bffEnforceSession`, rights (`mgt_view_tc` OR `mgt_modify_tc`) checked on the
-  ADDRESSED project BEFORE it is resolved (the #1697 no-oracle lesson) with
-  400/401/403/404/405 machine codes; the `tc_risks` table is created lazily
-  (`api/_riskschema.php`, shared with the risk registry BFF). Fixture
-  `tmp/fixtures_1951.php`. Refs #1951 / parent #1066.
+- [SCREEN] - #1951 (parent #1066): the **Risk Coverage Matrix**
+  (`gui/templates/risk/riskCoverageMatrix.html`, BFF `api/riskcoveragematrix/index.php`)
+  is the coverage half of the still-open "Risk-Based Testing planning and coverage
+  reporting" feature: the risk registry (#1930) captures risks but never says
+  whether the risky area is actually covered by EXECUTED tests. The new READ ONLY
+  screen turns every risk of the project into a coverage line - **coverage**
+  (share of the linked test case versions actually executed), **mitigation**
+  (share of them whose latest result is a PASS - a failing test exposes a risk,
+  it does not retire it), the **residual risk** left after execution
+  (`score x (100 - mitigation) / 100`), the **high risk / low coverage**
+  worklist (`level >= high` AND `coverage < 50 %`), the requirement coverage of
+  the linked requirements and a **release verdict**
+  (`ready` / `at_risk` / `not_ready` / `no_data`). The report is scoped to the
+  whole project or to a single test plan, the table is sortable and filterable
+  (level / coverage state / flagged only) and every risk opens a detail modal
+  with the execution breakdown. Session based, read only (no write verb at all),
+  `bffSameOriginGuard` + `bffEnforceSession`, rights (`mgt_view_tc` OR
+  `mgt_modify_tc`) checked on the ADDRESSED project BEFORE it is resolved (the
+  #1697 no-oracle lesson) with 400/401/403/404/405 machine codes. Wiring:
+  `$actions->riskCoverageMatrix` in `lib/functions/common.php`, the second entry
+  of the ASIDE Risk section in `api/aside/index.php`, `rcmtx.*` (90) +
+  `footers.riskCoverageMatrix` in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS) and `$TLS_title_risk_coverage_matrix`
+  in **all 19** server locales. Browser-verified (EN + RO): render, plan scope,
+  level / coverage / flagged filters, detail modal, 403 / 404 / empty-project
+  states, console clean, Event Viewer 0 new Error/Warning. Suite `Issue #1951`
+  = 14/14 PASS in `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1951.php`.
+  Docs mirror `docs/Risk-Coverage-Matrix-Modernized.md`, wiki page + 2 screenshots.
+  Refs #1951 / parent #1066.
+
+- [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
+  (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
+  instead of the table NAME, so the risk BFFs interpolated the literal
+  `Array` into their SQL: the lazy DDL created a table named `Array`, both
+  the Risk Register (#1930) and the new Risk Coverage Matrix (#1951) read and
+  wrote THAT table instead of `tc_risks`, and every screen load wrote an
+  `E_WARNING Array to string conversion` row into the Event Viewer. Fix: the
+  helper returns `$t['tc_risks']` (the name) and uses it in the DDL; the rows
+  of the stray `Array` table were migrated into `tc_risks` (`INSERT IGNORE ...
+  SELECT`, idempotent through `uq_risk_project_name`) and the table was
+  dropped. Verified: both BFFs return the fixture risks, the Risk Register
+  renders 4 rows in the browser, Event Viewer 0 new Error/Warning, `SHOW
+  TABLES LIKE 'Array'` empty. (Fixes #1952)
 
 - [SCREEN] - #1950 (parent #1087): the **Apache SOLR integration** screen
   (`gui/templates/system/solrIntegration.html`, BFF `api/solr/index.php`) is the

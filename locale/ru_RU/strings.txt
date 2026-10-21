@@ -2859,3 +2859,4 @@ $TLS_href_test_strategy_coverage = "Покрытие типов тестов";
 $TLS_title_cicd_hub = "Интеграция CI/CD"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Webhook-подписки"; // Webhook subscriptions manager (Refs #1946)
 $TLS_title_solr_integration = "Интеграция SOLR"; // Apache SOLR integration (Refs #1950)
+$TLS_title_risk_coverage_matrix = "Матрица покрытия рисков"; // "Risk Coverage Matrix" (Refs #1951)

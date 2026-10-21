@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Risk Coverage Matrix</title>
+<!--
+  Risk Coverage Matrix screen (Refs #1951, parent feature #1066).
+  Dashio standalone page backed by api/riskcoveragematrix. READ ONLY report:
+  for every risk of the risk registry it shows how well the risky area is
+  covered by the EXECUTED tests, the residual risk left after execution and
+  the "high risk / low coverage" worklist a release decision needs.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.verdict { margin: 18px 24px 0; padding: 16px 20px; border-radius: 8px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 8px solid #7f8c96; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.verdict .vicon { font-size: 26px; color: #7f8c96; }
+.verdict .vtitle { font-size: 17px; font-weight: 700; color: #22242a; }
+.verdict .vbody { font-size: 13px; color: #666; }
+.verdict.v-ready { border-left-color: #3aa89f; }
+.verdict.v-ready .vicon { color: #3aa89f; }
+.verdict.v-at_risk { border-left-color: #e6b34d; }
+.verdict.v-at_risk .vicon { color: #e6b34d; }
+.verdict.v-not_ready { border-left-color: #e05c5c; }
+.verdict.v-not_ready .vicon { color: #e05c5c; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 150px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.warn { border-left-color: #e05c5c; }
+.tile.amber { border-left-color: #e6b34d; }
+.tile.dark { border-left-color: #22242a; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.toolbar label.inline { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-level { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; }
+.lvl-low { background: #3aa89f; }
+.lvl-medium { background: #e6b34d; }
+.lvl-high { background: #e07b39; }
+.lvl-critical { background: #e05c5c; }
+.flag { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #fff; margin-right: 4px; margin-bottom: 2px; }
+.flag-red { background: #e05c5c; }
+.flag-amber { background: #e6b34d; }
+.flag-grey { background: #7f8c96; }
+.flag-teal { background: #3aa89f; }
+.score { font-family: monospace; font-weight: 700; }
+.residual { font-family: monospace; font-weight: 700; color: #e05c5c; }
+.link-chip { display: inline-block; background: #eef6f5; color: #2d8e88; border: 1px solid #cde7e5; border-radius: 3px; padding: 1px 7px; font-size: 11px; margin-right: 4px; }
+.link-chip.none { background: #f4f4f4; color: #aaa; border-color: #e5e5e5; }
+.bar-wrap { width: 110px; background: #eee; border-radius: 3px; overflow: hidden; height: 14px; }
+.bar { height: 14px; color: #fff; font-size: 10px; text-align: center; line-height: 14px; font-weight: 700; }
+.bar-good { background: #3aa89f; }
+.bar-mid { background: #e6b34d; }
+.bar-bad { background: #e05c5c; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.detail-row { border-bottom: 1px solid #f0f0f0; padding: 8px 0; font-size: 13px; }
+.detail-row:last-child { border-bottom: none; }
+.detail-row .lbl { display: inline-block; width: 190px; color: #777; font-weight: 600; }
+.detail-section { margin: 10px 0 4px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #2d8e88; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="rcmtx.title">Risk Coverage Matrix</span>
+  <span class="sub" data-i18n="rcmtx.subtitle">risk coverage, residual risk and release readiness</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="rcmtx.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="verdict" id="verdictBox">
+    <i class="fa fa-clipboard vicon" id="verdictIcon"></i>
+    <div>
+      <div class="vtitle" id="verdictTitle"></div>
+      <div class="vbody" id="verdictBody"></div>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tileTotal">0</div>
+      <div class="lbl" data-i18n="rcmtx.tileTotal">Risks</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileFlagged">0</div>
+      <div class="lbl" data-i18n="rcmtx.tileFlagged">High risk / low coverage</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileCoverage">0%</div>
+      <div class="lbl" data-i18n="rcmtx.tileAvgCoverage">Avg coverage</div>
+    </div>
+    <div class="tile amber">
+      <div class="num" id="tileMitigation">0%</div>
+      <div class="lbl" data-i18n="rcmtx.tileAvgMitigation">Avg mitigation</div>
+    </div>
+    <div class="tile dark">
+      <div class="num" id="tileResidual">0</div>
+      <div class="lbl" data-i18n="rcmtx.tileResidual">Residual risk</div>
+    </div>
+    <div class="tile warn">
+      <div class="num" id="tileDefects">0</div>
+      <div class="lbl" data-i18n="rcmtx.tileDefects">Defects</div>
+    </div>
+    <div class="tile dark">
+      <div class="num" id="tileNoLink">0</div>
+      <div class="lbl" data-i18n="rcmtx.tileNoLink">Not linked</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="rcmtx.refresh">Refresh</span></button>
+    <label for="fScope" data-i18n="rcmtx.scope">Scope</label>
+    <select id="fScope" onchange="applyScope()"></select>
+    <label for="fFilterLevel" data-i18n="rcmtx.filterLevel">Level</label>
+    <select id="fFilterLevel" onchange="applyFilter()">
+      <option value="" data-i18n="rcmtx.allLevels">All levels</option>
+      <option value="critical" data-i18n="rcmtx.levelCritical">Critical</option>
+      <option value="high" data-i18n="rcmtx.levelHigh">High</option>
+      <option value="medium" data-i18n="rcmtx.levelMedium">Medium</option>
+      <option value="low" data-i18n="rcmtx.levelLow">Low</option>
+    </select>
+    <label for="fFilterState" data-i18n="rcmtx.filterState">Coverage</label>
+    <select id="fFilterState" onchange="applyFilter()">
+      <option value="" data-i18n="rcmtx.allStates">All coverage states</option>
+      <option value="covered" data-i18n="rcmtx.stateCovered">Covered</option>
+      <option value="partial" data-i18n="rcmtx.statePartial">Partial</option>
+      <option value="uncovered" data-i18n="rcmtx.stateUncovered">Uncovered</option>
+      <option value="unlinked" data-i18n="rcmtx.stateUnlinked">Not linked</option>
+    </select>
+    <label class="inline" for="fOnlyFlagged"><input type="checkbox" id="fOnlyFlagged" onchange="applyFilter()"> <span data-i18n="rcmtx.filterFlagged">Flagged only</span></label>
+    <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+  </div>
+
+  <div class="table-wrap">
+    <div id="emptyState" class="empty-state" style="display:none;" data-i18n="rcmtx.noItems">There are no risks to report for this project yet.</div>
+    <table id="dataTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="rcmtx.colName">Risk</th>
+          <th data-i18n="rcmtx.colLevel">Level</th>
+          <th data-i18n="rcmtx.colScore">Score</th>
+          <th data-i18n="rcmtx.colLink">Covered by</th>
+          <th data-i18n="rcmtx.colCoverage">Coverage</th>
+          <th data-i18n="rcmtx.colMitigation">Mitigation</th>
+          <th data-i18n="rcmtx.colResidual">Residual</th>
+          <th data-i18n="rcmtx.colFlags">Flags</th>
+          <th style="width:90px" data-i18n="rcmtx.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="rcmtx.footer">TestLink 2.0.1 - Risk Coverage Matrix</span></div>
+
+<!-- Risk coverage details modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="rcmtx.detailTitle">Risk coverage details</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="detailsBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.close">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/riskcoveragematrix/index.php';
+var table = null;
+var allItems = [];
+var context = null;
+var tprojectId = 0;
+var tplanId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function levelLabel(l) {
+  var map = { low: 'rcmtx.levelLow', medium: 'rcmtx.levelMedium',
+              high: 'rcmtx.levelHigh', critical: 'rcmtx.levelCritical' };
+  return TLi18n.t(map[l] || 'rcmtx.levelLow');
+}
+
+function stateLabel(s) {
+  var map = { covered: 'rcmtx.stateCovered', partial: 'rcmtx.statePartial',
+              uncovered: 'rcmtx.stateUncovered', unlinked: 'rcmtx.stateUnlinked' };
+  return TLi18n.t(map[s] || 'rcmtx.stateUnlinked');
+}
+
+function mitigationLabel(m) {
+  var map = { tested_ok: 'rcmtx.mitTestedOk', partially_tested: 'rcmtx.mitPartial',
+              untested: 'rcmtx.mitUntested', test_failed: 'rcmtx.mitFailed',
+              not_linked: 'rcmtx.mitNotLinked' };
+  return TLi18n.t(map[m] || 'rcmtx.mitUntested');
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  tplanId = parseInt(p.get('tplan_id') || p.get('tplanId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('rcmtx.noRight', 'rcmtx.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('rcmtx.noProject', 'rcmtx.noProjectBody', true); return; }
+  if (xhr.status === 400 && code === 'no_testproject') { showState('rcmtx.noProject', 'rcmtx.noProjectBody', true); return; }
+  showState('rcmtx.errTitle', fallbackKey || 'rcmtx.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'rcmtx.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  if (tplanId > 0) { url += '&tplan_id=' + encodeURIComponent(tplanId); }
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    context = r.context || {};
+    tprojectId = context.tproject_id || tprojectId;
+    tplanId = context.tplan_id || 0;
+    $('#projectInfo').text(context.tproject_name + ' (' + context.tproject_prefix + ')');
+    fillScope();
+    renderVerdict(r.verdict || {}, r.stats || {});
+    var s = r.stats || {};
+    $('#tileTotal').text(s.total || 0);
+    $('#tileFlagged').text(s.high_risk_low_coverage || 0);
+    $('#tileCoverage').text((r.verdict ? r.verdict.avg_coverage : 0) + '%');
+    $('#tileMitigation').text((r.verdict ? r.verdict.avg_mitigation : 0) + '%');
+    $('#tileResidual').text(s.residual_total || 0);
+    $('#tileDefects').text(s.defects || 0);
+    $('#tileNoLink').text(s.no_link || 0);
+    allItems = r.items || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('rcmtx.count', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'rcmtx.loadError'); });
+}
+
+function fillScope() {
+  var sel = $('#fScope');
+  var current = tplanId;
+  sel.empty();
+  sel.append($('<option>').val(0).text(TLi18n.t('rcmtx.scopeProject')));
+  $.each((context && context.plans) || [], function(i, o) {
+    sel.append($('<option>').val(o.id).text(o.name));
+  });
+  sel.val(String(current || 0));
+}
+
+function applyScope() {
+  tplanId = parseInt($('#fScope').val() || 0, 10);
+  load();
+}
+
+function renderVerdict(v, s) {
+  var code = v.code || 'no_data';
+  var map = {
+    ready: { cls: 'v-ready', icon: 'fa fa-check-circle', key: 'rcmtx.verdictReady' },
+    at_risk: { cls: 'v-at_risk', icon: 'fa fa-exclamation-triangle', key: 'rcmtx.verdictAtRisk' },
+    not_ready: { cls: 'v-not_ready', icon: 'fa fa-times-circle', key: 'rcmtx.verdictNotReady' },
+    no_data: { cls: '', icon: 'fa fa-clipboard', key: 'rcmtx.verdictNoData' }
+  };
+  var m = map[code] || map.no_data;
+  $('#verdictBox').removeClass('v-ready v-at_risk v-not_ready').addClass(m.cls);
+  $('#verdictIcon').attr('class', m.icon + ' vicon');
+  $('#verdictTitle').text(TLi18n.t(m.key));
+  $('#verdictBody').text(TLi18n.t('rcmtx.verdictBody', {
+    cov: v.avg_coverage || 0,
+    mit: v.avg_mitigation || 0,
+    flagged: v.high_risk_low_coverage || 0,
+    failed: v.failed_risks || 0,
+    total: s.total || 0
+  }));
+}
+
+function filtered() {
+  var fl = $('#fFilterLevel').val();
+  var fs = $('#fFilterState').val();
+  var onlyFlagged = $('#fOnlyFlagged').is(':checked');
+  return allItems.filter(function(it) {
+    if (fl && it.risk_level !== fl) { return false; }
+    if (fs && it.coverage_state !== fs) { return false; }
+    if (onlyFlagged && !it.flag_high_risk_low_coverage) { return false; }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; $('#dataTable tbody').empty(); clearHeaderAria(); }
+    $('#dataTable').hide();
+    $('#emptyState').show();
+  } else {
+    $('#emptyState').hide();
+    $('#dataTable').show();
+    renderTable(items);
+  }
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function barCell(pct) {
+  var v = parseInt(pct || 0, 10);
+  var cls = v >= 80 ? 'bar-good' : (v >= 50 ? 'bar-mid' : 'bar-bad');
+  return '<div class="bar-wrap"><div class="bar ' + cls + '" style="width:' + Math.max(v, 0) + '%">' + v + '%</div></div>';
+}
+
+function linkedCell(it) {
+  var out = '';
+  if (it.tcase_id > 0) {
+    out += '<span class="link-chip"><i class="fa fa-check"></i> ' + esc(it.tcase_label || ('#' + it.tcase_id)) + '</span>';
+  } else if (it.requirement_id > 0) {
+    out += '<span class="link-chip"><i class="fa fa-file-text"></i> ' + esc(it.requirement_label || ('#' + it.requirement_id)) + '</span>';
+  } else {
+    out += '<span class="link-chip none">' + esc(TLi18n.t('rcmtx.stateUnlinked')) + '</span>';
+  }
+  return out;
+}
+
+function flagsCell(it) {
+  var out = '';
+  if (it.flag_high_risk_low_coverage) {
+    out += '<span class="flag flag-red" title="' + esc(TLi18n.t('rcmtx.flagHighRiskLowCoverage')) + '">' +
+           esc(TLi18n.t('rcmtx.flagShortHrLc')) + '</span>';
+  }
+  if (it.mitigation_state === 'test_failed') {
+    out += '<span class="flag flag-amber" title="' + esc(TLi18n.t('rcmtx.flagTestFailed')) + '">' +
+           esc(TLi18n.t('rcmtx.flagShortFailed')) + '</span>';
+  }
+  if (it.mitigation_state === 'untested') {
+    out += '<span class="flag flag-grey" title="' + esc(TLi18n.t('rcmtx.flagUntested')) + '">' +
+           esc(TLi18n.t('rcmtx.flagShortUntested')) + '</span>';
+  }
+  if (it.coverage_state === 'unlinked') {
+    out += '<span class="flag flag-grey" title="' + esc(TLi18n.t('rcmtx.flagNotLinked')) + '">' +
+           esc(TLi18n.t('rcmtx.flagShortNotLinked')) + '</span>';
+  }
+  if (!out) { out = '<span class="flag flag-teal">' + esc(TLi18n.t('rcmtx.flagShortOk')) + '</span>'; }
+  return out;
+}
+
+function buildRow(it) {
+  return {
+    name: '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>' +
+          (it.owner ? '<div style="color:#999;font-size:11px;">' + esc(it.owner) + '</div>' : ''),
+    level: '<span class="badge-level lvl-' + esc(it.risk_level) + '">' + esc(levelLabel(it.risk_level)) + '</span>',
+    score: '<span class="score">' + esc(it.risk_score || 0) + '</span>',
+    linked: linkedCell(it),
+    coverage: barCell(it.coverage),
+    mitigation: barCell(it.mitigation_pct),
+    residual: '<span class="residual">' + esc(it.residual_risk || 0) + '</span>',
+    flags: flagsCell(it),
+    actions: '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+             esc(TLi18n.t('rcmtx.view')) + '" aria-label="' + esc(TLi18n.t('rcmtx.view')) + '"><i class="fa fa-eye"></i></button>',
+    sort_score: it.risk_score || 0,
+    sort_coverage: it.coverage || 0,
+    sort_mitigation: it.mitigation_pct || 0,
+    sort_residual: it.residual_risk || 0
+  };
+}
+
+function clearHeaderAria() {
+  $('#dataTable thead th').removeAttr('aria-label');
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); clearHeaderAria(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      {data: 'name'},
+      {data: 'level', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.sort_score || 0) : data;
+      }},
+      {data: 'score', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.sort_score || 0) : data;
+      }},
+      {data: 'linked', orderable: false},
+      {data: 'coverage', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.sort_coverage || 0) : data;
+      }},
+      {data: 'mitigation', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.sort_mitigation || 0) : data;
+      }},
+      {data: 'residual', render: function(data, type, row) {
+        return (type === 'sort' || type === 'type') ? (row.sort_residual || 0) : data;
+      }},
+      {data: 'flags', orderable: false},
+      {data: 'actions', orderable: false}
+    ],
+    order: [[2, 'desc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+  setTimeout(function() {
+    var $wrap = $('#dataTable').closest('.dataTables_wrapper');
+    if ($wrap.length) {
+      var $inp = $wrap.find('.dataTables_filter input[type=search]');
+      if ($inp.length) {
+        if (!$inp.attr('id')) $inp.attr('id', 'riskCoverageMatrixSearch');
+        if (!$inp.attr('name')) $inp.attr('name', 'riskCoverageMatrixSearch');
+      }
+    }
+  }, 0);
+}
+
+function detailRow(labelKey, val) {
+  return '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t(labelKey)) + '</span>' + esc(val == null || val === '' ? '-' : val) + '</div>';
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  var html = '';
+  html += '<div class="detail-section">' + esc(TLi18n.t('rcmtx.sectionRisk')) + '</div>';
+  html += detailRow('rcmtx.detailName', it.name);
+  html += '<div class="detail-row"><span class="lbl">' + esc(TLi18n.t('rcmtx.detailLevel')) + '</span>' +
+          '<span class="badge-level lvl-' + esc(it.risk_level) + '">' + esc(levelLabel(it.risk_level)) + '</span>' +
+          ' <span class="score" style="color:#777;margin-left:6px;">' + esc(it.impact) + ' x ' + esc(it.likelihood) + ' = ' + esc(it.risk_score) + '</span></div>';
+  html += detailRow('rcmtx.detailOwner', it.owner);
+  html += detailRow('rcmtx.detailStatus', it.status);
+  html += detailRow('rcmtx.detailMitigationPlan', it.mitigation);
+  html += detailRow('rcmtx.detailNotes', it.notes);
+
+  html += '<div class="detail-section">' + esc(TLi18n.t('rcmtx.sectionCoverage')) + '</div>';
+  html += detailRow('rcmtx.detailLink', it.tcase_id > 0 ? (it.tcase_label || ('#' + it.tcase_id))
+          : (it.requirement_id > 0 ? (it.requirement_label || ('#' + it.requirement_id))
+          : TLi18n.t('rcmtx.stateUnlinked')));
+  html += detailRow('rcmtx.detailCoverage', it.coverage + '%');
+  html += detailRow('rcmtx.detailMitigation', it.mitigation_pct + '%');
+  html += detailRow('rcmtx.detailState', stateLabel(it.coverage_state));
+  html += detailRow('rcmtx.detailMitigationState', mitigationLabel(it.mitigation_state));
+  html += detailRow('rcmtx.detailResidual', it.residual_risk);
+  html += detailRow('rcmtx.detailVersions', it.tcase_versions);
+  html += detailRow('rcmtx.detailExecuted', it.tcase_executed);
+  html += detailRow('rcmtx.detailPassedVersions', it.tcase_passed_versions);
+  html += detailRow('rcmtx.detailFailedVersions', it.tcase_failed_versions);
+  html += detailRow('rcmtx.detailBlockedVersions', it.tcase_blocked_versions);
+  html += detailRow('rcmtx.detailDefects', it.defects);
+
+  if (it.requirement_id > 0) {
+    html += '<div class="detail-section">' + esc(TLi18n.t('rcmtx.sectionRequirement')) + '</div>';
+    html += detailRow('rcmtx.detailRequirement', it.requirement_label || ('#' + it.requirement_id));
+    html += detailRow('rcmtx.detailReqCoverage', it.requirement_coverage + '%');
+    html += detailRow('rcmtx.detailReqTcs', it.requirement_tc_count);
+    html += detailRow('rcmtx.detailReqCoveredTcs', it.requirement_covered);
+  }
+  $('#detailsBody').html(html);
+  $('#detailsModal').modal('show');
+}
+</script>
+</body>
+</html>

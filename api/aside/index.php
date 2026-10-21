@@ -668,18 +668,32 @@ if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
 // legacy menu twin. Label uses the new server string key title_risk_register,
 // added to all 19 server locales. Rights (view_tc / modify_tc) match the BFF
 // api/risk, which answers 403 without them.
+//
+// 7c-quater. Risk Coverage Matrix (Refs #1951, parent feature #1066): the
+// READ ONLY coverage report over the very same risks - coverage of the linked
+// test case / requirement, residual risk after execution, the high risk / low
+// coverage worklist and the release verdict. Second entry of the same ASIDE
+// section, label uses the new server string key title_risk_coverage_matrix
+// (all 19 server locales); rights match the BFF api/riskcoveragematrix.
 if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
     $sections[] = array(
         'key' => 'riskRegister',
         'label' => lang_get('title_risk_register'),
         'icon' => 'fas fa-exclamation-triangle',
-        'single' => true,
-        'items' => array(array(
-            'id' => 'riskRegister',
-            'label' => lang_get('title_risk_register'),
-            'href' => (string)$u('riskRegister'),
-            'icon' => 'fas fa-exclamation-triangle',
-        )),
+        'items' => array(
+            array(
+                'id' => 'riskRegister',
+                'label' => lang_get('title_risk_register'),
+                'href' => (string)$u('riskRegister'),
+                'icon' => 'fas fa-exclamation-triangle',
+            ),
+            array(
+                'id' => 'riskCoverageMatrix',
+                'label' => lang_get('title_risk_coverage_matrix'),
+                'href' => (string)$u('riskCoverageMatrix'),
+                'icon' => 'fas fa-table-cells',
+            ),
+        ),
     );
 }
 
