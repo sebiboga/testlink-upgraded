@@ -170,6 +170,8 @@ $bff = function ($action) use ($db, $user) {
             'tplan_with_cf' => 'gui/templates/results/tplanWithCF.html',
             'free_tcases' => 'gui/templates/results/freeTestCases.html',
             'report_exec_timeline' => 'gui/templates/results/execTimelineStats.html',
+            // Refs #1954: Flaky / Unstable Test Cases report.
+            'flaky_tests' => 'gui/templates/results/flakyTests.html',
         );
 
         $reportList = config_get('reports_list');

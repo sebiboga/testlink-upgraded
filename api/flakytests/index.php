@@ -250,7 +250,18 @@ if ($platformId > 0) {
     }
 }
 
+// Name map of every build of the project (also the deactivated ones, so an
+// execution recorded on a closed build is not rendered as "#<id>"); the
+// dropdown above only offers the active ones.
 $buildNames = array();
+$rb = $db->get_recordset(
+    "SELECT id, name FROM {$tbl['builds']} WHERE testproject_id = " . intval($owningProjectId) .
+    " ORDER BY id");
+if (is_array($rb)) {
+    foreach ($rb as $r) {
+        $buildNames[intval($r['id'])] = ftDecode($r['name']);
+    }
+}
 foreach ($builds as $b) { $buildNames[$b['id']] = $b['name']; }
 $platformNames = array();
 foreach ($platforms as $p) { $platformNames[$p['id']] = $p['name']; }
@@ -409,6 +420,7 @@ if (count($linkedVersions) > 0) {
         "  SELECT a.tcase_node, pn.id, pn.name, pn.parent_id, a.depth + 1 " .
         "  FROM anc a " .
         "  JOIN {$tbl['nodes_hierarchy']} pn ON pn.id = a.parent_id AND pn.node_type_id = 2" .
+        "  WHERE a.depth < 32" .
         ") " .
         "SELECT tcase_node, GROUP_CONCAT(node_name ORDER BY depth DESC SEPARATOR ' / ') AS suite_path " .
         "FROM (SELECT DISTINCT tcase_node, node_name, depth FROM anc) d " .
@@ -440,11 +452,15 @@ if (is_array($aggRs)) {
 }
 
 // 4. The last execution of every version (the current state of the version).
+//    The order is (execution_ts, id) - the same one used by the execution
+//    history - so "last status" and "last run" always describe the same
+//    execution and match the modal.
 $lastRs = $db->get_recordset(
-    "SELECT e.tcversion_id, e.status, e.execution_ts FROM {$tbl['executions']} e " .
-    "JOIN (SELECT tcversion_id, MAX(id) AS max_id FROM {$tbl['executions']} e2 " .
-    "      WHERE " . str_replace('e.', 'e2.', $whereExec) . " GROUP BY tcversion_id) m " .
-    "     ON m.max_id = e.id");
+    "SELECT tcversion_id, status, execution_ts FROM (" .
+    "  SELECT e.tcversion_id, e.status, e.execution_ts, " .
+    "         ROW_NUMBER() OVER (PARTITION BY e.tcversion_id " .
+    "                              ORDER BY e.execution_ts DESC, e.id DESC) AS rn " .
+    "  FROM {$tbl['executions']} e WHERE " . $whereExec . ") t WHERE t.rn = 1");
 $last = array();
 if (is_array($lastRs)) {
     foreach ($lastRs as $r) {
@@ -456,7 +472,8 @@ if (is_array($lastRs)) {
 $flipRs = $db->get_recordset(
     "SELECT tcversion_id, SUM(CASE WHEN prev IS NOT NULL AND prev <> status THEN 1 ELSE 0 END) AS flips " .
     "FROM (SELECT tcversion_id, status, " .
-    "             LAG(status) OVER (PARTITION BY tcversion_id ORDER BY id) AS prev " .
+    "             LAG(status) OVER (PARTITION BY tcversion_id " .
+    "                                ORDER BY execution_ts, id) AS prev " .
     "      FROM {$tbl['executions']} e WHERE " . $whereExec . ") t GROUP BY tcversion_id");
 $flips = array();
 if (is_array($flipRs)) {

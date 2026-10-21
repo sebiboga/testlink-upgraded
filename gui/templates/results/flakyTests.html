@@ -4,6 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Flaky / Unstable Test Cases report of TestLink 2.0.1 (Refs #1954)">
 <title>Flaky / Unstable Test Cases</title>
 <!--
   Flaky / Unstable Test Cases report (Refs #1954).
@@ -27,13 +28,13 @@
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
-.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
 .header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
 .toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
 .toolbar .spacer { flex: 1 1 auto; }
-.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-teal:hover { background: #3dbdb5; }
 .btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
 .btn-dark:hover { background: #3a3e48; }
@@ -43,11 +44,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .panel h3 i { color: #4ECDC4; margin-right: 8px; }
 .ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
 .ctx-item { min-width: 150px; }
-.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
 .ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
 .cards { display: flex; flex-wrap: wrap; gap: 14px; }
 .card { flex: 1 1 122px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
-.card .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
 .card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
 .card.good { border-left: 4px solid #2f9e44; }
 .card.bad { border-left: 4px solid #e05c5c; }
@@ -63,27 +64,27 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
 .state.warn { border-left: 5px solid #e6b34d; }
 .state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
-.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
 .state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .table-wrap { margin: 0 24px 24px 24px; }
 table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
 table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
 .badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
-.badge-v.flaky { background: #e05c5c; }
-.badge-v.stable { background: #2f9e44; }
+.badge-v.flaky { background: #c0392b; }
+.badge-v.stable { background: #1e7a34; }
 .badge-v.unproven { background: #e6b34d; color: #3d2c05; }
 .badge-v.not_run { background: #b9bec7; color: #333; }
 .badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
-.badge-st.passed { background: #2f9e44; }
-.badge-st.failed { background: #e05c5c; }
-.badge-st.blocked { background: #3a7bd5; }
+.badge-st.passed { background: #1e7a34; }
+.badge-st.failed { background: #c0392b; }
+.badge-st.blocked { background: #2a5fb8; }
 .badge-st.not_run { background: #b9bec7; color: #333; }
-.btn-hist { background: #4ECDC4; color: #fff; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.btn-hist { background: #4ECDC4; color: #0d3f3c; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
 .btn-hist:hover { background: #3dbdb5; }
-.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
 .dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
-.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
 .toast.err { background: #e05c5c; }
 .modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
@@ -96,11 +97,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 .hist-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .hist-table th { background: #f2f4f7; color: #445; text-align: left; padding: 7px 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
 .hist-table td { border-bottom: 1px solid #eee; padding: 7px 9px; vertical-align: top; }
-.hist-empty { color: #999; padding: 18px 0; text-align: center; }
+.hist-empty { color: #5c6470; padding: 18px 0; text-align: center; }
 </style>
 </head>
 <body>
 
+<main id="mainContent">
 <div class="header">
   <i class="fa fa-random" style="margin-right:8px;"></i>
   <span data-i18n="flaky.title">Flaky / Unstable Test Cases</span>
@@ -155,19 +157,19 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       <caption class="sr-only" data-i18n="flaky.tableCaption">Test-case versions of the plan with their flakiness verdict</caption>
       <thead>
         <tr>
-          <th data-i18n="flaky.colCase">Test case</th>
-          <th data-i18n="flaky.colExternalId">ID</th>
-          <th data-i18n="flaky.colSuite">Suite</th>
-          <th data-i18n="flaky.colVerdict">Verdict</th>
-          <th data-i18n="flaky.colExecutions">Executions</th>
-          <th data-i18n="flaky.colPassed">Passed</th>
-          <th data-i18n="flaky.colFailed">Failed</th>
-          <th data-i18n="flaky.colBlocked">Blocked</th>
-          <th data-i18n="flaky.colFlips">Flips</th>
-          <th data-i18n="flaky.colLastStatus">Last status</th>
-          <th data-i18n="flaky.colLastRun">Last run</th>
-          <th data-i18n="flaky.colBuilds">Builds</th>
-          <th data-i18n="flaky.colActions">History</th>
+          <th scope="col" data-i18n="flaky.colCase">Test case</th>
+          <th scope="col" data-i18n="flaky.colExternalId">ID</th>
+          <th scope="col" data-i18n="flaky.colSuite">Suite</th>
+          <th scope="col" data-i18n="flaky.colVerdict">Verdict</th>
+          <th scope="col" data-i18n="flaky.colExecutions">Executions</th>
+          <th scope="col" data-i18n="flaky.colPassed">Passed</th>
+          <th scope="col" data-i18n="flaky.colFailed">Failed</th>
+          <th scope="col" data-i18n="flaky.colBlocked">Blocked</th>
+          <th scope="col" data-i18n="flaky.colFlips">Flips</th>
+          <th scope="col" data-i18n="flaky.colLastStatus">Last status</th>
+          <th scope="col" data-i18n="flaky.colLastRun">Last run</th>
+          <th scope="col" data-i18n="flaky.colBuilds">Builds</th>
+          <th scope="col" data-i18n="flaky.colActions">History</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -175,15 +177,17 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
+</main>
+
 <div class="footer"><span data-i18n="footers.flakyTests"></span><span id="localeSwitcher"></span></div>
 <div class="toast" id="toast"></div>
 
 <div class="modalbox" id="histModal">
-  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="histModalTitle">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="histModalTitle" tabindex="-1">
     <div class="modalhead"><i class="fa fa-clock-rotate-left"></i> <span id="histModalTitle" data-i18n="flaky.historyTitle">Execution history</span></div>
     <div class="modalbody" id="histModalBody"></div>
     <div class="modalfoot">
-      <button onclick="closeHistModal()"><span data-i18n="flaky.closeModal">Close</span></button>
+      <button id="histModalClose"><span data-i18n="flaky.closeModal">Close</span></button>
     </div>
   </div>
 </div>
@@ -233,12 +237,19 @@ function stateFor(code, httpStatus, rawMessage) {
 }
 
 function showState(html) {
+  // Drop the previous result set: otherwise "Export CSV" would silently
+  // export the rows of the last successful load (of another plan!) after a
+  // failed reload.
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
   $('#report').hide();
   $('#bannerBox').html('');
   $('#stateBox').html(html);
 }
 
 function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
   $('#report').hide();
   $('#bannerBox').html('');
   $('#stateBox').html('<div class="state"><div class="spinner"></div>'
@@ -347,7 +358,7 @@ function renderTable(data) {
     // Empty state: a single colspan cell. DataTables must NOT be (re)initialized
     // on this row - it would read 1 cell against the 13 <th> and abort with its
     // "Incorrect column count" warning (tn/18) on every empty filter result.
-    $('#tbl tbody').html('<tr><td colspan="13" style="color:#999;text-align:center;">'
+    $('#tbl tbody').html('<tr><td colspan="13" style="color:#5c6470;text-align:center;">'
       + esc(TLi18n.t('flaky.noRows')) + '</td></tr>');
     return;
   }
@@ -391,7 +402,7 @@ function fillFilters(filters, filter) {
   $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
 
   var minOpts = '';
-  $.each([1, 2, 3, 5, 10], function (i, v) {
+  $.each([1, 2, 3, 5, 10, 20, 50, 100], function (i, v) {
     minOpts += '<option value="' + v + '">' + v + '</option>';
   });
   $('#selMinExec').html(minOpts).val(String(filter && filter.min_exec ? filter.min_exec : 2));
@@ -425,6 +436,7 @@ function load() {
       return;
     }
     currentData = data;
+    $('#btnCsv').prop('disabled', false);
     fillFilters(data.filters, data.filter);
     renderSummary(data);
     renderBanner(data.summary);
@@ -448,12 +460,36 @@ function load() {
 
 /* ------------------------------------------------------------ history modal */
 
-function closeHistModal() {
-  $('#histModal').removeClass('show');
+var histTrigger = null;
+
+function setBackgroundInert(inert) {
+  // aria-modal="true" tells the assistive technology that the rest of the
+  // page is inert, so it must really be inert.
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
 }
 
-function openHistModal(tcv, name) {
+function closeHistModal() {
+  $('#histModal').removeClass('show');
+  setBackgroundInert(false);
+  if (histTrigger && histTrigger.length) {
+    histTrigger.trigger('focus');
+  }
+  histTrigger = null;
+}
+
+function openHistModal(tcv, name, trigger) {
+  histTrigger = trigger ? $(trigger) : null;
   $('#histModal').addClass('show');
+  setBackgroundInert(true);
+  $('.modalwin').trigger('focus');
   $('#histModalBody').html('<div class="hist-empty"><span class="spinner" style="border-color:#4ECDC4;border-top-color:transparent;display:inline-block;width:16px;height:16px;border-radius:50%;animation:spin .8s linear infinite;"></span> '
     + esc(TLi18n.t('flaky.loading')) + '</div>');
   var params = new URLSearchParams({ action: 'history', tplan_id: q('tplan_id'), tcversion_id: tcv });
@@ -522,7 +558,7 @@ function exportCsv() {
     TLi18n.t('flaky.colLastStatus'), TLi18n.t('flaky.colLastRun'), TLi18n.t('flaky.colBuilds')];
   var cell = function (v) {
     var t = String(v === null || v === undefined ? '' : v);
-    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
     return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   var lines = [$.map(head, cell).join(';')];
@@ -559,15 +595,32 @@ $(function () {
     if (e.target === this) { closeHistModal(); }
   });
   $(document).on('keydown', function (e) {
-    if (e.key === 'Escape') { closeHistModal(); }
+    if (e.key === 'Escape' && $('#histModal').hasClass('show')) { closeHistModal(); }
   });
+  // m2: keep the focus inside the modal while it is open
+  $('#histModal').on('keydown', function (e) {
+    if (e.key !== 'Tab') { return; }
+    var $f = $('.modalwin').find('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!$f.length) { return; }
+    var first = $f.first().get(0);
+    var last = $f.last().get(0);
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  $('#histModalClose').on('click', function () { closeHistModal(); });
   // Delegated: the table body is re-rendered on every filter change, so a
   // per-row handler would be lost after the first DataTables redraw.
   $('#tbl tbody').on('click', '.btn-hist', function () {
-    openHistModal(parseInt($(this).attr('data-tcv'), 10), $(this).attr('data-name'));
+    openHistModal(parseInt($(this).attr('data-tcv'), 10), $(this).attr('data-name'), this);
   });
   TLi18n.load(function () {
     TLi18n.apply();
+    document.title = TLi18n.t('flaky.title') + ' - TestLink 2.0.1';
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     load();
   });
