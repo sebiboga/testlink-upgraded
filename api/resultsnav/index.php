@@ -196,12 +196,27 @@ $bff = function ($action) use ($db, $user) {
                 continue;
             }
             $href = $items[$n]['href'];
-            if (isset($legacy2modern[$key]) && strpos($href, 'lib/') === 0) {
+            if (isset($legacy2modern[$key])
+                && (strpos($href, 'lib/') === 0 || strpos($href, 'gui/templates') === 0)) {
+                // the explicit map always wins: the legacy controllers and the
+                // modern screens that replace them (e.g. resultsMoreBuilds)
                 $href = '/' . $legacy2modern[$key] . '?' . $ctx;
-            } elseif (isset($legacy2modern[$key]) && strpos($href, 'gui/templates') === 0) {
-                // cfg already points at a modern screen (e.g. resultsMoreBuilds);
-                // root it and attach the shared context query
-                $href = '/' . $legacy2modern[$key] . '?' . $ctx;
+            } elseif (strpos(ltrim($href, '/'), 'gui/templates') === 0) {
+                // Refs #1955: a modernized report that is NOT listed in
+                // $legacy2modern keeps the relative cfg url ('gui/templates/...'),
+                // and the browser resolves it against this launcher page
+                // (/gui/templates/results/) -> /gui/templates/results/gui/templates/...
+                // -> 404. Root it and attach the shared context query.
+                $href = '/' . ltrim($href, '/');
+                $href = rtrim($href, '?&');
+                $href .= (strpos($href, '?') === false ? '?' : '&') . $ctx;
+            } elseif (strpos($href, 'http') !== 0 && strpos($href, '/') !== 0) {
+                // any other relative url (a custom report added by the
+                // administrator): root it too, the launcher page would resolve
+                // it against /gui/templates/results/ and answer 404
+                $href = '/' . ltrim($href, '/');
+                $href = rtrim($href, '?&');
+                $href .= (strpos($href, '?') === false ? '?' : '&') . $ctx;
             }
             $entry = array(
                 'key' => $key,

@@ -296,6 +296,28 @@ Every screen of the application was ported one-by-one in a screen-compare
   `docs/Flaky-Tests-Report-Modernized.md`, wiki page + 4 screenshots.
   Refs #1954.
 
+- [KEY BUGFIX] - #1955: the **Reports launcher** (`api/resultsnav/index.php`) served a
+  **relative** href for every modernized report whose key was missing from
+  `$legacy2modern`, so the browser resolved it against the launcher page
+  (`/gui/templates/results/`) and answered **404** - **8 already-modernized reports
+  were unreachable from "Metrics & Reports"**: `release_quality_gates`
+  (qualityGate.html), `performance_reports` (perfReports.html),
+  `automation_reports` (automationReports.html), `cicd_publish` (cicdPublish.html),
+  `defect_intelligence` (defectIntelligence.html), `strategy_report`
+  (strategyReport.html), `tcNotRunAnyPlatform` (tcNotRunAnyPlatform.html) and
+  `metrics_trends` (metricsTrends.html). Fix: when the cfg url already points at a
+  modern screen (`gui/templates/...`) and the key is not in `$legacy2modern`, the
+  href is **rooted** (`/`) and the shared context (`tplan_id`, `tproject_id`) is
+  attached; the legacy `lib/...` controllers keep using the explicit map, and the map
+  always wins for the keys it lists (e.g. `results_custom_query` ->
+  resultsMoreBuilds.html, the legacy controllers -> their modern screen); the trailing
+  `?` of the cfg url is normalised (no `?&`), an already absolute modern url keeps its
+  own query string and any other relative url (a custom report added by the
+  administrator) is rooted too. Verified: all 32 launcher entries now have an
+  absolute href and answer HTTP 200 (8 of them answered 404 before), the browser
+  opens the formerly broken reports, no regression for the mapped legacy reports.
+  Suite `Issue #1955` = 6/6 PASS in `tmp/TLU_Test_Cases.md`. (Fixes #1955)
+
 - [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
   (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
   instead of the table NAME, so the risk BFFs interpolated the literal

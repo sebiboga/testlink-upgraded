@@ -45040,3 +45040,81 @@ The unit of the report is the **test-case VERSION** (`tcversions.id` = the versi
 - Result: PASS
 
 **All parts PASS.** The verdict semantics (flaky = at least one pass AND one fail over at least `min_exec` executions, blocked never flaky, unproven below the threshold, not run when never executed), the re-scoping by build / platform / min. executions, the execution-history modal, the CSV export, the error contract and the rights check are the ones recorded in this suite.
+
+## Suite — Issue #1955: Reports launcher — every modernized report must be reachable (absolute href)
+
+Bug: `api/resultsnav/index.php` rewrote the `href` of a report **only** for the keys listed in
+`$legacy2modern`. A modernized report whose key is missing from that map kept the relative cfg
+url (`gui/templates/results/<screen>.html`), and the browser resolved it against the launcher page
+(`/gui/templates/results/`) → `/gui/templates/results/gui/templates/results/<screen>.html` → **404**.
+8 already-modernized reports were unreachable from **Metrics & Reports**:
+`release_quality_gates`, `performance_reports`, `automation_reports`, `cicd_publish`,
+`defect_intelligence`, `strategy_report`, `tcNotRunAnyPlatform`, `metrics_trends`.
+
+Fix (`api/resultsnav/index.php`): when the cfg url already points at a modern screen
+(`gui/templates/...`) and the key is not in `$legacy2modern`, the href is **rooted** (`/`) and the
+shared context (`tplan_id`, `tproject_id`) is attached; the legacy `lib/...` controllers keep using
+the explicit `$legacy2modern` map. A trailing `?` of the cfg url is normalised (no `?&`).
+
+Repro (the ids of the fixture change on every run — the plan/project are taken from the fixture output):
+
+```bash
+php tmp/fixtures_1954.php                     # project / plan / empty plan ids
+curl -s -c /tmp/ck.txt -b /tmp/ck.txt -X POST -d "tl_login=admin&tl_password=admin" \
+     "http://localhost:8082/login.php?action=doLogin" -o /dev/null
+curl -s -b /tmp/ck.txt -H "Origin: http://localhost:8082" \
+     "http://localhost:8082/api/resultsnav/index.php?action=init&tplan_id=<plan>&tproject_id=<project>"
+```
+
+### Test Case 1955-B.1: Every entry of the launcher list has an absolute href
+- When reading `api/resultsnav/index.php?action=init&tplan_id=<plan>&tproject_id=<project>`
+- Then **every** `reports[].href` starts with `/` (no relative href is left in the list).
+- Result: PASS
+
+### Test Case 1955-B.2: The 8 previously broken reports are listed with a rooted href
+- When reading the same launcher answer
+- Then `release_quality_gates` → `/gui/templates/results/qualityGate.html?tplan_id=..&tproject_id=..`,
+  `performance_reports` → `/gui/templates/results/perfReports.html?..`,
+  `automation_reports` → `/gui/templates/results/automationReports.html?..`,
+  `cicd_publish` → `/gui/templates/results/cicdPublish.html?..`,
+  `defect_intelligence` → `/gui/templates/results/defectIntelligence.html?..`,
+  `strategy_report` → `/gui/templates/results/strategyReport.html?..`,
+  `tcNotRunAnyPlatform` → `/gui/templates/results/tcNotRunAnyPlatform.html?..`,
+  `metrics_trends` → `/gui/templates/results/metricsTrends.html?..`
+  — every one of them **with** the `tplan_id` / `tproject_id` context, and none of them with a
+  doubled `?&`.
+- Result: PASS
+
+### Test Case 1955-B.3: No report of the launcher answers 404
+- When requesting every `reports[].href` of the launcher answer (32 entries of the fixture plan)
+- Then **all** of them answer **HTTP 200** (before the fix, 8 of them answered 404).
+- Result: PASS
+
+### Test Case 1955-B.4: No regression for the legacy controllers and for the mapped modern screens
+- When reading the launcher answer again
+- Then the legacy `lib/...` reports still resolve through `$legacy2modern`
+  (`test_plan` → `/gui/templates/results/reportPrint.html?..`, `metrics_tp_general` →
+  `/gui/templates/results/metricsDashboard.html?..`, `results_by_tsuite` →
+  `/gui/templates/results/resultsByTSuite.html?..`, …) and `results_custom_query` still points to
+  `/gui/templates/results/resultsMoreBuilds.html?..` (the explicit map wins over the generic rooting).
+- Result: PASS
+
+### Test Case 1955-B.5: The report of #1954 is still reachable from the launcher
+- When reading the launcher answer
+- Then `flaky_tests` → `/gui/templates/results/flakyTests.html?tplan_id=..&tproject_id=..` (HTTP 200) —
+  the entry added by #1954 keeps working after the generic rooting.
+- Result: PASS
+
+### Test Case 1955-B.6: The browser opens a formerly broken report from the launcher
+- When opening **Metrics & Reports** (`gui/templates/results/resultsNavigator.html`) of the fixture plan
+- Then the "Available reports" table shows **absolute** links for all the entries, and clicking
+  **Release Quality Gates** opens `gui/templates/results/qualityGate.html?tplan_id=..&tproject_id=..`
+  (the "Release decision" panel with the 6 gates is rendered) instead of the 404 page. The other 7
+  formerly broken entries are verified by requesting their href (case 1955-B.3 — all HTTP 200).
+- Result: PASS
+
+### Test Case 1955-B.7: No new Error/Warning in the Event Viewer
+- When counting the `events` rows with `log_level IN (1,2)` (ERROR, WARNING) before and after the
+  launcher sweep (the 32 href requests of case 1955-B.3)
+- Then the count does not increase — the launcher BFF logs nothing for a successful read.
+- Result: PASS
