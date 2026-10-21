@@ -162,6 +162,35 @@ Every screen of the application was ported one-by-one in a screen-compare
   re-save, no-tester, remove-only, send_mail #1920 regression, 0 new `log_level<16` events, browser
   assign panel, `php -l`). Refs #1922.
 
+- [SCREEN] - #1950 (parent #1087): the **Apache SOLR integration** screen
+  (`gui/templates/system/solrIntegration.html`, BFF `api/solr/index.php`) is the
+  smallest coherent slice of the unimplemented "Integration with Apache SOLR"
+  feature — neither 1.9.20 nor 2.0.1 shipped any SOLR support, so this is net-new
+  with no legacy twin. It adds a project-scoped SOLR connection (enable flag,
+  endpoint, core/collection, timeout 500–15000 ms), a **real connection test**
+  (`POST ?action=test` runs a `*:*` / `rows=0` query and persists
+  `last_test_ts/code/ok/latency_ms`) and a **search preview**
+  (`POST ?action=preview` lists the top 10 `id`/`title` documents with `numFound`
+  + latency). The BFF enforces session auth + `bffSameOriginGuard` +
+  `bffEnforceSession` and checks `mgt_view_tc` (reads) / `mgt_modify_tc` (writes)
+  on the ADDRESSED project BEFORE it is resolved (the #1697 no-oracle lesson);
+  the endpoint is http/https only, credentials/query/fragment refused, redirects
+  never followed, loopback/link-local/metadata targets blocked (`blocked_target`)
+  unless `$tlCfg->solrAllowLocalTargets` opts in, with a 512 KB response cap and
+  400/401/403/404/405/500/502 machine codes. New `tc_solr_config` table (lazy
+  `CREATE TABLE IF NOT EXISTS` + installer DDL + `object.class.php` whitelist);
+  writes emit `SOLR_CONFIG_SAVE` / `SOLR_TEST` AUDIT events. Wiring:
+  `$actions->solrIntegration` in `lib/functions/common.php`, the ASIDE System
+  entry after Webhook Subscriptions, `solr.*` (48) + `footers.solrIntegration`
+  in **all 10** client bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS) and
+  `$TLS_title_solr_integration` in **all 19** server locales. Browser-verified
+  (EN + RO): render, save (bad endpoint/core rejected), test (connection_failed),
+  preview, `blocked_target` SSRF refusal, 401/403/404/405 contract; console clean;
+  Event Viewer AUDIT-only. Suite `Issue #1950` = 14/14 PASS in
+  `tmp/TLU_Test_Cases.md` (gate 34 PASS / 0 FAIL). Fixture `tmp/fixtures_1950.php`.
+  Docs mirror `docs/SOLR-Integration-Modernized.md`, wiki page + 2 screenshots.
+  Refs #1950 / parent #1087.
+
 - [SCREEN] - #1927 (parent #1069): the **Test Data Sets** registry
   (`gui/templates/testdata/testDataSets.html`, BFF `api/testdata/index.php`) is the
   first slice of Test Data Management, added as a project-scoped ASIDE section
