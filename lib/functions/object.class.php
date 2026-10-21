@@ -298,6 +298,7 @@ abstract class tlObject implements iSerialization
                     'tc_test_environments',
                     'tc_test_type_coverage',
                     'tc_webhooks',
+                    'tc_solr_config',
                     'testproject_strategy_docs',
                     'test_closure',
                     'lessons_learned',

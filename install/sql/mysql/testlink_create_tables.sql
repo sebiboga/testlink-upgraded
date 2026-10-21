@@ -691,6 +691,21 @@ CREATE TABLE /*prefix*/tc_webhooks (
 ) DEFAULT CHARSET=utf8;
 
 
+CREATE TABLE /*prefix*/tc_solr_config (
+  `testproject_id` int(10) unsigned NOT NULL,
+  `enabled` tinyint(1) NOT NULL default '0',
+  `endpoint` varchar(500) NOT NULL default '',
+  `core_select` varchar(64) NOT NULL default '',
+  `timeout_ms` int(10) unsigned NOT NULL default '3000',
+  `update_ts` datetime default NULL,
+  `last_test_ts` datetime default NULL,
+  `last_test_code` int NOT NULL default '0',
+  `last_test_ok` tinyint(1) NOT NULL default '0',
+  `last_test_latency_ms` int NOT NULL default '0',
+  PRIMARY KEY  (`testproject_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
