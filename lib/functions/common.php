@@ -2310,6 +2310,12 @@ function getActions(&$gui,$baseURL) {
   // test deliveries; the BFF (api/webhooks) enforces session auth + same-origin
   // and mgt_view_tc (reads) / mgt_modify_tc (writes) on the ADDRESSED project.
   $actions->webhooks = "/gui/templates/system/webhooks.html?{$ctx}";
+  // Apache SOLR integration modernized screen (Dashio standalone page) -
+  // Refs #1950 (parent #1087). Project-scoped SOLR connection (endpoint, core,
+  // timeout), a real connection test and a search preview; the BFF (api/solr)
+  // enforces session auth + same-origin and mgt_view_tc (reads) /
+  // mgt_modify_tc (writes) on the ADDRESSED project.
+  $actions->solrIntegration = "/gui/templates/system/solrIntegration.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

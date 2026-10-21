@@ -218,3 +218,4 @@ $TLS_audit_cfield_monitorable_on = "Custom field '{%1}' was set MONITORABLE on T
 $TLS_audit_cfield_monitorable_off = "Custom field '{%1}' was set NOT MONITORABLE on Test Project '{%2}'"; // Refs #1820
 $TLS_title_cicd_hub = "Integrare CI/CD"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Abonamente webhook"; // Webhook subscriptions manager (Refs #1946)
+$TLS_title_solr_integration = "Integrare SOLR"; // Apache SOLR integration (Refs #1950)

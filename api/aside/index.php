@@ -377,6 +377,14 @@ if ($show('system')) {
         $items[] = array('id' => 'webhooks', 'label' => lang_get('title_webhooks'),
                          'href' => (string)$u('webhooks'));
     }
+    // Refs #1950 (parent #1087): Apache SOLR integration. Reads need
+    // mgt_view_tc (menuGrants key view_tc); the BFF additionally enforces
+    // mgt_view_tc (plus mgt_modify_tc for writes) on the ADDRESSED project.
+    if ($gm('view_tc') === 'yes') {
+        $items[] = array('id' => 'solrIntegration',
+                         'label' => lang_get('title_solr_integration'),
+                         'href' => (string)$u('solrIntegration'));
+    }
     if (count($items) > 0) {
         $sections[] = array('key' => 'system', 'label' => lang_get('system'),
                             'icon' => 'fa fa-desktop', 'items' => $items);

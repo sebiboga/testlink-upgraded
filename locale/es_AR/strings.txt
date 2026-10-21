@@ -3258,3 +3258,4 @@ $TLS_href_test_strategy_doc = "Documentos de estrategia de prueba"; // Test Stra
 $TLS_href_test_strategy_coverage = "Cobertura de tipos de prueba";
 $TLS_title_cicd_hub = "Integración CI/CD"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Suscripciones webhook"; // Webhook subscriptions manager (Refs #1946)
+$TLS_title_solr_integration = "Integración SOLR"; // Apache SOLR integration (Refs #1950)

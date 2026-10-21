@@ -2192,3 +2192,4 @@ $TLS_href_test_strategy_doc = "Testistrategiadokumentit"; // Test Strategy Docum
 $TLS_href_test_strategy_coverage = "Testityyppien kattavuus";
 $TLS_title_cicd_hub = "CI/CD-integraatio"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Webhook-tilaukset"; // Webhook subscriptions manager (Refs #1946)
+$TLS_title_solr_integration = "SOLR-integraatio"; // Apache SOLR integration (Refs #1950)

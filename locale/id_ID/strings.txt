@@ -2934,3 +2934,4 @@ $TLS_href_test_strategy_doc = "Dokumen Strategi Pengujian"; // Test Strategy Doc
 $TLS_href_test_strategy_coverage = "Cakupan jenis pengujian";
 $TLS_title_cicd_hub = "Integrasi CI/CD"; // CI/CD Integration hub (Refs #1940)
 $TLS_title_webhooks = "Langganan webhook"; // Webhook subscriptions manager (Refs #1946)
+$TLS_title_solr_integration = "Integrasi SOLR"; // Apache SOLR integration (Refs #1950)
