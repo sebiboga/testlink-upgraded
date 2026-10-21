@@ -235,15 +235,25 @@ function ecvCriteria($db, $t, $tpid)
         "SELECT * FROM {$t} WHERE testproject_id = " . intval($tpid) .
         " ORDER BY FIELD(test_level, {$levelOrder}), name ASC");
     $items = array();
+    $knownMetrics = ecvMetrics();
     foreach ($rows as $r) {
         $target = $r['target_value'];
+        $metric = (string)$r['metric'];
+        if (!in_array($metric, $knownMetrics, true)) {
+            // A metric outside the catalogue must NEVER be auto-judged: it is
+            // downgraded to the free-text (manual) criterion. It also keeps the
+            // metric map lookup below safe - an unknown key would raise a PHP 8
+            // "Undefined array key" warning, which watchPHPErrors() writes to
+            // the events table, and the criterion would be silently judged met.
+            $metric = 'none';
+        }
         $items[] = array(
             'id' => intval($r['id']),
             'name' => (string)$r['name'],
             'level' => (string)$r['test_level'],
             'entry_criteria' => (string)($r['entry_criteria'] ?? ''),
             'exit_criteria' => (string)($r['exit_criteria'] ?? ''),
-            'metric' => (string)$r['metric'],
+            'metric' => $metric,
             'target_value' => ($target === null || $target === '') ? null : (float)$target,
         );
     }
@@ -379,8 +389,23 @@ if ($tplanId <= 0) {
     ecvFail(400, 'invalid_request', 'Missing or invalid tplan_id');
 }
 
-// 1. resolve the plan (opaque 404 when missing) BEFORE any right probe
+// 1. resolve the plan.
+//    When the client asserts a test project, the right on THAT project is
+//    checked FIRST: an unentitled caller then gets the same 403 for every
+//    tplan_id, so the endpoint cannot be used as a test-plan-existence
+//    oracle. The plan itself is resolved afterwards and a plan of another
+//    project is reported as 404 project_mismatch (the sibling keywordbarchart
+//    convention).
+//    Without an asserted project the owning project has to be discovered
+//    first - a plan the caller may not see then answers with the SAME opaque
+//    404 as a missing plan (never a 403), so no plan id can be enumerated.
 $tblPlans = tlObjectWithDB::getDBTables(array('testplans'));
+if ($assertedProjectId > 0 && !ecvCanView($user, $db, $assertedProjectId)) {
+    tLog('BFF exitcriteriaevaluation: user ' . intval($userId) .
+        ' has no view right on tproject ' . intval($assertedProjectId) .
+        ' (tplan ' . $tplanId . ')', 'AUDIT');
+    ecvFail(403, 'no_right', 'No permission to view the exit criteria');
+}
 $planRow = $db->get_recordset(
     "SELECT id, testproject_id FROM {$tblPlans['testplans']} WHERE id = " . intval($tplanId));
 if (!is_array($planRow) || count($planRow) === 0) {
@@ -396,7 +421,12 @@ if (!ecvCanView($user, $db, $owningProjectId)) {
     tLog('BFF exitcriteriaevaluation: user ' . intval($userId) .
         ' has no view right on tproject ' . $owningProjectId .
         ' (tplan ' . $tplanId . ')', 'AUDIT');
-    ecvFail(403, 'no_right', 'No permission to view the exit criteria');
+    if ($assertedProjectId > 0) {
+        ecvFail(403, 'no_right', 'No permission to view the exit criteria');
+    }
+    // Opaque 404 (no asserted project): the caller must not be able to tell an
+    // existing - but not visible - plan from a missing one.
+    ecvFail(404, 'tplan_not_found', 'Test plan not found');
 }
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $tplanId, true)) {
     tLog('BFF exitcriteriaevaluation: user ' . intval($userId) .
@@ -657,17 +687,21 @@ foreach ($criteria as $it) {
             $direction = 'lte';
         }
         if ($metric === 'req_coverage' && !$reqEnabled) {
+            // Requirement coverage cannot be computed at all in this project.
             $status = 'na';
+            $actual = null;
+        } elseif ($target === null) {
+            // No target recorded: the criterion cannot be judged, so it has NO
+            // actual value either - an unjudged criterion must never look like
+            // a measured one (the table would show a number next to "Not
+            // evaluated", the modal would show no comparison).
+            $status = 'na';
+            $actual = null;
         } else {
             $actual = $actualByMetric[$metric];
-            if ($target === null) {
-                // No target recorded: the criterion cannot be judged.
-                $status = 'na';
-            } else {
-                $status = ($direction === 'gte')
-                    ? (($actual >= $target) ? 'met' : 'not_met')
-                    : (($actual <= $target) ? 'met' : 'not_met');
-            }
+            $status = ($direction === 'gte')
+                ? (($actual >= $target) ? 'met' : 'not_met')
+                : (($actual <= $target) ? 'met' : 'not_met');
         }
     } else {
         $summary['manual']++;
@@ -682,17 +716,24 @@ foreach ($criteria as $it) {
     }
 
     $lvl = $it['level'];
-    if (isset($levels[$lvl])) {
-        $levels[$lvl]['total']++;
-        if ($status === 'met') {
-            $levels[$lvl]['met']++;
-        } elseif ($status === 'not_met') {
-            $levels[$lvl]['not_met']++;
-        } elseif ($status === 'na') {
-            $levels[$lvl]['na']++;
-        } else {
-            $levels[$lvl]['manual']++;
-        }
+    if (!isset($levels[$lvl])) {
+        // A level outside the catalogue (only reachable by writing directly to
+        // the DB) still gets its own row, so the per-level counts always add
+        // up to the total number of criteria.
+        $levels[$lvl] = array(
+            'level' => $lvl, 'total' => 0, 'met' => 0, 'not_met' => 0,
+            'manual' => 0, 'na' => 0,
+        );
+    }
+    $levels[$lvl]['total']++;
+    if ($status === 'met') {
+        $levels[$lvl]['met']++;
+    } elseif ($status === 'not_met') {
+        $levels[$lvl]['not_met']++;
+    } elseif ($status === 'na') {
+        $levels[$lvl]['na']++;
+    } else {
+        $levels[$lvl]['manual']++;
     }
 
     $rows[] = array(
@@ -710,16 +751,23 @@ foreach ($criteria as $it) {
     );
 }
 
-$summary['met_pct'] = ($summary['measurable'] > 0)
-    ? round(($summary['met'] * 100) / $summary['measurable'], 1) : 0.0;
+// Only the criteria that could really be JUDGED take part in the percentage:
+// a manual or a not-evaluated criterion must not dilute the result.
+$summary['evaluated'] = $summary['met'] + $summary['not_met'];
+$summary['met_pct'] = ($summary['evaluated'] > 0)
+    ? round(($summary['met'] * 100) / $summary['evaluated'], 1) : 0.0;
 
 // ---------------------------------------------------------------------------
 // 5. Verdict.
 // ---------------------------------------------------------------------------
 if ($total === 0) {
     $verdict = 'no_data';       // the plan carries no assignment at all
-} elseif ($summary['measurable'] === 0) {
-    $verdict = 'manual';        // only free-text criteria - a human decides
+} elseif ($summary['measurable'] === 0 || $summary['evaluated'] === 0) {
+    // NOTHING could be judged automatically: only free-text criteria, or only
+    // criteria without a target / with a metric that cannot be computed in
+    // this project. A human has to decide - the plan is NOT a pass, so the
+    // verdict is "manual review", never "ready".
+    $verdict = 'manual';
 } elseif ($summary['not_met'] > 0) {
     $verdict = 'not_ready';
 } else {

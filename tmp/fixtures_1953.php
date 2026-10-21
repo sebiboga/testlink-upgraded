@@ -25,7 +25,12 @@
 //       acceptance  EV No Target   metric=progress      target=NULL -> N/A
 //       release     EV Coverage    metric=req_coverage  target=50   -> N/A (reqs disabled)
 //   tproject ECV1953 EMPTY (prefix EM) -> no criteria at all -> empty state
-//
+//   tproject ECV1953 NA ONLY (prefix EN) -> every MEASURABLE criterion is NOT
+//     EVALUATED (one without a target, one whose metric cannot be computed
+//     because requirements are disabled) -> the verdict must be "manual
+//     review", NEVER "ready" (the criteria were never judged).
+//     suite "EN Root" -> tcase EN One (no execution) -> plan "EN Plan"
+
 //   user ecvnorights (role 3) -> the 403 path
 //
 // Run from repo root: php tmp/fixtures_1953.php
@@ -82,12 +87,17 @@ $idP = mk1953Project($tprojMgr, 'ECV1953', 'EV',
     'fixture for #1953 (exit criteria evaluation)', 0);
 $idEmpty = mk1953Project($tprojMgr, 'ECV1953 EMPTY', 'EM',
     'fixture for #1953 - project without exit criteria', 0);
+$idNa = mk1953Project($tprojMgr, 'ECV1953 NA ONLY', 'EN',
+    'fixture for #1953 - every measurable criterion is NOT evaluated', 0);
 
 $idPlan = intval($tplanMgr->create('EV Plan', '', $idP, 1, 1));
 echo "testplan EV Plan=$idPlan\n";
 
 $idPlanEmpty = intval($tplanMgr->create('EM Plan', '', $idEmpty, 1, 1));
 echo "testplan EM Plan=$idPlanEmpty\n";
+
+$idPlanNa = intval($tplanMgr->create('EN Plan', '', $idNa, 1, 1));
+echo "testplan EN Plan=$idPlanNa\n";
 
 // ---------------------------------------------------------------------------
 // Test cases
@@ -158,6 +168,34 @@ $db->exec_query(
         (testplan_id, author_id, creation_ts, tcversion_id, platform_id, node_order)
      VALUES ($idPlan, $userId, NOW(), " . intval($versions['EV Fail']['tcv']) . ", $platform1, 1)");
 echo "assigned " . (count($versions) + 2) . " assignment rows to plan $idPlan\n";
+
+// ---------------------------------------------------------------------------
+// The NA ONLY project: one suite, one assigned (never executed) test case, so
+// the plan carries an assignment (the verdict is not "no data") but no
+// criterion of it can ever be judged.
+// ---------------------------------------------------------------------------
+$retSNa = $tsuiteMgr->create($idNa, 'EN Root', '', null, 0, 'allow_repeat');
+$idRootNa = intval($retSNa['id'] ?? 0);
+echo "suite EN Root=$idRootNa\n";
+$makeTcaseNa = function ($name) use ($tcaseMgr, $idRootNa, $userId) {
+    $ret = $tcaseMgr->create($idRootNa, $name, 'summary of ' . $name, '', mk1953Steps(),
+        $userId, '', testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
+        TESTCASE_EXECUTION_TYPE_MANUAL);
+    if (!$ret['status_ok'] || $ret['id'] <= 0) {
+        die("tcase create failed for $name: " . ($ret['message'] ?? '') . "\n");
+    }
+    if (intval($ret['tcversion_id'] ?? 0) <= 0) {
+        die("tcase create returned no version for $name\n");
+    }
+    return array(intval($ret['id']), intval($ret['tcversion_id']));
+};
+list($tcNa, $tcvNa) = $makeTcaseNa('EN One');
+echo "tcase EN One tc=$tcNa version=$tcvNa\n";
+$db->exec_query(
+    "INSERT INTO {$tables['testplan_tcversions']}
+        (testplan_id, author_id, creation_ts, tcversion_id, platform_id, node_order)
+     VALUES ($idPlanNa, $userId, NOW(), " . intval($tcvNa) . ", 0, 1)");
+echo "assigned 1 assignment row to plan $idPlanNa\n";
 
 // ---------------------------------------------------------------------------
 // Builds + executions
@@ -240,6 +278,24 @@ $db->exec_query("INSERT INTO {$tct} (testproject_id, name, test_level, entry_cri
     "exit_criteria, metric, target_value, created_by, update_ts) VALUES " . implode(',', $sql));
 echo "exit criteria rows: " . count($criteria) . "\n";
 
+// The NA ONLY project: both criteria carry a MEASURABLE metric, but neither
+// can be judged - one has no target, the other one needs requirements (which
+// are disabled here). The verdict must therefore be "manual review".
+$naCriteria = array(
+    array('EN No Target', 'system', 'progress', null, 'Entry: UAT ready', 'Exit: UAT executed'),
+    array('EN Coverage', 'release', 'req_coverage', '50', 'Entry: release candidate', 'Exit: 50% requirement coverage'),
+);
+$sqlNa = array();
+foreach ($naCriteria as $c) {
+    $target = ($c[3] === null) ? 'NULL' : floatval($c[3]);
+    $sqlNa[] = "($idNa, '" . $db->prepare_string($c[0]) . "', '" . $db->prepare_string($c[1]) .
+        "', '" . $db->prepare_string($c[4]) . "', '" . $db->prepare_string($c[5]) . "', '" .
+        $db->prepare_string($c[2]) . "', $target, $userId, NOW())";
+}
+$db->exec_query("INSERT INTO {$tct} (testproject_id, name, test_level, entry_criteria, " .
+    "exit_criteria, metric, target_value, created_by, update_ts) VALUES " . implode(',', $sqlNa));
+echo "NA ONLY exit criteria rows: " . count($naCriteria) . "\n";
+
 // ---------------------------------------------------------------------------
 // A user with NO rights at all (role 3) -> the 403 path.
 // ---------------------------------------------------------------------------
@@ -254,5 +310,5 @@ $db->exec_query("INSERT INTO {$TBU['users']}
           auth_method=VALUES(auth_method)");
 echo "user ecvnorights ready (role 3)\n";
 
-echo "DONE. ids: project=$idP emptyProject=$idEmpty plan=$idPlan planEmpty=$idPlanEmpty " .
-    "build1=$build1 build2=$build2 platform1=$platform1\n";
+echo "DONE. ids: project=$idP emptyProject=$idEmpty naProject=$idNa plan=$idPlan planEmpty=$idPlanEmpty " .
+    "planNa=$idPlanNa build1=$build1 build2=$build2 platform1=$platform1\n";

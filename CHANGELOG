@@ -228,6 +228,31 @@ Every screen of the application was ported one-by-one in a screen-compare
   `docs/Exit-Criteria-Evaluation-Modernized.md`, wiki page + 3 screenshots.
   Refs #1953 / parent #1088.
 
+- [KEY BUGFIX] - #1953: the **Exit Criteria Evaluation** screen
+  (`gui/templates/strategy/exitCriteriaEvaluation.html`, BFF
+  `api/exitcriteriaevaluation/index.php`) was corrected after its code review:
+  a criterion **without a target value** was judged as met (it now answers
+  "Not evaluated" with an empty actual value), the VERDICT said "ready" when
+  **nothing could be judged** (the BFF now also reports `evaluated = met +
+  not_met` and answers `manual` - a human has to decide - when `evaluated = 0`
+  or no criterion is measurable), the **Met %** tile was diluted by criteria
+  that were never judged (the denominator is now `evaluated`), an **unknown
+  metric id** crashed the evaluation with an `Undefined array key` warning and
+  was silently judged as met (the metric is now sanitized to `none` = manual
+  review), a plan the caller may not see **leaked its existence** (it now
+  answers the same opaque `404 tplan_not_found` as a plan that does not exist;
+  only an asserted project the caller may not see answers `403 no_right`), and
+  a criterion on an **unknown test level** was dropped from the "By test level"
+  breakdown (it now gets its own row, so the level totals add up). The screen
+  also lost the dead client-side criteria filter, gained the missing
+  **accessibility** wiring (the four toolbar selects, the six modal fields, the
+  per-row action button, the two DataTables search inputs, the `main` landmark
+  and the shared locale switcher, labelled with the new `common.language` key
+  in all 10 bundles), and its DataTables pagination / "entries per page" menu
+  are now localized. Suite `Issue #1953 (review fixes)` = 12/12 PASS in
+  `tmp/TLU_Test_Cases.md`. Docs mirror
+  `docs/Exit-Criteria-Evaluation-Modernized.md`. Refs #1953 / parent #1088.
+
 - [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
   (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
   instead of the table NAME, so the risk BFFs interpolated the literal

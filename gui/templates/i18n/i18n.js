@@ -213,7 +213,12 @@ var TLi18n = (function() {
   // Locales sharing a bundle code (en_GB/en_US, pt_PT/pt_BR) collapse to one
   // entry, because the switcher picks a bundle rather than a TestLink locale.
   function buildLocaleSwitcher(currentLocale, items) {
-    var html = '<select id="tl-locale-switcher" style="background:#333;color:#fff;border:1px solid #555;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">';
+    // The switcher is a bare <select> without a visible label, so it needs an
+    // accessible name (axe "select-name" / Lighthouse "select-name").
+    var html = '<select id="tl-locale-switcher" aria-label="' +
+      String($('<div>').text(t('common.language')).html())
+        .replace(/"/g, '&quot;') +
+      '" style="background:#333;color:#fff;border:1px solid #555;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">';
 
     // When several locales share a bundle, show the one whose region matches
     // the language (es_ES over es_AR, pt_PT over pt_BR) rather than whichever

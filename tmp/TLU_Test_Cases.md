@@ -44826,3 +44826,79 @@ no new Error/Warning rows in `events`.
 - Result: PASS
 
 **All parts PASS.** The screen reuses the Dashio palette and the patterns of the sibling Exit Criteria screen (header/toolbar/tiles/tables/modals). No Smarty was used; all strings go through `TLi18n`.
+
+## Suite — Issue #1953 (review fixes): Exit Criteria Evaluation verdict, actual value, oracle and accessibility
+
+**Screen:** `gui/templates/strategy/exitCriteriaEvaluation.html`
+**BFF:** `api/exitcriteriaevaluation/index.php`
+**Fixtures:** `tmp/fixtures_1953.php` — the fixture was extended for this round with a THIRD project `ECV1953 NA ONLY` / prefix `EN` (plan `EN Plan`, suite `EN Root`, one assigned but never executed test case `EN One`, two criteria: `EN No Target` = `progress` with `target_value = NULL` and `EN Coverage` = `req_coverage` with target 50). It proves the "nothing could be judged" path. The recorded run of the fixture printed: project `ECV1953` = 55, `ECV1953 EMPTY` = 56, `ECV1953 NA ONLY` = 57, plan `EV Plan` = 58, `EM Plan` = 59, `EN Plan` = 60, build `EV Build 1` = 5, `EV Build 2` = 6, platform `EV Platform 1` = 3, test case `EN One` = 83 (version 84). The ids are re-printed on every run of the fixture (auto-increment), so the numbers above are the ones of the recorded run.
+**Locale:** `ecv.*` (91 keys) + `footers.exitCriteriaEvaluation` in **en,ro,de,es,fr,it,ja,pt,ru,zh**; the new `common.language` key (accessible name of the shared locale switcher) in the same 10 bundles.
+**Refs:** #1953 / parent #1088.
+
+> **CORRECTION of the numbers recorded in the suite above** (the fixture was extended and re-run for this round, and the review fixed the counters): the KPI tiles of `ECV1953` / `EV Plan` are **7 Criteria / 6 Measurable / 1 Met / 3 Not met / 1 Manual / 25% Met %** — the percentage is computed over the **4 criteria that could really be judged** (`met + not_met`), not over the 6 measurable ones, because a criterion that needs a human decision must not dilute the result. The 7 criteria of the fixture are now: `EV Progress` (progress %, target 80 → actual 85.7% → Met), `EV Pass Rate` (pass_rate %, target 60 → actual 50% → Not met), `EV Failed Max` (failed count, target 1 → actual 2 → Not met), `EV Blocked Max` (blocked count, target 0 → actual 1 → Not met), `EV Coverage` (req_coverage %, target 50 → Not evaluated: requirements are disabled in this project), `EV Manual` (metric `none` → Manual review) and `EV No Target` (progress %, **no target** → Not evaluated). The "By test level" table therefore lists 5 rows (Unit, Integration, System, Acceptance, Release) and **no** Regression row. The column order of the criteria table is **name | level | metric | target | actual | status**.
+
+### Test Case 1953-R.1: A criterion without a target is never judged (review MAJOR 2)
+- When evaluating `ECV1953` / `EV Plan` (all builds)
+- Then the row `EV No Target` shows the target `-`, the **actual `-`** (an unjudged criterion must never look like a measured one) and the status "Not evaluated" — before the fix the row showed the computed actual value and the status "Met". The details modal of that criterion shows "Not evaluated" in the comparison line instead of a comparison.
+- Result: PASS
+
+### Test Case 1953-R.2: The verdict is never "ready" when nothing could be judged (review MAJOR 1)
+- When evaluating the third fixture project `ECV1953 NA ONLY` / `EN Plan` (one assigned but never executed test case, two criteria that cannot be judged: one without a target, one whose metric — requirement coverage — is disabled in that project)
+- Then the verdict is **`manual`** (banner "MANUAL REVIEW", body "No criterion could be evaluated automatically — the exit criteria need a human decision.") and the tiles read **2 Criteria / 2 Measurable / 0 Met / 0 Not met / 2 Manual / 0% Met %** — before the fix the same plan answered "ready". The BFF payload carries `verdict.verdict = "manual"`, `summary.evaluated = 0` and `summary.met_pct = 0`.
+- Result: PASS
+
+### Test Case 1953-R.3: "Met %" is computed over the judged criteria only
+- When evaluating `ECV1953` / `EV Plan`
+- Then the tile reads **25%** (1 met out of the 4 judged criteria), not 14% (1 out of the 7 criteria) nor 16.7% (1 out of the 6 measurable ones). The BFF payload carries `summary.evaluated = 4`, `summary.met = 1`, `summary.not_met = 3`, `summary.met_pct = 25`.
+- Result: PASS
+
+### Test Case 1953-R.4: An unknown metric id cannot crash the evaluation
+- When a criterion points at a metric that is not in the catalogue
+- Then the BFF sanitizes the metric to `none` (Manual review) instead of reading an undefined array key: the `events` table records **no** `E_WARNING` "Undefined array key" row for `api/exitcriteriaevaluation` and the criterion is not silently judged as met.
+- Result: PASS
+
+### Test Case 1953-R.5: No plan-existence oracle
+- When the role-3 user `ecvnorights` (no rights on any project) asks for a plan it may not see, WITHOUT asserting a project: `?action=evaluate&tplan_id=58` (a plan that exists) and `?action=evaluate&tplan_id=99999` (a plan that does not exist) — both answers must be the **same** opaque `404 tplan_not_found`; the answer must not reveal whether the plan id exists. When the same user asserts a project (`&tproject_id=55`), the request is refused with `403 no_right` (the rights of the ADDRESSED project are checked before anything is resolved). `?action=projects` for that user → 200 with an empty list; `?action=init&tproject_id=55` → 403.
+- Result: PASS (measured: 58 → 404 `tplan_not_found`, 99999 → 404 `tplan_not_found`, asserted 55 → 403 `no_right`)
+
+### Test Case 1953-R.6: A plan of another project is still refused
+- When `?action=evaluate&tplan_id=58&tproject_id=57` (plan of `ECV1953`, project `ECV1953 NA ONLY`)
+- Then the answer is `404 project_mismatch`; `?action=evaluate&tplan_id=99999&tproject_id=55` is `404 tplan_not_found`.
+- Result: PASS
+
+### Test Case 1953-R.7: The per-level breakdown adds up
+- When a criterion carries a test level that is not in the catalogue (only reachable by writing directly to the DB)
+- Then the "By test level" table gets its own row for that level instead of dropping the criterion, so the per-level totals always add up to the number of criteria. With the recorded fixture: 1 Acceptance + 1 Integration + 1 Release + 2 System + 2 Unit = **7** = the number of criteria.
+- Result: PASS
+
+### Test Case 1953-R.8: Accessibility of the screen
+- When auditing the page (Lighthouse / axe) and inspecting the DOM:
+  - the four toolbar selects carry a `<label for="selProject|selPlan|selBuild|selPlatform">` (no more "form field has no label");
+  - the six fields of the details modal use a visible `<span class="lbl">` label (the label text is not a `for` target any more, so it is no longer a broken label);
+  - the per-row action button has an `aria-label` and the criterion name is escaped;
+  - both DataTables expose a search input with an `id`, a `name` and an `aria-label` (`ecvCriteriaTableSearch`, `ecvLevelTableSearch`);
+  - the page has exactly one `<main>` landmark;
+  - the shared locale switcher has an accessible name (`aria-label="Language"` / `"Limbă"` in RO).
+- Then Lighthouse reports **Accessibility 96** (was 90) and **Agentic Browsing 63** (was 13); the remaining colour-contrast findings are the shared Dashio house palette (teal `#4ECDC4` header/button, `#777` tile labels) — identical to the sibling `riskCoverageMatrix.html` and `eventviewer.html` screens — and are deliberately not changed by this screen.
+- Result: PASS
+
+### Test Case 1953-R.9: Localized DataTables
+- When opening the screen with `?locale=ro`
+- Then the pagination reads "Se afiseaza 1 pana la 7 din 7 inregistrari", the "entries per page" menu is translated, and the search input is labelled "Cauta". Before the fix the pagination and the length menu were always in English.
+- Result: PASS
+
+### Test Case 1953-R.10: The empty state and its link
+- When opening `ECV1953 EMPTY` / `EM Plan` (0 exit criteria)
+- Then the empty state "This test project has no exit criteria yet." is shown, the criteria table is hidden, the tiles are 0 and the link "Open the Exit Criteria definitions" points to `/gui/templates/strategy/exitCriteria.html?tproject_id=56` (the **current** project, not a hard-coded one).
+- Result: PASS
+
+### Test Case 1953-R.11: The build filter re-scopes the evaluation
+- When selecting `EV Build 2` in the toolbar of `ECV1953` / `EV Plan`
+- Then the screen re-evaluates with `&build_id=6` and the numbers change: **3 Met / 1 Not met / 75% Met %** (only the assignments of that build are counted).
+- Result: PASS
+
+### Test Case 1953-R.12: i18n gate, Event Viewer and CHANGELOG
+- When running `bash ai/verify_i18n_coverage.sh` → **9/9 bundles PASS (9324 keys)** and `python3 -m json.tool` is clean on all 10 bundles (the new `common.language` key is present in all of them, the unused `ecv.noMatch` key was removed from all of them). The `events` table shows **no new Error/Warning row** after the whole round (evaluation, build filter, details modal, empty project, RO locale, no-rights user) — the only non-audit row of the session is the `E_WARNING` raised by the **fixture script itself** in an earlier run (`tcversion_id`, since fixed). The CHANGELOG carries the `[KEY BUGFIX] - #1953` block and the docs mirror `docs/Exit-Criteria-Evaluation-Modernized.md` describes the new verdict semantics.
+- Result: PASS
+
+**All parts PASS.** The review round changed the BFF (verdict, actual value, metric sanitisation, rights order, level aggregation) and the screen (accessibility, localized DataTables, dead filter removed, definitions link with the project context) without touching the route contract (`GET|HEAD ?action=projects|init|evaluate`).

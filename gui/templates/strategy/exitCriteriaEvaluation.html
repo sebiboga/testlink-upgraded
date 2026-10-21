@@ -70,6 +70,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 .badge-level-acceptance { background: #5cb85c; }
 .badge-level-regression { background: #e6b34d; }
 .badge-level-release { background: #22242a; }
+.badge-level-unknown { background: #95a5a6; }
 .badge-metric { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #eceff1; color: #444; }
 .badge-status { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .badge-status-met { background: #dff3f2; color: #0d7a74; }
@@ -91,7 +92,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 .modal-header .close { color: #fff; opacity: .8; }
 .modal-title { font-size: 15px; font-weight: 700; }
 .form-row { margin-bottom: 12px; }
-.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row label, .form-row .lbl { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
 .form-row .val { border: 1px solid #e4e4e4; border-radius: 4px; padding: 7px 9px; font-size: 13px; background: #fafafa; white-space: pre-wrap; word-break: break-word; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
 .toast.err { background: #e05c5c; }
@@ -107,6 +108,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <span id="localeSwitcher" style="float:right;"></span>
 </div>
 
+<main>
 <div class="state-card" id="stateCard">
   <h3 id="stateTitle"></h3>
   <p id="stateBody"></p>
@@ -115,13 +117,13 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 
 <div id="mainArea" style="display:none;">
   <div class="toolbar">
-    <label data-i18n="ecv.project">Test project</label>
+    <label for="selProject" data-i18n="ecv.project">Test project</label>
     <select id="selProject" onchange="onProjectChange()"></select>
-    <label data-i18n="ecv.plan">Test plan</label>
+    <label for="selPlan" data-i18n="ecv.plan">Test plan</label>
     <select id="selPlan" onchange="onPlanChange()"></select>
-    <label data-i18n="ecv.build">Build</label>
+    <label for="selBuild" data-i18n="ecv.build">Build</label>
     <select id="selBuild" onchange="runEvaluation()"></select>
-    <label data-i18n="ecv.platform">Platform</label>
+    <label for="selPlatform" data-i18n="ecv.platform">Platform</label>
     <select id="selPlatform" onchange="runEvaluation()"></select>
     <button class="btn-teal" id="btnEvaluate" onclick="runEvaluation()"><i class="fa fa-play"></i> <span data-i18n="ecv.evaluate">Evaluate</span></button>
     <button class="btn-dark" onclick="reload()"><i class="fa fa-refresh"></i> <span data-i18n="ecv.refresh">Refresh</span></button>
@@ -197,9 +199,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       <div class="table-wrap">
         <div id="emptyState" class="empty-state" style="display:none;">
           <div data-i18n="ecv.noCriteria">This test project has no exit criteria yet.</div>
-          <div style="margin-top:12px;"><a href="/gui/templates/strategy/exitCriteria.html" target="_blank" data-i18n="ecv.openDefinitions">Open the Exit Criteria definitions</a></div>
+          <div style="margin-top:12px;"><a id="definitionsLink" href="/gui/templates/strategy/exitCriteria.html" target="_blank" data-i18n="ecv.openDefinitions">Open the Exit Criteria definitions</a></div>
         </div>
-        <div id="noMatch" class="empty-state" style="display:none;" data-i18n="ecv.noMatch">No criterion matches the current filters.</div>
         <table id="dataTable" class="display" style="width:100%">
           <thead>
             <tr>
@@ -218,10 +219,10 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
     </div>
   </div>
-</div>
+</main>
 
 <div class="footer" id="footerText"></div>
-<div class="footer"><span data-i18n="footers.exitCriteriaEvaluation">Exit Criteria Evaluation — TestLink</span></div>
+<div class="footer"><span data-i18n="footers.exitCriteriaEvaluation">TestLink 2.0.1 - Exit Criteria Evaluation</span></div>
 
 <!-- Criterion details modal -->
 <div class="modal fade" id="detailModal" tabindex="-1">
@@ -233,27 +234,27 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       </div>
       <div class="modal-body">
         <div class="form-row">
-          <label data-i18n="ecv.colLevel">Test level</label>
+          <span class="lbl" data-i18n="ecv.colLevel">Test level</span>
           <div class="val" id="dLevel"></div>
         </div>
         <div class="form-row">
-          <label data-i18n="ecv.colMetric">Metric</label>
+          <span class="lbl" data-i18n="ecv.colMetric">Metric</span>
           <div class="val" id="dMetric"></div>
         </div>
         <div class="form-row">
-          <label data-i18n="ecv.detailsComparison">Comparison</label>
+          <span class="lbl" data-i18n="ecv.detailsComparison">Comparison</span>
           <div class="val" id="dCompare"></div>
         </div>
         <div class="form-row">
-          <label data-i18n="ecv.colStatus">Status</label>
+          <span class="lbl" data-i18n="ecv.colStatus">Status</span>
           <div class="val" id="dStatus"></div>
         </div>
         <div class="form-row">
-          <label data-i18n="ecv.detailsEntry">Entry criteria</label>
+          <span class="lbl" data-i18n="ecv.detailsEntry">Entry criteria</span>
           <div class="val" id="dEntry"></div>
         </div>
         <div class="form-row">
-          <label data-i18n="ecv.detailsExit">Exit criteria</label>
+          <span class="lbl" data-i18n="ecv.detailsExit">Exit criteria</span>
           <div class="val" id="dExit"></div>
         </div>
       </div>
@@ -294,20 +295,53 @@ function levelLabel(l) {
   var map = { unit: 'ecv.levelUnit', integration: 'ecv.levelIntegration',
               system: 'ecv.levelSystem', acceptance: 'ecv.levelAcceptance',
               regression: 'ecv.levelRegression', release: 'ecv.levelRelease' };
-  return TLi18n.t(map[l] || 'ecv.levelSystem');
+  // An unknown level is shown as it is - never silently relabelled.
+  return map[l] ? TLi18n.t(map[l]) : String(l == null ? '' : l);
+}
+
+function levelBadgeClass(l) {
+  var known = { unit: 1, integration: 1, system: 1, acceptance: 1, regression: 1, release: 1 };
+  return 'badge-level badge-level-' + (known[l] ? esc(l) : 'unknown');
 }
 
 function metricLabel(m) {
   var map = { none: 'ecv.metricNone', progress: 'ecv.metricProgress',
               pass_rate: 'ecv.metricPassRate', failed: 'ecv.metricFailed',
               blocked: 'ecv.metricBlocked', req_coverage: 'ecv.metricReqCoverage' };
-  return TLi18n.t(map[m] || 'ecv.metricNone');
+  // An unknown metric is shown as it is - never silently relabelled.
+  return map[m] ? TLi18n.t(map[m]) : String(m == null ? '' : m);
 }
 
 function statusLabel(s) {
   var map = { met: 'ecv.statusMet', not_met: 'ecv.statusNotMet',
               manual: 'ecv.statusManual', na: 'ecv.statusNa' };
   return TLi18n.t(map[s] || 'ecv.statusNa');
+}
+
+/* DataTables language pack - the plugin is English by default, so the
+   pagination / length menu have to be fed with the translated strings. */
+function dtLanguage() {
+  return {
+    search: '', searchPlaceholder: TLi18n.t('common.search'),
+    lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
+    info: TLi18n.t('common.pageInfo'),
+    infoEmpty: TLi18n.t('common.none'),
+    paginate: { previous: TLi18n.t('common.prev'), next: TLi18n.t('common.next') },
+    emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+  };
+}
+
+/* The search box is created by the plugin: give it an id / name / aria-label
+   so the field is properly announced instead of being an anonymous input. */
+function patchSearch($table, id) {
+  setTimeout(function() {
+    var $inp = $table.closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', id); }
+      if (!$inp.attr('name')) { $inp.attr('name', id); }
+      $inp.attr('aria-label', TLi18n.t('common.search'));
+    }
+  }, 0);
 }
 
 function statusBadge(s) {
@@ -405,6 +439,10 @@ function loadInit() {
     $('#stateCard').hide();
     $('#mainArea').show();
     tprojectId = r.context.tproject_id;
+    // The definitions screen must stay on the evaluated test project - without
+    // the parameter it would fall back to the session project.
+    $('#definitionsLink').attr('href',
+      '/gui/templates/strategy/exitCriteria.html?tproject_id=' + encodeURIComponent(tprojectId));
     var plans = r.context.plans || [];
     var sel = $('#selPlan').empty();
     for (var i = 0; i < plans.length; i++) {
@@ -455,7 +493,7 @@ function runEvaluation() {
     renderMetrics(r);
     renderLevels(r);
     allItems = r.criteria || [];
-    applyFilter();
+    applyFilter(r.summary);
     $('#footerText').text(TLi18n.t('ecv.footerText', {n: allItems.length}) + ' | ' +
       TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) { apiFail(xhr, 'ecv.evalError'); });
@@ -525,7 +563,7 @@ function renderLevels(r) {
     var lv = rows[i];
     if (!lv.total) { continue; }
     data.push([
-      '<span class="badge-level badge-level-' + esc(lv.level) + '">' + esc(levelLabel(lv.level)) + '</span>',
+      '<span class="' + levelBadgeClass(lv.level) + '">' + esc(levelLabel(lv.level)) + '</span>',
       esc(lv.total),
       esc(lv.met),
       esc(lv.not_met),
@@ -543,64 +581,34 @@ function renderLevels(r) {
     ],
     order: [[0, 'asc']],
     pageLength: 10,
-    language: {
-      search: '', searchPlaceholder: TLi18n.t('common.search'),
-      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
-    }
+    language: dtLanguage()
   });
+  patchSearch($('#levelTable'), 'ecvLevelTableSearch');
 }
 
-function filtered() {
-  var ft = ($('#fText') ? ($('#fText').val() || '').toLowerCase() : '');
-  return allItems.filter(function(it) {
-    if (ft) {
-      var hay = (it.name + ' ' + it.level + ' ' + it.metric + ' ' +
-        it.entry_criteria + ' ' + it.exit_criteria).toLowerCase();
-      if (hay.indexOf(ft) === -1) { return false; }
-    }
-    return true;
-  });
-}
+function applyFilter(summary) {
+  // The tiles are rendered from the summary computed by the BFF - one single
+  // source of truth (the client never re-counts the criteria on its own).
+  var s = summary || {};
+  $('#tileTotal').text(s.total || 0);
+  $('#tileMeasurable').text(s.measurable || 0);
+  $('#tileMet').text(s.met || 0);
+  $('#tileNotMet').text(s.not_met || 0);
+  $('#tileManual').text(s.manual || 0);
+  // met_pct is computed over the criteria that could really be judged
+  // (manual / not evaluated criteria must not dilute the percentage).
+  $('#tilePct').text(Math.round(s.met_pct || 0) + '%');
 
-function applyFilter() {
-  var items = filtered();
-  var s = { total: 0, measurable: 0, met: 0, notMet: 0, manual: 0, na: 0 };
-  for (var i = 0; i < allItems.length; i++) {
-    s.total++;
-    var st = allItems[i].status;
-    if (st === 'met') { s.met++; }
-    else if (st === 'not_met') { s.notMet++; }
-    else if (st === 'manual') { s.manual++; }
-    else { s.na++; }
-    if (allItems[i].metric && allItems[i].metric !== 'none') { s.measurable++; }
-  }
-  $('#tileTotal').text(s.total);
-  $('#tileMeasurable').text(s.measurable);
-  $('#tileMet').text(s.met);
-  $('#tileNotMet').text(s.notMet);
-  $('#tileManual').text(s.manual);
-  var pct = (s.measurable > 0) ? Math.round((s.met * 100) / s.measurable) : 0;
-  $('#tilePct').text(pct + '%');
-
-  if (allItems.length === 0) {
+  if (!allItems.length) {
     if (table) { table.destroy(); table = null; }
     $('#dataTable tbody').empty();
     $('#dataTable').hide();
-    $('#noMatch').hide();
     $('#emptyState').show();
     return;
   }
   $('#emptyState').hide();
-  if (items.length === 0) {
-    if (table) { table.destroy(); table = null; }
-    $('#dataTable tbody').empty();
-    $('#dataTable').hide();
-    $('#noMatch').show();
-    return;
-  }
-  $('#noMatch').hide();
   $('#dataTable').show();
-  renderTable(items);
+  renderTable(allItems);
 }
 
 function buildRow(it) {
@@ -610,11 +618,12 @@ function buildRow(it) {
     ? '-' : fmtValue(it.actual_value, it.unit);
   var text = (it.entry_criteria || '') + (it.exit_criteria ? ' / ' + it.exit_criteria : '');
   var criteriaCell = '<div class="criteria-cell" title="' + esc(text) + '">' + esc(text || '-') + '</div>';
-  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
-    esc(TLi18n.t('ecv.detailsTitle')) + '"><i class="fa fa-eye"></i></button>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + esc(it.id) + ')"' +
+    ' aria-label="' + esc(TLi18n.t('ecv.detailsTitle')) + '"' +
+    ' title="' + esc(TLi18n.t('ecv.detailsTitle')) + '"><i class="fa fa-eye"></i></button>';
   return {
-    name: '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>',
-    level: '<span class="badge-level badge-level-' + esc(it.level) + '">' + esc(levelLabel(it.level)) + '</span>',
+    name: '<a href="javascript:void(0)" onclick="openDetails(' + esc(it.id) + ')">' + esc(it.name) + '</a>',
+    level: '<span class="' + levelBadgeClass(it.level) + '">' + esc(levelLabel(it.level)) + '</span>',
     metric: '<span class="badge-metric">' + esc(metricLabel(it.metric)) + '</span>',
     target: target,
     actual: actual,
@@ -637,11 +646,9 @@ function renderTable(items) {
     columnDefs: [{ orderable: false, targets: 7 }],
     order: [[0, 'asc']],
     pageLength: 25,
-    language: {
-      search: '', searchPlaceholder: TLi18n.t('common.search'),
-      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
-    }
+    language: dtLanguage()
   });
+  patchSearch($('#dataTable'), 'ecvCriteriaTableSearch');
 }
 
 function findItem(id) {
