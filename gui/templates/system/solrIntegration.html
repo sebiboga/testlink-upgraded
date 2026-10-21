@@ -136,7 +136,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="form-row grow">
         <label for="fQuery" data-i18n="solr.query">Query</label>
         <input type="text" id="fQuery" value="*:*">
-        <div class="hint" data-i18n="solr.queryHint">SOLR query syntax, e.g. <code>*:*</code> or <code>title:login</code>.</div>
+        <div class="hint"><span data-i18n="solr.queryHint">SOLR query syntax, e.g.</span> <code>*:*</code> <span data-i18n="solr.queryHintOr">or</span> <code>title:login</code></div>
       </div>
       <button class="btn-teal" id="btnPreview" onclick="runPreview()"><i class="fa fa-search"></i> <span data-i18n="solr.runPreview">Run preview</span></button>
     </div>
@@ -267,8 +267,9 @@ function saveSettings() {
     if (code === 'bad_endpoint') { toast(TLi18n.t('solr.errEndpoint'), 'err'); }
     else if (code === 'bad_core') { toast(TLi18n.t('solr.errCore'), 'err'); }
     else if (code === 'bad_timeout') { toast(TLi18n.t('solr.errTimeout'), 'err'); }
+    else if (code === 'blocked_target') { toast(TLi18n.t('solr.blockedTarget'), 'err'); }
     else { toast(TLi18n.t('solr.errSave') + (code ? ' (' + code + ')' : ''), 'err'); }
-  }).always(function() { $('#btnSave').prop('disabled', false); });
+  }).always(function() { $('#btnSave').prop('disabled', !canWrite); });
 }
 
 function testConnection() {
@@ -284,6 +285,7 @@ function testConnection() {
     var code = '';
     try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
     if (code === 'not_configured') { toast(TLi18n.t('solr.notConfigured'), 'err'); }
+    else if (code === 'blocked_target') { toast(TLi18n.t('solr.blockedTarget'), 'err'); }
     else { toast(TLi18n.t('solr.msgTestFail') + (code ? ' (' + code + ')' : ''), 'err'); }
     load();
   }).always(function() { $('#btnTest').prop('disabled', !canWrite); });
@@ -316,6 +318,7 @@ function runPreview() {
     var code = '';
     try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
     if (code === 'not_configured') { toast(TLi18n.t('solr.notConfigured'), 'err'); }
+    else if (code === 'blocked_target') { toast(TLi18n.t('solr.blockedTarget'), 'err'); }
     else { toast(TLi18n.t('solr.errPreview') + (code ? ' (' + code + ')' : ''), 'err'); }
   }).always(function() { $('#btnPreview').prop('disabled', !canWrite); });
 }

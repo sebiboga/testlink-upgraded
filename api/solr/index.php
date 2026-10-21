@@ -185,18 +185,51 @@ function solrCleanEndpoint($url) {
 /** True when the host literal is loopback / link-local / unspecified. */
 function solrHostIsLocal($host) {
     $host = strtolower(trim((string)$host, "[]"));
+    if ($host === '') { return true; }
+    // Strip a single trailing dot (FQDN root) so "localhost." cannot slip by.
+    $host = rtrim($host, '.');
     if ($host === '' || $host === 'localhost' || strpos($host, '.localhost') !== false) {
         return true;
     }
+    // IPv6 literal: normalize with inet_pton and inspect the packed bytes so
+    // IPv4-mapped (::ffff:127.0.0.1), loopback (::1), link-local (fe80::/10),
+    // unique-local (fc00::/7) and the AWS IMDS ULA (fd00:ec2::254) are all
+    // caught regardless of textual form.
     if (strpos($host, ':') !== false) {
-        if ($host === '::' || $host === '::1') { return true; }
-        if (preg_match('#^fe80:#', $host)) { return true; }
+        $packed = @inet_pton($host);
+        if ($packed === false || strlen($packed) !== 16) { return false; }
+        $b = array_values(unpack('C*', $packed));
+        $isV6Zero = true;
+        for ($i = 0; $i < 15; $i++) { if ($b[$i] !== 0) { $isV6Zero = false; break; } }
+        if ($isV6Zero && ($b[15] === 0 || $b[15] === 1)) { return true; } // :: / ::1
+        if ($b[0] === 0xfe && ($b[1] & 0xc0) === 0x80) { return true; }   // fe80::/10 link-local
+        if (($b[0] & 0xfe) === 0xfc) { return true; }                     // fc00::/7 unique-local (incl. fd00:ec2::254)
+        // IPv4-mapped ::ffff:a.b.c.d -> re-check the embedded IPv4.
+        if ($b[0] === 0 && $b[1] === 0 && $b[2] === 0 && $b[3] === 0 &&
+            $b[4] === 0 && $b[5] === 0 && $b[6] === 0 && $b[7] === 0 &&
+            $b[8] === 0 && $b[9] === 0 && $b[10] === 0xff && $b[11] === 0xff) {
+            $ip4 = $b[12] . '.' . $b[13] . '.' . $b[14] . '.' . $b[15];
+            return solrIp4IsLocal($ip4);
+        }
         return false;
+    }
+    // Bare IPv4 literal, incl. decimal (2130706433) and hex (0x7f000001)
+    // notations getaddrinfo/curl accept. inet_pton only takes dotted-quad, so
+    // normalize the alternative forms first.
+    if (preg_match('/^\d+$/', $host) || preg_match('/^0x[0-9a-f]+$/', $host)) {
+        $n = (int)$host; // base-10, or PHP parses 0x.. as hex
+        if ($n <= 0) { return $n === 0; }
+        return solrIp4IsLocal(long2ip($n));
     }
     if (!filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
         return false;
     }
-    $long = ip2long($host);
+    return solrIp4IsLocal($host);
+}
+
+/** True when a dotted-quad IPv4 is loopback / link-local / unspecified. */
+function solrIp4IsLocal($ip) {
+    $long = ip2long($ip);
     if ($long === false) { return false; }
     $long = sprintf('%u', $long);
     return (($long >= sprintf('%u', ip2long('127.0.0.0')) && $long <= sprintf('%u', ip2long('127.255.255.255'))))
@@ -208,6 +241,11 @@ function solrHostIsLocal($host) {
  * Guard an outbound SOLR request against loopback/link-local/metadata
  * targets (SSRF). LAN targets stay allowed on purpose; an install that needs
  * loopback can opt in with $tlCfg->solrAllowLocalTargets.
+ *
+ * Scope note: this guards the host LITERAL only. A DNS name that resolves to a
+ * private/loopback address (DNS-rebinding style) is intentionally out of scope
+ * - LAN hostnames such as `solr.internal` must keep working, and pinning the
+ * resolved IP is not possible without an in-process connect hook.
  */
 function solrAssertRemoteHost($url) {
     global $tlCfg;
@@ -282,28 +320,38 @@ function solrRequest($endpoint, $core, $timeoutMs, $query, $rows) {
         http_build_query(array('q' => $query, 'wt' => 'json',
             'rows' => intval($rows), 'fl' => 'id,title'));
     $ch = curl_init($url);
+    $capped = '';
     curl_setopt_array($ch, array(
-        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_RETURNTRANSFER => false,
         CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_MAXREDIRS => 0,
+        CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
         CURLOPT_CONNECTTIMEOUT_MS => min(2000, $timeoutMs),
         CURLOPT_TIMEOUT_MS => $timeoutMs,
         CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
         CURLOPT_USERAGENT => 'TestLink/2.0.1 SOLR integration',
         CURLOPT_HTTPHEADER => array('Accept: application/json'),
+        // Stream the body so a hostile endpoint cannot buffered-DoS us: abort
+        // as soon as more than 512 KB has arrived.
+        CURLOPT_WRITEFUNCTION => function ($ch, $chunk) use (&$capped) {
+            $capped .= $chunk;
+            return (strlen($capped) > 524288) ? 0 : strlen($chunk);
+        },
     ));
     $started = microtime(true);
-    $raw = curl_exec($ch);
+    $execOk = curl_exec($ch);
     $latency = (int)round((microtime(true) - $started) * 1000);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
     curl_close($ch);
 
-    if ($raw === false || $err !== '') {
-        return array($latency, null, $httpCode, 'connection_failed');
-    }
-    if (strlen($raw) > 524288) {
+    if (strlen($capped) > 524288) {
         return array($latency, null, $httpCode, 'response_too_large');
     }
+    if ($execOk === false || $err !== '') {
+        return array($latency, null, $httpCode, 'connection_failed');
+    }
+    $raw = $capped;
     if ($httpCode < 200 || $httpCode >= 300) {
         return array($latency, null, $httpCode, 'solr_error');
     }
@@ -322,10 +370,12 @@ $writeActions = array('save', 'test', 'preview');
 $safeMethod = in_array($method, array('GET', 'HEAD'), true);
 
 if ($safeMethod && !in_array($action, $readActions, true)) {
+    header('Allow: POST');
     solrFail(405, 'method_not_allowed', 'Action requires POST', array('allow' => 'POST'));
 }
 if (!$safeMethod && $method !== 'POST') {
-    solrFail(405, 'method_not_allowed', 'Only GET and POST are supported', array('allow' => 'GET, POST'));
+    header('Allow: GET, HEAD, POST');
+    solrFail(405, 'method_not_allowed', 'Only GET and POST are supported', array('allow' => 'GET, HEAD, POST'));
 }
 if ($action === '') {
     solrFail(400, 'unknown_action', 'Missing action');
@@ -398,6 +448,9 @@ if ($action === 'save') {
     if ($enabled && $core === '') {
         solrFail(400, 'bad_core', 'A core is required when the integration is enabled');
     }
+    if ($enabled && !solrAssertRemoteHost($cleanEndpoint)) {
+        solrFail(400, 'blocked_target', 'Refusing to store a loopback/link-local endpoint');
+    }
     if ($timeout <= 0) { $timeout = 3000; }
     if ($timeout < 500 || $timeout > 15000) {
         solrFail(400, 'bad_timeout', 'Timeout must be between 500 and 15000 ms');
@@ -443,13 +496,16 @@ if (!solrAssertRemoteHost($settings['endpoint'])) {
 
 $body = solrBody();
 
+$timeoutMs = intval($settings['timeout_ms']);
+if ($timeoutMs < 500)  { $timeoutMs = 500; }
+if ($timeoutMs > 15000) { $timeoutMs = 15000; }
+
 if ($action === 'test') {
     list($latency, $decoded, $httpCode, $err) = solrRequest(
-        $settings['endpoint'], $settings['core'], $settings['timeout_ms'],
+        $settings['endpoint'], $settings['core'], $timeoutMs,
         '*:*', 0);
 
     $ok = ($err === '' && is_array($decoded)) ? 1 : 0;
-    $code = $ok ? 200 : ($err === 'connection_failed' ? 502 : 502);
     $numFound = $ok ? intval($decoded['response']['numFound'] ?? 0) : 0;
 
     $db->exec_query("UPDATE {$t} SET last_test_ts = NOW()," .
