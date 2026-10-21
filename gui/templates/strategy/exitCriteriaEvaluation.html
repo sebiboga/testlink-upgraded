@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exit Criteria Evaluation</title>
+<!--
+  Exit Criteria evaluation dashboard (Refs #1953, parent feature #1088).
+  Dashio standalone page backed by api/exitcriteriaevaluation. Slice 2 of #1088:
+  the DEFINITIONS live in strategy/exitCriteria.html (Refs #1936) and every
+  definition may carry a measurable metric + target value - this screen is the
+  missing ASSESSMENT engine: it evaluates those criteria against the actual
+  results of a test plan (optionally narrowed to a build / platform) and shows
+  a READY / NOT READY / MANUAL REVIEW / NO DATA verdict.
+
+  Convention (also shown on the screen):
+    percent metrics (progress, pass_rate, req_coverage) are MINIMUMS  (actual >= target)
+    count   metrics (failed, blocked)                      are MAXIMUMS  (actual <= target)
+    metric = none                                          is MANUAL REVIEW (never auto-judged)
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select, .toolbar input { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 5px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.wrap { padding: 18px 24px 0; }
+.verdict { border-radius: 8px; padding: 16px 20px; color: #fff; display: none; align-items: center; gap: 16px; flex-wrap: wrap; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.verdict.ready { background: #3aa89f; }
+.verdict.not_ready { background: #c0392b; }
+.verdict.manual { background: #e6b34d; color: #4a3a10; }
+.verdict.no_data { background: #7f8c96; }
+.verdict .vtitle { font-size: 19px; font-weight: 700; letter-spacing: .5px; }
+.verdict .vbody { font-size: 13px; opacity: .95; }
+.verdict .vcounts { margin-left: auto; font-size: 12px; opacity: .95; }
+.tiles { display: flex; gap: 16px; padding: 18px 0 0; flex-wrap: wrap; }
+.tile { flex: 0 0 165px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.met { border-left-color: #3aa89f; }
+.tile.notmet { border-left-color: #c0392b; }
+.tile.manual { border-left-color: #e6b34d; }
+.tile.pct { border-left-color: #22242a; }
+.panel { background: #fff; border-radius: 8px; margin-top: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel > h3 { margin: 0; padding: 11px 16px; background: #22242a; color: #fff; font-size: 14px; font-weight: 700; }
+.panel .body { padding: 14px 16px; }
+.strip { display: flex; gap: 18px; flex-wrap: wrap; }
+.strip .item { min-width: 120px; }
+.strip .item .v { font-size: 19px; font-weight: 700; color: #22242a; }
+.strip .item .k { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.hint { color: #888; font-size: 12px; margin-top: 10px; line-height: 1.5; }
+.table-wrap { padding: 0 16px 16px; }
+.table-wrap table { background: #fff; width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-level { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+.badge-level-unit { background: #7f8c96; }
+.badge-level-integration { background: #3aa89f; }
+.badge-level-system { background: #4ECDC4; color: #0d3f3c; }
+.badge-level-acceptance { background: #5cb85c; }
+.badge-level-regression { background: #e6b34d; }
+.badge-level-release { background: #22242a; }
+.badge-metric { padding: 2px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #eceff1; color: #444; }
+.badge-status { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.badge-status-met { background: #dff3f2; color: #0d7a74; }
+.badge-status-not_met { background: #fadbd8; color: #922b21; }
+.badge-status-manual { background: #fdf3d8; color: #8a6100; }
+.badge-status-na { background: #eceff1; color: #666; }
+.criteria-cell { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-row { margin-bottom: 12px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 600; }
+.form-row .val { border: 1px solid #e4e4e4; border-radius: 4px; padding: 7px 9px; font-size: 13px; background: #fafafa; white-space: pre-wrap; word-break: break-word; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ecv.title">Exit Criteria Evaluation</span>
+  <span class="sub" data-i18n="ecv.subtitle">assess the exit criteria of this test project against a test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="reload()"><i class="fa fa-refresh"></i> <span data-i18n="ecv.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea" style="display:none;">
+  <div class="toolbar">
+    <label data-i18n="ecv.project">Test project</label>
+    <select id="selProject" onchange="onProjectChange()"></select>
+    <label data-i18n="ecv.plan">Test plan</label>
+    <select id="selPlan" onchange="onPlanChange()"></select>
+    <label data-i18n="ecv.build">Build</label>
+    <select id="selBuild" onchange="evaluate()"></select>
+    <label data-i18n="ecv.platform">Platform</label>
+    <select id="selPlatform" onchange="evaluate()"></select>
+    <button class="btn-teal" id="btnEvaluate" onclick="evaluate()"><i class="fa fa-play"></i> <span data-i18n="ecv.evaluate">Evaluate</span></button>
+    <button class="btn-dark" onclick="reload()"><i class="fa fa-refresh"></i> <span data-i18n="ecv.refresh">Refresh</span></button>
+  </div>
+
+  <div class="wrap">
+    <div class="verdict" id="verdict">
+      <div>
+        <div class="vtitle" id="verdictTitle"></div>
+        <div class="vbody" id="verdictBody"></div>
+      </div>
+      <div class="vcounts" id="verdictCounts"></div>
+    </div>
+
+    <div class="tiles">
+      <div class="tile">
+        <div class="num" id="tileTotal">0</div>
+        <div class="lbl" data-i18n="ecv.tileTotal">Criteria</div>
+      </div>
+      <div class="tile">
+        <div class="num" id="tileMeasurable">0</div>
+        <div class="lbl" data-i18n="ecv.tileMeasurable">Measurable</div>
+      </div>
+      <div class="tile met">
+        <div class="num" id="tileMet">0</div>
+        <div class="lbl" data-i18n="ecv.tileMet">Met</div>
+      </div>
+      <div class="tile notmet">
+        <div class="num" id="tileNotMet">0</div>
+        <div class="lbl" data-i18n="ecv.tileNotMet">Not met</div>
+      </div>
+      <div class="tile manual">
+        <div class="num" id="tileManual">0</div>
+        <div class="lbl" data-i18n="ecv.tileManual">Manual</div>
+      </div>
+      <div class="tile pct">
+        <div class="num" id="tilePct">0</div>
+        <div class="lbl" data-i18n="ecv.tileMetPct">Met %</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 data-i18n="ecv.planResults">Plan results</h3>
+      <div class="body">
+        <div class="strip" id="metricStrip"></div>
+        <div class="hint" data-i18n="ecv.conventionMin">Percentage metrics (progress, pass rate, requirement coverage) are minimums: the criterion is met when the actual value is greater than or equal to the target.</div>
+        <div class="hint" data-i18n="ecv.conventionMax">Count metrics (failed, blocked) are maximums: the criterion is met when the actual value is lower than or equal to the target.</div>
+        <div class="hint" data-i18n="ecv.conventionManual">A criterion without a measurable metric is never judged automatically - it stays in manual review.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 data-i18n="ecv.byLevel">By test level</h3>
+      <div class="table-wrap">
+        <table id="levelTable" class="display" style="width:100%">
+          <thead>
+            <tr>
+              <th data-i18n="ecv.colLevel">Test level</th>
+              <th data-i18n="ecv.colTotal">Criteria</th>
+              <th data-i18n="ecv.colMet">Met</th>
+              <th data-i18n="ecv.colNotMet">Not met</th>
+              <th data-i18n="ecv.colManual">Manual</th>
+              <th data-i18n="ecv.colNa">N/A</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 data-i18n="ecv.criteriaTitle">Exit criteria</h3>
+      <div class="table-wrap">
+        <div id="emptyState" class="empty-state" style="display:none;">
+          <div data-i18n="ecv.noCriteria">This test project has no exit criteria yet.</div>
+          <div style="margin-top:12px;"><a href="/gui/templates/strategy/exitCriteria.html" target="_blank" data-i18n="ecv.openDefinitions">Open the Exit Criteria definitions</a></div>
+        </div>
+        <div id="noMatch" class="empty-state" style="display:none;" data-i18n="ecv.noMatch">No criterion matches the current filters.</div>
+        <table id="dataTable" class="display" style="width:100%">
+          <thead>
+            <tr>
+              <th data-i18n="ecv.colName">Name</th>
+              <th data-i18n="ecv.colLevel">Test level</th>
+              <th data-i18n="ecv.colMetric">Metric</th>
+              <th data-i18n="ecv.colTarget">Target</th>
+              <th data-i18n="ecv.colActual">Actual</th>
+              <th data-i18n="ecv.colStatus">Status</th>
+              <th data-i18n="ecv.colCriteria">Entry / exit criteria</th>
+              <th style="width:90px" data-i18n="ecv.colActions">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.exitCriteriaEvaluation">Exit Criteria Evaluation — TestLink</span></div>
+
+<!-- Criterion details modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="detailTitle" data-i18n="ecv.detailsTitle">Exit criterion</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <label data-i18n="ecv.colLevel">Test level</label>
+          <div class="val" id="dLevel"></div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ecv.colMetric">Metric</label>
+          <div class="val" id="dMetric"></div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ecv.detailsComparison">Comparison</label>
+          <div class="val" id="dCompare"></div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ecv.colStatus">Status</label>
+          <div class="val" id="dStatus"></div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ecv.detailsEntry">Entry criteria</label>
+          <div class="val" id="dEntry"></div>
+        </div>
+        <div class="form-row">
+          <label data-i18n="ecv.detailsExit">Exit criteria</label>
+          <div class="val" id="dExit"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-dark" data-dismiss="modal"><span data-i18n="common.close">Close</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var API = '/api/exitcriteriaevaluation/index.php';
+var table = null;
+var levelTable = null;
+var allItems = [];
+var projects = [];
+var tprojectId = 0;
+var tplanId = 0;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function levelLabel(l) {
+  var map = { unit: 'ecv.levelUnit', integration: 'ecv.levelIntegration',
+              system: 'ecv.levelSystem', acceptance: 'ecv.levelAcceptance',
+              regression: 'ecv.levelRegression', release: 'ecv.levelRelease' };
+  return TLi18n.t(map[l] || 'ecv.levelSystem');
+}
+
+function metricLabel(m) {
+  var map = { none: 'ecv.metricNone', progress: 'ecv.metricProgress',
+              pass_rate: 'ecv.metricPassRate', failed: 'ecv.metricFailed',
+              blocked: 'ecv.metricBlocked', req_coverage: 'ecv.metricReqCoverage' };
+  return TLi18n.t(map[m] || 'ecv.metricNone');
+}
+
+function statusLabel(s) {
+  var map = { met: 'ecv.statusMet', not_met: 'ecv.statusNotMet',
+              manual: 'ecv.statusManual', na: 'ecv.statusNa' };
+  return TLi18n.t(map[s] || 'ecv.statusNa');
+}
+
+function statusBadge(s) {
+  var cls = (s === 'met') ? 'met' : (s === 'not_met') ? 'not_met' : (s === 'manual' ? 'manual' : 'na');
+  return '<span class="badge-status badge-status-' + cls + '">' + esc(statusLabel(s)) + '</span>';
+}
+
+function fmtValue(v, unit) {
+  if (v === null || v === undefined) { return '-'; }
+  var n = Number(v);
+  if (isNaN(n)) { return '-'; }
+  return (unit === 'percent') ? (Math.round(n * 100) / 100) + '%' : String(Math.round(n * 100) / 100);
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('ecv.noRight', 'ecv.noRightBody', false); return; }
+  if (xhr.status === 404) { showState('ecv.notFound', 'ecv.notFoundBody', true); return; }
+  showState('ecv.errTitle', fallbackKey || 'ecv.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'ecv.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10) || 0;
+  tplanId = parseInt(p.get('tplan_id') || p.get('tplanId') || 0, 10) || 0;
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    reload();
+  });
+});
+
+function reload() {
+  $('#stateCard').hide();
+  $('#mainArea').show();
+  loadProjects();
+}
+
+function loadProjects() {
+  $.getJSON(API + '?action=projects', function(r) {
+    projects = r.projects || [];
+    var sel = $('#selProject').empty();
+    for (var i = 0; i < projects.length; i++) {
+      var pr = projects[i];
+      $('<option>').val(pr.id).text(pr.name + ' (' + pr.prefix + ')').appendTo(sel);
+    }
+    if (projects.length === 0) {
+      showState('ecv.noProjects', 'ecv.noProjectsBody', true);
+      return;
+    }
+    if (!tprojectId) { tprojectId = projects[0].id; }
+    if (projects.length && !hasProject(tprojectId)) { tprojectId = projects[0].id; }
+    $('#selProject').val(tprojectId);
+    loadInit();
+  }).fail(function(xhr) { apiFail(xhr, 'ecv.loadError'); });
+}
+
+function hasProject(id) {
+  for (var i = 0; i < projects.length; i++) { if (projects[i].id === id) { return true; } }
+  return false;
+}
+
+function onProjectChange() {
+  tprojectId = parseInt($('#selProject').val(), 10) || 0;
+  tplanId = 0;
+  loadInit();
+}
+
+function loadInit() {
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId);
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    tprojectId = r.context.tproject_id;
+    var plans = r.context.plans || [];
+    var sel = $('#selPlan').empty();
+    for (var i = 0; i < plans.length; i++) {
+      $('<option>').val(plans[i].id).text(plans[i].name).appendTo(sel);
+    }
+    if (plans.length === 0) {
+      tplanId = 0;
+      $('#selPlan').prop('disabled', true);
+      showState('ecv.noPlans', 'ecv.noPlansBody', true);
+      return;
+    }
+    $('#selPlan').prop('disabled', false);
+    var keep = false;
+    for (var j = 0; j < plans.length; j++) { if (plans[j].id === tplanId) { keep = true; } }
+    if (!keep) { tplanId = plans[0].id; }
+    $('#selPlan').val(tplanId);
+    evaluate();
+  }).fail(function(xhr) { apiFail(xhr, 'ecv.loadError'); });
+}
+
+function onPlanChange() {
+  tplanId = parseInt($('#selPlan').val(), 10) || 0;
+  evaluate();
+}
+
+function evaluate() {
+  if (!tplanId) {
+    showState('ecv.noPlans', 'ecv.noPlansBody', true);
+    return;
+  }
+  var buildId = parseInt($('#selBuild').val(), 10) || 0;
+  var platformId = parseInt($('#selPlatform').val(), 10) || 0;
+  var url = API + '?action=evaluate&tplan_id=' + encodeURIComponent(tplanId) +
+    '&tproject_id=' + encodeURIComponent(tprojectId);
+  if (buildId) { url += '&build_id=' + encodeURIComponent(buildId); }
+  if (platformId) { url += '&platform_id=' + encodeURIComponent(platformId); }
+  $.getJSON(url, function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    renderContext(r);
+    renderVerdict(r);
+    renderMetrics(r);
+    renderLevels(r);
+    allItems = r.criteria || [];
+    applyFilter();
+    $('#footerText').text(TLi18n.t('ecv.footerText', {n: allItems.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'ecv.evalError'); });
+}
+
+function renderContext(r) {
+  var ctx = r.context || {};
+  var bsel = $('#selBuild').empty();
+  $('<option>').val('').text(TLi18n.t('ecv.allBuilds')).appendTo(bsel);
+  var builds = ctx.builds || [];
+  for (var i = 0; i < builds.length; i++) {
+    $('<option>').val(builds[i].id).text(builds[i].name).appendTo(bsel);
+  }
+  if (ctx.build_id) { bsel.val(ctx.build_id); }
+  var psel = $('#selPlatform').empty();
+  $('<option>').val('').text(TLi18n.t('ecv.allPlatforms')).appendTo(psel);
+  var plats = ctx.platforms || [];
+  for (var j = 0; j < plats.length; j++) {
+    $('<option>').val(plats[j].id).text(plats[j].name).appendTo(psel);
+  }
+  if (ctx.platform_id) { psel.val(ctx.platform_id); }
+}
+
+function renderVerdict(r) {
+  var v = (r.verdict && r.verdict.verdict) ? r.verdict.verdict : 'no_data';
+  var counts = (r.verdict && r.verdict.counts) ? r.verdict.counts : {};
+  var map = { ready: 'ecv.verdictReady', not_ready: 'ecv.verdictNotReady',
+              manual: 'ecv.verdictManual', no_data: 'ecv.verdictNoData' };
+  var key = map[v] || 'ecv.verdictNoData';
+  $('#verdict').removeClass('ready not_ready manual no_data').addClass(v).show();
+  $('#verdictTitle').text(TLi18n.t(key));
+  $('#verdictBody').text(TLi18n.t(key + 'Body'));
+  $('#verdictCounts').text(TLi18n.t('ecv.verdictCounts', {
+    met: counts.met || 0, notMet: counts.not_met || 0,
+    manual: counts.manual || 0, na: counts.na || 0
+  }));
+}
+
+function renderMetrics(r) {
+  var m = r.metrics || {};
+  var req = m.requirements || {};
+  var cells = [
+    ['ecv.metricsAssigned', m.total || 0, ''],
+    ['ecv.metricsExecuted', m.executed || 0, ''],
+    ['ecv.metricsNotRun', m.not_run || 0, ''],
+    ['ecv.metricsPassed', m.passed || 0, ''],
+    ['ecv.metricsFailed', m.failed || 0, ''],
+    ['ecv.metricsBlocked', m.blocked || 0, ''],
+    ['ecv.metricsProgress', fmtValue(m.progress, 'percent'), ''],
+    ['ecv.metricsPassRate', fmtValue(m.pass_rate, 'percent'), '']
+  ];
+  if (req.enabled) {
+    cells.push(['ecv.metricsReqCoverage', fmtValue(req.coverage, 'percent'), '']);
+  }
+  var html = '';
+  for (var i = 0; i < cells.length; i++) {
+    html += '<div class="item"><div class="v">' + esc(cells[i][1]) + '</div><div class="k">' +
+      esc(TLi18n.t(cells[i][0])) + '</div></div>';
+  }
+  $('#metricStrip').html(html);
+}
+
+function renderLevels(r) {
+  var rows = r.levels || [];
+  var data = [];
+  for (var i = 0; i < rows.length; i++) {
+    var lv = rows[i];
+    if (!lv.total) { continue; }
+    data.push([
+      '<span class="badge-level badge-level-' + esc(lv.level) + '">' + esc(levelLabel(lv.level)) + '</span>',
+      esc(lv.total),
+      esc(lv.met),
+      esc(lv.not_met),
+      esc(lv.manual),
+      esc(lv.na)
+    ]);
+  }
+  if (levelTable) { levelTable.destroy(); levelTable = null; }
+  $('#levelTable tbody').empty();
+  if (data.length === 0) { return; }
+  levelTable = $('#levelTable').DataTable({
+    data: data,
+    columns: [
+      { data: 0 }, { data: 1 }, { data: 2 }, { data: 3 }, { data: 4 }, { data: 5 }
+    ],
+    order: [[0, 'asc']],
+    pageLength: 10,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function filtered() {
+  var ft = ($('#fText') ? ($('#fText').val() || '').toLowerCase() : '');
+  return allItems.filter(function(it) {
+    if (ft) {
+      var hay = (it.name + ' ' + it.level + ' ' + it.metric + ' ' +
+        it.entry_criteria + ' ' + it.exit_criteria).toLowerCase();
+      if (hay.indexOf(ft) === -1) { return false; }
+    }
+    return true;
+  });
+}
+
+function applyFilter() {
+  var items = filtered();
+  var s = { total: 0, measurable: 0, met: 0, notMet: 0, manual: 0, na: 0 };
+  for (var i = 0; i < allItems.length; i++) {
+    s.total++;
+    var st = allItems[i].status;
+    if (st === 'met') { s.met++; }
+    else if (st === 'not_met') { s.notMet++; }
+    else if (st === 'manual') { s.manual++; }
+    else { s.na++; }
+    if (allItems[i].metric && allItems[i].metric !== 'none') { s.measurable++; }
+  }
+  $('#tileTotal').text(s.total);
+  $('#tileMeasurable').text(s.measurable);
+  $('#tileMet').text(s.met);
+  $('#tileNotMet').text(s.notMet);
+  $('#tileManual').text(s.manual);
+  var pct = (s.measurable > 0) ? Math.round((s.met * 100) / s.measurable) : 0;
+  $('#tilePct').text(pct + '%');
+
+  if (allItems.length === 0) {
+    if (table) { table.destroy(); table = null; }
+    $('#dataTable tbody').empty();
+    $('#dataTable').hide();
+    $('#noMatch').hide();
+    $('#emptyState').show();
+    return;
+  }
+  $('#emptyState').hide();
+  if (items.length === 0) {
+    if (table) { table.destroy(); table = null; }
+    $('#dataTable tbody').empty();
+    $('#dataTable').hide();
+    $('#noMatch').show();
+    return;
+  }
+  $('#noMatch').hide();
+  $('#dataTable').show();
+  renderTable(items);
+}
+
+function buildRow(it) {
+  var target = (it.target_value === null || it.target_value === undefined)
+    ? '-' : fmtValue(it.target_value, it.unit);
+  var actual = (it.actual_value === null || it.actual_value === undefined)
+    ? '-' : fmtValue(it.actual_value, it.unit);
+  var text = (it.entry_criteria || '') + (it.exit_criteria ? ' / ' + it.exit_criteria : '');
+  var criteriaCell = '<div class="criteria-cell" title="' + esc(text) + '">' + esc(text || '-') + '</div>';
+  var actions = '<button class="action-btn" onclick="openDetails(' + it.id + ')" title="' +
+    esc(TLi18n.t('ecv.detailsTitle')) + '"><i class="fa fa-eye"></i></button>';
+  return {
+    name: '<a href="javascript:void(0)" onclick="openDetails(' + it.id + ')">' + esc(it.name) + '</a>',
+    level: '<span class="badge-level badge-level-' + esc(it.level) + '">' + esc(levelLabel(it.level)) + '</span>',
+    metric: '<span class="badge-metric">' + esc(metricLabel(it.metric)) + '</span>',
+    target: target,
+    actual: actual,
+    status: statusBadge(it.status),
+    criteria: criteriaCell,
+    actions: actions
+  };
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#dataTable tbody').empty(); }
+  var rows = $.map(items, function(it) { return [buildRow(it)]; });
+  table = $('#dataTable').DataTable({
+    data: rows,
+    columns: [
+      { data: 'name' }, { data: 'level' }, { data: 'metric' },
+      { data: 'target' }, { data: 'actual' }, { data: 'status' },
+      { data: 'criteria' }, { data: 'actions' }
+    ],
+    columnDefs: [{ orderable: false, targets: 7 }],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function findItem(id) {
+  for (var i = 0; i < allItems.length; i++) { if (allItems[i].id === id) { return allItems[i]; } }
+  return null;
+}
+
+function openDetails(id) {
+  var it = findItem(id);
+  if (!it) { return; }
+  $('#detailTitle').text(it.name);
+  $('#dLevel').text(levelLabel(it.level));
+  $('#dMetric').text(metricLabel(it.metric));
+  var cmp = '-';
+  if (it.target_value !== null && it.target_value !== undefined && it.actual_value !== null &&
+      it.actual_value !== undefined) {
+    var sign = (it.direction === 'gte') ? '≥' : '≤';
+    cmp = fmtValue(it.actual_value, it.unit) + ' ' + sign + ' ' + fmtValue(it.target_value, it.unit) +
+      '  (' + TLi18n.t(it.direction === 'gte' ? 'ecv.directionMin' : 'ecv.directionMax') + ')';
+  } else if (it.metric === 'none') {
+    cmp = TLi18n.t('ecv.manualReview');
+  } else {
+    cmp = TLi18n.t('ecv.notEvaluated');
+  }
+  $('#dCompare').text(cmp);
+  $('#dStatus').text(statusLabel(it.status));
+  $('#dEntry').text(it.entry_criteria || '-');
+  $('#dExit').text(it.exit_criteria || '-');
+  $('#detailModal').modal('show');
+}
+</script>
+</body>
+</html>
