@@ -253,6 +253,16 @@ Every screen of the application was ported one-by-one in a screen-compare
   `tmp/TLU_Test_Cases.md`. Docs mirror
   `docs/Exit-Criteria-Evaluation-Modernized.md`. Refs #1953 / parent #1088.
 
+- [KEY BUGFIX] - #1953: two measurements of the **Exit Criteria Evaluation**
+  suite were corrected after a re-run of the fixture - the build filter case
+  had the two build ids swapped (`EV Build 1` = id 5 → 3 Met / 1 Not met /
+  75% Met %, `EV Build 2` = id 6 → 2 Met / 2 Not met / 50% Met %) and the
+  "nothing could be judged" case counted the two **Not evaluated** criteria as
+  "Manual" (the tiles read 0 Manual / 2 N/A, the verdict stays `manual`).
+  The correction is appended as the suite `Issue #1953 (correction)` = 7/7 PASS
+  in `tmp/TLU_Test_Cases.md`; the screen itself was NOT changed.
+  Refs #1953 / parent #1088.
+
 - [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
   (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
   instead of the table NAME, so the risk BFFs interpolated the literal

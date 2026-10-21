@@ -44902,3 +44902,56 @@ no new Error/Warning rows in `events`.
 - Result: PASS
 
 **All parts PASS.** The review round changed the BFF (verdict, actual value, metric sanitisation, rights order, level aggregation) and the screen (accessibility, localized DataTables, dead filter removed, definitions link with the project context) without touching the route contract (`GET|HEAD ?action=projects|init|evaluate`).
+
+## Suite — Issue #1953 (correction): authoritative measurements of the Exit Criteria Evaluation screen
+
+**Screen:** `gui/templates/strategy/exitCriteriaEvaluation.html` · **BFF:** `api/exitcriteriaevaluation/index.php`
+**Fixtures:** `tmp/fixtures_1953.php` — project `ECV1953` = 55, `ECV1953 EMPTY` = 56, `ECV1953 NA ONLY` = 57, plan `EV Plan` = 58, `EM Plan` = 59, `EN Plan` = 60, build `EV Build 1` = 5, `EV Build 2` = 6, platform `EV Platform 1` = 3 (the ids are re-printed on every run of the fixture; these are the ones of the recorded run).
+**Refs:** #1953 / parent #1088.
+
+> **This suite supersedes the two wrong measurements recorded above.** The two suites appended earlier for this issue are kept verbatim (the file is append-only), but two of their numbers did not survive the verification of this round and are corrected here:
+>
+> 1. **Test Case 1953-R.11 had the build ids swapped.** The screen was driven with the real `build_id` values and the numbers are: `build_id=5` (`EV Build 1`) → **3 Met / 1 Not met / 75% Met %**, `build_id=6` (`EV Build 2`) → **2 Met / 2 Not met / 50% Met %**. The "3 Met / 1 Not met / 75% Met %" of R.11 belongs to `EV Build 1`, **not** to `EV Build 2`. The re-scoped plan-results strips are `EV Build 1` → 7 Assigned / 6 Executed / 1 Not run / 4 Passed / 1 Failed / 1 Blocked / 85.7% Progress / 66.7% Pass rate and `EV Build 2` → 7 Assigned / 1 Executed / 6 Not run / 0 Passed / 1 Failed / 0 Blocked / 14.3% Progress / 0% Pass rate.
+> 2. **Test Case 1953-R.2 recorded a wrong tile.** The two criteria of the NA-only project are **Not evaluated** (they are `na`, not `manual`), so the tiles read **2 Criteria / 2 Measurable / 0 Met / 0 Not met / 0 Manual / 0% Met %** and the counts strip reads **"Met 0 · Not met 0 · Manual 0 · N/A 2"** — the "2 Manual" of R.2 is wrong. The **verdict itself is correct**: `manual` (banner "MANUAL REVIEW"), because `summary.evaluated = 0`.
+>
+> The correction block at the top of the *Issue #1953 (review fixes)* suite above remains valid and is confirmed by this round: the tiles of `ECV1953` / `EV Plan` are **7 Criteria / 6 Measurable / 1 Met / 3 Not met / 1 Manual / 25% Met %** and the "By test level" table lists 5 rows (Unit, Integration, System, Acceptance, Release) and no Regression row.
+
+### Test Case 1953-C.1: The authoritative numbers of the main fixture plan
+- When evaluating `ECV1953` / `EV Plan` (all builds, all platforms) as `admin`
+- Then the verdict is `not_ready` (banner "NOT READY", counts "Met 1 · Not met 3 · Manual 1 · N/A 2"), the tiles read **7 Criteria / 6 Measurable / 1 Met / 3 Not met / 1 Manual / 25% Met %** and the plan-results strip reads **7 Assigned / 6 Executed / 1 Not run / 3 Passed / 2 Failed / 1 Blocked / 85.7% Progress / 50% Pass rate**. The BFF payload carries `summary = {total 7, measurable 6, met 1, not_met 3, manual 1, na 2, evaluated 4, met_pct 25}` and `verdict = {verdict "not_ready", counts {met 1, not_met 3, manual 1, na 2}}`. The seven criteria are judged as follows: `EV Progress` (progress %, target 80) → 85.7% ≥ 80% → **Met**; `EV Pass Rate` (pass_rate %, target 60) → 50% < 60% → **Not met**; `EV Failed Max` (failed count, target 1) → 2 > 1 → **Not met**; `EV Blocked Max` (blocked count, target 0) → 1 > 0 → **Not met**; `EV Manual` (metric `none`) → **Manual review**; `EV No Target` (no target value) → **Not evaluated**; `EV Coverage` (req_coverage %, target 50, requirements disabled in this project) → **Not evaluated**.
+- Result: PASS (measured through the BFF and read back from the rendered screen)
+
+### Test Case 1953-C.2: The build filter re-scopes the evaluation (corrected ids)
+- When selecting `EV Build 1` in the toolbar of `ECV1953` / `EV Plan`
+- Then the screen re-evaluates with `&build_id=5` and the tiles read **3 Met / 1 Not met / 1 Manual / 75% Met %** (the strip: 7 Assigned / 6 Executed / 1 Not run / 4 Passed / 1 Failed / 1 Blocked / 85.7% Progress / 66.7% Pass rate).
+- When selecting `EV Build 2`
+- Then the screen re-evaluates with `&build_id=6` and the tiles read **2 Met / 2 Not met / 1 Manual / 50% Met %** (the strip: 7 Assigned / 1 Executed / 6 Not run / 0 Passed / 1 Failed / 0 Blocked / 14.3% Progress / 0% Pass rate).
+- Result: PASS (both re-scopings driven in the browser and confirmed in the BFF payload: `build_id=5` → `met 3 / not_met 1 / met_pct 75`, `build_id=6` → `met 2 / not_met 2 / met_pct 50`)
+
+### Test Case 1953-C.3: The platform filter re-scopes the evaluation
+- When selecting only `EV Platform 1` in the toolbar
+- Then the screen re-evaluates with `&platform_id=3` and the tiles read **4 Met / 0 Not met / 1 Manual / 100% Met %** (the strip: 2 Assigned / 2 Executed / 0 Not run / 2 Passed / 0 Failed / 0 Blocked / 100% Progress / 100% Pass rate) and the verdict becomes **`ready`** — only the 2 assignments of the platform are counted, so every judged criterion is met.
+- Result: PASS
+
+### Test Case 1953-C.4: "Nothing could be judged" answers `manual`, not `ready` (corrected counters)
+- When evaluating `ECV1953 NA ONLY` / `EN Plan` (one assigned but never executed test case, two criteria that cannot be judged: `EN No Target` without a target and `EN Coverage`, whose metric — requirement coverage — is disabled in that project)
+- Then the verdict is **`manual`** (banner "MANUAL REVIEW", body "No criterion could be evaluated automatically - the exit criteria need a human decision."), the counts strip reads **"Met 0 · Not met 0 · Manual 0 · N/A 2"** and the tiles read **2 Criteria / 2 Measurable / 0 Met / 0 Not met / 0 Manual / 0% Met %** — the two criteria are **Not evaluated** (`na`), *not* "Manual review", so the Manual counter and the Manual tile are 0. The BFF payload carries `summary = {total 2, measurable 2, met 0, not_met 0, manual 0, na 2, evaluated 0, met_pct 0}` and `verdict = {verdict "manual", counts {met 0, not_met 0, manual 0, na 2}}`.
+- Result: PASS (measured through the BFF and read back from the rendered screen)
+
+### Test Case 1953-C.5: The per-level breakdown adds up to the number of criteria
+- When evaluating `ECV1953` / `EV Plan` and reading the "By test level" table
+- Then the rows are Unit 2 (1 met / 1 not met), Integration 1 (0 met / 1 not met), System 2 (0 met / 1 not met / 1 manual), Acceptance 1 (1 N/A) and Release 1 (1 N/A) — the level totals add up to the 7 criteria of the plan, and the level with no criteria at all is not listed.
+- Result: PASS
+
+### Test Case 1953-C.6: The criteria table, the search and the details modal
+- When searching "EV Progress" in the criteria DataTable of `ECV1953` / `EV Plan`
+- Then 2 rows remain — `EV Progress` **and** `EV No Target`, whose *metric* column reads "Execution progress %" (the DataTables search covers every column, and the two terms of the query are matched independently) — and clearing the search restores all 7 rows. The details modal of `EV Progress` opens with the level "Unit", the metric "Execution progress %", the comparison line "85.7% ≥ 80%  (minimum)", the status "Met", the entry criteria "Entry: design reviewed" and the exit criteria "Exit: 80% of the plan executed".
+- Result: PASS
+
+### Test Case 1953-C.7: The localized screen and the event log
+- When opening the screen with `?locale=ro` for `ECV1953` / `EV Plan`
+- Then the title reads "Evaluarea criteriilor de ieșire", the verdict "NEÎNDEPLINIT", the tiles "7 Criterii / 6 Măsurabile / 1 Îndeplinite / 3 Neîndeplinite / 1 Manuale / 25% % îndeplinite", the counts "Met 1 · Neîndeplinite 3 · Manuale 1 · N/A 2", the pagination "Se afiseaza 1 pana la 7 din 7 inregistrari" and the search input is labelled "Cauta" — and **no raw `ecv.*` key** is rendered anywhere on the page.
+- And the `events` table holds **no** Error/Warning row for `api/exitcriteriaevaluation` after the whole round (evaluation, both build scopes, the platform scope, the details modal, the empty project, the NA-only project, the RO locale and the no-rights user) — the only rows of the session are the AUDIT rows (`log_level = 16`) produced by the deliberate 403 probes.
+- Result: PASS
+
+**All parts PASS.** The verdict semantics, the counters and the build/platform re-scoping of the Exit Criteria Evaluation screen are the ones recorded in this suite; the two measurements corrected above (the build ids of 1953-R.11 and the Manual tile of 1953-R.2) are the only deviations from the earlier suites of this issue.
