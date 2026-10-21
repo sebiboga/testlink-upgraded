@@ -2538,6 +2538,13 @@ function getActions(&$gui,$baseURL) {
   $actions->tcCreateFromIssue =
     "/gui/templates/testcases/tcCreateFromIssue.html?{$ctx}";
 
+  // Mantis Issue XML import modernized screen (Refs #1948): full-featured
+  // twin of tcCreateFromIssues (#1502) with an in-screen suite picker and
+  // duplicate criteria/actions through the verbatim 1.9.20 saveImportedTCData
+  // engine; lib/testcases/tcCreateFromIssueMantisXML.php is now a redirect shim.
+  $actions->tcCreateFromMantis =
+    "/gui/templates/testcases/tcCreateFromMantis.html?{$ctx}";
+
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 

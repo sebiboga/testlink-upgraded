@@ -3863,6 +3863,7 @@ $TLS_href_tc_auto_exec = 'Test Automation Execution';
 $TLS_href_duplicate_name_check = "Duplicate Name Check";
 $TLS_href_tc_create_from_issues = "Create Test Cases from Issues XML";
 $TLS_href_tc_spec_import = "Test Specification Import";
+$TLS_href_tc_mantis_import = "Mantis Issue Import";
 
 // Missing localization strings
 $TLS_plugin_tl_test_config = 'Test Configuration Plugin';

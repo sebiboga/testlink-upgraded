@@ -562,6 +562,11 @@ if ($show('tests_design')) {
         // Refs #1896: standalone Test Specification Import (tcCreateFromIssue)
         $items[] = array('label' => lang_get('href_tc_spec_import'),
                          'href' => (string)$u('tcCreateFromIssue'));
+        // Refs #1948: Mantis Issue Import (tcCreateFromMantis) — the
+        // full-featured twin of tcCreateFromIssues: in-screen suite picker +
+        // duplicate criteria via the 1.9.20 saveImportedTCData engine.
+        $items[] = array('label' => lang_get('href_tc_mantis_import'),
+                         'href' => (string)$u('tcCreateFromMantis'));
         $items[] = array('label' => lang_get('link_report_test_cases_created_per_user'),
                          'href' => (string)$u('tcCreatedUser'));
     }

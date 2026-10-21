@@ -2140,6 +2140,7 @@ $TLS_href_tc_auto_exec = 'Testiautomaation suoritus';
 $TLS_href_duplicate_name_check = "Duplikaattien tarkistus";
 $TLS_href_tc_create_from_issues = "Luo testitapauksia ongelmien XML-tiedostosta";
 $TLS_href_tc_spec_import = "Testimäärittelyn tuonti";
+$TLS_href_tc_mantis_import = "Mantis-ongelmien tuonti";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'suoritetaan yhdessä kohteen kanssa';
 $TLS_remove_plat_msgbox_title = 'Poista alusta';
