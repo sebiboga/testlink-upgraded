@@ -263,6 +263,39 @@ Every screen of the application was ported one-by-one in a screen-compare
   in `tmp/TLU_Test_Cases.md`; the screen itself was NOT changed.
   Refs #1953 / parent #1088.
 
+- [SCREEN] - #1954: the **Flaky / Unstable Test Cases** report
+  (`gui/templates/results/flakyTests.html`, BFF `api/flakytests/index.php`) is a
+  net-new 2.0.1 report: 1.9.20 showed only the CURRENT status of a test case
+  (the last execution) and never the PATTERN of its execution history, so a
+  test case that fails once in a while stayed invisible. The new READ ONLY
+  screen classifies every **test-case version** linked to a test plan as
+  **flaky** (at least one pass AND one fail over at least `min_exec`
+  executions), **stable** (uniform results), **unproven** (fewer executions
+  than the threshold) or **not run**, and shows the whole execution history
+  behind the verdict in a per-version modal (date, status, build, platform,
+  tester, duration, notes). A blocked execution counts as an execution but
+  never makes a version flaky. The report is scoped to the whole plan or to a
+  single build, platform and min-executions threshold; a platform filter
+  narrows the UNIVERSE too (the platform is part of the assignment in
+  TestLink). The BFF enforces session auth + `bffSameOriginGuard` +
+  `bffEnforceSession` and the `testplan_metrics` right on the OWNING project
+  of the plan, with 400/401/403/404/405 machine codes (`no_right`,
+  `tplan_not_found`, `project_mismatch`, `tcase_not_found`,
+  `invalid_request`). Wiring: `$tlCfg->reports_list['flaky_tests']` in
+  `cfg/reports.cfg.php`, the ASIDE entry in `api/aside/index.php`, the
+  `flaky_tests` entry of the Reports launcher in `api/resultsnav/index.php`,
+  `$actions->flakyTests` in `lib/functions/common.php`, `flaky.*` (81) +
+  `footers.flakyTests` in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS) and `$TLS_link_report_flaky_tests`
+  in **all 19** server locales. Browser-verified (EN + RO): render, build /
+  platform / min-executions re-scoping, history modal (with focus trap and
+  `inert` background), CSV export, empty plan, 400 / 401 / 403 / 404 states,
+  console clean, Lighthouse accessibility 100 / 0 failed audits, Event Viewer
+  0 new Error/Warning. Suite `Issue #1954` = 13/13 PASS in
+  `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1954.php`. Docs mirror
+  `docs/Flaky-Tests-Report-Modernized.md`, wiki page + 4 screenshots.
+  Refs #1954.
+
 - [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
   (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
   instead of the table NAME, so the risk BFFs interpolated the literal

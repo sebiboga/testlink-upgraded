@@ -44955,3 +44955,88 @@ no new Error/Warning rows in `events`.
 - Result: PASS
 
 **All parts PASS.** The verdict semantics, the counters and the build/platform re-scoping of the Exit Criteria Evaluation screen are the ones recorded in this suite; the two measurements corrected above (the build ids of 1953-R.11 and the Manual tile of 1953-R.2) are the only deviations from the earlier suites of this issue.
+
+## Suite — Issue #1954: Flaky / Unstable Test Cases report (flakyTests)
+
+Screen: `gui/templates/results/flakyTests.html` — BFF: `api/flakytests/index.php` (actions `init` / `report` / `history`).
+Fixture: `tmp/fixtures_1954.php` (git-ignored; the ids change on every run — the suite reads them from the fixture output).
+Project `FLK1954` (external id prefix `FL`), plan `FL Plan` (2 builds, 1 platform, 8 test-case versions, 19 executions), plan `FL Empty Plan` (no version linked).
+The unit of the report is the **test-case VERSION** (`tcversions.id` = the version node id), not the test case: a version linked on two platforms is one row.
+
+### Test Case 1954-A.1: The report opens from the ASIDE and from the Reports launcher
+- When opening `/gui/templates/results/flakyTests.html?tproject_id=<p>&tplan_id=<plan>` of the `FLK1954` project
+- Then the teal Dashio header ("Flaky / Unstable Test Cases"), the toolbar (Refresh, Export CSV, Build, Platform, Min. executions, Apply, Close), the "Report context" panel (project, plan, build, platform, min. executions), the 8 KPI cards, the verdict banner, the 13-column DataTable and the footer with the language switcher are all rendered.
+- And the report is reachable from the ASIDE (`api/aside/index.php?action=init` returns the entry `Flaky / Unstable Test Cases` → `/gui/templates/results/flakyTests.html?tproject_id=..&tplan_id=..`) and from the Reports launcher (`api/resultsnav/index.php?action=init` returns `flaky_tests` → `/gui/templates/results/flakyTests.html?tplan_id=..&tproject_id=..`, HTTP 200 — the cfg url alone used to be resolved against the launcher page and answered 404).
+- Result: PASS
+
+### Test Case 1954-A.2: The verdicts of the fixture (the whole point of the report)
+- When reading the report of `FL Plan` without filters
+- Then the KPIs read **8 Linked versions / 7 Executed / 3 Flaky / 3 Stable / 1 Unproven / 1 Not run / 42.9% Flaky rate / 2.71 Avg. executions** and the banner reads "3 of 7 executed test-case versions are flaky: they produced both a pass and a fail."
+- And the rows are: `FL Flaky A` (5 executions, 3 passed, 2 failed, 3 flips, last *Failed*), `FL Flaky C` (4, 2, 2, 2 flips, last *Passed*), `FL Flaky B` (3, 1, 2, 1 flip, last *Passed*) — all **Flaky**; `FL Blocked Mix` (2, 1, 0, 1 blocked, 1 flip), `FL Always Fail` (2, 0, 2), `FL Stable` (2, 2, 0) — all **Stable**; `FL Single` (1 execution) — **Unproven**; `FL Never Run` (0 executions) — **Not run**.
+- Result: PASS
+
+### Test Case 1954-A.3: A blocked execution never makes a version flaky
+- When reading `FL Blocked Mix` (1 passed + 1 blocked)
+- Then the verdict is **Stable** (not Flaky) — a blocked execution is not a failure — the row shows 2 executions, 1 passed, 0 failed, 1 blocked and 1 flip, and the "Last status" badge is *Passed* (the chronologically last execution).
+- Result: PASS
+
+### Test Case 1954-A.4: The build filter re-judges the versions of the scope
+- When selecting `FL Build 1` and clicking Apply
+- Then the context panel reads "Build: FL Build 1" and the verdicts are recomputed for that build only: `FL Flaky B`, `FL Always Fail` and `FL Stable` drop to **Unproven** (a single execution in that build) while `FL Flaky A` and `FL Flaky C` stay **Flaky**; `FL Never Run` stays **Not run**.
+- Result: PASS
+
+### Test Case 1954-A.5: The platform filter narrows the universe, not only the executions
+- When selecting `FL Platform 1` and clicking Apply
+- Then the report holds only the **2** versions linked on that platform (`FL Flaky A`, `FL Flaky C`) — both **Flaky** — the banner reads "2 of 2 executed test-case versions are flaky" and the KPIs read 2 linked / 2 executed / 2 flaky. The versions linked only on the platform 0 assignment are not listed at all.
+- Result: PASS
+
+### Test Case 1954-A.6: The "Min. executions" threshold
+- When selecting `Min. executions = 3` and clicking Apply
+- Then the context panel reads "Min. executions: 3" and the verdicts are recomputed: the 3 versions with 3+ executions stay **Flaky**, `FL Blocked Mix`, `FL Always Fail`, `FL Stable` and `FL Single` become **Unproven** (fewer than 3 executions) and `FL Never Run` stays **Not run**.
+- Result: PASS
+
+### Test Case 1954-A.7: The execution-history modal
+- When clicking "History" on the row of `FL Flaky A`
+- Then the modal opens with the title "Execution history", the subtitle "5 execution(s) recorded in this scope" and a table with the 5 executions (date, status, build, platform, tester, duration, notes) in chronological order — *Passed* / *Failed* / *Passed* / *Passed* / *Failed*, on `FL Build 1` and `FL Build 2`, two of them on `FL Platform 1` — and the notes of the fixture ("first run", "second run failed", "third run passed again").
+- And the modal has a real focus management: the focus moves into the dialog, the background gets `inert`, `Tab` is trapped inside the dialog and the focus returns to the "History" button of the row when the modal is closed (with the Close button, the backdrop or `Escape`).
+- Result: PASS
+
+### Test Case 1954-A.8: The DataTable (search, sort, paging) and the empty state
+- When searching "Always" in the table
+- Then only `FL Always Fail` remains ("Showing 1 to 1 of 1 entries (filtered from 8 total entries)") and clearing the search restores the 8 rows; when the Verdict column header is clicked the rows are ordered by verdict (the 3 Flaky, then Not run, then the Stable, then Unproven).
+- And when the plan has no linked version (`FL Empty Plan`) the table shows a single "No test-case version was executed in this scope" row, all the KPIs read 0, the banner reads "No execution was recorded in this scope, so no version can be judged." and **DataTables is not initialized** (no "Incorrect column count" warning in the console).
+- Result: PASS
+
+### Test Case 1954-A.9: The CSV export
+- When clicking "Export CSV" with a result set
+- Then a `flaky-tests-tplan-<id>.csv` is produced with the UTF-8 BOM, the `;` separator and the 12 columns of the table (Test case, ID, Suite, Verdict, Executions, Passed, Failed, Blocked, Flips, Last status, Last run, Builds) and one line per row; the toast "CSV exported" is shown. A cell that starts with `=`, `+`, `-` or `@` is prefixed with `'` (formula-injection guard).
+- And when the report is in an error state the button is **disabled** and no file is produced — a failed reload can no longer export the rows of the last successful load.
+- Result: PASS
+
+### Test Case 1954-A.10: The error states
+- When the report is opened with an unknown plan (`tplan_id=9999`) → the state card "Not found — The test plan of this report does not exist. (`tplan_not_found`)" and the table is hidden.
+- When the plan belongs to another project (`tproject_id` of another project) → "Not found — The test plan of this report belongs to another test project. (`project_mismatch`)", HTTP 404.
+- When `tplan_id` is missing → "Invalid request — This report needs a test plan: open it from the Reports menu of a selected test plan."
+- When the API is called with `min_exec=0`, with a `build_id` of another project or with an unknown action → HTTP 400 `invalid_request`.
+- When the session is missing → HTTP 401 and the screen redirects to `login.php?note=expired&destination=…`.
+- Result: PASS
+
+### Test Case 1954-A.11: The rights of the caller
+- When the report is opened with the `flknorights` account (no `testplan_metrics` right on the project)
+- Then the state card "Access denied — You do not have the testplan_metrics right on this test project. (`no_right`)" is shown, the table stays hidden and the API answers HTTP 403 `no_right`.
+- And the check is made on the **owning** project of the plan (not on the project asserted by the caller), so a foreign `tproject_id` cannot be used to widen the rights.
+- Result: PASS
+
+### Test Case 1954-A.12: The localization and the accessibility
+- When opening the report with `?locale=ro`
+- Then the whole screen is translated ("Proiect de test", "Plan de test", "Min. execuții", "Instabil", "Trecut", "Eșuat", "Istoric", the footer "TestLink 2.0.1 - Cazuri de test instabile / intermitente") and **no raw `flaky.*` key** is rendered anywhere.
+- And the 10 client bundles all define the same key set (9406 keys each, `bash ai/verify_i18n_coverage.sh` → 9/9 PASS) and the 19 server bundles carry `$TLS_link_report_flaky_tests`.
+- And the Lighthouse audit of the screen reports **Accessibility 100 / Best Practices 100 / SEO 100** with **0 failed audits** (the contrast of the teal header, the buttons and the verdict badges was raised to WCAG AA).
+- Result: PASS
+
+### Test Case 1954-A.13: The event log
+- After the whole round (report, both build scopes, the platform scope, the min-executions scope, the history modal, the empty plan, the CSV export, the 4 error states, the no-rights user and the RO locale)
+- Then the `events` table holds **no** Error/Warning row for `api/flakytests` — the only rows of the session are the AUDIT rows (`log_level = 16`) produced by the deliberate 403 probes.
+- Result: PASS
+
+**All parts PASS.** The verdict semantics (flaky = at least one pass AND one fail over at least `min_exec` executions, blocked never flaky, unproven below the threshold, not run when never executed), the re-scoping by build / platform / min. executions, the execution-history modal, the CSV export, the error contract and the rights check are the ones recorded in this suite.
