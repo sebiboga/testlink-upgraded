@@ -192,6 +192,42 @@ Every screen of the application was ported one-by-one in a screen-compare
   Docs mirror `docs/Risk-Coverage-Matrix-Modernized.md`, wiki page + 2 screenshots.
   Refs #1951 / parent #1066.
 
+- [SCREEN] - #1953 (parent #1088): the **Exit Criteria Evaluation** dashboard
+  (`gui/templates/strategy/exitCriteriaEvaluation.html`, BFF
+  `api/exitcriteriaevaluation/index.php`) is the evaluation twin of the Exit
+  Criteria DEFINITIONS registry (#1936): the definitions screen captures the
+  criteria (metric, target value, direction, entry/exit text), this new READ
+  ONLY screen answers the question they exist for - **are those criteria
+  actually met by the execution of a test plan?** The plan is scoped to
+  `testplan_tcversions` assignment rows, the result of a test case version is
+  its LATEST execution (`MAX(executions.id)`) for that (tcversion, platform)
+  inside the selected plan and build, and every criterion is judged by its
+  metric semantics: a PERCENTAGE metric (`progress`, `pass_rate`,
+  `req_coverage`) is a MINIMUM (met when `actual >= target`), a COUNT metric
+  (`failed`, `blocked`) is a MAXIMUM (met when `actual <= target`),
+  `metric = none` is never judged automatically and a criterion without a
+  target is "Not evaluated". The screen shows a release VERDICT
+  (`ready` / `not_ready` / `manual` / `no_data`), 6 KPI tiles, the plan-results
+  strip (assigned / executed / not run / passed / failed / blocked / progress /
+  pass rate), the per-test-level breakdown, a sortable and searchable criteria
+  DataTable, a per-criterion details modal and state cards for
+  401/403/404/400/405. Session based, read only (no write verb at all),
+  `bffSameOriginGuard` + `bffEnforceSession`, rights (`mgt_view_tc` OR
+  `mgt_modify_tc`) checked on the ADDRESSED project BEFORE it is resolved (the
+  #1697 no-oracle lesson) with 400/401/403/404/405 machine codes; a plan
+  belonging to another project is refused with `project_mismatch`. Wiring:
+  `$actions->exitCriteriaEvaluation` in `lib/functions/common.php`, the second
+  entry of the ASIDE Test Strategy section in `api/aside/index.php`, `ecv.*`
+  (92) + `footers.exitCriteriaEvaluation` in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS) and
+  `$TLS_href_test_strategy_exit_evaluation` in **all 19** server locales.
+  Browser-verified (EN + RO): render, build / platform filters, criteria search,
+  details modal, 403 / 404 / empty-project states, console clean, Event Viewer
+  0 new Error/Warning. Suite `Issue #1953` = 15/15 PASS in
+  `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1953.php`. Docs mirror
+  `docs/Exit-Criteria-Evaluation-Modernized.md`, wiki page + 3 screenshots.
+  Refs #1953 / parent #1088.
+
 - [KEY BUGFIX] - #1952: the shared lazy `tc_risks` schema helper
   (`api/_riskschema.php`) returned the MAP of `tlObjectWithDB::getDBTables()`
   instead of the table NAME, so the risk BFFs interpolated the literal
