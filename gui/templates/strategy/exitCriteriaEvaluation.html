@@ -339,10 +339,15 @@ function apiFail(xhr, fallbackKey) {
   toast(TLi18n.t(fallbackKey || 'ecv.loadError') + (code ? ' (' + code + ')' : ''), 'err');
 }
 
+var requestedProjectId = 0;
+var requestedPlanId = 0;
+
 $(function() {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10) || 0;
   tplanId = parseInt(p.get('tplan_id') || p.get('tplanId') || 0, 10) || 0;
+  requestedProjectId = tprojectId;
+  requestedPlanId = tplanId;
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -369,7 +374,13 @@ function loadProjects() {
       return;
     }
     if (!tprojectId) { tprojectId = projects[0].id; }
-    if (projects.length && !hasProject(tprojectId)) { tprojectId = projects[0].id; }
+    if (projects.length && !hasProject(tprojectId)) {
+      if (requestedProjectId) {
+        showState('ecv.notFound', 'ecv.notFoundBody', true);
+        return;
+      }
+      tprojectId = projects[0].id;
+    }
     $('#selProject').val(tprojectId);
     loadInit();
   }).fail(function(xhr) { apiFail(xhr, 'ecv.loadError'); });
@@ -383,6 +394,8 @@ function hasProject(id) {
 function onProjectChange() {
   tprojectId = parseInt($('#selProject').val(), 10) || 0;
   tplanId = 0;
+  requestedProjectId = 0;
+  requestedPlanId = 0;
   loadInit();
 }
 
@@ -406,7 +419,13 @@ function loadInit() {
     $('#selPlan').prop('disabled', false);
     var keep = false;
     for (var j = 0; j < plans.length; j++) { if (plans[j].id === tplanId) { keep = true; } }
-    if (!keep) { tplanId = plans[0].id; }
+    if (!keep) {
+      if (requestedPlanId) {
+        showState('ecv.notFound', 'ecv.notFoundBody', true);
+        return;
+      }
+      tplanId = plans[0].id;
+    }
     $('#selPlan').val(tplanId);
     runEvaluation();
   }).fail(function(xhr) { apiFail(xhr, 'ecv.loadError'); });
