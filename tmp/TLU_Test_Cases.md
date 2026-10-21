@@ -44417,3 +44417,98 @@ tcversion 15 (nodes_hierarchy type 4), one attachment `fixture1947.txt` on `tcve
 
 ### Results
 1947-01: PASS | 1947-02: PASS | 1947-03: PASS | 1947-04: PASS | 1947-05: PASS | 1947-06: PASS | 1947-07: PASS | 1947-08: PASS | 1947-09: PASS | 1947-10: PASS | 1947-11: PASS | 1947-12: PASS | 1947-13: PASS
+
+
+
+## Issue #1948: Modernize Mantis Issue XML import (tcCreateFromIssueMantisXML → tcCreateFromMantis)
+
+**Screen**: `gui/templates/testcases/tcCreateFromMantis.html` — **BFF**: `api/tcmantisimport/index.php` — **legacy**: `lib/testcases/tcCreateFromIssueMantisXML.php` (retired to a 302/405 shim)
+**Precondition** (fresh DB): `php tmp/fixtures_1948.php` creates test projects `MNT1` (id 1, prefix MN1) and `MNT2` (id 2, foreign), suites `Target Suite` / `Nested Suite` under MNT1 and `Foreign Suite` under MNT2, role-3 user `mnorights`/`mnorights`, plus `tmp/mantis_1948.xml` (2 issues) and `tmp/mantis_tl_1948.xml`. BFF contract checks: `php tmp/verify_1948.php`. Login admin/admin at `http://localhost:8082`.
+**Overlap note**: #1502 (`tcCreateFromIssues`) covers the same `<mantis>` format with a URL-fixed container; this screen (Refs #1948) is the full-featured twin (in-screen suite picker + 1.9.20 duplicate criteria/actions via the verbatim `saveImportedTCData()` engine).
+
+### Test Case 1948.1: Screen loads with context + suite picker (admin)
+- Given logged in as admin, GET `gui/templates/testcases/tcCreateFromMantis.html?tproject_id=1&containerID=4`
+- Then title "Mantis Issue Import", "Test Project: MNT1", "Target test suite" lists "Project root: MNT1" / Target Suite / Nested Suite (preselected), the mapping note and "Maximum file size: 10240 KB" render.
+- Result: PASS
+
+### Test Case 1948.2: BFF init returns context, suites, duplicate options, labels
+- When GET `api/tcmantisimport/?action=init&tproject_id=1`
+- Then 200 `ok`, suites include Target Suite + Nested Suite, `hitOptions`/`actionOptions`/`labels` present, `grants.mgt_modify_tc=1`.
+- Result: PASS
+
+### Test Case 1948.3: Import valid Mantis XML (admin, Nested Suite)
+- When POST multipart `uploadedFile=tmp/mantis_1948.xml` to `?action=import&tproject_id=1&container_id=4&hit_criteria=name`
+- Then 200 `ok` with 2 rows named `Issue/Task:21 - …` / `Issue/Task:22 - …` (both `ok`); both test cases are created under Nested Suite.
+- Result: PASS
+
+### Test Case 1948.4: Summary composition matches legacy
+- Then the created TC 21 summary = description + "Steps to reproduce" + steps + "Additional information" + additional text (server-locale section labels).
+- Result: PASS
+
+### Test Case 1948.5: UI upload flow renders the report
+- When choosing the XML through the file input and clicking Import
+- Then the report table shows "Processed: 2" and the two rows with `ok`, and the "Import another file" button resets the form.
+- Result: PASS
+
+### Test Case 1948.6: Invalid format rejected (TestLink XML root)
+- When POST `mantis_tl_1948.xml` (root `<testcases>`)
+- Then 422 `invalid_format`.
+- Result: PASS
+
+### Test Case 1948.7: Malformed XML rejected
+- When POST a broken `<mantis>` document
+- Then 422 `invalid_xml`.
+- Result: PASS
+
+### Test Case 1948.8: Foreign container refused
+- When GET `?action=init&tproject_id=1&containerID=<Foreign Suite of MNT2>`
+- Then 400 `container_not_in_project`.
+- Result: PASS
+
+### Test Case 1948.9: No-rights user refused (403, no oracle)
+- Given `mnorights` (role 3), GET `?action=init&tproject_id=1` and POST `?action=import&tproject_id=1`
+- Then both 403 `no_right`; the screen shows "No permission", empty suite picker, disabled Import.
+- Result: PASS
+
+### Test Case 1948.10: Anonymous request refused
+- Given no session, GET `?action=init&tproject_id=1`
+- Then 401 (`session_expired` via bffEnforceSession).
+- Result: PASS
+
+### Test Case 1948.11: Non-scalar / unknown action refusals
+- When `?action[]=init` → 400 `invalid_parameter`; `?action=nope` → 400 `unknown_action`; import without a file → 400 `invalid_request`.
+- Result: PASS
+
+### Test Case 1948.12: Oversized upload refused at the right layer
+- When POST a file over `import_file_max_size_bytes` (10 MB)
+- Then the request is refused (400 invalid_request when php.ini upload/post limits are below the cap, 413 `file_too_large` otherwise).
+- Result: PASS
+
+### Test Case 1948.13: Locale switch (de/ro) relabels the screen and section labels
+- When selecting German/Română in the picker (or `&locale=de_DE`)
+- Then title, header, mapping note and section labels are translated (`de_DE` label "Beschreibung"); `ro_RO` falls back to en_GB for missing keys (legacy lang_get behaviour).
+- Result: PASS
+
+### Test Case 1948.14: Legacy controller shim
+- GET `lib/testcases/tcCreateFromIssueMantisXML.php?containerID=4` → 302 to `gui/templates/testcases/tcCreateFromMantis.html` with `containerID` forwarded.
+- POST the same URL → 405 `modern_endpoint_only` (the unsafe legacy write never executes).
+- Result: PASS
+
+### Test Case 1948.15: ASIDE menu entry + navigation
+- When opening ASIDE → "Test Case Design"
+- Then "Mantis Issue Import" appears and loads `tcCreateFromMantis.html?tproject_id=…&tplan_id=…`.
+- Result: PASS
+
+### Test Case 1948.16: i18n coverage
+- Then `tcfm.*` (33 keys incl. `footers.tcCreateFromMantis`) present in all 10 bundles; `ai/verify_i18n_coverage.sh` 9/9 PASS; `$TLS_href_tc_mantis_import` in all 19 `locale/*/strings.txt`.
+- Result: PASS
+
+### Test Case 1948.17: Event Viewer clean / console clean
+- After the browser flows the screen console shows no JS errors (only the handled 403 for the no-right user); Event Viewer shows no new Error/Warning rows beyond the expected `ro_RO` fallback notices and the deliberate pre-fix DB errors.
+- Result: PASS
+
+### Results
+1948-01: PASS | 1948-02: PASS | 1948-03: PASS | 1948-04: PASS | 1948-05: PASS | 1948-06: PASS | 1948-07: PASS | 1948-08: PASS | 1948-09: PASS | 1948-10: PASS | 1948-11: PASS | 1948-12: PASS | 1948-13: PASS | 1948-14: PASS | 1948-15: PASS | 1948-16: PASS | 1948-17: PASS
+
+### Automated evidence
+`php tmp/verify_1948.php` → **23 passed, 0 failed**.
