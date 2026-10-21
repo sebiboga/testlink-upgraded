@@ -329,6 +329,33 @@ Every screen of the application was ported one-by-one in a screen-compare
   PASS (gate 34 PASS / 0 FAIL). Docs mirror
   `docs/Attachment-Upload-Download-Modernized.md` §3b + addendum, wiki + 2
   screenshots. Refs #1947 (siblings #1638/#1794, #1768).
+- [SCREEN] - #1948: the **Mantis Issue XML import** screen
+  (`gui/templates/testcases/tcCreateFromMantis.html`, BFF
+  `api/tcmantisimport/index.php`) modernizes the orphaned 1.9.20 renderer
+  `lib/testcases/tcCreateFromIssueMantisXML.php` — it still rendered its Smarty
+  template in 2.0.1, but the dashio UI stopped reaching it (`containerView.tpl`
+  re-points the import action to the #1502 screen), so only tl-classic and direct
+  URLs still hit it. The screen creates one test case per Mantis `<issue>`
+  (name `<Issue/Task label>:<id> - <summary>`, summary = description, steps to
+  reproduce and additional information under the **server-locale** section
+  labels), with an in-screen target-suite picker and the 1.9.20 duplicate
+  criteria/actions (`hit_criteria`, `action_on_duplicated_name`) through the
+  verbatim `saveImportedTCData()` engine; the BFF rejects a non-`<mantis>` root
+  (`invalid_format`, 422) and checks `mgt_modify_tc` on the addressed project
+  BEFORE resolving the container (the #1697 no-oracle lesson) behind
+  `bffSameOriginGuard()`. The legacy controller is retired to a session-guarded,
+  non-mutating **302 shim** (GET → modern screen with `tproject_id`+`containerID`
+  forwarded); its write verbs answer **405 `modern_endpoint_only`**, closing the
+  legacy POST that imported with NO rights check and no CSRF proof (sibling class
+  of #1696/#1679). Wiring: `$actions->tcCreateFromMantis` + the ASIDE Test Case
+  Design entry gated on `modify_tc`; 33 `tcfm.*` keys + `footers.tcCreateFromMantis`
+  in **all 10** client bundles and `$TLS_href_tc_mantis_import` in **all 19**
+  server locales. Verified: `php tmp/verify_1948.php` **23/23 PASS**; browser
+  EN/RO/DE + no-right (403 card, disabled Import) + ASIDE deep link; shim GET 302
+  / POST 405; console clean; Event Viewer no new Error/Warning. Suite
+  `Issue #1948` = 17/17 PASS (gate 34 PASS / 0 FAIL). Fixture
+  `tmp/fixtures_1948.php`; screenshots 1948-mantis-import-* . Refs #1948
+  (overlapping-format twin of #1502, distinct from #1896).
 - [SCREEN] - #1946 (parent #1072): the **Webhook Subscriptions** manager
   (`gui/templates/system/webhooks.html`, BFF `api/webhooks/index.php`) adds the
   third delivery slice of parent #1072 after the REST reference hub (#1937) and
