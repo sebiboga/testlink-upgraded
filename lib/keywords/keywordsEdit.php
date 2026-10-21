@@ -33,6 +33,17 @@ require_once("common.php");
 // called testlinkInitPage($db) and never had that side effect (Refs #1604).
 testlinkInitPage($db);
 
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+
 /**
  * Refs #1601: rights are checked for the tproject_id sent by the caller while
  * the keyword is addressed by a bare id, and neither tlKeyword::writeToDB()
@@ -51,7 +62,16 @@ function kwShimOwnedBy($db, $keywordId, $tprojectID) {
  * success (Refs #1604). 303 for the POST branch, 302 for the GET branch.
  */
 function kwShimOut($status, $tproject_id, $httpCode = 302) {
-	$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
 	$url = $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . intval($tproject_id) .
 		'&tplan_id=' . (isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0);
 	if (intval($status) < 0) {
@@ -93,7 +113,7 @@ if ($isWrite) {
 	$canModify = $currentUser->hasRight($db, 'mgt_modify_key', $tprojectID);
 	$canView = $currentUser->hasRight($db, 'mgt_view_key', $tprojectID);
 	if (!$canModify || !$canView || $tprojectID <= 0) {
-		header('Location: ' . (isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/') .
+		header('Location: ' . $base .
 			'gui/templates/keywords/keywordsView.html?tproject_id=' . $tprojectID);
 		exit;
 	}
@@ -105,7 +125,16 @@ if ($isWrite) {
 	$secFetchSite = isset($_SERVER['HTTP_SEC_FETCH_SITE']) ? $_SERVER['HTTP_SEC_FETCH_SITE'] : '';
 	$isXhr = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
 		&& $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
-	$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
 	$baseHost = parse_url((isset($_SERVER['HTTP_HOST']) ? 'http://' . $_SERVER['HTTP_HOST'] : $base), PHP_URL_HOST);
 	if (!$isXhr && $secFetchSite === 'cross-site') {
 		header('Location: ' . $base . 'gui/templates/keywords/keywordsView.html?tproject_id=' . $tprojectID);
@@ -178,7 +207,7 @@ if ($mode === 'cfl' && $tcversionId <= 0) {
 	$mode = 'create';
 }
 
-$url = $_SESSION['basehref'] . 'gui/templates/keywords/keywordsEdit.html';
+$url = $base . 'gui/templates/keywords/keywordsEdit.html';
 $url .= '?mode=' . $mode .
 	'&tproject_id=' . $tprojectID .
 	'&tplan_id=' . $tplanID .

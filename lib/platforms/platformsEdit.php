@@ -42,7 +42,16 @@ if (isset($_SERVER['REQUEST_METHOD']) &&
     exit('Method Not Allowed');
 }
 
-$base = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
 
 $tprojectID = 0;
 foreach (array('tproject_id', 'testproject_id') as $key) {

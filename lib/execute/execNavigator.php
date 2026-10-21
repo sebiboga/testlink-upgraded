@@ -31,7 +31,17 @@ if (!isset($_SESSION['testplanID']) || intval($_SESSION['testplanID']) <= 0) {
 }
 $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 
-$url = $_SESSION['basehref'] . 'gui/templates/execute/execNavigator.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$url = $base . 'gui/templates/execute/execNavigator.html';
 $url .= '?tplan_id=' . $tplanID . '&tproject_id=' . $tprojectID;
 if (isset($_REQUEST['setting_build'])) {
     $url .= '&setting_build=' . intval($_REQUEST['setting_build']);

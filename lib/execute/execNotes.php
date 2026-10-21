@@ -42,7 +42,16 @@ $isAjax = (strcasecmp(trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')), '
 
 // Browser navigation: hand over to the modern screen
 if (!$isAjax && ($method === 'GET' || $method === 'HEAD')) {
-    $basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '/';
+    $basehref = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+    // Harden against a poisoned session: CRLF would allow header injection and a
+    // foreign scheme/host an open redirect. Prefer a root-relative base built from
+    // the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+    if (preg_match('~^https?://[^/]+(/.+)$~i', $basehref, $m)) {
+        $basehref = rtrim($m[1], '/') . '/';
+    }
+    if ($basehref === '' || $basehref[0] !== '/' || strpos($basehref, '//') === 0) {
+        $basehref = '/';
+    }
     $url = $basehref . 'gui/templates/execute/execNotes.html';
     if ($execIdInt > 0) {
         $url .= '?exec_id=' . $execIdInt;

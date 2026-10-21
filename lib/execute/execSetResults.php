@@ -32,7 +32,17 @@ $params = array(
   'caller', 'status', 'doExec', 'exec', 'tcversion_set', 'tc_versions',
   'step_notes', 'copyAttFromLEXEC', 'assignTask', 'user_id', 'notes'
 );
-$target = $_SESSION['basehref'] . 'gui/templates/execute/execSetResults.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$target = $base . 'gui/templates/execute/execSetResults.html';
 $sep = '?';
 foreach ($params as $p) {
   if (isset($_REQUEST[$p]) && is_scalar($_REQUEST[$p])) {

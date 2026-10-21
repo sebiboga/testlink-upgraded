@@ -33,10 +33,20 @@ $user = $_SESSION['currentUser'];
 // modernized Test Project Create/Edit screen, exactly like getGrantSetWithExit()
 // does for every modern page. The legacy getGrants() shipped the identical
 // bootstrap but pointed at the old lib/project/projectEdit.php?doAction=create.
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
 $tproject_mgr = new testproject($db);
 $zeroTestProjects = ($tproject_mgr->getItemCount() == 0);
 if ($zeroTestProjects && $user->hasRight($db,'mgt_modify_product')) {
-  header('Location: ' . $_SESSION['basehref'] .
+  header('Location: ' . $base .
          'gui/templates/projects/projectEdit.html');
   exit();
 }
@@ -50,7 +60,7 @@ if ($testplanID <= 0) {
   $testplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 }
 
-$url = $_SESSION['basehref'] . 'gui/templates/mainpage/mainPage.html';
+$url = $base . 'gui/templates/mainpage/mainPage.html';
 $url .= '?tproject_id=' . $tprojectID . '&tplan_id=' . $testplanID;
 header('Location: ' . $url);
 exit;

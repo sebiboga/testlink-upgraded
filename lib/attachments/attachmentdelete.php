@@ -37,7 +37,17 @@ $table = isset($_REQUEST['table']) && is_scalar($_REQUEST['table'])
 $fkId = isset($_REQUEST['fk_id']) && is_scalar($_REQUEST['fk_id'])
     ? intval($_REQUEST['fk_id']) : 0;
 
-$url = $_SESSION['basehref'] . 'gui/templates/attachments/attachmentDelete.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$url = $base . 'gui/templates/attachments/attachmentDelete.html';
 $url .= '?id=' . $id;
 // both parts are required: forwarding table with fk_id=0 could never satisfy
 // the BFF ownership proof, so it would only produce a misleading 403

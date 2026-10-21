@@ -24,7 +24,17 @@ testlinkInitPage($db, FALSE, false, null, true);
 $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
-$url = $_SESSION['basehref'] . 'gui/templates/execute/bugDelete.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$url = $base . 'gui/templates/execute/bugDelete.html';
 $url .= '?exec_id=' . intval($_REQUEST['exec_id'] ?? 0);
 if (isset($_REQUEST['tcstep_id'])) {
     $url .= '&tcstep_id=' . intval($_REQUEST['tcstep_id']);

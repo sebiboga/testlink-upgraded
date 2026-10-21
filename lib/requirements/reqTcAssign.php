@@ -89,14 +89,24 @@ if ($id > 0) {
     }
 }
 
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
 if ($mode === 'testcase') {
-    $url = $_SESSION['basehref'] . 'gui/templates/requirements/reqTcAssign.html';
+    $url = $base . 'gui/templates/requirements/reqTcAssign.html';
     $url .= '?tcase_id=' . $id . '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
     header('Location: ' . $url);
     exit;
 }
 
-$url = $_SESSION['basehref'] . 'gui/templates/requirements/reqTcBulkAssign.html';
+$url = $base . 'gui/templates/requirements/reqTcBulkAssign.html';
 $url .= '?tsuite_id=' . $id . '&tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
 if (isset($_REQUEST['idSRS']) && is_scalar($_REQUEST['idSRS'])) {
     $url .= '&idSRS=' . intval($_REQUEST['idSRS']);

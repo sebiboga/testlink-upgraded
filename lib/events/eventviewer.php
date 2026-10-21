@@ -27,7 +27,17 @@ $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 $objectId = intval($_REQUEST['object_id'] ?? 0);
 $objectType = preg_replace('/[^a-zA-Z0-9_]/', '', strval($_REQUEST['object_type'] ?? ''));
 
-$url = $_SESSION['basehref'] . 'gui/templates/eventviewer/eventviewer.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$url = $base . 'gui/templates/eventviewer/eventviewer.html';
 $url .= '?tproject_id=' . $tprojectID . '&tplan_id=' . $tplanID;
 if ($objectId > 0) {
     $url .= '&object_id=' . $objectId;

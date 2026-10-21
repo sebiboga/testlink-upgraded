@@ -61,7 +61,17 @@ if (!isset($q['tplan_id']) && $tplanID > 0) { $q['tplan_id'] = $tplanID; }
 if (!isset($q['build_id']) && $buildID > 0) { $q['build_id'] = $buildID; }
 if (!isset($q['platform_id']) && $platformID > 0) { $q['platform_id'] = $platformID; }
 
-$url = $_SESSION['basehref'] . 'gui/templates/testcases/tcAutoExec.html';
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+// Harden against a poisoned session: CRLF would allow header injection and a
+// foreign scheme/host an open redirect. Prefer a root-relative base built from
+// the session, falling back to '/' (same hardening as the #1947/#1948 shims).
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+$url = $base . 'gui/templates/testcases/tcAutoExec.html';
 if (count($q) > 0) {
     $url .= '?' . http_build_query($q, '', '&');
 }
