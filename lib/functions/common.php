@@ -2571,6 +2571,18 @@ function getActions(&$gui,$baseURL) {
   $actions->metricsTrends =
     "/gui/templates/results/metricsTrends.html?{$ctx}";
 
+  // Refs #1954: Flaky / Unstable Test Cases report (net-new screen). Classifies
+  // every test-case version linked to a test plan by the pattern of its
+  // execution history (flaky = at least one pass AND one fail, stable =
+  // uniform results, unproven = too few executions, not run = never
+  // executed); 1.9.20 only ever showed the CURRENT status of a version, so a
+  // test case that fails once in a while stayed invisible. Backed by the
+  // api/flakytests BFF (init/report/history actions), which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->flakyTests =
+    "/gui/templates/results/flakyTests.html?{$ctx}";
+
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 

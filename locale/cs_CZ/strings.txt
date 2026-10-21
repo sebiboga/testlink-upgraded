@@ -3992,3 +3992,4 @@ $TLS_title_webhooks = "Webhook odběry"; // Webhook subscriptions manager (Refs 
 $TLS_title_solr_integration = "Integrace SOLR"; // Apache SOLR integration (Refs #1950)
 $TLS_title_risk_coverage_matrix = "Matice pokryti rizik"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Vyhodnocení kritérií výstupu"; // Exit Criteria Evaluation (Refs #1953)
+$TLS_link_report_flaky_tests = "Flaky / nestabilní testovací případy"; // Flaky / Unstable Test Cases report (Refs #1954)

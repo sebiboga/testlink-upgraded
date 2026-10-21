@@ -249,6 +249,12 @@ if ($tplan_id > 0) {
                 // snapshot + per-build execution/defect trend).
                 $hrefR = '/gui/templates/results/metricsTrends.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_flaky_tests') {
+                // Refs #1954: Flaky / Unstable Test Cases report (the verdict
+                // of every test-case version of the plan, computed over its
+                // whole execution history).
+                $hrefR = '/gui/templates/results/flakyTests.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

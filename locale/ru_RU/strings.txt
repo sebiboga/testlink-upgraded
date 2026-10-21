@@ -2861,3 +2861,4 @@ $TLS_title_webhooks = "Webhook-подписки"; // Webhook subscriptions manag
 $TLS_title_solr_integration = "Интеграция SOLR"; // Apache SOLR integration (Refs #1950)
 $TLS_title_risk_coverage_matrix = "Матрица покрытия рисков"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Оценка критериев выхода"; // Exit Criteria Evaluation (Refs #1953)
+$TLS_link_report_flaky_tests = "Нестабильные / плавающие тесты"; // Flaky / Unstable Test Cases report (Refs #1954)

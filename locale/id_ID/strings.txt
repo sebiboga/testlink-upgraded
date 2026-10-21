@@ -2937,3 +2937,4 @@ $TLS_title_webhooks = "Langganan webhook"; // Webhook subscriptions manager (Ref
 $TLS_title_solr_integration = "Integrasi SOLR"; // Apache SOLR integration (Refs #1950)
 $TLS_title_risk_coverage_matrix = "Matriks Cakupan Risiko"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Evaluasi kriteria keluar"; // Exit Criteria Evaluation (Refs #1953)
+$TLS_link_report_flaky_tests = "Test case tidak stabil / intermiten"; // Flaky / Unstable Test Cases report (Refs #1954)

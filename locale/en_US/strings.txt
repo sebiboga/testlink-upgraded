@@ -3930,3 +3930,4 @@ $TLS_title_webhooks = "Webhook Subscriptions"; // Webhook subscriptions manager 
 $TLS_title_solr_integration = "SOLR Integration"; // Apache SOLR integration (Refs #1950)
 $TLS_title_risk_coverage_matrix = "Risk Coverage Matrix"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Exit Criteria Evaluation"; // Exit Criteria Evaluation (Refs #1953)
+$TLS_link_report_flaky_tests = "Flaky / Unstable Test Cases"; // Flaky / Unstable Test Cases report (Refs #1954)
