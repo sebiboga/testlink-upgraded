@@ -5,13 +5,19 @@
  *      /api/tcmantisimport/?action=tree     (GET|HEAD) — target test-suite list
  *      /api/tcmantisimport/?action=import   (POST)     — multipart Mantis XML
  *
- * Modernizes the orphan legacy renderer lib/testcases/tcCreateFromIssueMantisXML.php
- * (TestLink 1.9.20). That controller resolved its template through
- * templateConfiguration() to a testcases/*.tpl that does not exist in
- * gui/templates/dashio/, so the screen was dead code in 2.0.1 and the 1.9.20
- * Mantis-issue import capability was missing. The modern TestLink-XML importer
- * (api/tccreatefromissue, Refs #1896) only accepts <testcases|testsuite> roots;
- * this BFF accepts the Mantis BT export format (<mantis version=...><issue>...).
+ * Backs the modern screen gui/templates/testcases/tcCreateFromMantis.html and
+ * retires the 1.9.20 Smarty renderer lib/testcases/tcCreateFromIssueMantisXML.php
+ * to a redirect shim (that controller still rendered its tpl in 2.0.1, but the
+ * dashio UI stopped reaching it: containerView.tpl re-points the import action
+ * to the #1502 screen; only tl-classic and direct URLs still hit it).
+ *
+ * Relationship to Refs #1502 (api/tccreatefromissues + tcCreateFromIssues.html):
+ * that screen covers the SAME <mantis> format with a container fixed by the URL.
+ * This BFF is the full-featured variant (documented overlap in #1948): it adds
+ * an in-screen suite picker (action=tree) and duplicate handling through the
+ * verbatim 1.9.20 engine saveImportedTCData() with its classic hit criteria /
+ * action options. Refs #1896 (api/tccreatefromissue) is a different format
+ * (TestLink XML, <testcases|testsuite> roots only).
  *
  * The save path reuses the exact 1.9.20 engine extracted verbatim in
  * lib/testcases/tcCreateFromIssue.functions.php (saveImportedTCData), so the
