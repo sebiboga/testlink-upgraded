@@ -17,6 +17,22 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [KEY BUGFIX] - #1949: **45 legacy 302 redirect shims now sanitize
+  `$_SESSION['basehref']` before using it in `Location:`** (open-redirect / CRLF
+  hardening, completing the #1947/#1948 pass). The base is client-poisonable
+  (`get_home_url()` reads `HTTP_HOST` / `X-Forwarded-Host`) and every retired-Smarty
+  shim interpolated it raw, so a poisoned session answered
+  `302 Location: https://evil.example/...` (phishing) — and a CRLF payload killed the
+  redirect outright (silent 200, no `Location`) plus an `E_WARNING` row in the Event
+  Viewer. Fix: the exact #1948 block (CRLF strip → `scheme://host/path` downgrade to
+  root-relative `/path` → `/` fallback) at all 45 sinks across testcases, execute,
+  attachments, events, general, results, requirements, keywords, plans, platforms,
+  usermanagement, cfields, search, project, reqmgrsystems and ajax; `attachmentdownload`
+  previously had only a partial variant. Verified: poisoned-session sweep (40 sites) all
+  same-origin, clean-session sweep unchanged, browser redirect lands on the modern
+  screen, Event Viewer 0 new Error/Warning. Suite `Regression — Issue #1949` = 4 parts
+  PASS (gate 34 PASS / 0 FAIL). (Fixes #1949)
+
 - [KEY BUGFIX] - #1938: the modern **Top Navigation Bar** (`gui/templates/navbar/navBar.html`)
   raised the Chrome Issues entry `No label associated with a form field (count: 2)` on
   **every screen of the shell**: the Dashio port kept the two visual `<label>`s
