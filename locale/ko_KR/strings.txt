@@ -2491,3 +2491,4 @@ $TLS_title_solr_integration = "SOLR 통합"; // Apache SOLR integration (Refs #1
 $TLS_title_risk_coverage_matrix = "위험 커버리지 매트릭스"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "종료 기준 평가"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "불안정한 테스트 케이스"; // Flaky / Unstable Test Cases report (Refs #1954)
+$TLS_link_report_plan_comparison = "테스트 계획 비교"; // Test Plan Comparison report (Refs #1957)

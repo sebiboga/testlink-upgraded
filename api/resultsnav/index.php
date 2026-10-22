@@ -172,6 +172,8 @@ $bff = function ($action) use ($db, $user) {
             'report_exec_timeline' => 'gui/templates/results/execTimelineStats.html',
             // Refs #1954: Flaky / Unstable Test Cases report.
             'flaky_tests' => 'gui/templates/results/flakyTests.html',
+            // Refs #1957: Test Plan Comparison report.
+            'plan_comparison' => 'gui/templates/results/planComparison.html',
         );
 
         $reportList = config_get('reports_list');

@@ -2583,6 +2583,19 @@ function getActions(&$gui,$baseURL) {
   $actions->flakyTests =
     "/gui/templates/results/flakyTests.html?{$ctx}";
 
+  // Refs #1957: Test Plan Comparison report (net-new screen). Compares two
+  // test plans of the SAME test project side by side (assigned / executed /
+  // passed / failed / blocked / not run / pass rate / coverage / defect refs)
+  // with the delta (B - A) per metric plus per-build and per-platform
+  // breakdowns; 1.9.20 exposed only single-plan reports, so comparing two
+  // plans meant reading two report tabs by eye. Backed by the
+  // api/plancomparison BFF (projects/init/report actions), which enforces
+  // testplan_metrics on the owning project of both plans. Reachable from the
+  // Reports menu (cfg/reports.cfg.php entry + api/aside mapping) and via this
+  // action.
+  $actions->planComparison =
+    "/gui/templates/results/planComparison.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

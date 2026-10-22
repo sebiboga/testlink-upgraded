@@ -420,6 +420,19 @@ $tlCfg->reports_list['flaky_tests'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1957 - Test Plan Comparison report (planComparison). A new 2.0.1 view
+// that no legacy entry exposed: every 1.9.20 report is scoped to ONE test
+// plan, so comparing two plans meant opening two report tabs and comparing
+// the numbers by eye. Registered here pointing at the modern HTML screen; the
+// BFF action 'report' enforces testplan_metrics on the owning project of both
+// plans. directLink is empty: the modern screen is HTML only.
+$tlCfg->reports_list['plan_comparison'] = array(
+	'title' => 'link_report_plan_comparison',
+	'url' => 'gui/templates/results/planComparison.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

@@ -255,6 +255,11 @@ if ($tplan_id > 0) {
                 // whole execution history).
                 $hrefR = '/gui/templates/results/flakyTests.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_plan_comparison') {
+                // Refs #1957: Test Plan Comparison report (two plans of the
+                // same test project side by side, delta per metric).
+                $hrefR = '/gui/templates/results/planComparison.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

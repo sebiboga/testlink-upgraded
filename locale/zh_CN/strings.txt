@@ -4199,3 +4199,4 @@ $TLS_title_solr_integration = "SOLR 集成"; // Apache SOLR integration (Refs #1
 $TLS_title_risk_coverage_matrix = "风险覆盖矩阵"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "退出准则评估"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "浮动／不稳定的测试用例"; // Flaky / Unstable Test Cases report (Refs #1954)
+$TLS_link_report_plan_comparison = "测试计划对比"; // Test Plan Comparison report (Refs #1957)
