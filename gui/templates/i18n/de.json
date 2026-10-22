@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "Die Vergleichsparameter sind ungültig.",
   "plcmp.badRequestTitle": "Ungültige Anfrage",
   "plcmp.bannerAhead": "{plan} führt mit einer Bestehensquote von {rate}% (der andere Plan: {other}%).",
+  "plcmp.bannerMissingData": "Einer der Pläne hat im gewählten Bereich keine Ausführung.",
   "plcmp.bannerNoData": "Keiner der beiden Pläne hat eine Ausführung im gewählten Umfang.",
   "plcmp.bannerTie": "Beide Pläne haben dieselbe Bestehensquote ({rate}%).",
   "plcmp.betterA": "A ist besser",

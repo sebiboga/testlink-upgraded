@@ -403,6 +403,8 @@ function loadProjects() {
   });
 }
 
+var initPromise = null;
+
 function loadInit() {
   var pid = $('#selProject').val();
   if (!isId(pid)) {
@@ -410,18 +412,24 @@ function loadInit() {
       + esc(TLi18n.t('plcmp.noProjectText')) + '</div><div class="code">tproject_id</div></div>');
     return Promise.resolve(false);
   }
-  return new Promise(function (resolve) {
+  initPromise = new Promise(function (resolve) {
     var params = new URLSearchParams({ action: 'init', tproject_id: pid });
     getJSON(params, function (data) {
+      // Ignore a late answer for a project the user already left.
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
       initData = data;
       fillPlans(data.plans || [], q('tplan_a') || q('tplan_id'), q('tplan_b'));
       fillFilters(data.filters || {});
+      initPromise = null;
       resolve(true);
     }, function (err) {
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
+      initPromise = null;
       showState(stateFor(err.code, err.status, err.message));
       resolve(false);
     });
   });
+  return initPromise;
 }
 
 function loadReport() {
@@ -441,7 +449,7 @@ function loadReport() {
   }
   showLoading();
   var params = new URLSearchParams({ action: 'report', tplan_a: a, tplan_b: b });
-  var asserted = q('tproject_id');
+  var asserted = $('#selProject').val();
   if (isId(asserted)) { params.set('tproject_id', asserted); }
   var build = $('#selBuild').val();
   if (build && build !== '0') { params.set('build_id', build); }
@@ -468,6 +476,17 @@ function fmtMetric(row, value) {
   return String(parseInt(value, 10) || 0);
 }
 
+function betterLabel(row) {
+  if (row.better === 'neutral') {
+    return TLi18n.t('plcmp.betterNA');
+  }
+  if (parseFloat(row.delta) === 0) {
+    return TLi18n.t('plcmp.betterEqual');
+  }
+  var aWins = (row.better === 'higher') ? (parseFloat(row.delta) < 0) : (parseFloat(row.delta) > 0);
+  return TLi18n.t(aWins ? 'plcmp.betterA' : 'plcmp.betterB');
+}
+
 function deltaClass(row, delta) {
   if (row.better === 'neutral' || parseFloat(delta) === 0) {
     return 'same';
@@ -483,9 +502,14 @@ function renderBanner(data) {
   var a = data.plans.a.metrics;
   var b = data.plans.b.metrics;
   var html = '';
-  if (!a.executed && !b.executed) {
+  var aExec = parseInt(a.executed, 10) || 0;
+  var bExec = parseInt(b.executed, 10) || 0;
+  if (!aExec && !bExec) {
     html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
       + esc(TLi18n.t('plcmp.bannerNoData')) + '</span></div>';
+  } else if (!aExec || !bExec) {
+    html = '<div class="banner warn"><i class="fa fa-info-circle"></i><span>'
+      + esc(TLi18n.t('plcmp.bannerMissingData')) + '</span></div>';
   } else if (parseFloat(a.pass_rate) === parseFloat(b.pass_rate)) {
     html = '<div class="banner warn"><i class="fa fa-equals"></i><span>'
       + esc(TLi18n.t('plcmp.bannerTie', { rate: parseFloat(a.pass_rate).toFixed(1) })) + '</span></div>';
@@ -614,7 +638,9 @@ function platformLabel(id) {
 
 function csvCell(v) {
   var t = String(v === null || v === undefined ? '' : v);
-  if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+  // A plain (possibly negative) number stays numeric in the spreadsheet; only
+  // a genuinely dangerous leading = + - @ gets the apostrophe guard.
+  if (!/^-?\d+(?:\.\d+)?$/.test(t) && /^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
   return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
 }
 
@@ -634,7 +660,7 @@ function exportCsv() {
   $.each(currentData.comparison, function (i, row) {
     lines.push([csvCell(TLi18n.t('plcmp.metric.' + row.key)), csvCell(fmtMetric(row, row.a)),
       csvCell(fmtMetric(row, row.b)), csvCell(fmtMetric(row, row.delta)),
-      csvCell(row.better)].join(';'));
+      csvCell(betterLabel(row))].join(';'));
   });
   lines.push('');
   lines.push([csvCell(TLi18n.t('plcmp.csvSectionBuilds')),
@@ -683,7 +709,15 @@ function reload() {
 
 $(function () {
   $('#btnRefresh').on('click', reload);
-  $('#btnApply').on('click', function () { loadReport(); });
+  $('#btnApply').on('click', function () {
+    // A project change starts a fresh init: wait for it instead of sending a
+    // report for the previous project's plans.
+    if (initPromise) {
+      initPromise.then(function (ok) { if (ok) { loadReport(); } });
+      return;
+    }
+    loadReport();
+  });
   $('#btnCsv').on('click', exportCsv);
   $('#btnClose').on('click', function () {
     if (window.opener && !window.opener.closed) { window.close(); return; }

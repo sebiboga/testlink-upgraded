@@ -123,7 +123,7 @@ function pcCanViewProject($user, $db, $tpid)
     if (intval($tpid) <= 0) {
         return false;
     }
-    foreach (array('mgt_view_tc', 'mgt_modify_tc') as $right) {
+    foreach (array('mgt_view_tc', 'mgt_modify_tc', 'testplan_metrics') as $right) {
         if ($user->hasRight($db, $right, $tpid) === 'yes') {
             return true;
         }
@@ -205,11 +205,21 @@ function pcPlanMetrics($db, $tbl, $planId, $projectId, $buildId, $platformId)
     }
 
     // --- defects (distinct bug references linked to the executions) --------
+    // Only executions of versions that still belong to the plan count: a
+    // defect attached to an unlinked version must not inflate the comparison.
+    $universeIds = array_keys($universe);
+    $defectScope = $where;
+    if (count($universeIds) === 0) {
+        $defectScope .= " AND 1 = 0";
+    } else {
+        $defectScope .= " AND e.tcversion_id IN (" .
+            implode(',', array_map('intval', $universeIds)) . ")";
+    }
     $defectRows = (array)$db->get_recordset(
         "SELECT COUNT(DISTINCT eb.bug_id) AS qty, COUNT(*) AS links " .
         "FROM {$tbl['execution_bugs']} eb " .
         "INNER JOIN {$tbl['executions']} e ON e.id = eb.execution_id " .
-        "WHERE {$where} AND eb.bug_id <> ''");
+        "WHERE {$defectScope} AND eb.bug_id <> ''");
     $defects = 0;
     $defectLinks = 0;
     if (count($defectRows) > 0) {
@@ -491,6 +501,10 @@ if ($planA['testproject_id'] !== $planB['testproject_id']) {
     pcFail(400, 'plans_not_comparable', 'Both test plans must belong to the same test project');
 }
 
+if ($planA['id'] === $planB['id']) {
+    pcFail(400, 'invalid_request', 'Two different test plans are required');
+}
+
 $owningProjectId = $planA['testproject_id'];
 
 // The right is checked on the OWNING project of the compared plans.
@@ -610,23 +624,31 @@ foreach ($a['builds'] as $i => $row) {
 }
 
 $platformBreakdown = array();
+// The platforms linked to plan B are not necessarily linked to plan A: walk
+// the UNION of both, otherwise a platform that only plan B uses disappears
+// from the comparison.
+$platformIndexA = array();
 foreach ($a['platforms'] as $row) {
-    $pid = $row['id'];
-    $bRow = null;
-    foreach ($b['platforms'] as $cand) {
-        if ($cand['id'] === $pid) {
-            $bRow = $cand;
-            break;
-        }
-    }
+    $platformIndexA[intval($row['id'])] = $row;
+}
+$platformIndexB = array();
+foreach ($b['platforms'] as $row) {
+    $platformIndexB[intval($row['id'])] = $row;
+}
+$platformIds = array_keys($platformIndexA + $platformIndexB);
+sort($platformIds);
+foreach ($platformIds as $pid) {
+    $aRow = isset($platformIndexA[$pid]) ? $platformIndexA[$pid] : null;
+    $bRow = isset($platformIndexB[$pid]) ? $platformIndexB[$pid] : null;
+    $name = $aRow ? $aRow['name'] : $bRow['name'];
     $platformBreakdown[] = array(
         'id' => $pid,
-        'name' => $row['name'],
+        'name' => $name,
         'a' => array(
-            'executed' => intval($row['executed']),
-            'passed' => intval($row['passed']),
-            'failed' => intval($row['failed']),
-            'blocked' => intval($row['blocked']),
+            'executed' => $aRow ? intval($aRow['executed']) : 0,
+            'passed' => $aRow ? intval($aRow['passed']) : 0,
+            'failed' => $aRow ? intval($aRow['failed']) : 0,
+            'blocked' => $aRow ? intval($aRow['blocked']) : 0,
         ),
         'b' => array(
             'executed' => $bRow ? intval($bRow['executed']) : 0,

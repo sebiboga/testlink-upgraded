@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "Parametrii de comparație nu sunt valizi.",
   "plcmp.badRequestTitle": "Cerere invalidă",
   "plcmp.bannerAhead": "{plan} conduce cu o rată de trecere de {rate}% (celălalt plan: {other}%).",
+  "plcmp.bannerMissingData": "Unul dintre planuri nu are execuții în domeniul selectat.",
   "plcmp.bannerNoData": "Niciunul dintre planuri nu are execuții în domeniul selectat.",
   "plcmp.bannerTie": "Ambele planuri au aceeași rată de trecere ({rate}%).",
   "plcmp.betterA": "A este mai bun",

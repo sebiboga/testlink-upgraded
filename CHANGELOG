@@ -366,6 +366,14 @@ Every screen of the application was ported one-by-one in a screen-compare
   (`36f330c46`). Event Viewer 0 new Error/Warning. Suite `Issue #1957` = 11/11
   PASS in `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1957.php`. Docs mirror
   `docs/Test-Plan-Comparison-Modernized.md`, wiki page + 4 screenshots.
+  Review follow-up fixes: the report asserted the URL project instead of the
+  selected one (`404 project_mismatch` after a project switch; now waits for the
+  in-flight init and ignores a late answer), the platform breakdown walks the
+  union of both plans (a B-only platform was dropped), defects only count
+  versions still linked to the plan, a plan with no execution gets a warning
+  banner instead of a false tie, CSV keeps negative numbers numeric and
+  localizes the "better" column, and the BFF refuses comparing a plan with
+  itself.
   Refs #1957.
 
 - [KEY BUGFIX] - #1955: the **Reports launcher** (`api/resultsnav/index.php`) served a

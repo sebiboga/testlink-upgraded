@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "比较参数无效。",
   "plcmp.badRequestTitle": "无效请求",
   "plcmp.bannerAhead": "{plan} 以 {rate}% 的通过率领先（另一计划：{other}%）。",
+  "plcmp.bannerMissingData": "其中一个计划在所选范围内没有执行。",
   "plcmp.bannerNoData": "所选范围内两个计划均无执行记录。",
   "plcmp.bannerTie": "两个计划的通过率相同（{rate}%）。",
   "plcmp.betterA": "A 更优",

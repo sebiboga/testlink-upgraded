@@ -30,10 +30,13 @@ per-platform breakdowns.
   `not_run` = assigned - executed (never negative).
 - `pass_rate` = passed / executed; `coverage` = executed / assigned.
 - `defects` = **distinct** `execution_bugs.bug_id` references of the analysed
-  executions (the id is a varchar, never summed numerically).
+  executions (the id is a varchar, never summed numerically), restricted to the
+  versions still linked to the plan.
 - An execution of a version that is no longer linked to the plan is ignored.
 - The per-build breakdown takes the latest execution per (version, build); the
-  per-platform breakdown per (version, platform) — a version counts once per row.
+  per-platform breakdown per (version, platform) — a version counts once per row
+  and walks the **union** of both plans' platforms, so a platform linked only to
+  plan B still appears (with zeros on the A side).
 - **Both plans must belong to the same test project.** Comparing plans of two
   different projects is refused with `400 plans_not_comparable`.
 
@@ -47,9 +50,12 @@ per-platform breakdowns.
 - **Routes**: `GET|HEAD ?action=projects` (project picker), `?action=init&tproject_id=N`
   (plans + builds + platforms), `?action=report&tplan_a=A&tplan_b=B[&tproject_id=P]
   [&build_id=B][&platform_id=PL]`. No write verb.
-- **Rights**: `testplan_metrics` on the **owning** project of both plans. The client
+- **Rights**: `testplan_metrics` on the **owning** project of both plans (the
+  project picker / `init` accept any of `mgt_view_tc`, `mgt_modify_tc`,
+  `testplan_metrics`, so a metrics-only user can use the report). The client
   `tproject_id` is only an **assertion**: it is compared with the owning project and
-  never widens the query (`404 project_mismatch`).
+  never widens the query (`404 project_mismatch`). Comparing a plan with itself is
+  refused server-side (`400 invalid_request`), not only by the UI.
 - **Error contract**: `400 invalid_request` / `400 plans_not_comparable` /
   `400 unknown_action`, `401 not_authenticated|session_expired`, `403 no_right`,
   `404 tplan_not_found|tproject_not_found|project_mismatch`,
@@ -84,6 +90,14 @@ per-platform breakdowns.
     first option) and the `tplan_id` deep link was ignored → now A = requested/current
     plan and B = the first different plan.
   - The delta green (`#2f9e44`) failed WCAG AA on striped rows (3.07) → `#1e7a33`.
+- Review follow-up fixes: the report asserted the project from the URL instead of
+  the selected one (`404 project_mismatch` after a project switch) → asserts
+  `#selProject` and the Apply handler waits for an in-flight `init` (a late
+  answer for a project the user already left is ignored); the platform breakdown
+  now walks the union of both plans; defects only count versions still linked to
+  the plan; a plan without executions shows a dedicated warning banner instead of
+  a false tie; CSV keeps negative numbers numeric and localizes the "better"
+  column (`n/a` for neutral metrics); the same-plan guard is enforced by the BFF.
 - Fixture: `tmp/fixtures_1957.php` (project `PC1957`, plans `PC Plan A`/`PC Plan B`,
   builds `PC Build 1/2`, platforms `PC Linux/PC Windows`, project `PC1957 OTHER`,
   user `pcnorights`).

@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "Les paramètres de comparaison ne sont pas valides.",
   "plcmp.badRequestTitle": "Requête invalide",
   "plcmp.bannerAhead": "{plan} en tête avec un taux de réussite de {rate}% (l'autre plan : {other}%).",
+  "plcmp.bannerMissingData": "L'un des plans n'a aucune exécution dans la portée sélectionnée.",
   "plcmp.bannerNoData": "Aucun des deux plans n'a d'exécution dans le périmètre sélectionné.",
   "plcmp.bannerTie": "Les deux plans ont le même taux de réussite ({rate}%).",
   "plcmp.betterA": "A est meilleur",

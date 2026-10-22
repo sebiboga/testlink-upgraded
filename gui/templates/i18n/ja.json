@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "比較パラメータが無効です。",
   "plcmp.badRequestTitle": "無効なリクエスト",
   "plcmp.bannerAhead": "{plan} が合格率 {rate}% で先行（もう一方の計画: {other}%）。",
+  "plcmp.bannerMissingData": "選択した範囲に実行がない計画があります。",
   "plcmp.bannerNoData": "選択した範囲ではどちらの計画にも実行がありません。",
   "plcmp.bannerTie": "両方の計画の合格率は同じです（{rate}%）。",
   "plcmp.betterA": "A が優位",

@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "Os parâmetros de comparação não são válidos.",
   "plcmp.badRequestTitle": "Solicitação inválida",
   "plcmp.bannerAhead": "{plan} lidera com taxa de aprovação de {rate}% (o outro plano: {other}%).",
+  "plcmp.bannerMissingData": "Um dos planos não tem execuções no âmbito selecionado.",
   "plcmp.bannerNoData": "Nenhum dos planos tem execuções no escopo selecionado.",
   "plcmp.bannerTie": "Os dois planos têm a mesma taxa de aprovação ({rate}%).",
   "plcmp.betterA": "A é melhor",

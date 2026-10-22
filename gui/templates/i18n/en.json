@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "The comparison parameters are not valid.",
   "plcmp.badRequestTitle": "Invalid request",
   "plcmp.bannerAhead": "{plan} leads with a pass rate of {rate}% (the other plan: {other}%).",
+  "plcmp.bannerMissingData": "One of the plans has no execution in the selected scope.",
   "plcmp.bannerNoData": "Neither plan has any execution in the selected scope.",
   "plcmp.bannerTie": "Both plans have the same pass rate ({rate}%).",
   "plcmp.betterA": "A is better",

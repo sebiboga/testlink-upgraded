@@ -45346,3 +45346,54 @@ single plan and user `pcnorights` (role 3). Session: `admin`. App:
 breakdowns, the filters (build / platform / project / plans), the CSV export,
 the machine-code error contract, the owning-project right check, the Reports
 wiring and the EN/RO localization are the ones recorded in this suite.
+
+### Test Case 1957-A.12: Project switch (review follow-up)
+- When the screen was opened for project `PC1957` and the user picks
+  `PC1957 OTHER` (one plan) and presses Apply - including immediately, before
+  the in-flight `init` returns
+- Then the screen shows the "this project has no two test plans" state (not a
+  `404 project_mismatch`), the plan picker holds that project's single plan, and
+  switching back to `PC1957` renders the comparison again with Plan A = 3,
+  Plan B = 4 and an empty state box.
+- Result: PASS
+
+### Test Case 1957-A.13: Same plan is refused server-side
+- When `GET ?action=report&tplan_a=3&tplan_b=3`
+- Then the BFF returns `400 {"code":"invalid_request"}` ("Two different test
+  plans are required") and the UI keeps showing the "select two different test
+  plans" state.
+- Result: PASS
+
+### Test Case 1957-A.14: A plan without executions is not a tie
+- Given plan `PC Plan C` (project 1) links one version and has no execution
+- When comparing Plan A (4 executed) with `PC Plan C` (0 executed)
+- Then the BFF returns `executed = 0`, `pass_rate = 0`, `not_run = 1` for that
+  plan and the screen shows a **warning** banner "Unul dintre planuri nu are
+  execuții în domeniul selectat." instead of "same pass rate".
+- Result: PASS
+
+### Test Case 1957-A.15: Platform union and defect scope
+- Given platform `PC macOS` is linked to plan B only (one passed execution of
+  version 9) and an execution with a defect reference exists for version 23,
+  which is NOT linked to plan A
+- When comparing plans 3 and 4
+- Then the per-platform table shows three rows - `PC Linux`, `PC Windows`,
+  `PC macOS` - with `PC macOS` = A executed 0 / B executed 1 (the B-only
+  platform is not dropped), and plan A still reports **1** defect reference
+  (the unlinked execution's bug is ignored).
+- Result: PASS
+
+### Test Case 1957-A.16: CSV safety and localized "better"
+- When exporting the comparison
+- Then a negative delta is written as a **number** (`-3`, no apostrophe), a real
+  formula (`=1+1`) is still neutralised (`'=1+1`), a value containing `;` stays
+  quoted, and the "better" column contains the localized label (`A este mai
+  bun` / `B este mai bun` / `Egal` / `n/a`) - never the raw `higher` / `lower` /
+  `neutral` code.
+- Result: PASS
+
+**All parts PASS (including the review follow-up A.12-A.16).**
+
+Note (review follow-up): after `plcmp.bannerMissingData` was added to all 10
+bundles the key count is 9578; `ai/verify_i18n_coverage.sh` still reports 9/9
+PASS and 0 missing.

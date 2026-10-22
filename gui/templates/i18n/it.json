@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "I parametri di confronto non sono validi.",
   "plcmp.badRequestTitle": "Richiesta non valida",
   "plcmp.bannerAhead": "{plan} in testa con un tasso di superamento del {rate}% (l'altro piano: {other}%).",
+  "plcmp.bannerMissingData": "Uno dei piani non ha esecuzioni nell'ambito selezionato.",
   "plcmp.bannerNoData": "Nessuno dei due piani ha esecuzioni nell'ambito selezionato.",
   "plcmp.bannerTie": "Entrambi i piani hanno lo stesso tasso di superamento ({rate}%).",
   "plcmp.betterA": "A è migliore",

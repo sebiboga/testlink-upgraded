@@ -4203,6 +4203,7 @@
   "plcmp.badRequestText": "Параметры сравнения недопустимы.",
   "plcmp.badRequestTitle": "Недопустимый запрос",
   "plcmp.bannerAhead": "{plan} лидирует с долей успеха {rate}% (другой план: {other}%).",
+  "plcmp.bannerMissingData": "У одного из планов нет выполнений в выбранной области.",
   "plcmp.bannerNoData": "Ни в одном из планов нет выполнений в выбранной области.",
   "plcmp.bannerTie": "У обоих планов одинаковая доля успеха ({rate}%).",
   "plcmp.betterA": "A лучше",
