@@ -3890,3 +3890,4 @@ $TLS_title_risk_coverage_matrix = "Macierz pokrycia ryzyk"; // "Risk Coverage Ma
 $TLS_href_test_strategy_exit_evaluation = "Ocena kryteriów wyjścia"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "Niestabilne / niejednoznaczne przypadki testowe"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "Porównanie planów testów"; // Test Plan Comparison report (Refs #1957)
+$TLS_title_api_tokens = "Tokeny dostępu API"; // API Access Tokens manager (Refs #1958)

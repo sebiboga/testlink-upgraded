@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Access Tokens</title>
+<!--
+  API Access Tokens manager (Refs #1958, parent feature #1072).
+  Central place to review, copy and rotate the two credentials TestLink 2.0.1
+  already ships: the caller's personal API token (users.script_key) and each
+  manageable test plan's API key (testplans.api_key). Backed by api/apitokens.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.tiles { display: flex; gap: 16px; padding: 18px 24px 0; flex-wrap: wrap; }
+.tile { flex: 0 0 190px; background: #fff; border-radius: 8px; padding: 14px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 5px solid #4ECDC4; }
+.tile .num { font-size: 26px; font-weight: 700; color: #22242a; }
+.tile .lbl { font-size: 12px; color: #777; text-transform: uppercase; letter-spacing: .5px; }
+.tile.off { border-left-color: #e6b34d; }
+.card { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; }
+.card h3 { margin: 0 0 4px; font-size: 16px; color: #22242a; }
+.card p.hint { margin: 0 0 14px; color: #777; font-size: 12px; }
+.ctx-row { font-size: 13px; color: #444; margin-bottom: 4px; }
+.ctx-row b { color: #22242a; }
+.token-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.token-row input { flex: 1 1 420px; font-family: monospace; font-size: 13px; border: 1px solid #ddd; border-radius: 4px; padding: 9px 11px; background: #f7f7f9; color: #22242a; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-danger { background: #e05c5c; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger:hover { background: #c94c4c; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .title { color: #fff; font-size: 14px; font-weight: 700; }
+.spacer { flex: 1; }
+.table-wrap { padding: 0 24px 20px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.key-cell { font-family: monospace; font-size: 12px; color: #444; word-break: break-all; }
+.badge-soft { background: #eef; color: #334; border: 1px solid #dde; border-radius: 3px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+.badge-on { background: #4ECDC4; color: #fff; border-radius: 3px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+.badge-off { background: #9aa3ab; color: #fff; border-radius: 3px; padding: 1px 7px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; border: none; background: none; padding: 0; margin-right: 10px; font-size: 14px; color: #4ECDC4; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.del { color: #e05c5c; }
+.action-btn.del:hover { color: #b44444; }
+.state-card { margin: 20px 24px; padding: 28px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-left: 6px solid #e05c5c; display: none; }
+.state-card.warn { border-left-color: #e6b34d; }
+.state-card h3 { margin: 0 0 8px; font-size: 17px; color: #22242a; }
+.state-card p { margin: 0 0 14px; color: #666; font-size: 13px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.modal-body p { font-size: 13px; color: #444; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.toast.ok { background: #3aa89f; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="apitok.title">API Access Tokens</span>
+  <span class="sub" data-i18n="apitok.subtitle">review, copy and rotate your personal token and test plan keys</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="state-card" id="stateCard">
+  <h3 id="stateTitle"></h3>
+  <p id="stateBody"></p>
+  <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="apitok.refresh">Refresh</span></button>
+</div>
+
+<div id="mainArea">
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" id="tilePlans">0</div>
+      <div class="lbl" data-i18n="apitok.tilePlans">Manageable plans</div>
+    </div>
+    <div class="tile" id="tileUserWrap">
+      <div class="num" id="tileUser">-</div>
+      <div class="lbl" data-i18n="apitok.tileUser">Personal token</div>
+    </div>
+    <div class="tile">
+      <div class="num" id="tileChars">0</div>
+      <div class="lbl" data-i18n="apitok.tileChars">Key length</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 data-i18n="apitok.ctxTitle">Signed-in account</h3>
+    <p class="hint" data-i18n="apitok.ctxHint">Tokens act with the permissions of the account that owns them.</p>
+    <div class="ctx-row"><b data-i18n="apitok.ctxLogin">Login</b>: <span id="ctxLogin">-</span></div>
+    <div class="ctx-row"><b data-i18n="apitok.ctxEmail">Email</b>: <span id="ctxEmail">-</span></div>
+  </div>
+
+  <div class="card">
+    <h3 data-i18n="apitok.userTitle">Personal API token</h3>
+    <p class="hint" data-i18n="apitok.userHint">Used by XML-RPC / REST remote access. Treat it like a password; rotating invalidates the old value immediately.</p>
+    <div class="token-row">
+      <input type="text" id="userToken" readonly>
+      <button class="btn-dark" id="btnUserShow" onclick="toggleUser()"><i class="fa fa-eye"></i> <span data-i18n="apitok.show">Show</span></button>
+      <button class="btn-dark" onclick="copyUser()"><i class="fa fa-copy"></i> <span data-i18n="apitok.copy">Copy</span></button>
+      <button class="btn-danger" onclick="askRotate('user')"><i class="fa fa-rotate"></i> <span data-i18n="apitok.rotate">Rotate</span></button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <span class="title" data-i18n="apitok.planTitle">Test plan API keys</span>
+    <span class="spacer"></span>
+    <button class="btn-dark" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="apitok.refresh">Refresh</span></button>
+  </div>
+  <div class="table-wrap">
+    <table id="planTable" class="table table-striped" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="apitok.colProject">Project</th>
+          <th data-i18n="apitok.colPlan">Test plan</th>
+          <th data-i18n="apitok.colState">State</th>
+          <th data-i18n="apitok.colKey">API key</th>
+          <th style="width:170px" data-i18n="apitok.colActions">Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="empty-state" id="emptyPlans" style="display:none;" data-i18n="apitok.noPlans">No test plan is manageable with your rights.</div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="apitok.footer">TestLink 2.0.1 - API Access Tokens</span></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="apitok.rotateTitle">Rotate credential</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMsg"></p>
+        <p><b data-i18n="apitok.rotateWarn">The previous value stops working immediately. Update any integration that uses it.</b></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-sm" style="background:#e05c5c;color:#fff;" id="btnConfirm" onclick="doRotate()" data-i18n="apitok.rotate">Rotate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/apitokens/index.php';
+var table = null;
+var plans = [];
+var userToken = '';
+var userRevealed = false;
+var revealed = {};
+var pending = null;
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var el = $('#toast').removeClass('ok err').addClass(kind || 'ok').text(msg).fadeIn(150);
+  setTimeout(function() { el.fadeOut(300); }, 2600);
+}
+
+function showState(key, bodyKey, warn) {
+  $('#mainArea').hide();
+  $('#stateCard').toggleClass('warn', !!warn).show();
+  $('#stateTitle').text(TLi18n.t(key));
+  $('#stateBody').text(TLi18n.t(bodyKey));
+}
+
+function mask(key) {
+  if (!key) { return ''; }
+  if (key.length <= 8) { return new Array(key.length + 1).join('*'); }
+  return new Array(key.length - 7).join('*') + key.slice(-8);
+}
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function apiFail(xhr, fallbackKey) {
+  var code = '';
+  try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+  if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+  if (xhr.status === 403) { showState('apitok.noRight', 'apitok.noRightBody', false); return; }
+  showState('apitok.errTitle', fallbackKey || 'apitok.loadError', true);
+  toast(TLi18n.t(fallbackKey || 'apitok.loadError') + (code ? ' (' + code + ')' : ''), 'err');
+}
+
+function load() {
+  $.getJSON(API + '?action=init', function(r) {
+    $('#stateCard').hide();
+    $('#mainArea').show();
+    $('#ctxLogin').text(r.context.user_login || '-');
+    $('#ctxEmail').text(r.context.email || '-');
+    userToken = r.user_token || '';
+    userRevealed = false;
+    revealed = {};
+    $('#btnUserShow').html('<i class="fa fa-eye"></i> ' + esc(TLi18n.t('apitok.show')));
+    renderUserToken();
+    plans = r.plans || [];
+    var s = r.stats || {};
+    $('#tilePlans').text(s.plans || 0);
+    $('#tileUser').text(userToken ? TLi18n.t('apitok.active') : TLi18n.t('apitok.missing'));
+    $('#tileUserWrap').toggleClass('off', !userToken);
+    $('#tileChars').text(userToken ? userToken.length : 0);
+    renderPlans();
+    $('#footerText').text(TLi18n.t('apitok.count', {n: plans.length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) { apiFail(xhr, 'apitok.loadError'); });
+}
+
+function renderUserToken() {
+  $('#userToken').val(userToken ? (userRevealed ? userToken : mask(userToken)) : TLi18n.t('apitok.notSet'));
+}
+
+function toggleUser() {
+  if (!userToken) { return; }
+  userRevealed = !userRevealed;
+  $('#btnUserShow').html('<i class="fa fa-eye' + (userRevealed ? '-slash' : '') + '"></i> ' +
+    esc(TLi18n.t(userRevealed ? 'apitok.hide' : 'apitok.show')));
+  renderUserToken();
+}
+
+function copyUser() {
+  if (!userToken) { toast(TLi18n.t('apitok.notSet'), 'err'); return; }
+  copyText(userToken);
+}
+
+function copyPlan(id) {
+  var p = findPlan(id);
+  if (!p || !p.api_key) { return; }
+  copyText(p.api_key);
+}
+
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      toast(TLi18n.t('apitok.copied'), 'ok');
+    }, function() { fallbackCopy(text); });
+  } else { fallbackCopy(text); }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast(TLi18n.t('apitok.copied'), 'ok'); }
+  catch (e) { toast(TLi18n.t('apitok.copyError'), 'err'); }
+  document.body.removeChild(ta);
+}
+
+function findPlan(id) {
+  for (var i = 0; i < plans.length; i++) { if (plans[i].id === id) { return plans[i]; } }
+  return null;
+}
+
+function renderPlans() {
+  if (table) { table.destroy(); table = null; }
+  var html = '';
+  for (var i = 0; i < plans.length; i++) {
+    var p = plans[i];
+    var show = !!revealed[p.id];
+    var key = p.api_key ? (show ? p.api_key : mask(p.api_key)) : '';
+    html += '<tr>' +
+      '<td>' + esc(p.project) + '</td>' +
+      '<td>' + esc(p.name) + '</td>' +
+      '<td>' + (p.active ? '<span class="badge-on">' + esc(TLi18n.t('apitok.stActive')) + '</span>'
+                        : '<span class="badge-off">' + esc(TLi18n.t('apitok.stClosed')) + '</span>') +
+        (p.is_public ? ' <span class="badge-soft">' + esc(TLi18n.t('apitok.stPublic')) + '</span>' : '') +
+      '</td>' +
+      '<td class="key-cell" id="key-' + p.id + '">' + esc(key) + '</td>' +
+      '<td>' +
+        '<button class="action-btn" id="tog-' + p.id + '" title="' + esc(TLi18n.t('apitok.show')) + '" onclick="togglePlan(' + p.id + ')"><i class="fa fa-eye' + (show ? '-slash' : '') + '"></i></button>' +
+        '<button class="action-btn" title="' + esc(TLi18n.t('apitok.copy')) + '" onclick="copyPlan(' + p.id + ')"><i class="fa fa-copy"></i></button>' +
+        '<button class="action-btn del" title="' + esc(TLi18n.t('apitok.rotate')) + '" onclick="askRotate(\'plan\',' + p.id + ')"><i class="fa fa-rotate"></i></button>' +
+      '</td>' +
+      '</tr>';
+  }
+  $('#planTable tbody').html(html);
+  $('#emptyPlans').toggle(plans.length === 0);
+  table = $('#planTable').DataTable({
+    pageLength: 25,
+    order: [[0, 'asc'], [1, 'asc']],
+    columnDefs: [{ orderable: false, targets: [4] }],
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function togglePlan(id) {
+  revealed[id] = !revealed[id];
+  var p = findPlan(id);
+  if (!p) { return; }
+  var cell = document.getElementById('key-' + id);
+  if (cell) { cell.textContent = revealed[id] ? p.api_key : mask(p.api_key); }
+  var btn = document.getElementById('tog-' + id);
+  if (btn) { btn.innerHTML = '<i class="fa fa-eye' + (revealed[id] ? '-slash' : '') + '"></i>'; }
+}
+
+function askRotate(kind, id) {
+  pending = { kind: kind, id: id || 0 };
+  var msg;
+  if (kind === 'user') { msg = TLi18n.t('apitok.confirmUser'); }
+  else {
+    var p = findPlan(id);
+    msg = TLi18n.t('apitok.confirmPlan', {name: p ? p.name : ''});
+  }
+  $('#confirmMsg').text(msg);
+  $('#confirmModal').modal('show');
+}
+
+function doRotate() {
+  if (!pending) { return; }
+  var p = pending;
+  $('#btnConfirm').prop('disabled', true);
+  var url = API + '?action=' + (p.kind === 'user' ? 'rotate_user' : 'rotate_plan');
+  var payload = p.kind === 'user' ? {} : { tplan_id: p.id, project_id: (findPlan(p.id) || {}).project_id };
+  $.ajax({
+    url: url, type: 'POST', contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function(r) {
+    $('#confirmModal').modal('hide');
+    if (p.kind === 'user') {
+      userToken = r.token || '';
+      userRevealed = true;
+      $('#btnUserShow').html('<i class="fa fa-eye-slash"></i> ' + esc(TLi18n.t('apitok.hide')));
+      renderUserToken();
+      $('#tileUser').text(TLi18n.t('apitok.active'));
+      $('#tileUserWrap').removeClass('off');
+      $('#tileChars').text(userToken.length);
+      toast(TLi18n.t('apitok.rotatedUser'), 'ok');
+    } else {
+      var plan = findPlan(p.id);
+      if (plan) { plan.api_key = r.api_key || ''; }
+      revealed[p.id] = true;
+      renderPlans();
+      toast(TLi18n.t('apitok.rotatedPlan'), 'ok');
+    }
+  }).fail(function(xhr) {
+    var code = '';
+    try { code = (JSON.parse(xhr.responseText) || {}).code || ''; } catch (e) {}
+    if (xhr.status === 401) { window.location.href = '/login.php?note=expired'; return; }
+    toast(TLi18n.t('apitok.rotateError') + (code ? ' (' + code + ')' : ''), 'err');
+  }).always(function() { $('#btnConfirm').prop('disabled', false); });
+}
+</script>
+</body>
+</html>

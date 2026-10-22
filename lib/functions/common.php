@@ -2316,6 +2316,11 @@ function getActions(&$gui,$baseURL) {
   // enforces session auth + same-origin and mgt_view_tc (reads) /
   // mgt_modify_tc (writes) on the ADDRESSED project.
   $actions->solrIntegration = "/gui/templates/system/solrIntegration.html?{$ctx}";
+  // API Access Tokens manager (Dashio standalone page) - Refs #1958 (parent
+  // #1072). Personal token (users.script_key) for every user + per-plan API
+  // keys (testplans.api_key) for callers holding testplan_planning; backed by the
+  // api/apitokens BFF.
+  $actions->apiTokens = "/gui/templates/system/apiTokens.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

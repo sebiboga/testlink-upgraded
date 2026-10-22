@@ -347,6 +347,10 @@ if ($show('system')) {
         $items[] = array('id' => 'events', 'label' => lang_get('event_viewer'),
                          'href' => (string)$u('events'));
     }
+    // Refs #1958 (parent #1072): central API token manager. Personal token is
+    // always visible to the caller; plan keys appear only with testplan_planning.
+    $items[] = array('id' => 'apiTokens', 'label' => lang_get('title_api_tokens'),
+                     'href' => (string)$u('apiTokens'), 'icon' => 'fa fa-key');
     if ($gm('user_mgmt') === 'yes') {
         $items[] = array('id' => 'userInfo',
                          'label' => lang_get('href_user_profile'),
