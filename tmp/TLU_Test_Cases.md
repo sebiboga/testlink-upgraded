@@ -45227,7 +45227,7 @@ The unit of the report is the **TEST CASE** of a test project (the analysed vers
 
 ### Test Case 1956-A.18: The event log
 - After the whole round (report, the two suite scopes, the check filter, the stale window, the details modal, the empty project, the CSV export, the 4 error states, the no-rights user and the RO locale)
-- Then the `events` table holds **no** Error/Warning row for `api/tcspechealth` — the only row of the session is the **AUDIT** row (`log_level = 16`) produced by the deliberate 403 probe.
+- Then the `events` table holds **no new** Error/Warning row for `api/tcspechealth` — the only row this round produces is the **AUDIT** row (`log_level = 16`) of the deliberate 403 probe (the refused read is audited, not logged as an ERROR, so the Event Viewer stays clean). The rows of the earlier debugging round (the `E_WARNING` of the closure scope and the `ERROR` of the first 403 probe) are historical and were fixed before the first commit.
 - Result: PASS
 
 **All parts PASS.** The five health checks (duplicate name, empty summary, no requirement in force, never executed, stale), the project-wide duplicate detection, the suite scope that includes the sub-suites, the check filter that narrows the table only, the details modal, the CSV export, the error contract and the rights check are the ones recorded in this suite.
