@@ -154,8 +154,11 @@ if ($tprojectId <= 0) {
 // existing and for a non-existing project, so the endpoint is not an
 // existence oracle (the #1697 lesson).
 if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId, 0, true)) {
+    // AUDIT, not ERROR: a refused read is an expected, audited event - the
+    // Event Viewer must stay clean (no new Error/Warning row) for the
+    // deliberate 403 probes.
     tLog('BFF tcspechealth: user ' . intval($userId) .
-         ' has no mgt_view_tc right on tproject ' . $tprojectId, 'ERROR');
+         ' has no mgt_view_tc right on tproject ' . $tprojectId, 'AUDIT');
     tsFail(403, 'no_right', 'mgt_view_tc right required');
 }
 
@@ -304,11 +307,48 @@ if (isset($_GET['stale_days']) && !is_array($_GET['stale_days'])) {
     }
 }
 
+// The `case` action addresses ONE test case: it is resolved here, before the
+// scope is built, so the details are never evaluated against a suite scope
+// (a case outside the filtered suite answered with an empty version, no
+// summary and two false checks).
+$tcaseId = 0;
+if ($action === 'case') {
+    $tcaseId = tsPositiveInt($_GET['tcase_id'] ?? null);
+    if ($tcaseId <= 0) {
+        tsFail(400, 'invalid_request', 'Missing or invalid tcase_id');
+    }
+    if (!isset($cases[$tcaseId])) {
+        tsFail(404, 'tcase_not_found', 'Test case not found in this test project');
+    }
+}
+
 // The scope: every test case of the project, or only the ones of one suite.
+// A suite scope INCLUDES the sub-suites: the ancestry is walked up from the
+// suite of the case, so selecting a parent suite does not silently drop the
+// cases of its children.
 $scope = array();
 foreach ($cases as $id => $c) {
-    if ($suiteId > 0 && $c['suite'] !== $suiteId) {
+    if ($action === 'case') {
+        if ($id === $tcaseId) {
+            $scope[$id] = $c;
+        }
         continue;
+    }
+    if ($suiteId > 0) {
+        $inScope = false;
+        $cur = intval($c['suite']);
+        $guard = 0;
+        while ($cur > 0 && $guard < 32) {
+            if ($cur === $suiteId) {
+                $inScope = true;
+                break;
+            }
+            $cur = isset($suites[$cur]) ? intval($suites[$cur]['parent']) : 0;
+            $guard++;
+        }
+        if (!$inScope) {
+            continue;
+        }
     }
     $scope[$id] = $c;
 }
@@ -356,7 +396,6 @@ $versionIds = array_keys($versions);
 $execCount = array();   // tcversion id => number of executions
 $lastTs = array();      // tcversion id => last execution timestamp
 $reqActive = array();   // tcversion id => number of ACTIVE requirement links
-$reqAny = array();      // tcversion id => number of requirement links (any state)
 
 $chunks = array_chunk($versionIds, 500);
 foreach ($chunks as $chunk) {
@@ -373,16 +412,19 @@ foreach ($chunks as $chunk) {
         }
     }
 
+    // ONE rule for the requirements: only the links that are IN FORCE
+    // (is_active = 1) count. The same rule feeds the `no_requirement` check,
+    // the counter of the row and the list of the details modal, so the modal
+    // can never print "no requirement" for a case the report counts as
+    // covered (and the other way round).
     $reqRs = $db->get_recordset(
-        "SELECT tcversion_id, " .
-        "       SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_links, " .
-        "       COUNT(DISTINCT req_id) AS any_links " .
-        "FROM {$tbl['req_coverage']} WHERE tcversion_id IN (" . $in . ") GROUP BY tcversion_id");
+        "SELECT tcversion_id, COUNT(DISTINCT req_id) AS active_links " .
+        "FROM {$tbl['req_coverage']} WHERE tcversion_id IN (" . $in . ") " .
+        "AND is_active = 1 GROUP BY tcversion_id");
     if (is_array($reqRs)) {
         foreach ($reqRs as $r) {
             $tvid = intval($r['tcversion_id']);
             $reqActive[$tvid] = intval($r['active_links']);
-            $reqAny[$tvid] = intval($r['any_links']);
         }
     }
 }
@@ -423,7 +465,7 @@ foreach ($nameGroups as $members) {
 $staleBefore = time() - ($staleDays * 86400);
 
 $tsEval = function ($id) use ($cases, $duplicateOf, $versions, $latestVersion, $caseVersions,
-    $execCount, $lastTs, $reqActive, $reqAny, $checkCatalogue, $severityRank, $staleBefore,
+    $execCount, $lastTs, $reqActive, $checkCatalogue, $severityRank, $staleBefore,
     $tsWalk, $externalId, $projectPrefix) {
     $checks = array();
 
@@ -453,9 +495,6 @@ $tsEval = function ($id) use ($cases, $duplicateOf, $versions, $latestVersion, $
             }
         }
         $links = $reqActive[$tvid] ?? 0;
-        if ($links <= 0) {
-            $links = $reqAny[$tvid] ?? 0;
-        }
         $caseReq += $links;
     }
 
@@ -496,7 +535,10 @@ $tsEval = function ($id) use ($cases, $duplicateOf, $versions, $latestVersion, $
 };
 
 // ---------------------------------------------------------------------------
-// The rows: one per test case that fails at least one check.
+// The rows: one per test case that fails at least one check. The KPI tiles
+// and the banner describe the WHOLE analysed scope; the `check` filter
+// narrows the TABLE only, so the tiles never change with the filter (the
+// tiles are the health of the scope, the table is a view on it).
 // ---------------------------------------------------------------------------
 $rows = array();
 $summary = array(
@@ -517,12 +559,8 @@ foreach ($scope as $id => $c) {
     if (count($e['checks']) === 0) {
         continue;
     }
-    if ($checkFilter !== '' && !in_array($checkFilter, $e['checks'], true)) {
-        continue;
-    }
 
-    $rows[] = $e;
-
+    // The counters always describe the whole scope.
     foreach ($e['checks'] as $k) {
         switch ($k) {
             case 'duplicate_name':  $summary['duplicate_cases']++; break;
@@ -533,11 +571,20 @@ foreach ($scope as $id => $c) {
         }
     }
     $summary['cases_with_issues']++;
+
+    // Only the rows that match the check filter reach the table.
+    if ($checkFilter !== '' && !in_array($checkFilter, $e['checks'], true)) {
+        continue;
+    }
+    $rows[] = $e;
 }
 
-// The duplicate groups are counted over the WHOLE project (not only over the
-// selected suite), so the tile does not change when a suite is filtered.
+// The duplicate groups (and the duplicated cases) are counted over the WHOLE
+// project, not only over the selected suite, so the tiles do not change when
+// a suite is filtered - the duplicate counter of the details modal is the
+// project-wide one too.
 $summary['duplicate_groups'] = $duplicateGroups;
+$summary['duplicate_cases'] = count($duplicateOf);
 
 usort($rows, function ($a, $b) use ($severityRank) {
     $sa = $severityRank[$a['severity']] ?? 9;
@@ -559,13 +606,9 @@ $summary['issue_rate_pct'] = tsPct($summary['cases_with_issues'], $summary['tota
 // 404, never the details of a foreign case.
 // ---------------------------------------------------------------------------
 if ($action === 'case') {
-    $tcaseId = tsPositiveInt($_GET['tcase_id'] ?? null);
-    if ($tcaseId <= 0) {
-        tsFail(400, 'invalid_request', 'Missing or invalid tcase_id');
-    }
-    if (!isset($cases[$tcaseId])) {
-        tsFail(404, 'tcase_not_found', 'Test case not found in this test project');
-    }
+    // The test case was resolved (and proved to belong to the project) above,
+    // before the scope was built: the details are never evaluated against a
+    // suite scope.
     $e = $tsEval($tcaseId);
 
     $steps = array();
@@ -575,6 +618,7 @@ if ($action === 'case') {
             "FROM {$tbl['nodes_hierarchy']} n " .
             "JOIN {$tbl['tcsteps']} ts ON ts.id = n.id " .
             "WHERE n.parent_id = " . intval($e['version_id']) . " AND n.node_type_id = 9 " .
+            "AND ts.active = 1 " .
             "ORDER BY ts.step_number, n.id");
         if (is_array($stepRs)) {
             foreach ($stepRs as $s) {
