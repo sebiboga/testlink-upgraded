@@ -45397,3 +45397,101 @@ wiring and the EN/RO localization are the ones recorded in this suite.
 Note (review follow-up): after `plcmp.bannerMissingData` was added to all 10
 bundles the key count is 9578; `ai/verify_i18n_coverage.sh` still reports 9/9
 PASS and 0 missing.
+
+---
+
+## Issue #1958 — API Access Tokens manager (`apiTokens`)
+
+Screen: `gui/templates/system/apiTokens.html` · BFF: `api/apitokens/index.php`
+Fixture: project `TOK` "Token Demo" (id 1) + plan "Token Plan" (id 2), users
+`admin` (role 8) and `viewer` (role 3, `<no rights>`).
+
+### Test Case 1958-A.1: BFF init (authenticated)
+- Given an authenticated admin session
+- When `GET /api/apitokens/index.php?action=init`
+- Then HTTP 200 `{"status":"ok"}`, `context.user_id`/`user_login` = the caller,
+  `user_token` is the caller's `users.script_key`, `stats.plans` counts every
+  plan the caller may manage and each `plans[]` row carries
+  `id,name,project_id,project,active,is_public,api_key,can_rotate`.
+- Result: PASS
+
+### Test Case 1958-A.2: rotate personal token
+- Given an authenticated session
+- When `POST ?action=rotate_user` with `X-Requested-With: XMLHttpRequest`
+- Then HTTP 200 `{"status":"ok","token":"<32 hex>"}`, `users.script_key` for the
+  CALLER is updated in the DB and an `API_TOKEN_ROTATE_USER` AUDIT event is
+  written. The endpoint never accepts a user id, so it can only rotate the
+  caller's own token.
+- Result: PASS
+
+### Test Case 1958-A.3: rotate plan key
+- Given a caller holding `testplan_planning` on the owning project
+- When `POST ?action=rotate_plan {"tplan_id":2}`
+- Then HTTP 200 `{"status":"ok","tplan_id":2,"api_key":"<64 hex>"}`,
+  `testplans.api_key` changes and an `API_TOKEN_ROTATE_PLAN` AUDIT event is
+  written.
+- Result: PASS
+
+### Test Case 1958-A.4: unknown plan is an opaque 404
+- Given an authenticated admin
+- When `POST ?action=rotate_plan {"tplan_id":999}`
+- Then HTTP 404 `{"code":"tplan_not_found"}` - no existence oracle, the rights
+  probe runs after the row is confirmed (the #1697 lesson).
+- Result: PASS
+
+### Test Case 1958-A.5: rights denial
+- Given a session for role 3 `<no rights>` (`viewer`)
+- When `GET ?action=init`
+- Then 200 with `plans:[]` (no plan is manageable); and
+  `POST ?action=rotate_plan {"tplan_id":2}` answers HTTP 403 `{"code":"no_right"}`.
+- Result: PASS
+
+### Test Case 1958-A.6: CSRF / verb / auth contract
+- Given the endpoints are hit without same-origin proof, with a foreign Origin,
+  with an unsupported verb, with an unknown action and without a session
+- Then same-origin guard -> 403 foreign-origin, `PUT` -> 405
+  `method_not_allowed` (via the same-origin guard on a write verb), unknown
+  action -> 400 `unknown_action`, no session -> 401 `session_expired`.
+- Result: PASS
+
+### Test Case 1958-B.1: screen render + tiles + context card
+- Given the screen is opened in the browser as admin
+- Then the teal header + subtitle render, the three tiles show
+  manageable-plans = 1 / personal-token = Active / key-length = 32, the
+  signed-in card shows the login, and the plan DataTable lists one row
+  (`Token Demo` / `Token Plan` / Active + Public) with the key masked.
+- Result: PASS
+
+### Test Case 1958-B.2: personal token show / hide / copy
+- When the Show button is clicked
+- Then the full 32-char token is revealed and the button becomes Hide; clicking
+  again re-masks it. Copy writes the real value to the clipboard and shows the
+  "Copied" toast.
+- Result: PASS
+
+### Test Case 1958-B.3: plan-key reveal and rotate
+- When the row Show action is clicked
+- Then the 64-char key is revealed; when the Rotate action is clicked the
+  confirmation modal shows `Rotate the API key of the test plan "Token Plan"?`,
+  and confirming returns a NEW key, updates the row and shows the rotated toast.
+- Result: PASS
+
+### Test Case 1958-B.4: i18n switch
+- When the locale switcher is set to Romanian
+- Then the header, tiles, buttons and modal all render Romanian (`Tokenuri de
+  acces API`, `Chei API ale planurilor de test`, `Rotește`) - no raw `apitok.*`
+  key is ever displayed.
+- Result: PASS
+
+### Test Case 1958-B.5: no-right state and console
+- Given role 3 with no manageable plans
+- Then the plan table is empty with the "No test plan is manageable" state.
+  On the admin session the browser console reports no script error (the only
+  note is the shared DataTables filter-input a11y hint present on every screen).
+- Result: PASS
+
+### Test Case 1958-C.1: Event Viewer
+- After the browser + curl passes
+- Then the `events` table holds `API_TOKEN_ROTATE_USER` /
+  `API_TOKEN_ROTATE_PLAN` AUDIT rows and NO new Error/Warning row is generated.
+- Result: PASS
