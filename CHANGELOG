@@ -296,6 +296,41 @@ Every screen of the application was ported one-by-one in a screen-compare
   `docs/Flaky-Tests-Report-Modernized.md`, wiki page + 4 screenshots.
   Refs #1954.
 
+- [SCREEN] - #1956: the **Test Specification Health** report
+  (`gui/templates/testcases/tcSpecHealth.html`, BFF
+  `api/tcspechealth/index.php`) is a net-new 2.0.1 report: 1.9.20 asked
+  "does this name already exist?" only for the single test case being
+  created (the modern `nameCheck.html` screen) and never showed the
+  project-wide picture. The new READ ONLY screen shows, for every test case
+  of a test project, the health checks it fails — **duplicate name**,
+  **empty summary**, **no requirement in force**, **never executed** and
+  **stale** — with 9 KPI cards, a verdict banner, a suite/check re-scoping
+  (a suite scope includes its sub-suites), a per-case details modal (checks,
+  summary, steps, linked requirements) and a CSV export. The BFF enforces
+  session auth + `bffSameOriginGuard` + `bffEnforceSession` and the
+  `mgt_view_tc` right on the ADDRESSED project BEFORE it is resolved (the
+  #1697 no-oracle lesson), with the machine codes `not_authenticated` /
+  `session_expired` (401), `no_right` (403), `tproject_not_found` /
+  `tcase_not_found` (404), `invalid_request` / `invalid_parameter` (400)
+  and `method_not_allowed` (405). Wiring: the ASIDE item in
+  `api/aside/index.php` (Test Specification section, gated on `view_tc`),
+  `$actions->tcSpecHealth` in `lib/functions/common.php`, `tsh.*` (81) +
+  `footers.tcSpecHealth` in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS) and `$TLS_href_tc_spec_health` in
+  **all 19** server locales. Browser-verified (EN + RO): render, the 9 KPI
+  cards, the suite and check filters, the stale window, the details modal,
+  the CSV export, the empty project, the 400 / 403 / 404 state cards and the
+  anonymous redirect — console clean. The mandatory code review found and
+  fixed 10 defects (the `case` action evaluated against the suite scope, two
+  different rules for the requirement links, the sub-suites dropped from a
+  suite scope, the KPI tiles following the check filter, the duplicated-cases
+  tile mixing the scopes, the deleted steps listed in the modal, the missing
+  `invalid_parameter` state card, the hardcoded check list, the unvalidated
+  stale window and the table built while hidden). Suite `Issue #1956` =
+  18/18 PASS in `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1956.php`.
+  Docs mirror `docs/Test-Specification-Health-Modernized.md`, wiki page +
+  5 screenshots. Refs #1956.
+
 - [KEY BUGFIX] - #1955: the **Reports launcher** (`api/resultsnav/index.php`) served a
   **relative** href for every modernized report whose key was missing from
   `$legacy2modern`, so the browser resolved it against the launcher page
