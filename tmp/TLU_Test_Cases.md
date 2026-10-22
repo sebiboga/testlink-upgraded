@@ -45118,3 +45118,116 @@ curl -s -b /tmp/ck.txt -H "Origin: http://localhost:8082" \
   launcher sweep (the 32 href requests of case 1955-B.3)
 - Then the count does not increase — the launcher BFF logs nothing for a successful read.
 - Result: PASS
+
+## Suite — Issue #1956: Test Specification Health report (tcSpecHealth)
+
+Screen: `gui/templates/testcases/tcSpecHealth.html` — BFF: `api/tcspechealth/index.php` (actions `init` / `report` / `case`).
+Fixture: `tmp/fixtures_1956.php` (git-tracked; the ids change on every run — the suite reads them from the fixture output).
+Project `TSH1956` (external id prefix `TH`), the empty project `TSH1956 EMPTY`, the plan `TH Plan`, the suites `TH Root` (id 4) and `TH Root / TH Child Suite` (id 5), 8 test cases (ids 6, 10, 14, 18, 22, 26, 30, 34) and the user `tshnorights` (role 3).
+The unit of the report is the **TEST CASE** of a test project (the analysed version is its latest one): `TH Duplicate A` (id 6), `TH Duplicate A` (id 10, renamed by the fixture), `TH Empty Summary` (14), `TH Linked` (18), `TH Executed` (22, healthy), `TH Stale` (26), `TH Never Run` (30) — all in `TH Root` — and `TH Duplicate A` (34, renamed, in the child suite).
+
+### Test Case 1956-A.1: The report opens from the ASIDE and the screen is wired
+- When opening `/gui/templates/testcases/tcSpecHealth.html?tproject_id=<p>` of the `TSH1956` project
+- Then the teal Dashio header ("Test Specification Health"), the toolbar (Refresh, Export CSV, Suite, Check, Stale after (days), Apply, Close), the "Report context" panel (project, scope, stale window, check), the 9 KPI cards, the verdict banner, the 10-column DataTable and the footer with the language switcher are all rendered.
+- And the report is reachable from the ASIDE (`api/aside/index.php?action=init` returns the entry "Test Specification Health" → `/gui/templates/testcases/tcSpecHealth.html?tproject_id=..&tplan_id=..`, inside the Test Specification section, right after "Duplicate Name Check") and `$actions->tcSpecHealth` exists in `lib/functions/common.php`.
+- Result: PASS
+
+### Test Case 1956-A.2: The report of the fixture (the five checks)
+- When reading the report of `TSH1956` without filters
+- Then the KPIs read **8 Test cases / 7 With issues / 87.5% Issue rate / 1 Duplicate names / 3 Duplicated cases / 1 Empty summary / 5 No requirement / 6 Never executed / 1 Stale** and the banner reads "7 of 8 test cases fail at least one health check".
+- And the rows are: `TH-1`, `TH-2` and `TH-8` (the three cases renamed "TH Duplicate A") with the badges *Duplicate name*, *No requirement*, *Never executed* (severity **High**); `TH-3` (`TH Empty Summary`) with *Empty summary*, *No requirement*, *Never executed*; `TH-7` (`TH Never Run`) with *No requirement*, *Never executed*; `TH-4` (`TH Linked`) with *Never executed*; `TH-6` (`TH Stale`) with *Stale* (severity **Low**, last execution 200 days old).
+- Result: PASS
+
+### Test Case 1956-A.3: A healthy case is not listed
+- When reading the report of `TSH1956`
+- Then `TH-5` (`TH Executed` — linked to a requirement and executed today) does **not** appear in the table: the report lists only the cases that fail at least one check, while the "Test cases" tile still counts the whole project (8).
+- Result: PASS
+
+### Test Case 1956-A.4: The duplicate check is project-wide
+- When reading the report of `TSH1956`
+- Then the "Duplicate names" tile reads **1** and the "Duplicated cases" tile reads **3** — the group `TH Duplicate A` spans **two suites** (ids 6 and 10 in `TH Root`, id 34 in the child suite), so the duplicate is found even though the two cases do not share a suite.
+- And the details modal of any case of the group states "3 test cases of this project carry this name."
+- Result: PASS
+
+### Test Case 1956-A.5: The empty summary
+- When reading the details of `TH-3` (`TH Empty Summary`, the summary of its latest version was emptied by the fixture)
+- Then the check list holds *Empty summary*, the modal prints "The summary of this test case is empty." and the tile "Empty summary" reads **1**.
+- Result: PASS
+
+### Test Case 1956-A.6: Only the requirement links in force count
+- When reading the report of `TSH1956`
+- Then the tile "No requirement" reads **5** — the three cases with an **active** link (`TH-4`, `TH-5`, `TH-6`) are covered and the other five are not — and the modal of a covered case lists its linked requirement with its version.
+- And ONE rule feeds the check, the counter of the row and the list of the modal: a case that the report counts as covered can never print "No requirement is linked to this test case." in the modal.
+- Result: PASS
+
+### Test Case 1956-A.7: The executions are counted over all the plans
+- When reading the report of `TSH1956`
+- Then `TH-6` (`TH Stale`) shows 1 execution with the last execution 200 days old and `TH-5` (executed today) is healthy — the executions of a case are counted over **every** test plan of the project, not only over the plan of the screen.
+- Result: PASS
+
+### Test Case 1956-A.8: The stale window
+- When setting "Stale after (days)" to 90 (the default)
+- Then only `TH-6` carries the *Stale* badge (its last execution is 200 days old) and the tile "Stale" reads **1**.
+- And when the window is set to 3650 the case is still stale (200 > 3650 is false → the case is NOT stale any more) and the tile reads **0**.
+- And an invalid window (`stale_days=abc`, `stale_days=0`, `stale_days=4000`) answers HTTP 400 `invalid_request`; in the browser the value is clamped to 1..3650 before the request.
+- Result: PASS
+
+### Test Case 1956-A.9: A suite scope includes the sub-suites
+- When selecting `TH Root` (id 4) and clicking Apply
+- Then the scope holds all the 8 cases of the project — the case of the **child** suite (`TH-8`, id 34) is **not** dropped: the ancestry is walked up from the suite of the case.
+- And when selecting `TH Root / TH Child Suite` (id 5) the scope holds only the 1 case of that suite (`TH-8`) and the context panel reads "TH Root / TH Child Suite".
+- Result: PASS
+
+### Test Case 1956-A.10: The check filter narrows the table, not the tiles
+- When selecting `Stale` in the check filter and clicking Apply
+- Then the table shows only the 1 stale case (`TH-6`) while the **tiles and the banner still describe the whole scope**: 8 test cases, 7 with issues, 87.5% issue rate, 6 never executed, 5 no requirement, 1 empty summary.
+- Result: PASS
+
+### Test Case 1956-A.11: The details modal
+- When clicking "Details" on the row of `TH-8` (the case of the child suite)
+- Then the modal opens with the test case, the id (`TH-8`), the suite path ("TH Root / TH Child Suite"), the version, the check list, the executions, the last execution, the number of requirements, the duplicate counter, the summary ("a case of the child suite"), the 2 steps (actions / expected result) and the linked requirements.
+- And the modal has a real focus management: the focus moves inside the dialog, the background gets `inert`, `Tab` is trapped inside the dialog and the focus returns to the "Details" button of the row when the modal is closed (with the Close button, the backdrop or `Escape`).
+- Result: PASS
+
+### Test Case 1956-A.12: The details of a case outside the filtered scope
+- When the details of `TH-8` (a case of the child suite) are requested with a `suite_id` that does not contain it (`suite_id=4`, the root suite, and `suite_id=5`)
+- Then the answer describes the case itself — the version, the summary, the checks and the 2 steps are the real ones and **no false check** is raised (`no_requirement` / `never_executed` are not fired for a case that has them).
+- And the details action never evaluates the case against the scope of the report.
+- Result: PASS
+
+### Test Case 1956-A.13: The DataTable (search, sort, paging) and the empty state
+- When searching "Stale" in the table
+- Then only `TH-6` remains and clearing the search restores the 7 rows; the rows are ordered by severity (the *High* rows first, the *Low* one last).
+- And when the project holds no test case (`TSH1956 EMPTY`) the banner reads "This test project has no test case yet", all the tiles read 0 and the table shows that same message — **DataTables is not initialized** (no "Incorrect column count" warning in the console).
+- Result: PASS
+
+### Test Case 1956-A.14: The CSV export
+- When clicking "Export CSV" with a result set
+- Then a `test-specification-health-tproject-<id>.csv` is produced with the UTF-8 BOM, the `;` separator and the 9 columns of the table (Test case, ID, Suite, Version, Checks failed, Severity, Executions, Last execution, Requirements) and one line per row; the toast "CSV exported" is shown. A cell that starts with `=`, `+`, `-` or `@` is prefixed with `'` (formula-injection guard).
+- And when the report holds no row the export is refused with the toast "There is nothing to export".
+- Result: PASS
+
+### Test Case 1956-A.15: The error states
+- When the report is opened with an unknown project (`tproject_id=9999`) → the state card "Not found — The requested test project or test case does not exist. (`tproject_not_found`)" and the report is hidden.
+- When `tproject_id` is missing → "Invalid request — The test project is missing in the address." and when `stale_days` is invalid → "Invalid request — The parameters of the request are not valid. (`invalid_request`)", HTTP 400.
+- When the session is missing → HTTP 401 and the screen redirects to `login.php?note=expired&destination=…`.
+- Result: PASS
+
+### Test Case 1956-A.16: The rights of the caller
+- When the report is opened with the `tshnorights` account (role 3, no `mgt_view_tc` right on the project)
+- Then the state card "Access denied — You have no right to see the test specification of this project. (`no_right`)" is shown, the report stays hidden and the API answers HTTP 403 `no_right`.
+- And the right is checked on the **addressed** project **before** the project is resolved: a caller without the right gets the same 403 for an existing and for a missing project (no existence oracle).
+- Result: PASS
+
+### Test Case 1956-A.17: The localization
+- When opening the report with `?locale=ro`
+- Then the whole screen is translated ("Sănătatea specificației de test", "CAZURI DE TEST", "7 din 8 cazuri de test nu trec cel puțin o verificare de sănătate", the footer) and **no raw `tsh.*` key** is rendered anywhere.
+- And the 10 client bundles all define the same key set (`bash ai/verify_i18n_coverage.sh` → 9/9 PASS) and the 19 server bundles carry `$TLS_href_tc_spec_health`.
+- Result: PASS
+
+### Test Case 1956-A.18: The event log
+- After the whole round (report, the two suite scopes, the check filter, the stale window, the details modal, the empty project, the CSV export, the 4 error states, the no-rights user and the RO locale)
+- Then the `events` table holds **no** Error/Warning row for `api/tcspechealth` — the only row of the session is the **AUDIT** row (`log_level = 16`) produced by the deliberate 403 probe.
+- Result: PASS
+
+**All parts PASS.** The five health checks (duplicate name, empty summary, no requirement in force, never executed, stale), the project-wide duplicate detection, the suite scope that includes the sub-suites, the check filter that narrows the table only, the details modal, the CSV export, the error contract and the rights check are the ones recorded in this suite.
