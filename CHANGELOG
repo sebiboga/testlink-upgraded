@@ -354,6 +354,18 @@ Every screen of the application was ported one-by-one in a screen-compare
   `lib/functions/common.php`, `plcmp.*` (88) + `footers.planComparison` in
   **all 10** client bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS) and
   `$TLS_link_report_plan_comparison` in **all 19** server locales.
+  Browser-verified (EN + RO): deep-link default (A = the current plan, B = the
+  first different plan), build and platform filters, plan swap, same-plan and
+  single-plan states, project switch, CSV export, rights-less account, anon
+  redirect, Reports-menu click-through, console clean, Lighthouse
+  Accessibility / Best Practices / SEO 100 after fixing the delta green
+  contrast (`#2f9e44` -> `#1e7a33`). Bugs found and fixed: 9 `plcmp.*` keys
+  missing from every client bundle (`74cae8d07`), the BFF logging denials at
+  ERROR and connecting to the DB before the session check (`4b76743bd`), Plan B
+  defaulting to the same plan while the `tplan_id` deep link was ignored
+  (`36f330c46`). Event Viewer 0 new Error/Warning. Suite `Issue #1957` = 11/11
+  PASS in `tmp/TLU_Test_Cases.md`. Fixture `tmp/fixtures_1957.php`. Docs mirror
+  `docs/Test-Plan-Comparison-Modernized.md`, wiki page + 4 screenshots.
   Refs #1957.
 
 - [KEY BUGFIX] - #1955: the **Reports launcher** (`api/resultsnav/index.php`) served a

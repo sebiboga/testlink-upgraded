@@ -45231,3 +45231,118 @@ The unit of the report is the **TEST CASE** of a test project (the analysed vers
 - Result: PASS
 
 **All parts PASS.** The five health checks (duplicate name, empty summary, no requirement in force, never executed, stale), the project-wide duplicate detection, the suite scope that includes the sub-suites, the check filter that narrows the table only, the details modal, the CSV export, the error contract and the rights check are the ones recorded in this suite.
+
+## Suite — Issue #1957: Test Plan Comparison report (planComparison)
+
+Fixture: `tmp/fixtures_1957.php` — `PC1957` project with plans **PC Plan A**
+(id 3) and **PC Plan B** (id 4), builds `PC Build 1/2`, platforms
+`PC Linux/Windows`, two defect references, plus project `PC1957 OTHER` with a
+single plan and user `pcnorights` (role 3). Session: `admin`. App:
+`http://localhost:8082`.
+
+### Test Case 1957-A.1: The screen renders and auto-selects a comparison
+- When opening `/gui/templates/results/planComparison.html?tproject_id=1&tplan_id=3`
+- Then the project picker shows `PC1957`, **Plan A = the plan from the URL
+  (`tplan_id=3`, "PC Plan A")** and **Plan B = the first different plan
+  ("PC Plan B")**, the banner reads "PC Plan B leads with a pass rate of 66.7%
+  (the other plan: 50.0%)" and the report renders immediately.
+- And opening `?tplan_id=4` swaps the sides (A = PC Plan B, B = PC Plan A).
+- Result: PASS (the first build defaulted B to the *same* plan because
+  `.html()` leaves a `<select>` on its first option and the `tplan_id` was
+  ignored; fixed in `36f330c46`).
+
+### Test Case 1957-A.2: The metric values of the two plans
+- When comparing PC Plan A with PC Plan B (all builds, all platforms)
+- Then A reads assigned 5 / executed 4 / passed 2 / failed 1 / blocked 1 /
+  not run 1 / pass rate 50.0% / defects 1, B reads assigned 4 / executed 3 /
+  passed 2 / failed 1 / blocked 0 / not run 1 / pass rate 66.7% / defects 1,
+  and the comparison table has 11 rows with the delta and the better plan per
+  metric (B better on pass rate/blocked, A better on coverage).
+- And the per-build and per-platform tables show, per plan, executed/passed/
+  failed/blocked (e.g. PC Build 1: A 2/0/1/1, B 2/2/0/0).
+- Result: PASS
+
+### Test Case 1957-A.3: The build filter
+- When selecting `PC Build 2` and clicking Apply
+- Then A reads executed 3 / passed 2 / failed 1 / not run 2 and B executed 1 /
+  passed 0 / failed 1 / not run 3; the context block shows the build and the
+  per-build table zeroes the other build.
+- Result: PASS
+
+### Test Case 1957-A.4: The platform filter (narrows the universe)
+- When selecting `PC Windows` (build = all)
+- Then only the versions linked to that platform are counted: A assigned 3 /
+  executed 2 / passed 1 / failed 1, B assigned 2 / executed 1 / passed 0 /
+  failed 1; the per-platform table follows.
+- Result: PASS
+
+### Test Case 1957-A.5: Same plan and a project with a single plan
+- When Plan B is set to the same plan as Plan A and Apply is clicked
+- Then the state card "Invalid request — Select two different test plans to
+  compare." is shown and the report stays hidden.
+- And switching the project to `PC1957 OTHER` (one plan) shows "The test
+  project has no two test plans to compare."; switching back to `PC1957`
+  restores A/B = 3/4 and the report.
+- Result: PASS
+
+### Test Case 1957-A.6: The CSV export
+- When clicking "Export CSV" with a result set
+- Then a `plan-comparison-1-3-4.csv` is produced with the UTF-8 BOM, the `;`
+  separator, the comparison section, the per-build section and the per-platform
+  section, and the toast "CSV exported" appears (RO: "CSV exportat").
+- And `csvCell()` guards formula injection (`=1+1` -> `'=1+1`, `-3` -> `'-3`)
+  and quotes `;` values.
+- Result: PASS
+
+### Test Case 1957-A.7: The error contract of the BFF
+- Then `action=report` without a session is 401 `not_authenticated` (the screen
+  redirects to `login.php?note=expired&destination=…`); with `pcnorights` it is
+  403 `no_right`; an unknown plan is 404 `tplan_not_found`; a missing plan id
+  is 400 `invalid_request`; plans of two projects are 400
+  `plans_not_comparable`; a mismatching `tproject_id` is 404
+  `project_mismatch`; an unknown build/platform is 400 `invalid_request`; an
+  unknown action is 400 `unknown_action`; POST with a same-origin `Origin` is
+  405 `method_not_allowed`. The UI shows the matching state card.
+- Result: PASS
+
+### Test Case 1957-A.8: The rights of the caller
+- When the screen is opened as `pcnorights` (role 3, no project read right)
+- Then the project picker is EMPTY (no project name is disclosed) and the
+  screen asks to select a project; the API answers 403 `no_right` for a direct
+  `init&tproject_id=1`.
+- And the deliberate 403 probe writes an **AUDIT** row, never an ERROR.
+- Result: PASS
+
+### Test Case 1957-A.9: The Reports menu wiring
+- When the shell is opened as admin with project/plan selected and the
+  Reports submenu is expanded
+- Then the item "Test Plan Comparison" points at
+  `/gui/templates/results/planComparison.html?tproject_id=1&tplan_id=3` and
+  clicking it loads the screen with the comparison already rendered; the
+  reports launcher (`api/resultsnav`) and the cfg entry (`plan_comparison`)
+  expose the same absolute href.
+- Result: PASS
+
+### Test Case 1957-A.10: The localization
+- When opening the screen with `?locale=ro`
+- Then the whole screen is translated ("Comparație între planurile de test",
+  "Contextul raportului", "PROIECT DE TEST", "Mai bun", the footer) and no raw
+  `plcmp.*` key is rendered; the 10 client bundles define the same key set
+  (`ai/verify_i18n_coverage.sh` → 9/9 PASS, 9577 keys) and all 19 server
+  locales carry `$TLS_link_report_plan_comparison`.
+- Result: PASS
+
+### Test Case 1957-A.11: Accessibility, console and event log
+- When running Lighthouse (snapshot, desktop) on the rendered report
+- Then Accessibility / Best Practices / SEO / Agentic Browsing = 100 with 0
+  failed audits after the delta green was darkened (`#2f9e44` → `#1e7a33`,
+  contrast 3.07 → 4.83 on the striped row; fixed in `36f330c46`), and the
+  console has no message or page error.
+- And after the whole round the `events` table holds no new Error/Warning row
+  for `api/plancomparison` (only the AUDIT row of the intentional 403 probe).
+- Result: PASS
+
+**All parts PASS.** The comparison, the deltas, the per-build/per-platform
+breakdowns, the filters (build / platform / project / plans), the CSV export,
+the machine-code error contract, the owning-project right check, the Reports
+wiring and the EN/RO localization are the ones recorded in this suite.
