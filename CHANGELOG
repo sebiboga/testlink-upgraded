@@ -443,6 +443,27 @@ Every screen of the application was ported one-by-one in a screen-compare
   Docs mirror `docs/SOLR-Integration-Modernized.md`, wiki page + 2 screenshots.
   Refs #1950 / parent #1087.
 
+- [SCREEN] - #1958 (parent #1072): the **API Access Tokens** manager
+  (`gui/templates/system/apiTokens.html`, BFF `api/apitokens/index.php`) is the
+  last acceptance slice of the REST API feature — 1.9.20 exposed no UI for a
+  user's personal API token (`users.script_key`) and only showed a plan's key
+  inside the plan Edit form. It adds one ASIDE **System** entry (always visible,
+  icon `fa fa-key`) with the caller's own token (show / copy / rotate with a
+  confirmation) plus a DataTable of every test plan the caller may manage
+  (`testplan_planning` on the owning project) with masked keys and
+  show / copy / rotate. The BFF enforces session auth + `bffSameOriginGuard` +
+  `bffEnforceSession`; the personal token is only ever rotated for the CALLER
+  (never a user id from the request) and a plan key is an opaque 404 after the
+  rights probe (the #1697 no-oracle lesson); writes emit
+  `API_TOKEN_ROTATE_USER` / `API_TOKEN_ROTATE_PLAN` AUDIT events and the plan
+  key retries on a `UNIQUE` collision. Machine codes 400/401/403/404/405/500.
+  Wiring: `$actions->apiTokens` in `lib/functions/common.php`, `apitok.*` (44) in
+  **all 10** client bundles (`ai/verify_i18n_coverage.sh` 9/9 PASS) and
+  `$TLS_title_api_tokens` in **all 19** server locales. Browser-verified
+  (admin + role-3): render, show/hide, plan-key reveal, rotate (user + plan),
+  Romanian locale (no raw keys), 403 on a plan-key rotate without the right,
+  console clean; Event Viewer AUDIT-only. Refs #1958 / parent #1072.
+
 - [SCREEN] - #1927 (parent #1069): the **Test Data Sets** registry
   (`gui/templates/testdata/testDataSets.html`, BFF `api/testdata/index.php`) is the
   first slice of Test Data Management, added as a project-scoped ASIDE section
