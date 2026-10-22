@@ -78,7 +78,7 @@ table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; pa
 table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
 table.dataTable tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .delta { font-weight: 700; }
-.delta.up { color: #2f9e44; }
+.delta.up { color: #1e7a33; }
 .delta.down { color: #c0392b; }
 .delta.same { color: #5c6470; }
 .badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
@@ -355,20 +355,24 @@ function fillPlans(plans, selA, selB) {
   });
   $('#selPlanA').html(html);
   $('#selPlanB').html(html);
+  var ids = $('#selPlanA').find('option').map(function () { return $(this).val(); }).get();
   var a = isId(selA) ? String(selA) : '';
   var b = isId(selB) ? String(selB) : '';
-  if (a && $('#selPlanA').find('option[value="' + a + '"]').length) {
-    $('#selPlanA').val(a);
+  // Plan A: the requested plan when it belongs to this project, else the
+  // first plan. NOTE: .html() leaves a select on its first option, so B must
+  // be assigned explicitly - and must never stay equal to A (that used to
+  // land on the "select two different plans" state even when a second plan
+  // existed).
+  $('#selPlanA').val(a && ids.indexOf(a) >= 0 ? a : (ids[0] || ''));
+  a = String($('#selPlanA').val() || '');
+  var choice = (b && b !== a && ids.indexOf(b) >= 0) ? b : '';
+  if (!choice) {
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i] !== a) { choice = ids[i]; break; }
+    }
   }
-  if (b && $('#selPlanB').find('option[value="' + b + '"]').length) {
-    $('#selPlanB').val(b);
-  }
-  // Default: the first two DISTINCT plans, so the screen shows a comparison
-  // right away instead of an empty state.
-  var ids = $('#selPlanA').find('option').map(function () { return $(this).val(); }).get();
-  if (!$('#selPlanA').val() && ids.length) { $('#selPlanA').val(ids[0]); }
-  if (!$('#selPlanB').val() && ids.length > 1) { $('#selPlanB').val(ids[1]); }
-  else if (!$('#selPlanB').val() && ids.length === 1) { $('#selPlanB').val(ids[0]); }
+  if (!choice) { choice = a || (ids[0] || ''); }
+  $('#selPlanB').val(choice);
 }
 
 function fillFilters(filters) {
@@ -410,7 +414,7 @@ function loadInit() {
     var params = new URLSearchParams({ action: 'init', tproject_id: pid });
     getJSON(params, function (data) {
       initData = data;
-      fillPlans(data.plans || [], q('tplan_a'), q('tplan_b'));
+      fillPlans(data.plans || [], q('tplan_a') || q('tplan_id'), q('tplan_b'));
       fillFilters(data.filters || {});
       resolve(true);
     }, function (err) {
