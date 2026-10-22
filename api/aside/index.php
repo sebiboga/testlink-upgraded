@@ -597,6 +597,13 @@ if ($show('tests_design')) {
         // view_tc, matching the BFF which answers 403 without it.
         $items[] = array('label' => lang_get('href_duplicate_name_check'),
                          'href' => (string)$u('nameCheck'));
+        // Refs #1956: Test Specification Health report - the project-wide
+        // answer to the question the Duplicate Name Check asks for a single
+        // case (duplicates, empty summaries, unlinked requirements, cases
+        // never executed and stale cases). Reached only with view_tc, the
+        // right the BFF enforces (mgt_view_tc).
+        $items[] = array('label' => lang_get('href_tc_spec_health'),
+                         'href' => (string)$u('tcSpecHealth'));
     }
     if (count($items) > 0) {
         $sections[] = array('key' => 'tests_design', 'label' => lang_get('tests_design'),

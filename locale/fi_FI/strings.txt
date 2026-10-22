@@ -2138,6 +2138,7 @@ $TLS_report_test_automation = 'Testiautomaatioraportti';
 $TLS_btn_report_test_automation = 'Testauksen automaation spesifikaatio';
 $TLS_href_tc_auto_exec = 'Testiautomaation suoritus';
 $TLS_href_duplicate_name_check = "Duplikaattien tarkistus";
+$TLS_href_tc_spec_health = "Testispesifikaation kunto"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "Luo testitapauksia ongelmien XML-tiedostosta";
 $TLS_href_tc_spec_import = "Testimäärittelyn tuonti";
 $TLS_href_tc_mantis_import = "Mantis-ongelmien tuonti";

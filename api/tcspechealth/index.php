@@ -134,7 +134,7 @@ if (is_null($user)) {
 }
 
 $action = strtolower(trim((string)($_GET['action'] ?? 'init')));
-if ($action !== 'init' && $action !== 'report') {
+if ($action !== 'init' && $action !== 'report' && $action !== 'case') {
     tsFail(400, 'invalid_request', 'Unknown action');
 }
 
@@ -161,6 +161,7 @@ if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId, 0, true)) {
 
 $tbl = tlObjectWithDB::getDBTables(array(
     'testprojects', 'nodes_hierarchy', 'tcversions', 'executions', 'req_coverage',
+    'tcsteps', 'req_versions',
 ));
 
 $projRs = $db->get_recordset(
@@ -415,24 +416,15 @@ foreach ($nameGroups as $members) {
 }
 
 // ---------------------------------------------------------------------------
-// The rows: one per test case that fails at least one check.
+// The evaluation of ONE test case: the checks it fails and the numbers the
+// checks are computed from. The same evaluation feeds the report rows and the
+// details of a single test case (the modal of the screen).
 // ---------------------------------------------------------------------------
-$rows = array();
-$summary = array(
-    'total_cases' => count($scope),
-    'cases_with_issues' => 0,
-    'issue_rate_pct' => 0.0,
-    'duplicate_groups' => 0,
-    'duplicate_cases' => 0,
-    'empty_summary' => 0,
-    'no_requirement' => 0,
-    'never_executed' => 0,
-    'stale' => 0,
-);
-
 $staleBefore = time() - ($staleDays * 86400);
 
-foreach ($scope as $id => $c) {
+$tsEval = function ($id) use ($cases, $duplicateOf, $versions, $latestVersion, $caseVersions,
+    $execCount, $lastTs, $reqActive, $reqAny, $checkCatalogue, $severityRank, $staleBefore,
+    $tsWalk, $externalId, $projectPrefix) {
     $checks = array();
 
     if (isset($duplicateOf[$id])) {
@@ -476,13 +468,6 @@ foreach ($scope as $id => $c) {
         $checks[] = 'stale';
     }
 
-    if (count($checks) === 0) {
-        continue;
-    }
-    if ($checkFilter !== '' && !in_array($checkFilter, $checks, true)) {
-        continue;
-    }
-
     $severity = 'low';
     foreach ($checks as $k) {
         $sev = $checkCatalogue[$k]['severity'];
@@ -492,23 +477,53 @@ foreach ($scope as $id => $c) {
     }
 
     $ext = intval($externalId[$id] ?? 0);
-    $rows[] = array(
+    return array(
         'tcase_id' => $id,
-        'tcase_name' => $c['name'],
+        'tcase_name' => $cases[$id]['name'],
         'external_id' => ($projectPrefix !== '' && $ext > 0)
             ? ($projectPrefix . '-' . $ext)
             : (string)$ext,
-        'suite_path' => $tsWalk($c['suite']),
+        'suite_path' => $tsWalk($cases[$id]['suite']),
         'version' => $latestId > 0 ? intval($versions[$latestId]['version']) : 0,
         'version_id' => $latestId,
+        'summary' => $summaryText,
         'checks' => $checks,
         'severity' => $severity,
         'executions' => $caseExec,
         'last_ts' => $caseLast,
         'requirements' => $caseReq,
     );
+};
 
-    foreach ($checks as $k) {
+// ---------------------------------------------------------------------------
+// The rows: one per test case that fails at least one check.
+// ---------------------------------------------------------------------------
+$rows = array();
+$summary = array(
+    'total_cases' => count($scope),
+    'cases_with_issues' => 0,
+    'issue_rate_pct' => 0.0,
+    'duplicate_groups' => 0,
+    'duplicate_cases' => 0,
+    'empty_summary' => 0,
+    'no_requirement' => 0,
+    'never_executed' => 0,
+    'stale' => 0,
+);
+
+foreach ($scope as $id => $c) {
+    $e = $tsEval($id);
+
+    if (count($e['checks']) === 0) {
+        continue;
+    }
+    if ($checkFilter !== '' && !in_array($checkFilter, $e['checks'], true)) {
+        continue;
+    }
+
+    $rows[] = $e;
+
+    foreach ($e['checks'] as $k) {
         switch ($k) {
             case 'duplicate_name':  $summary['duplicate_cases']++; break;
             case 'empty_summary':   $summary['empty_summary']++; break;
@@ -537,6 +552,85 @@ usort($rows, function ($a, $b) use ($severityRank) {
 });
 
 $summary['issue_rate_pct'] = tsPct($summary['cases_with_issues'], $summary['total_cases']);
+
+// ---------------------------------------------------------------------------
+// case: the details of ONE test case (the modal of the screen). The case must
+// belong to the addressed project, so a test case of another project answers
+// 404, never the details of a foreign case.
+// ---------------------------------------------------------------------------
+if ($action === 'case') {
+    $tcaseId = tsPositiveInt($_GET['tcase_id'] ?? null);
+    if ($tcaseId <= 0) {
+        tsFail(400, 'invalid_request', 'Missing or invalid tcase_id');
+    }
+    if (!isset($cases[$tcaseId])) {
+        tsFail(404, 'tcase_not_found', 'Test case not found in this test project');
+    }
+    $e = $tsEval($tcaseId);
+
+    $steps = array();
+    if ($e['version_id'] > 0) {
+        $stepRs = $db->get_recordset(
+            "SELECT ts.step_number, ts.actions, ts.expected_results " .
+            "FROM {$tbl['nodes_hierarchy']} n " .
+            "JOIN {$tbl['tcsteps']} ts ON ts.id = n.id " .
+            "WHERE n.parent_id = " . intval($e['version_id']) . " AND n.node_type_id = 9 " .
+            "ORDER BY ts.step_number, n.id");
+        if (is_array($stepRs)) {
+            foreach ($stepRs as $s) {
+                $steps[] = array(
+                    'number' => intval($s['step_number']),
+                    'actions' => tsDecode($s['actions']),
+                    'expected' => tsDecode($s['expected_results']),
+                );
+            }
+        }
+    }
+
+    $reqList = array();
+    if (count($caseVersions[$tcaseId] ?? array()) > 0) {
+        $in = implode(',', array_map('intval', $caseVersions[$tcaseId]));
+        $reqRs = $db->get_recordset(
+            "SELECT rc.req_id, rc.req_version_id, NH.name AS req_title, RV.version AS req_version " .
+            "FROM {$tbl['req_coverage']} rc " .
+            "LEFT JOIN {$tbl['nodes_hierarchy']} NH ON NH.id = rc.req_id " .
+            "LEFT JOIN {$tbl['req_versions']} RV ON RV.id = rc.req_version_id " .
+            "WHERE rc.tcversion_id IN (" . $in . ") AND rc.is_active = 1 " .
+            "ORDER BY NH.name, RV.version");
+        if (is_array($reqRs)) {
+            foreach ($reqRs as $r) {
+                $reqList[] = array(
+                    'req_id' => intval($r['req_id']),
+                    'title' => tsDecode($r['req_title']),
+                    'version' => intval($r['req_version']),
+                );
+            }
+        }
+    }
+
+    tsOut(array(
+        'status' => 'ok',
+        'code' => 200,
+        'context' => $context,
+        'case' => array(
+            'tcase_id' => $e['tcase_id'],
+            'tcase_name' => $e['tcase_name'],
+            'external_id' => $e['external_id'],
+            'suite_path' => $e['suite_path'],
+            'version' => $e['version'],
+            'version_id' => $e['version_id'],
+            'summary' => $e['summary'],
+            'checks' => $e['checks'],
+            'severity' => $e['severity'],
+            'executions' => $e['executions'],
+            'last_ts' => $e['last_ts'],
+            'requirements' => $e['requirements'],
+            'duplicate_of' => $duplicateOf[$tcaseId] ?? 0,
+            'steps' => $steps,
+            'requirement_list' => $reqList,
+        ),
+    ));
+}
 
 tsOut(array(
     'status' => 'ok',

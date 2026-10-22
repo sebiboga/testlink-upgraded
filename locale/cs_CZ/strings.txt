@@ -3955,6 +3955,7 @@ $TLS_href_tc_spec_import = "Import specifikace testů";
 $TLS_href_tc_mantis_import = "Import problémů Mantis";
 $TLS_href_tc_auto_exec = 'Spusteni automatizace testu';
 $TLS_href_duplicate_name_check = "Kontrola duplicitních názvů";
+$TLS_href_tc_spec_health = "Kvalita testovací specifikace"; // Test Specification Health report (Refs #1956)
 
 // ----- issue #1563: after_title / after_preconditions location labels missing from this bundle -----
 $TLS_after_title = 'After Title';

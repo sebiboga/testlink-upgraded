@@ -2583,6 +2583,18 @@ function getActions(&$gui,$baseURL) {
   $actions->flakyTests =
     "/gui/templates/results/flakyTests.html?{$ctx}";
 
+  // Refs #1956: Test Specification Health report (net-new screen). Shows, per
+  // TEST CASE of a test project, the health checks it fails (duplicate name,
+  // empty summary, no linked requirement, never executed, stale); 1.9.20 only
+  // ever asked "does this name already exist?" for the single case being
+  // created (lib/testcases/nameCheck.php) and never showed the project-wide
+  // picture. Backed by the api/tcspechealth BFF (init/report/case actions),
+  // which enforces mgt_view_tc on the addressed test project. Reachable from
+  // the Test Specification section of the ASIDE menu (api/aside/index.php) and
+  // via this action.
+  $actions->tcSpecHealth =
+    "/gui/templates/testcases/tcSpecHealth.html?{$ctx}";
+
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 

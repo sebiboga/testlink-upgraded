@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Specification Health report of TestLink 2.0.1 (Refs #1956)">
+<title>Test Specification Health</title>
+<!--
+  Test Specification Health report (Refs #1956).
+
+  Net-new modern screen. TestLink 1.9.20 had no project-wide answer to
+  "how healthy is my test specification?". The only related helper was the
+  Duplicate Name Check (lib/testcases/nameCheck.php), which asks "does this
+  name already exist?" for ONE case while it is being created - it never shows
+  the project-wide picture.
+
+  This screen reports, for every TEST CASE of a test project, the health
+  checks it fails:
+    duplicate_name  - another case of the same project carries the same name
+    empty_summary   - the summary of the latest version is empty
+    no_requirement  - no requirement is linked to any version of the case
+    never_executed  - the case was never executed in any test plan
+    stale           - the case was executed, but not for N days (default 90)
+
+  The data comes from api/tcspechealth/index.php (actions init / report /
+  case); see that file for the documented semantics.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar input[type=number] { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 8px; font-size: 13px; width: 84px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 122px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-chk { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; margin: 1px 3px 1px 0; }
+.badge-chk.duplicate_name { background: #c0392b; }
+.badge-chk.never_executed { background: #d16a1f; }
+.badge-chk.no_requirement { background: #2a5fb8; }
+.badge-chk.empty_summary { background: #7d3ac1; }
+.badge-chk.stale { background: #8a6216; }
+.badge-sev { display: inline-block; min-width: 22px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-sev.high { background: #c0392b; }
+.badge-sev.medium { background: #e6b34d; color: #3d2c05; }
+.badge-sev.low { background: #b9bec7; color: #333; }
+.btn-detail { background: #4ECDC4; color: #0d3f3c; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.btn-detail:hover { background: #3dbdb5; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 720px; max-width: 94vw; max-height: 88vh; overflow: hidden; display: flex; flex-direction: column; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; overflow: auto; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.detail-grid { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-bottom: 14px; }
+.detail-grid .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.detail-grid .v { font-size: 13px; color: #22242a; font-weight: 600; }
+.detail-h { font-size: 13px; font-weight: 700; color: #22242a; margin: 16px 0 6px 0; }
+.detail-text { font-size: 13px; color: #333; white-space: pre-wrap; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 5px; padding: 9px 11px; }
+.steps-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.steps-table th { background: #f2f4f7; color: #445; text-align: left; padding: 7px 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+.steps-table td { border-bottom: 1px solid #eee; padding: 7px 9px; vertical-align: top; }
+.steps-table td.n { width: 34px; color: #5c6470; }
+.detail-empty { color: #5c6470; padding: 10px 0; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-heart-pulse" style="margin-right:8px;"></i>
+  <span data-i18n="tsh.title">Test Specification Health</span>
+  <span class="sub" data-i18n="tsh.subtitle">quality of the test specification</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="tsh.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="tsh.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selSuite" data-i18n="tsh.suite">Suite</label>
+  <select id="selSuite"></select>
+  <label for="selCheck" data-i18n="tsh.check">Check</label>
+  <select id="selCheck"></select>
+  <label for="inpStale" data-i18n="tsh.staleDays">Stale after (days)</label>
+  <input type="number" id="inpStale" min="1" max="3650" step="1" value="90">
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="tsh.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="tsh.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="tsh.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="tsh.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="tsh.ctxScope">Scope</span><span class="v" id="ctxScope">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="tsh.ctxStaleWindow">Stale window</span><span class="v" id="ctxStale">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="tsh.ctxCheck">Check</span><span class="v" id="ctxCheck">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="tsh.summaryTitle">Specification health</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="tsh.kpiTotalCases">Test cases</div><div class="v" id="sTotal">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="tsh.kpiWithIssues">With issues</div><div class="v" id="sIssues">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="tsh.kpiIssueRate">Issue rate %</div><div class="v" id="sRate">0%</div></div>
+      <div class="card bad"><div class="k" data-i18n="tsh.kpiDuplicateGroups">Duplicate names</div><div class="v" id="sDupGroups">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="tsh.kpiDuplicateCases">Duplicated cases</div><div class="v" id="sDupCases">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="tsh.kpiEmptySummary">Empty summary</div><div class="v" id="sEmpty">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="tsh.kpiNoRequirement">No requirement</div><div class="v" id="sNoReq">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="tsh.kpiNeverExecuted">Never executed</div><div class="v" id="sNever">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="tsh.kpiStale">Stale</div><div class="v" id="sStale">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="tsh.tableCaption">Test cases of the project with the health checks they fail</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="tsh.colCase">Test case</th>
+          <th scope="col" data-i18n="tsh.colExternalId">ID</th>
+          <th scope="col" data-i18n="tsh.colSuite">Suite</th>
+          <th scope="col" data-i18n="tsh.colVersion">Version</th>
+          <th scope="col" data-i18n="tsh.colChecks">Checks failed</th>
+          <th scope="col" data-i18n="tsh.colSeverity">Severity</th>
+          <th scope="col" data-i18n="tsh.colExecutions">Executions</th>
+          <th scope="col" data-i18n="tsh.colLastRun">Last execution</th>
+          <th scope="col" data-i18n="tsh.colRequirements">Requirements</th>
+          <th scope="col" data-i18n="tsh.colActions">Details</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.tcSpecHealth"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="detailModal">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" tabindex="-1">
+    <div class="modalhead"><i class="fa fa-circle-info"></i> <span id="detailModalTitle" data-i18n="tsh.detailsTitle">Test case details</span></div>
+    <div class="modalbody" id="detailModalBody"></div>
+    <div class="modalfoot">
+      <button id="detailModalClose"><span data-i18n="tsh.closeModal">Close</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/tcspechealth/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+var CHECKS = [
+  ['duplicate_name', 'tsh.checkDuplicateName'],
+  ['never_executed', 'tsh.checkNeverExecuted'],
+  ['no_requirement', 'tsh.checkNoRequirement'],
+  ['empty_summary', 'tsh.checkEmptySummary'],
+  ['stale', 'tsh.checkStale']
+];
+
+function checkKey(v) {
+  var key = 'tsh.checkStale';
+  $.each(CHECKS, function (i, it) { if (it[0] === v) { key = it[1]; } });
+  return key;
+}
+
+function severityKey(v) {
+  if (v === 'high') { return 'tsh.severityHigh'; }
+  if (v === 'medium') { return 'tsh.severityMedium'; }
+  return 'tsh.severityLow';
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'tsh.deniedTitle',  body: 'tsh.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'tsh.deniedTitle',  body: 'tsh.expiredBody' },
+    no_right:          { cls: 'deny', title: 'tsh.deniedTitle',  body: 'tsh.noRightBody' },
+    tproject_not_found:{ cls: 'warn', title: 'tsh.notFoundTitle', body: 'tsh.notFoundBody' },
+    tcase_not_found:   { cls: 'warn', title: 'tsh.notFoundTitle', body: 'tsh.notFoundBody' },
+    invalid_request:   { cls: 'warn', title: 'tsh.badRequestTitle', body: 'tsh.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'tsh.badRequestTitle', body: 'tsh.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'tsh.serverErrorTitle', body: 'tsh.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  // Drop the previous result set: otherwise "Export CSV" would silently
+  // export the rows of the last successful load after a failed reload.
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('tsh.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function renderBanner(s) {
+  var html = '';
+  if (s.cases_with_issues > 0) {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+         + esc(TLi18n.t('tsh.bannerIssues', { count: s.cases_with_issues, total: s.total_cases })) + '</span></div>';
+  } else if (s.total_cases > 0) {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+         + esc(TLi18n.t('tsh.bannerClean', { total: s.total_cases })) + '</span></div>';
+  } else {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('tsh.bannerNone')) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function scopeLabel(suiteId) {
+  if (!suiteId) { return TLi18n.t('tsh.allSuites'); }
+  var found = '—';
+  $.each(currentData && currentData.filters ? currentData.filters.suites : [], function (i, s) {
+    if (String(s.id) === String(suiteId)) { found = s.path; }
+  });
+  return found;
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  var f = data.filter || {};
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxScope').text(scopeLabel(f.suite_id));
+  $('#ctxStale').text(f.stale_days + ' ' + TLi18n.t('tsh.days'));
+  $('#ctxCheck').text(f.check ? TLi18n.t(checkKey(f.check)) : TLi18n.t('tsh.allChecks'));
+  $('#sTotal').text(s.total_cases);
+  $('#sIssues').text(s.cases_with_issues);
+  $('#sRate').text((parseFloat(s.issue_rate_pct) || 0) + '%');
+  $('#sDupGroups').text(s.duplicate_groups);
+  $('#sDupCases').text(s.duplicate_cases);
+  $('#sEmpty').text(s.empty_summary);
+  $('#sNoReq').text(s.no_requirement);
+  $('#sNever').text(s.never_executed);
+  $('#sStale').text(s.stale);
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    var badges = '';
+    $.each(r.checks, function (j, c) {
+      badges += '<span class="badge-chk ' + esc(c) + '">' + esc(TLi18n.t(checkKey(c))) + '</span>';
+    });
+    rows += '<tr>'
+      + '<td><strong>' + esc(r.tcase_name) + '</strong></td>'
+      + '<td>' + esc(r.external_id) + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td>' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td>' + badges + '</td>'
+      + '<td><span class="badge-sev ' + esc(r.severity) + '">' + esc(TLi18n.t(severityKey(r.severity))) + '</span></td>'
+      + '<td>' + (parseInt(r.executions, 10) || 0) + '</td>'
+      + '<td>' + esc(r.last_ts || '-') + '</td>'
+      + '<td>' + (parseInt(r.requirements, 10) || 0) + '</td>'
+      + '<td><button type="button" class="btn-detail" data-tc="' + parseInt(r.tcase_id, 10) + '" '
+      + 'data-name="' + esc(r.tcase_name) + '"><i class="fa fa-circle-info"></i> '
+      + esc(TLi18n.t('tsh.details')) + '</button></td>'
+      + '</tr>';
+  });
+  if (dt) {
+    dt.destroy();
+    dt = null;
+  }
+  if (rows === '') {
+    // Empty state: a single colspan cell. DataTables must NOT be (re)initialized
+    // on this row - it would read 1 cell against the 10 <th> and abort with its
+    // "Incorrect column count" warning (tn/18) on every empty filter result.
+    $('#tbl tbody').html('<tr><td colspan="10" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('tsh.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [9], orderable: false }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'tcSpecHealthTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'tcSpecHealthTableSearch'); }
+    }
+  }, 0);
+}
+
+function fillFilters(filters, filter) {
+  var suite = '<option value="0">' + esc(TLi18n.t('tsh.allSuites')) + '</option>';
+  $.each(filters.suites, function (i, s) {
+    suite += '<option value="' + s.id + '">' + esc(s.path) + '</option>';
+  });
+  $('#selSuite').html(suite).val(String(filter && filter.suite_id ? filter.suite_id : 0));
+
+  var check = '<option value="">' + esc(TLi18n.t('tsh.allChecks')) + '</option>';
+  $.each(CHECKS, function (i, c) {
+    check += '<option value="' + c[0] + '">' + esc(TLi18n.t(c[1])) + '</option>';
+  });
+  $('#selCheck').html(check).val(String(filter && filter.check ? filter.check : ''));
+
+  $('#inpStale').val(String(filter && filter.stale_days ? filter.stale_days : 90));
+}
+
+function load() {
+  var tprojectId = q('tproject_id');
+  if (!tprojectId || !/^[0-9]+$/.test(String(tprojectId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('tsh.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('tsh.missingContext')) + '</div><div class="code">tproject_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tproject_id: tprojectId });
+  var suite = $('#selSuite').val();
+  if (suite && suite !== '0') { params.set('suite_id', suite); }
+  var check = $('#selCheck').val();
+  if (check) { params.set('check', check); }
+  var stale = $('#inpStale').val();
+  if (stale) { params.set('stale_days', stale); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderBanner(data.summary);
+    renderTable(data);
+    $('#stateBox').html('');
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+/* ------------------------------------------------------------ details modal */
+
+var detailTrigger = null;
+
+function setBackgroundInert(inert) {
+  // aria-modal="true" tells the assistive technology that the rest of the
+  // page is inert, so it must really be inert.
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
+
+function closeDetailModal() {
+  $('#detailModal').removeClass('show');
+  setBackgroundInert(false);
+  if (detailTrigger && detailTrigger.length) {
+    detailTrigger.trigger('focus');
+  }
+  detailTrigger = null;
+}
+
+function openDetailModal(tcaseId, name, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  $('#detailModal').addClass('show');
+  setBackgroundInert(true);
+  $('.modalwin').trigger('focus');
+  $('#detailModalBody').html('<div class="detail-empty"><span class="spinner" style="border-color:#4ECDC4;border-top-color:transparent;display:inline-block;width:16px;height:16px;border-radius:50%;animation:spin .8s linear infinite;"></span> '
+    + esc(TLi18n.t('tsh.loading')) + '</div>');
+
+  var params = new URLSearchParams({ action: 'case', tproject_id: q('tproject_id'), tcase_id: tcaseId });
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok' || !data.case) {
+      $('#detailModalBody').html('<div class="detail-empty">' + esc(TLi18n.t('tsh.detailsError')) + '</div>');
+      return;
+    }
+    var c = data.case;
+    var badges = '';
+    $.each(c.checks, function (j, k) {
+      badges += '<span class="badge-chk ' + esc(k) + '">' + esc(TLi18n.t(checkKey(k))) + '</span>';
+    });
+    if (!badges) {
+      badges = '<span class="badge-sev low">' + esc(TLi18n.t('tsh.severityLow')) + '</span>';
+    }
+    var html = '<div class="detail-grid">'
+      + '<div><span class="k" data-i18n="tsh.detailsName">Test case</span><span class="v">' + esc(c.tcase_name) + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colExternalId">ID</span><span class="v">' + esc(c.external_id) + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colSuite">Suite</span><span class="v">' + esc(c.suite_path || '-') + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colVersion">Version</span><span class="v">' + (parseInt(c.version, 10) || 0) + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.ctxCheck">Check</span><span class="v">' + badges + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colExecutions">Executions</span><span class="v">' + (parseInt(c.executions, 10) || 0) + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colLastRun">Last execution</span><span class="v">' + esc(c.last_ts || '-') + '</span></div>'
+      + '<div><span class="k" data-i18n="tsh.colRequirements">Requirements</span><span class="v">' + (parseInt(c.requirements, 10) || 0) + '</span></div>'
+      + '</div>';
+    if (c.duplicate_of > 1) {
+      html += '<div class="detail-text">' + esc(TLi18n.t('tsh.detailsDuplicates', { count: c.duplicate_of })) + '</div>';
+    }
+    html += '<div class="detail-h" data-i18n="tsh.detailsSummary">Summary</div>';
+    html += '<div class="detail-text">' + esc(c.summary || TLi18n.t('tsh.detailsNoSummary')) + '</div>';
+    html += '<div class="detail-h" data-i18n="tsh.detailsSteps">Steps</div>';
+    if (!c.steps || !c.steps.length) {
+      html += '<div class="detail-empty" data-i18n="tsh.detailsNoSteps">No steps</div>';
+    } else {
+      html += '<table class="steps-table"><thead><tr>'
+        + '<th data-i18n="tsh.detailsStepNo">#</th>'
+        + '<th data-i18n="tsh.detailsActions">Actions</th>'
+        + '<th data-i18n="tsh.detailsExpected">Expected result</th>'
+        + '</tr></thead><tbody>';
+      $.each(c.steps, function (i, s) {
+        html += '<tr><td class="n">' + (parseInt(s.number, 10) || 0) + '</td>'
+          + '<td>' + esc(s.actions || '') + '</td>'
+          + '<td>' + esc(s.expected || '') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '<div class="detail-h" data-i18n="tsh.detailsRequirements">Linked requirements</div>';
+    if (!c.requirement_list || !c.requirement_list.length) {
+      html += '<div class="detail-empty" data-i18n="tsh.detailsNoRequirements">No requirement is linked</div>';
+    } else {
+      html += '<table class="steps-table"><thead><tr>'
+        + '<th data-i18n="tsh.detailsReqId">Requirement</th>'
+        + '<th data-i18n="tsh.detailsReqVersion">Version</th>'
+        + '</tr></thead><tbody>';
+      $.each(c.requirement_list, function (i, r) {
+        html += '<tr><td>' + esc(r.title || ('#' + r.req_id)) + '</td>'
+          + '<td>' + (parseInt(r.version, 10) || 0) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    $('#detailModalBody').html(html);
+    TLi18n.apply($('#detailModalBody'));
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    $('#detailModalBody').html('<div class="detail-empty">'
+      + esc(TLi18n.t('tsh.detailsError')) + ' <span class="code">'
+      + esc((body && body.code) || ('http_' + xhr.status)) + '</span></div>');
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows || currentData.rows.length === 0) {
+    toast(TLi18n.t('tsh.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('tsh.colCase'), TLi18n.t('tsh.colExternalId'), TLi18n.t('tsh.colSuite'),
+    TLi18n.t('tsh.colVersion'), TLi18n.t('tsh.colChecks'), TLi18n.t('tsh.colSeverity'),
+    TLi18n.t('tsh.colExecutions'), TLi18n.t('tsh.colLastRun'), TLi18n.t('tsh.colRequirements')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    var checks = [];
+    $.each(r.checks, function (j, c) { checks.push(TLi18n.t(checkKey(c))); });
+    lines.push($.map([r.tcase_name, r.external_id, r.suite_path, r.version, checks.join(', '),
+      TLi18n.t(severityKey(r.severity)), r.executions, r.last_ts, r.requirements], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'test-specification-health-tproject-' + (currentData.context.tproject_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('tsh.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    // window.close() only works on a script-opened window; when the report is
+    // opened as a normal link it would silently do nothing, so fall back to
+    // the TestLink home page.
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#detailModal').on('click', function (e) {
+    if (e.target === this) { closeDetailModal(); }
+  });
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $('#detailModal').hasClass('show')) { closeDetailModal(); }
+  });
+  // m2: keep the focus inside the modal while it is open
+  $('#detailModal').on('keydown', function (e) {
+    if (e.key !== 'Tab') { return; }
+    var $f = $('.modalwin').find('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!$f.length) { return; }
+    var first = $f.first().get(0);
+    var last = $f.last().get(0);
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  $('#detailModalClose').on('click', function () { closeDetailModal(); });
+  // Delegated: the table body is re-rendered on every filter change, so a
+  // per-row handler would be lost after the first DataTables redraw.
+  $('#tbl tbody').on('click', '.btn-detail', function () {
+    openDetailModal(parseInt($(this).attr('data-tc'), 10), $(this).attr('data-name'), this);
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('tsh.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>

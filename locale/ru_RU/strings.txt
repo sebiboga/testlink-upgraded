@@ -2810,6 +2810,7 @@ $TLS_report_test_automation = 'Отчёт по автоматизации тес
 $TLS_btn_report_test_automation = 'Спецификация автоматизации тестирования';
 $TLS_href_tc_auto_exec = 'Запуск автоматизации тестов';
 $TLS_href_duplicate_name_check = "Проверка дубликатов имён";
+$TLS_href_tc_spec_health = "Состояние тестовой спецификации"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "Создать тест-кейсы из XML проблем";
 $TLS_href_tc_spec_import = "Импорт спецификации тестов";
 $TLS_href_tc_mantis_import = "Импорт задач Mantis";

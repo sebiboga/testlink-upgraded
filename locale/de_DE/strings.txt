@@ -3712,6 +3712,7 @@ $TLS_report_test_automation = 'Testautomatisierungsbericht';
 $TLS_btn_report_test_automation = 'Testautomatisierungsspezifikation';
 $TLS_href_tc_auto_exec = 'Testautomatisierung ausfuehren';
 $TLS_href_duplicate_name_check = "Prüfung auf doppelte Namen";
+$TLS_href_tc_spec_health = "Qualität der Testspezifikation"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "Testfälle aus Problem-XML erstellen";
 $TLS_href_tc_spec_import = "Testspezifikation importieren";
 $TLS_href_tc_mantis_import = "Mantis-Issue-Import";

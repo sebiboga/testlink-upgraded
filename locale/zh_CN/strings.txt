@@ -4152,6 +4152,7 @@ $TLS_report_test_automation = '测试自动化报告';
 $TLS_btn_report_test_automation = '测试自动化规范';
 $TLS_href_tc_auto_exec = '测试自动化执行';
 $TLS_href_duplicate_name_check = "重复名称检查";
+$TLS_href_tc_spec_health = "测试规范健康状况"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "从问题XML创建测试用例";
 $TLS_href_tc_spec_import = "导入测试规范";
 $TLS_href_tc_mantis_import = "Mantis 问题导入";

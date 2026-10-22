@@ -4093,6 +4093,7 @@ $TLS_report_test_automation = 'Rapport de spécification des tests automatiques'
 $TLS_btn_report_test_automation = 'Rapport de spécification des tests automatiques';
 $TLS_href_tc_auto_exec = 'Execution de l\'automatisation des tests';
 $TLS_href_duplicate_name_check = "Vérification des noms en double";
+$TLS_href_tc_spec_health = "Santé de la spécification de test"; // Test Specification Health report (Refs #1956)
 $TLS_before_summary = "Avant le résumé";
 $TLS_before_preconditions = "Avant les pré-conditions";
 $TLS_after_title = "Après le titre";

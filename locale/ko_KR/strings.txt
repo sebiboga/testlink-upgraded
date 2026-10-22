@@ -2432,6 +2432,7 @@ $TLS_report_test_automation = '테스트 자동화 보고서';
 $TLS_btn_report_test_automation = '테스트 자동화 사양';
 $TLS_href_tc_auto_exec = '테스트 자동화 실행';
 $TLS_href_duplicate_name_check = "중복 이름 확인";
+$TLS_href_tc_spec_health = "테스트 명세 건강도"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "이슈 XML에서 테스트 케이스 생성";
 $TLS_href_tc_spec_import = "테스트 명세 가져오기";
 $TLS_href_tc_mantis_import = "Mantis 문제 가져오기";

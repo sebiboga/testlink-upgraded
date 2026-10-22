@@ -2876,6 +2876,7 @@ $TLS_report_test_automation = 'Laporan otomatisasi pengujian';
 $TLS_btn_report_test_automation = 'Spesifikasi Otomasi Pengujian';
 $TLS_href_tc_auto_exec = 'Eksekusi Otomatisasi Tes';
 $TLS_href_duplicate_name_check = "Pemeriksaan Nama Duplikat";
+$TLS_href_tc_spec_health = "Kesehatan spesifikasi pengujian"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "Buat Kasus Uji dari XML Masalah";
 $TLS_href_tc_spec_import = "Impor Spesifikasi Pengujian";
 $TLS_href_tc_mantis_import = "Impor masalah Mantis";

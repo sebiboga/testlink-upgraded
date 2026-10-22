@@ -2417,6 +2417,7 @@ $TLS_report_test_automation = 'Report automazione dei test';
 $TLS_btn_report_test_automation = 'Specifica di automazione dei test';
 $TLS_href_tc_auto_exec = 'Esecuzione automazione test';
 $TLS_href_duplicate_name_check = "Controllo nomi duplicati";
+$TLS_href_tc_spec_health = "Salute della specifica di test"; // Test Specification Health report (Refs #1956)
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'viene eseguito insieme a';
 $TLS_remove_plat_msgbox_title = 'Rimuovi Piattaforma';

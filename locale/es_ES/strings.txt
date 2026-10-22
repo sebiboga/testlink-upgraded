@@ -3848,6 +3848,7 @@ $TLS_report_test_automation = 'Informe de automatización de pruebas';
 $TLS_btn_report_test_automation = 'Especificación de automatización de pruebas';
 $TLS_href_tc_auto_exec = 'Ejecucion de la automatizacion de pruebas';
 $TLS_href_duplicate_name_check = "Verificación de nombres duplicados";
+$TLS_href_tc_spec_health = "Salud de la especificación de pruebas"; // Test Specification Health report (Refs #1956)
 $TLS_href_tc_create_from_issues = "Crear casos de prueba desde un XML de incidencias";
 $TLS_href_tc_spec_import = "Importar especificación de pruebas";
 $TLS_href_tc_mantis_import = "Importación de incidencias de Mantis";
