@@ -328,14 +328,13 @@ if ($method !== 'GET' && $method !== 'HEAD') {
     pcFail(405, 'method_not_allowed');
 }
 
-$db = new database(DB_TYPE);
-doDBConnect($db);
-
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || intval($userId) <= 0) {
     pcFail(401, 'not_authenticated', 'Not authenticated');
 }
 
+$db = new database(DB_TYPE);
+doDBConnect($db);
 bffEnforceSession($db);
 
 $user = tlUser::getByID($db, $userId);
@@ -394,7 +393,7 @@ if ($action === 'init') {
     // The right is checked on the ADDRESSED project (no project-id oracle).
     if (!pcCanViewProject($user, $db, $tpid)) {
         tLog('BFF plancomparison: user ' . intval($userId) .
-             ' has no read right on tproject ' . $tpid, 'ERROR');
+             ' has no read right on tproject ' . $tpid, 'AUDIT');
         pcFail(403, 'no_right', 'Read right required on the test project');
     }
 
@@ -498,7 +497,7 @@ $owningProjectId = $planA['testproject_id'];
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $planA['id'], true)) {
     tLog('BFF plancomparison: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . $owningProjectId .
-         ' (tplan ' . $planA['id'] . ')', 'ERROR');
+         ' (tplan ' . $planA['id'] . ')', 'AUDIT');
     pcFail(403, 'no_right', 'testplan_metrics right required');
 }
 
