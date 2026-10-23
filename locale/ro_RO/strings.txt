@@ -227,3 +227,7 @@ $TLS_link_report_plan_comparison = "Compararea planurilor de test"; // Test Plan
 $TLS_link_report_exec_history = 'Istoricul execuțiilor planului de test'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "Tokenuri de acces API"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Rezultatele scanărilor de accesibilitate Koa11y"; // Koa11y accessibility scan results (Refs #1959)
+$TLS_test_status_passed = "Trecut"; // execution status (Refs #1961 Event Viewer fix)
+$TLS_test_status_failed = "Eșuat";
+$TLS_test_status_blocked = "Blocat";
+$TLS_test_status_not_run = "Neexecutat";
