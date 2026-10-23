@@ -45608,3 +45608,54 @@ Refs #1960. Modernizes the legacy requirement-side Mantis importer (lib/requirem
 ### Test Case 1960-6: Rights
 - User without mgt_modify_req -> init/import returns 403; UI shows no import action.
 - Result: PASS
+
+
+## Issue #1961 — Modernize: Test Plan Execution History report (execHistoryReport)
+Refs #1961. Net-new plan-wide report (no legacy ASIDE entry existed): every execution row of a test plan, newest first. Screen `gui/templates/results/execHistoryReport.html`, BFF `api/exechistoryreport/index.php` (init/report/detail), rights `testplan_metrics` on the owning project. Fixtures: `tmp/fixtures_1961.sql` (project 1961, plan 1961961, 2 test cases / nested suites, 2 builds, 2 platforms, 5 executions with 3 distinct defects).
+
+### Test Case 1961-1: Init context and filters
+- Open `execHistoryReport.html?tplan_id=1961961&tproject_id=1961` as admin.
+- Header/context show EHR Project / EHR Test Plan; Build, Platform, Status and Tester selects are populated (Build 1.0/1.1, Chrome/Firefox, All/Passed/Failed/Blocked, admin); no console errors.
+- Result: PASS
+
+### Test Case 1961-2: Full report
+- Default report lists 5 executions newest first; KPI 5 executions / 3 passed / 1 failed / 1 blocked / 2 test cases / 1 tester / 2 builds / 3 defects / avg 12.95.
+- Suite path renders recursively (`E-commerce / Payments`); external ids are prefixed (`EHR-101`, `EHR-102`); duration keeps decimals (7.25, 12.5).
+- Result: PASS
+
+### Test Case 1961-3: Filters
+- Status=Failed + Apply → 1 row, banner "1 executions with 1 distinct defects", context STATUS=Failed.
+- Build=Build 1.1 + tester=admin → 3 rows; Firefox + Passed → empty state "No execution matches the current filters." with KPI 0, no DataTables column-count warning.
+- Invalid build/platform/status/tester values return 400 `invalid_parameter`.
+- Result: PASS
+
+### Test Case 1961-4: Execution detail modal
+- Click Detail on the failed Login smoke row: modal shows EHR-101 · v1 · Authentication, date/status/build/platform/tester/duration, notes flattened to plain text ("Firefox fails to submit"), linked defect chip BUG-101.
+- Escape / backdrop / Close close the modal and restore focus; Tab is trapped inside the modal.
+- `action=detail` for an execution of another plan returns 404 `execution_not_found`.
+- Result: PASS
+
+### Test Case 1961-5: CSV export
+- Export CSV produces a BOM-prefixed, `;`-separated file with 11 columns and 6 lines (header + 5 rows); dangerous leading `= + - @` values are prefixed with `'`.
+- With zero rows Export shows "Nothing to export." and no file is generated.
+- Result: PASS
+
+### Test Case 1961-6: Security and error states
+- Anonymous request returns 401 `not_authenticated`; the screen redirects to login with destination.
+- User limited (role `<no rights>`) gets 403 `no_right` for init/report/detail; screen shows Access denied.
+- Unknown action 400, missing tplan_id 400, nonexistent plan 404 `tplan_not_found`, foreign tproject_id 404 `project_mismatch`, POST 405 `method_not_allowed`.
+- Result: PASS
+
+### Test Case 1961-7: ASIDE + action wiring
+- Reports menu contains "Test Plan Execution History" (localized via PHP locale) linking to `execHistoryReport.html?tproject_id=1961&tplan_id=1961961`; no `LOCALIZE:` prefix.
+- `$actions->execHistoryReport` resolves to the modern screen; legacy ASIDE entries untouched.
+- Result: PASS
+
+### Test Case 1961-8: i18n
+- Switch en → ro: header, toolbar, context labels, KPIs, table headers, states and modal are translated; no raw `ehr.*` / `footers.*` keys.
+- `bash ai/verify_i18n_coverage.sh` passes for all 9 non-en bundles (9804 keys).
+- Result: PASS
+
+### Test Case 1961-9: Event Viewer
+- After the full pass, no new Error/Warning entries caused by the screen or its ASIDE menu entry. Fixed the pre-existing `test_status_*`/`link_report_exec_history` ro_RO localization warnings (added `locale/ro_RO/strings.txt` entries).
+- Result: PASS

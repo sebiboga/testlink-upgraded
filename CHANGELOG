@@ -331,6 +331,27 @@ Every screen of the application was ported one-by-one in a screen-compare
   Docs mirror `docs/Test-Specification-Health-Modernized.md`, wiki page +
   5 screenshots. Refs #1956.
 
+- [SCREEN] - #1961: the **Test Plan Execution History** report
+  (`gui/templates/results/execHistoryReport.html`, BFF `api/exechistoryreport/index.php`) is a
+  read-only Dashio report showing the execution history of a test plan in chronological order
+  with filters (build/platform/status/tester), KPIs (executions/test cases/passed/failed/blocked/other/testers/builds/defects),
+  a defects/activity banner, a 12-column DataTable and a per-execution detail modal with plain-text
+  notes and linked bugs (distinct `execution_bugs.bug_id`). The suite path is built by a recursive
+  walk up `nodes_hierarchy` from the test-case node; results are capped at 5000 rows. Rights are
+  enforced via `testplan_metrics` on the **owning** project of the plan (the caller's `tproject_id`
+  is asserted only). Wiring: `$tlCfg->reports_list['exec_history']` in `cfg/reports.cfg.php`, the
+  ASIDE entry in `api/aside/index.php`, `$actions->execHistoryReport` in `lib/functions/common.php`,
+  `ehr.*` + `footers.execHistoryReport` (76 keys) in **all 10** client bundles
+  (`ai/verify_i18n_coverage.sh` 9/9 PASS) and `$TLS_link_report_exec_history` in **all 19** server
+  locales. Three BFF bugs fixed during testing: `$db->escape()` replaced with `$db->prepare_string()`,
+  detail query missing `e.tester_id`/`e.tcversion_id`, durations rounded with `round((float)…,2)`
+  instead of `intval()`. Browser-verified (EN + RO): render, build/platform/status/tester filters,
+  detail modal (focus trap, `inert` background), CSV export (`;` separator, BOM, formula guard),
+  empty-filter state (no DataTables column-count warning), 400/401/403/404 states; console clean,
+  Event Viewer 0 new Error/Warning. Suite `Issue #1961` = 9/9 PASS in `tmp/TLU_Test_Cases.md`.
+  Docs mirror `docs/Execution-History-Report-Modernized.md`, wiki page + 2 screenshots.
+  Refs #1961.
+
 - [SCREEN] - #1957: the **Test Plan Comparison** report
   (`gui/templates/results/planComparison.html`, BFF
   `api/plancomparison/index.php`) is a net-new 2.0.1 report: every 1.9.20
