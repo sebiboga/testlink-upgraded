@@ -3146,6 +3146,9 @@ function getActions(&$gui,$baseURL) {
   // Test Type Coverage matrix (Refs #1945, parent #1052): project-scoped
   // tracking of the 13 canonical test types (status / owner / description).
   $actions->testTypeCoverage = "/gui/templates/strategy/testTypeCoverage.html?{$ctx}";
+  // Create Requirements from Mantis Issue XML (Refs #1960): dedicated modern twin
+  // of the retired legacy controller reqCreateFromIssueMantisXML.php.
+  $actions->reqMantisImport = "/gui/templates/requirements/reqMantisImport.html?{$ctx}";
   $actions->testStrategyIntro = "/gui/templates/strategy/intro.html?{$ctx}";
   $actions->testStrategyObjectives = "/gui/templates/strategy/objectives.html?{$ctx}";
   $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";
