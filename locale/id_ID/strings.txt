@@ -2941,3 +2941,4 @@ $TLS_href_test_strategy_exit_evaluation = "Evaluasi kriteria keluar"; // Exit Cr
 $TLS_link_report_flaky_tests = "Test case tidak stabil / intermiten"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "Perbandingan rencana pengujian"; // Test Plan Comparison report (Refs #1957)
 $TLS_title_api_tokens = "Token Akses API"; // API Access Tokens manager (Refs #1958)
+$TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)

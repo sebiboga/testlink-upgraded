@@ -2493,3 +2493,4 @@ $TLS_href_test_strategy_exit_evaluation = "종료 기준 평가"; // Exit Criter
 $TLS_link_report_flaky_tests = "불안정한 테스트 케이스"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "테스트 계획 비교"; // Test Plan Comparison report (Refs #1957)
 $TLS_title_api_tokens = "API 액세스 토큰"; // API Access Tokens manager (Refs #1958)
+$TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)

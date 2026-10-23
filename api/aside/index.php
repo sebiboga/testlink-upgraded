@@ -400,6 +400,12 @@ if ($show('system')) {
                          'label' => lang_get('title_solr_integration'),
                          'href' => (string)$u('solrIntegration'));
     }
+    // Refs #1959 (parent #1058): Koa11y Accessibility Scan Results (net-new).
+    if ($gm('view_tc') === 'yes' || $gm('modify_tc') === 'yes') {
+        $items[] = array('id' => 'a11yScans',
+                         'label' => lang_get('title_a11y_scans'),
+                         'href' => (string)$u('a11yScans'));
+    }
     if (count($items) > 0) {
         $sections[] = array('key' => 'system', 'label' => lang_get('system'),
                             'icon' => 'fa fa-desktop', 'items' => $items);

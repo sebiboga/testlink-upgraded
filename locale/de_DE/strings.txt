@@ -3760,3 +3760,4 @@ $TLS_href_test_strategy_exit_evaluation = "Bewertung der Exit-Kriterien"; // Exi
 $TLS_link_report_flaky_tests = "Flaky / Instabile Testfälle"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "Testplan-Vergleich"; // Test Plan Comparison report (Refs #1957)
 $TLS_title_api_tokens = "API-Zugriffstoken"; // API Access Tokens manager (Refs #1958)
+$TLS_title_a11y_scans = "Koa11y-Barrierefreiheits-Scanergebnisse"; // Koa11y accessibility scan results (Refs #1959)

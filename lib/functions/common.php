@@ -2321,6 +2321,8 @@ function getActions(&$gui,$baseURL) {
   // keys (testplans.api_key) for callers holding testplan_planning; backed by the
   // api/apitokens BFF.
   $actions->apiTokens = "/gui/templates/system/apiTokens.html?{$ctx}";
+  // Refs #1959: Koa11y Accessibility Scan Results (net-new).
+  $actions->a11yScans = "/gui/templates/accessibility/a11yScans.html?{$ctx}";
 
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";

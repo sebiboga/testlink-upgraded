@@ -4201,3 +4201,4 @@ $TLS_href_test_strategy_exit_evaluation = "退出准则评估"; // Exit Criteria
 $TLS_link_report_flaky_tests = "浮动／不稳定的测试用例"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "测试计划对比"; // Test Plan Comparison report (Refs #1957)
 $TLS_title_api_tokens = "API 访问令牌"; // API Access Tokens manager (Refs #1958)
+$TLS_title_a11y_scans = "Koa11y 无障碍扫描结果"; // Koa11y accessibility scan results (Refs #1959)
