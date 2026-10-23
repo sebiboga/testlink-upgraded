@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koa11y Accessibility Scan Results</title>
+  <link href="../../gui/templates/dashio/css/bootstrap.min.css" rel="stylesheet">
+  <link href="../../gui/templates/dashio/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
+  <link href="../../gui/templates/dashio/css/style.css" rel="stylesheet">
+  <link href="../../gui/templates/dashio/css/style-responsive.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  <script src="../../gui/templates/dashio/js/jquery.min.js"></script>
+  <script src="../../gui/templates/dashio/js/bootstrap.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+  <script src="../../gui/templates/i18n/i18n.js"></script>
+  <style>
+    body { background:#f2f4f8; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:14px 18px; background:linear-gradient(90deg,#20c997 0%,#0ea5a4 100%); color:#fff; border-radius:6px; margin:12px 16px; box-shadow:0 4px 18px rgba(14,165,164,.18); }
+    .page-header h4 { margin:0; font-weight:600; }
+    .page-header .sub { opacity:.9; font-size:12px; }
+    .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:0 16px 12px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; box-shadow:0 1px 2px rgba(15,23,42,.02); }
+    .toolbar .btn { border-radius:4px; }
+    .context-card { margin:0 16px 12px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:10px 16px; display:flex; flex-wrap:wrap; gap:18px; align-items:center; box-shadow:0 1px 2px rgba(15,23,42,.02); }
+    .context-card .item { display:flex; flex-direction:column; }
+    .context-card .label { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; }
+    .context-card .value { font-weight:600; color:#1f2937; }
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:0 16px 12px; }
+    .kpi-card { background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:12px 16px; box-shadow:0 1px 2px rgba(15,23,42,.02); }
+    .kpi-card .kpi-label { font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; }
+    .kpi-card .kpi-value { font-size:24px; font-weight:700; margin-top:4px; }
+    .kpi-card.pass .kpi-value { color:#1f7c3f; }
+    .kpi-card.warn .kpi-value { color:#b45309; }
+    .kpi-card.fail .kpi-value { color:#b91c1c; }
+    .kpi-card.err .kpi-value { color:#b91c1c; }
+    .panel { margin:0 16px 16px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; box-shadow:0 1px 2px rgba(15,23,42,.02); overflow:hidden; }
+    .panel-header { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid #f1f5f9; background:linear-gradient(90deg,rgba(32,201,151,.08) 0%,rgba(14,165,164,.08) 100%); }
+    .panel-header h5 { margin:0; font-weight:600; }
+    .panel-body { padding:12px 16px; }
+    .table-wrap { overflow-x:auto; }
+    .badge-pass { background:#dcfce7; color:#166534; }
+    .badge-warn { background:#fef3c7; color:#92400e; }
+    .badge-fail { background:#fee2e2; color:#991b1b; }
+    .badge-error { background:#fee2e2; color:#991b1b; }
+    .badge-warning { background:#fef3c7; color:#92400e; }
+    .badge-notice { background:#e0f2fe; color:#075985; }
+    .state-card { display:none; margin:0 16px 16px; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:18px 22px; text-align:center; box-shadow:0 1px 2px rgba(15,23,42,.02); }
+    .state-card .icon { font-size:28px; margin-bottom:6px; }
+    .state-card.active { display:block; }
+    .modal .form-group { margin-bottom:10px; }
+    .modal label { font-weight:600; }
+    .findings-list .finding { border:1px solid #f1f5f9; border-radius:6px; padding:10px 12px; margin-bottom:8px; }
+    .findings-list .finding-header { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .findings-list .finding-title { font-weight:600; }
+    .findings-list .finding-meta { font-size:12px; color:#6b7280; }
+    .findings-list .finding-body { margin-top:6px; white-space:pre-wrap; word-break:break-word; }
+    .footer { text-align:center; color:#6b7280; font-size:12px; padding:8px 0 16px; }
+    [data-i18n="a11y.footer"] { display:inline-block; }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <h4 data-i18n="a11y.title">Koa11y Accessibility Scan Results</h4>
+      <div class="sub" data-i18n="a11y.subtitle">Import, link and review accessibility scan findings across builds and test cases</div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <select id="localeSwitcher" class="form-control" style="width:auto;">
+        <option value="en">EN</option><option value="ro">RO</option><option value="de">DE</option><option value="es">ES</option><option value="fr">FR</option><option value="it">IT</option><option value="ja">JA</option><option value="pt">PT</option><option value="ru">RU</option><option value="zh">ZH</option>
+      </select>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button id="btnRefresh" class="btn btn-default"><i class="fa fa-refresh"></i> <span data-i18n="a11y.refresh">Refresh</span></button>
+    <button id="btnImport" class="btn btn-success"><i class="fa fa-upload"></i> <span data-i18n="a11y.importScan">Import scan</span></button>
+    <span id="contextInfo" class="text-muted" style="margin-left:auto;"></span>
+  </div>
+
+  <div class="context-card" id="contextCard">
+    <div class="item"><span class="label" data-i18n="a11y.project">Project</span><span class="value" id="ctxProject">-</span></div>
+    <div class="item"><span class="label" data-i18n="a11y.totalScans">Total scans</span><span class="value" id="ctxTotal">0</span></div>
+    <div class="item"><span class="label" data-i18n="a11y.latestScan">Latest scan</span><span class="value" id="ctxLatest">-</span></div>
+  </div>
+
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card pass"><div class="kpi-label" data-i18n="a11y.kpiPass">Pass</div><div class="kpi-value" id="kpiPass">0</div></div>
+    <div class="kpi-card warn"><div class="kpi-label" data-i18n="a11y.kpiWarn">Warn</div><div class="kpi-value" id="kpiWarn">0</div></div>
+    <div class="kpi-card fail"><div class="kpi-label" data-i18n="a11y.kpiFail">Fail</div><div class="kpi-value" id="kpiFail">0</div></div>
+    <div class="kpi-card err"><div class="kpi-label" data-i18n="a11y.kpiErrors">Errors</div><div class="kpi-value" id="kpiErrors">0</div></div>
+    <div class="kpi-card"><div class="kpi-label" data-i18n="a11y.kpiWarnings">Warnings</div><div class="kpi-value" id="kpiWarnings">0</div></div>
+    <div class="kpi-card"><div class="kpi-label" data-i18n="a11y.kpiNotices">Notices</div><div class="kpi-value" id="kpiNotices">0</div></div>
+  </div>
+
+  <section class="panel" id="scansPanel">
+    <header class="panel-header">
+      <h5 data-i18n="a11y.scansList">Scan results</h5>
+      <span class="text-muted" data-i18n="a11y.scansHint">Koa11y / axe-compatible imports linked to project, plan, build, or test case</span>
+    </header>
+    <div class="panel-body">
+      <div class="table-wrap">
+        <table id="scansTable" class="table table-striped table-bordered" style="width:100%;">
+          <thead>
+            <tr>
+              <th data-i18n="a11y.colName">Name</th>
+              <th data-i18n="a11y.colTarget">Target URL</th>
+              <th data-i18n="a11y.colProfile">Profile</th>
+              <th data-i18n="a11y.colScanDate">Scan date</th>
+              <th data-i18n="a11y.colLinks">Links</th>
+              <th data-i18n="a11y.colErrors">Errors</th>
+              <th data-i18n="a11y.colWarnings">Warnings</th>
+              <th data-i18n="a11y.colNotices">Notices</th>
+              <th data-i18n="a11y.colVerdict">Verdict</th>
+              <th data-i18n="a11y.colActions">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="trendPanel">
+    <header class="panel-header">
+      <h5 data-i18n="a11y.trendTitle">Trend by build</h5>
+    </header>
+    <div class="panel-body">
+      <div class="table-wrap">
+        <table id="trendTable" class="table table-striped table-bordered" style="width:100%;">
+          <thead>
+            <tr>
+              <th data-i18n="a11y.colBuild">Build</th>
+              <th data-i18n="a11y.colScans">Scans</th>
+              <th data-i18n="a11y.colErrors">Errors</th>
+              <th data-i18n="a11y.colWarnings">Warnings</th>
+              <th data-i18n="a11y.colNotices">Notices</th>
+              <th data-i18n="a11y.colFail">Fail</th>
+              <th data-i18n="a11y.colWarn">Warn</th>
+              <th data-i18n="a11y.colPass">Pass</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <div id="stateNoRights" class="state-card">
+    <div class="icon text-warning"><i class="fa fa-lock"></i></div>
+    <h4 data-i18n="a11y.noRightsTitle">Access denied</h4>
+    <p data-i18n="a11y.noRightsMsg">You do not have permission to view accessibility scans in this project.</p>
+  </div>
+  <div id="stateNoProject" class="state-card">
+    <div class="icon text-info"><i class="fa fa-info-circle"></i></div>
+    <h4 data-i18n="a11y.noProjectTitle">No test project</h4>
+    <p data-i18n="a11y.noProjectMsg">Select a test project to import and review accessibility scans.</p>
+  </div>
+  <div id="stateError" class="state-card">
+    <div class="icon text-danger"><i class="fa fa-exclamation-circle"></i></div>
+    <h4 data-i18n="a11y.errorTitle">Error</h4>
+    <p id="stateErrorMsg">-</p>
+  </div>
+  <div id="stateEmpty" class="state-card">
+    <div class="icon text-muted"><i class="fa fa-universal-access"></i></div>
+    <h4 data-i18n="a11y.emptyTitle">No scans imported</h4>
+    <p data-i18n="a11y.emptyMsg">Import a Koa11y or axe accessibility scan to see findings and a pass/warn/fail verdict here.</p>
+  </div>
+
+  <div class="modal fade" id="importModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+          <h4 class="modal-title" data-i18n="a11y.importModalTitle">Import accessibility scan</h4>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-sm-6 form-group">
+              <label data-i18n="a11y.fieldName">Scan name</label>
+              <input id="impName" class="form-control">
+            </div>
+            <div class="col-sm-6 form-group">
+              <label data-i18n="a11y.fieldTarget">Target URL</label>
+              <input id="impTarget" class="form-control" placeholder="https://example.com/page">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldProfile">Profile</label>
+              <input id="impProfile" class="form-control" placeholder="WCAG2AA / Section 508">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldEnv">Environment</label>
+              <input id="impEnv" class="form-control">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldBrowser">Browser</label>
+              <input id="impBrowser" class="form-control">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldScanDate">Scan date</label>
+              <input id="impScanDate" type="datetime-local" class="form-control">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldToolVersion">Tool version</label>
+              <input id="impToolVersion" class="form-control" placeholder="Koa11y">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldReportUrl">Original report URL</label>
+              <input id="impReportUrl" class="form-control">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldPlan">Link to test plan</label>
+              <select id="impPlan" class="form-control"><option value="0" data-i18n="a11y.none">None</option></select>
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldBuild">Link to build</label>
+              <select id="impBuild" class="form-control"><option value="0" data-i18n="a11y.none">None</option></select>
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldTcase">Link to test case</label>
+              <select id="impTcase" class="form-control"><option value="0" data-i18n="a11y.none">None</option></select>
+            </div>
+            <div class="col-sm-12 form-group">
+              <label data-i18n="a11y.fieldFindingsJson">Findings JSON (Koa11y / axe export)</label>
+              <textarea id="impFindings" class="form-control" rows="8" placeholder='[{"severity":"error","rule":"wcag-...","title":"...","element":"#id"}]'></textarea>
+              <p class="help-block" data-i18n="a11y.findingsHelp">Accepted keys: severity/error/warning/notice/impact, rule/check/code/id, title/message/description, page_url/page/url, element/selector/xpath, remediation/guidance/recommendation. If the JSON is empty, the summary counts below are used.</p>
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldErrors">Errors</label>
+              <input id="impErrors" type="number" min="0" class="form-control" value="0">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldWarnings">Warnings</label>
+              <input id="impWarnings" type="number" min="0" class="form-control" value="0">
+            </div>
+            <div class="col-sm-4 form-group">
+              <label data-i18n="a11y.fieldNotices">Notices</label>
+              <input id="impNotices" type="number" min="0" class="form-control" value="0">
+            </div>
+            <div class="col-sm-12 form-group">
+              <label data-i18n="a11y.fieldNotes">Notes</label>
+              <textarea id="impNotes" class="form-control" rows="3"></textarea>
+            </div>
+          </div>
+          <div id="impMsg" class="text-danger"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="a11y.cancel">Cancel</button>
+          <button type="button" id="btnSaveImport" class="btn btn-success" data-i18n="a11y.saveImport">Import</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="detailsModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+          <h4 class="modal-title" data-i18n="a11y.detailsTitle">Scan details</h4>
+        </div>
+        <div class="modal-body">
+          <div id="detHeader" class="mb-2"></div>
+          <h5 data-i18n="a11y.findingsTitle">Findings</h5>
+          <div id="detFindings" class="findings-list"></div>
+          <div id="detEmpty" class="text-muted" style="display:none;" data-i18n="a11y.noFindings">No individual findings were imported for this scan.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="a11y.close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+          <h4 class="modal-title" data-i18n="a11y.deleteTitle">Delete scan</h4>
+        </div>
+        <div class="modal-body">
+          <p data-i18n="a11y.deleteMsg">Delete this accessibility scan and all its findings?</p>
+          <div id="delName" class="text-muted"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal" data-i18n="a11y.cancel">Cancel</button>
+          <button type="button" id="btnConfirmDelete" class="btn btn-danger" data-i18n="a11y.delete">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer"><span data-i18n="a11y.footer">Koa11y Accessibility Scan Results - TestLink 2.0.1</span></footer>
+
+  <script>
+    var A11Y = {
+      tprojectId: 0,
+      scans: [],
+      refs: {plans:[],builds:[],tcases:[]},
+      canModify: false,
+      delId: 0,
+      table: null,
+      trendTable: null
+    };
+
+    function qs(k){
+      var m = location.search.match(new RegExp('[?&]'+k+'=([^&#]*)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+    function esc(s){ s = s==null?'':s; return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+    function badge(v){
+      if(v==='pass') return '<span class="badge badge-pass">'+TLi18n.t('a11y.verPass')+'</span>';
+      if(v==='warn') return '<span class="badge badge-warn">'+TLi18n.t('a11y.verWarn')+'</span>';
+      if(v==='fail') return '<span class="badge badge-fail">'+TLi18n.t('a11y.verFail')+'</span>';
+      return '<span class="badge">'+esc(v)+'</span>';
+    }
+    function sevBadge(s){
+      if(s==='error') return '<span class="badge badge-error">'+TLi18n.t('a11y.sevError')+'</span>';
+      if(s==='warning') return '<span class="badge badge-warning">'+TLi18n.t('a11y.sevWarning')+'</span>';
+      return '<span class="badge badge-notice">'+TLi18n.t('a11y.sevNotice')+'</span>';
+    }
+
+    function applyLocale(){
+      var l = localStorage.getItem('tl_locale') || 'en';
+      $('#localeSwitcher').val(l);
+      TLi18n.setLocale(l);
+    }
+    $('#localeSwitcher').on('change', function(){ localStorage.setItem('tl_locale', this.value); TLi18n.setLocale(this.value); renderTables(); });
+
+    function hideAllStates(){ $('.state-card').removeClass('active'); }
+    function showState(id,msg){ hideAllStates(); $('#'+id).addClass('active'); if(msg) $('#stateErrorMsg').text(msg); }
+
+    function loadRefs(r){
+      A11Y.refs = r || {plans:[],builds:[],tcases:[]};
+      var p = $('#impPlan').empty().append('<option value="0">'+TLi18n.t('a11y.none')+'</option>');
+      $.each(A11Y.refs.plans||[], function(_,x){ p.append('<option value="'+x.id+'">'+esc(x.label)+'</option>'); });
+      var b = $('#impBuild').empty().append('<option value="0">'+TLi18n.t('a11y.none')+'</option>');
+      $.each(A11Y.refs.builds||[], function(_,x){ b.append('<option value="'+x.id+'">'+esc(x.label)+'</option>'); });
+      var t = $('#impTcase').empty().append('<option value="0">'+TLi18n.t('a11y.none')+'</option>');
+      $.each(A11Y.refs.tcases||[], function(_,x){ t.append('<option value="'+x.id+'">'+esc(x.label)+'</option>'); });
+    }
+
+    function renderTables(){
+      var rows = A11Y.scans || [];
+      if(A11Y.table){ A11Y.table.destroy(); $('#scansTable tbody').empty(); }
+      $.each(rows, function(_,r){
+        var links = [];
+        if(r.tplan_id>0) links.push(TLi18n.t('a11y.linkPlan')+': '+esc(r.tplan_name||r.tplan_id));
+        if(r.build_id>0) links.push(TLi18n.t('a11y.linkBuild')+': '+esc(r.build_name||r.build_id));
+        if(r.tcase_id>0) links.push(TLi18n.t('a11y.linkTcase')+': '+esc(r.tcase_name||r.tcase_id));
+        var linkStr = links.length?links.join(' | '):'-';
+        var acts = '<button class="btn btn-xs btn-info btn-details" data-id="'+r.id+'"><i class="fa fa-eye"></i> '+TLi18n.t('a11y.view')+'</button> ';
+        if(A11Y.canModify) acts += '<button class="btn btn-xs btn-danger btn-delete" data-id="'+r.id+'" data-name="'+esc(r.name)+'"><i class="fa fa-trash"></i> '+TLi18n.t('a11y.delete')+'</button>';
+        var target = r.target_url? ('<a href="'+esc(r.target_url)+'" target="_blank" rel="noopener">'+esc(r.target_url)+'</a>') : '-';
+        var tr = $('<tr><td>'+esc(r.name)+'</td><td>'+target+'</td><td>'+esc(r.profile||'-')+'</td><td>'+esc(r.scan_date||'-')+'</td><td>'+linkStr+'</td><td>'+r.errors+'</td><td>'+r.warnings+'</td><td>'+r.notices+'</td><td>'+badge(r.verdict)+'</td><td>'+acts+'</td></tr>');
+        $('#scansTable tbody').append(tr);
+      });
+      A11Y.table = $('#scansTable').DataTable({pageLength:25, order:[[3,'desc']]});
+
+      var trRows = A11Y.trend || [];
+      if(A11Y.trendTable){ A11Y.trendTable.destroy(); $('#trendTable tbody').empty(); }
+      $.each(trRows, function(_,r){
+        var tr2 = $('<tr><td>'+esc(r.build_name||r.build_id)+'</td><td>'+r.scans+'</td><td>'+r.errors+'</td><td>'+r.warnings+'</td><td>'+r.notices+'</td><td>'+r.fail+'</td><td>'+r.warn+'</td><td>'+r.pass+'</td></tr>');
+        $('#trendTable tbody').append(tr2);
+      });
+      A11Y.trendTable = $('#trendTable').DataTable({pageLength:10});
+    }
+
+    function loadData(){
+      hideAllStates();
+      $('#scansPanel,#trendPanel,.context-card,.kpi-grid').show();
+      var url = '/api/a11yscans/index.php?action=init&tproject_id='+encodeURIComponent(A11Y.tprojectId);
+      $.getJSON(url).done(function(res){
+        if(res.status!=='ok'){ showState('stateError', res.message||res.code); return; }
+        A11Y.canModify = !!res.context.can_modify;
+        $('#ctxProject').text(res.context.tproject_name||'-');
+        $('#ctxTotal').text(res.stats.total||0);
+        $('#ctxLatest').text(res.stats.latest_scan||'-');
+        $('#kpiPass').text(res.stats.pass||0);
+        $('#kpiWarn').text(res.stats.warn||0);
+        $('#kpiFail').text(res.stats.fail||0);
+        $('#kpiErrors').text(res.stats.errors||0);
+        $('#kpiWarnings').text(res.stats.warnings||0);
+        $('#kpiNotices').text(res.stats.notices||0);
+        A11Y.scans = res.items||[];
+        A11Y.trend = res.trend||[];
+        loadRefs(res.refs);
+        if(A11Y.scans.length===0){
+          $('#scansPanel,#trendPanel').hide();
+          showState('stateEmpty');
+        }else{
+          renderTables();
+        }
+      }).fail(function(xhr){
+        var m = (xhr.responseJSON&&xhr.responseJSON.message)?xhr.responseJSON.message:(xhr.responseJSON&&xhr.responseJSON.code)?xhr.responseJSON.code:'Request failed';
+        if(xhr.status===403) showState('stateNoRights'); else if(xhr.status===400) showState('stateNoProject'); else showState('stateError', m);
+      });
+    }
+
+    $('#btnRefresh').on('click', loadData);
+    $('#btnImport').on('click', function(){
+      if(!A11Y.canModify) return;
+      $('#impMsg').text('');
+      $('#impName').val('');
+      $('#impTarget').val(qs('target')||'');
+      $('#impProfile').val('WCAG2AA');
+      $('#impEnv').val('');
+      $('#impBrowser').val('');
+      var now = new Date();
+      now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+      $('#impScanDate').val(now.toISOString().slice(0,16));
+      $('#impToolVersion').val('Koa11y');
+      $('#impReportUrl').val('');
+      $('#impFindings').val('');
+      $('#impErrors').val(0); $('#impWarnings').val(0); $('#impNotices').val(0);
+      $('#impNotes').val('');
+      $('#impPlan').val(qs('tplan_id')||0);
+      $('#impBuild').val(qs('build_id')||0);
+      $('#impTcase').val(qs('tcase_id')||0);
+      $('#importModal').modal('show');
+    });
+
+    $('#btnSaveImport').on('click', function(){
+      $('#impMsg').text('');
+      var findings = [];
+      try {
+        var raw = $('#impFindings').val().trim();
+        if(raw) {
+          var parsed = JSON.parse(raw);
+          if(Array.isArray(parsed)) findings = parsed;
+        }
+      } catch(e){ $('#impMsg').text(TLi18n.t('a11y.badJson')); return; }
+      var body = {
+        tproject_id: A11Y.tprojectId,
+        name: $('#impName').val(),
+        target_url: $('#impTarget').val(),
+        profile: $('#impProfile').val(),
+        environment: $('#impEnv').val(),
+        browser: $('#impBrowser').val(),
+        scan_date: $('#impScanDate').val(),
+        tool_version: $('#impToolVersion').val(),
+        report_url: $('#impReportUrl').val(),
+        tplan_id: parseInt($('#impPlan').val()||0),
+        build_id: parseInt($('#impBuild').val()||0),
+        tcase_id: parseInt($('#impTcase').val()||0),
+        findings: findings,
+        errors: parseInt($('#impErrors').val()||0),
+        warnings: parseInt($('#impWarnings').val()||0),
+        notices: parseInt($('#impNotices').val()||0),
+        notes: $('#impNotes').val()
+      };
+      $.ajax({
+        url: '/api/a11yscans/index.php?action=import&tproject_id='+encodeURIComponent(A11Y.tprojectId),
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(body),
+        dataType: 'json'
+      }).done(function(res){
+        if(res.status==='ok'){
+          $('#importModal').modal('hide');
+          loadData();
+        }else{
+          $('#impMsg').text(res.message||res.code);
+        }
+      }).fail(function(xhr){
+        var m = (xhr.responseJSON&&xhr.responseJSON.message)?xhr.responseJSON.message:(xhr.responseJSON&&xhr.responseJSON.code)?xhr.responseJSON.code:'Import failed';
+        $('#impMsg').text(m);
+      });
+    });
+
+    $(document).on('click', '.btn-details', function(){
+      var id = $(this).data('id');
+      $.getJSON('/api/a11yscans/index.php?action=scan&tproject_id='+encodeURIComponent(A11Y.tprojectId)+'&id='+id).done(function(res){
+        if(res.status!=='ok') return;
+        var s = res.scan;
+        var html = '<div><strong>'+esc(s.name)+'</strong> '+badge(s.verdict)+'<br>'+
+          '<span class="text-muted">'+esc(s.target_url||'')+' | '+TLi18n.t('a11y.colErrors')+': '+s.errors+' | '+TLi18n.t('a11y.colWarnings')+': '+s.warnings+' | '+TLi18n.t('a11y.colNotices')+': '+s.notices+'</span></div>';
+        if(s.report_url) html += '<div><a href="'+esc(s.report_url)+'" target="_blank" rel="noopener">'+TLi18n.t('a11y.openReport')+'</a></div>';
+        if(s.notes) html += '<div style="white-space:pre-wrap;margin-top:6px;">'+esc(s.notes)+'</div>';
+        $('#detHeader').html(html);
+        $('#detFindings').empty();
+        if(!res.findings || res.findings.length===0){
+          $('#detEmpty').show();
+        }else{
+          $('#detEmpty').hide();
+          $.each(res.findings, function(_,f){
+            var h = '<div class="finding"><div class="finding-header">'+sevBadge(f.severity)+' <span class="finding-title">'+esc(f.title)+'</span>';
+            if(f.rule_name) h += ' <span class="text-muted">['+esc(f.rule_name)+']</span>';
+            if(f.element) h += ' <span class="text-muted">'+esc(f.element)+'</span>';
+            if(f.page_url) h += ' <a class="text-muted" href="'+esc(f.page_url)+'" target="_blank">'+esc(f.page_url)+'</a>';
+            h += '</div>';
+            if(f.description) h += '<div class="finding-body">'+esc(f.description)+'</div>';
+            if(f.remediation){ h += '<div class="finding-body"><strong>'+TLi18n.t('a11y.remediation')+':</strong><br>'+esc(f.remediation)+'</div>'; }
+            h += '</div>';
+            $('#detFindings').append(h);
+          });
+        }
+        $('#detailsModal').modal('show');
+      });
+    });
+
+    $(document).on('click', '.btn-delete', function(){
+      A11Y.delId = $(this).data('id');
+      $('#delName').text($(this).data('name'));
+      $('#deleteModal').modal('show');
+    });
+    $('#btnConfirmDelete').on('click', function(){
+      $.ajax({
+        url: '/api/a11yscans/index.php?action=delete&tproject_id='+encodeURIComponent(A11Y.tprojectId),
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({tproject_id:A11Y.tprojectId,id:A11Y.delId}),
+        dataType: 'json'
+      }).done(function(){
+        $('#deleteModal').modal('hide');
+        loadData();
+      });
+    });
+
+    $(document).ready(function(){
+      applyLocale();
+      A11Y.tprojectId = parseInt(qs('tproject_id')||0);
+      $('#contextInfo').text('tproject_id=' + A11Y.tprojectId);
+      loadData();
+    });
+  </script>
+</body>
+</html>
