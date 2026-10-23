@@ -4,16 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Koa11y Accessibility Scan Results</title>
-  <link href="../../gui/templates/dashio/css/bootstrap.min.css" rel="stylesheet">
-  <link href="../../gui/templates/dashio/css/font-awesome/css/font-awesome.min.css" rel="stylesheet">
-  <link href="../../gui/templates/dashio/css/style.css" rel="stylesheet">
-  <link href="../../gui/templates/dashio/css/style-responsive.css" rel="stylesheet">
-  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-  <script src="../../gui/templates/dashio/js/jquery.min.js"></script>
-  <script src="../../gui/templates/dashio/js/bootstrap.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-  <script src="../../gui/templates/i18n/i18n.js"></script>
+  <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+  <script src="/gui/templates/i18n/i18n.js"></script>
   <style>
     body { background:#f2f4f8; }
     .page-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:14px 18px; background:linear-gradient(90deg,#20c997 0%,#0ea5a4 100%); color:#fff; border-radius:6px; margin:12px 16px; box-shadow:0 4px 18px rgba(14,165,164,.18); }
@@ -320,15 +318,13 @@
       return '<span class="badge badge-notice">'+TLi18n.t('a11y.sevNotice')+'</span>';
     }
 
-    function applyLocale(){
-      var l = localStorage.getItem('tl_locale') || 'en';
-      $('#localeSwitcher').val(l);
-      TLi18n.setLocale(l);
-    }
-    $('#localeSwitcher').on('change', function(){ localStorage.setItem('tl_locale', this.value); TLi18n.setLocale(this.value); renderTables(); });
+    $('#localeSwitcher').on('change', function(){
+      TLi18n.setLocale(this.value);
+      TLi18n.load(function(){ TLi18n.apply(); loadData(); });
+    });
 
     function hideAllStates(){ $('.state-card').removeClass('active'); }
-    function showState(id,msg){ hideAllStates(); $('#'+id).addClass('active'); if(msg) $('#stateErrorMsg').text(msg); }
+    function showState(id,msg){ hideAllStates(); $('#scansPanel,#trendPanel,.context-card,.kpi-grid').hide(); $('#btnImport').toggle(id==='stateEmpty'); $('#'+id).addClass('active'); if(msg) $('#stateErrorMsg').text(msg); }
 
     function loadRefs(r){
       A11Y.refs = r || {plans:[],builds:[],tcases:[]};
@@ -373,6 +369,7 @@
       $.getJSON(url).done(function(res){
         if(res.status!=='ok'){ showState('stateError', res.message||res.code); return; }
         A11Y.canModify = !!res.context.can_modify;
+        $('#btnImport').toggle(A11Y.canModify);
         $('#ctxProject').text(res.context.tproject_name||'-');
         $('#ctxTotal').text(res.stats.total||0);
         $('#ctxLatest').text(res.stats.latest_scan||'-');
@@ -518,10 +515,12 @@
     });
 
     $(document).ready(function(){
-      applyLocale();
       A11Y.tprojectId = parseInt(qs('tproject_id')||0);
-      $('#contextInfo').text('tproject_id=' + A11Y.tprojectId);
-      loadData();
+      TLi18n.load(function(){
+        TLi18n.apply();
+        $('#localeSwitcher').val(TLi18n.getLocale());
+        loadData();
+      });
     });
   </script>
 </body>
