@@ -45495,3 +45495,86 @@ Fixture: project `TOK` "Token Demo" (id 1) + plan "Token Plan" (id 2), users
 - Then the `events` table holds `API_TOKEN_ROTATE_USER` /
   `API_TOKEN_ROTATE_PLAN` AUDIT rows and NO new Error/Warning row is generated.
 - Result: PASS
+
+
+## Issue #1959 — Koa11y Accessibility Scan Results (a11yScans) (Refs #1958 #1068 #1058)
+
+### Objective
+Verify the modernized accessibility scan registry: BFF contract, Dashio screen, i18n, ASIDE wiring,
+project/rights gating, import/linking/verdict/trend, details/delete, and 403/empty/error paths.
+
+### Preconditions
+- Admin session on `http://localhost:8082` with project `A11Y1959` (tproject_id=1) and fixtures
+  from `tmp/fixtures_1959.php` (plan A11Y Plan, builds A11Y Build 1/2, tcase AY Login page a11y).
+- No-rights user `a11ynorights` / `a11ynorights` (role 3).
+- Schema present: `tc_a11y_scans`, `tc_a11y_findings` (via `api/a11yscans/index.php` lazy DDL or
+  installer migration) and tables whitelisted in `lib/functions/object.class.php`.
+
+### Test Case 1959-A.1: ASIDE + navigation
+- Open `gui/templates/accessibility/a11yScans.html?tproject_id=1` or navigate via ASIDE System section.
+- The item `a11yScans` appears and is visible to users with `mgt_view_tc` or `mgt_modify_tc`.
+- Result: PASS
+
+### Test Case 1959-A.2: Init + stats + refs
+- `GET api/a11yscans/index.php?action=init&tproject_id=1` returns `status:ok`, context with
+  `can_view/can_modify`, domains (severities/verdicts/thresholds), refs (plans/builds/tcases)
+  for the addressed project, stats/trend/items.
+- Result: PASS
+
+### Test Case 1959-A.3: Import with Koa11y/axe aliases + verdict rules
+- Import a scan with findings containing `severity: critical/moderate/minor`, aliases
+  `impact/id/label/url/page/selector/xpath/description/remediation/guidance`.
+- `critical/serious/high` -> error, `moderate/medium/warn` -> warning, `minor/low/info` -> notice.
+- Verdict: errors>0 -> fail, errors==0 and warnings>0 -> warn, else pass.
+- Findings capped at 5000; summary counts used when `findings` empty or array empty.
+- Result: PASS
+
+### Test Case 1959-A.4: Link validation (plan/build/tcase)
+- Linking to a plan/build/tcase of a different project is rejected with `invalid_tplan` /
+  `invalid_build` / `invalid_tcase` (400). Links to objects in the addressed project succeed.
+- Result: PASS
+
+### Test Case 1959-A.5: Details modal
+- Click View on a scan shows target/links/errors/warnings/notices/notes/report_url and a findings
+  list with severity badges, rule/title/element/page, description and remediation when present;
+  empty state shown when no findings.
+- Result: PASS
+
+### Test Case 1959-A.6: Delete
+- Delete a scan removes it and all its `tc_a11y_findings` rows and updates stats/trend.
+- Result: PASS
+
+### Test Case 1959-A.7: Trend by build
+- Trend aggregates per build: scans/errors/warnings/notices/fail/warn/pass sorted by build.
+- Result: PASS
+
+### Test Case 1959-B.1: No-rights state
+- Login as `a11ynorights` and open the screen for tproject_id=1.
+- BFF returns 403 `no_right` for init/import/delete; screen shows `Access denied` state,
+  hides charts/tables, hides Import, no admin data leaked.
+- Result: PASS
+
+### Test Case 1959-B.2: No project / missing / unknown action
+- `action=init` without tproject_id falls back to context/default or is handled; unknown action
+  returns `unknown_action` (400). POST to a GET-only action returns `unknown_action`.
+- Result: PASS
+
+### Test Case 1959-B.3: Anon session
+- Unauthenticated GET returns 401 `session_expired` (and modern screen can redirect to login).
+- Result: PASS
+
+### Test Case 1959-B.4: Nonexistent project (no existence oracle)
+- Rights check is performed against the addressed project before resolution; a nonexistent
+  tproject_id for a no-rights/insufficient user still returns `no_right` (no oracle).
+- Result: PASS
+
+### Test Case 1959-C.1: i18n + locale switch
+- All labels use `TLi18n` (flat keys `a11y.*`). Switching locale updates header/toolbar/modals/tables
+  without broken keys; EN/RO/DE/ES/FR/IT/JA/PT/RU/ZH bundles all pass
+  `bash ai/verify_i18n_coverage.sh`.
+- Result: PASS
+
+### Test Case 1959-C.2: Event Viewer
+- Import/delete produce `A11Y_SCAN_IMPORT` / `A11Y_SCAN_DELETE` AUDIT events; no new Error/Warning
+  rows in `events` table.
+- Result: PASS
