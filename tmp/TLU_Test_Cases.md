@@ -45578,3 +45578,33 @@ project/rights gating, import/linking/verdict/trend, details/delete, and 403/emp
 - Import/delete produce `A11Y_SCAN_IMPORT` / `A11Y_SCAN_DELETE` AUDIT events; no new Error/Warning
   rows in `events` table.
 - Result: PASS
+
+## Issue #1960 — Modernize: Create Requirements from Mantis Issue XML (reqCreateFromIssueMantisXML)
+Refs #1960. Modernizes the legacy requirement-side Mantis importer (lib/requirements/reqCreateFromIssueMantisXML.php) to gui/templates/requirements/reqMantisImport.html + api/reqmantisimport/index.php delegating to api/reqfromissues. Rights: mgt_view_req AND mgt_modify_req on the owning project. Legacy controller is a session-guarded non-mutating 302 shim whose write verbs return 405 modern_endpoint_only.
+
+### Test Case 1960-1: Init context
+- Open reqMantisImport.html?req_spec_id=9002&tproject_id=9001.
+- Screen shows project/specreq path and max upload size; mapping text present.
+- Result: PASS
+
+### Test Case 1960-2: Mantis XML import
+- Upload a valid <mantis> file with one <issue> (id/summary/description/steps_to_reproduce/additional_information).
+- POST to api/reqmantisimport/index.php?action=import returns ok with result rows; requirement created with docid "Mantis Task ID:<id>" and title "Issue/Task:<id> - <summary>"; description concatenated with <p> labels.
+- Result: PASS
+
+### Test Case 1960-3: Locale switch
+- Switch locale (en_GB/ro) via TLi18n switcher; header/footer and issue labels localized; no raw keys.
+- Result: PASS
+
+### Test Case 1960-4: Invalid spec id
+- req_spec_id=0 / invalid -> init returns 400/404 and screen shows error card; no form rendered.
+- Result: PASS
+
+### Test Case 1960-5: Legacy shim
+- GET lib/requirements/reqCreateFromIssueMantisXML.php?req_spec_id=9002 -> 302 to /gui/templates/requirements/reqMantisImport.html preserving params.
+- POST to the same controller -> 405 JSON modern_endpoint_only with Allow GET, HEAD.
+- Result: PASS
+
+### Test Case 1960-6: Rights
+- User without mgt_modify_req -> init/import returns 403; UI shows no import action.
+- Result: PASS
