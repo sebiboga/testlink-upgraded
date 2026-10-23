@@ -576,6 +576,53 @@ CREATE TABLE /*prefix*/tc_risks (
 
 
 # ---------------------------------------------------------------------------
+# Koa11y accessibility scan results - project-scoped imported scans plus their
+# individual findings; net-new module, 1.9.20 has no scan integration.
+# (Refs #1959 / #1058)
+# ---------------------------------------------------------------------------
+CREATE TABLE /*prefix*/tc_a11y_scans (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `tplan_id` int(10) unsigned default NULL,
+  `build_id` int(10) unsigned default NULL,
+  `tcase_id` int(10) unsigned default NULL,
+  `name` varchar(255) NOT NULL default '',
+  `target_url` varchar(1024) NOT NULL default '',
+  `profile` varchar(100) NOT NULL default '',
+  `environment` varchar(128) NOT NULL default '',
+  `browser` varchar(128) NOT NULL default '',
+  `scan_date` datetime default NULL,
+  `tool_version` varchar(64) NOT NULL default '',
+  `errors` int(10) unsigned NOT NULL default 0,
+  `warnings` int(10) unsigned NOT NULL default 0,
+  `notices` int(10) unsigned NOT NULL default 0,
+  `verdict` varchar(8) NOT NULL default 'pass',
+  `report_url` varchar(1024) NOT NULL default '',
+  `notes` text,
+  `created_by` int(10) unsigned default NULL,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  KEY `idx_a11y_scans_project` (`testproject_id`,`scan_date`)
+) DEFAULT CHARSET=utf8;
+
+CREATE TABLE /*prefix*/tc_a11y_findings (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `scan_id` int(10) unsigned NOT NULL default '0',
+  `severity` varchar(8) NOT NULL default 'notice',
+  `rule_name` varchar(255) NOT NULL default '',
+  `title` varchar(500) NOT NULL default '',
+  `page_url` varchar(1024) NOT NULL default '',
+  `element` varchar(500) NOT NULL default '',
+  `description` text,
+  `remediation` text,
+  `sort_order` int(10) unsigned NOT NULL default 0,
+  PRIMARY KEY  (`id`),
+  KEY `idx_a11y_findings_scan` (`scan_id`)
+) DEFAULT CHARSET=utf8;
+
+
+# ---------------------------------------------------------------------------
 # Test Type Coverage matrix - project-scoped tracking of the 13 canonical
 # #1052 test types (6 functional + 7 non-functional) with status/owner/
 # description; stored rows overlay the canonical catalogue emitted by the BFF.
