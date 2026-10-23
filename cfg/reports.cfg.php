@@ -433,6 +433,20 @@ $tlCfg->reports_list['plan_comparison'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1961 - Test Plan Execution History report (execHistoryReport). A new
+// 2.0.1 view that no legacy entry exposed: 1.9.20 showed the execution history
+// of a SINGLE test case (lib/execute/execHistory.php) but no plan-wide list,
+// so "what ran, when, by whom, on which build/platform, with which defects?"
+// required opening the cases one by one. Registered here pointing at the
+// modern HTML screen; the BFF action 'report' enforces testplan_metrics.
+// directLink is empty: the modern screen is HTML only.
+$tlCfg->reports_list['exec_history'] = array(
+	'title' => 'link_report_exec_history',
+	'url' => 'gui/templates/results/execHistoryReport.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

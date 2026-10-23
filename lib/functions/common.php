@@ -2590,6 +2590,17 @@ function getActions(&$gui,$baseURL) {
   $actions->flakyTests =
     "/gui/templates/results/flakyTests.html?{$ctx}";
 
+  // Refs #1961: Test Plan Execution History report (net-new screen). Lists
+  // every execution row of a test plan (newest first) with build / platform /
+  // status / tester filters, per-execution detail and CSV export; 1.9.20
+  // exposed the history of a SINGLE test case only, so the plan-wide picture
+  // required opening the cases one by one. Backed by the
+  // api/exechistoryreport BFF (init/report/detail actions), which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->execHistoryReport =
+    "/gui/templates/results/execHistoryReport.html?{$ctx}";
+
   // Refs #1957: Test Plan Comparison report (net-new screen). Compares two
   // test plans of the SAME test project side by side (assigned / executed /
   // passed / failed / blocked / not run / pass rate / coverage / defect refs)

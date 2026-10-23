@@ -255,6 +255,11 @@ if ($tplan_id > 0) {
                 // whole execution history).
                 $hrefR = '/gui/templates/results/flakyTests.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_history') {
+                // Refs #1961: Test Plan Execution History report (every
+                // execution row of the plan, newest first).
+                $hrefR = '/gui/templates/results/execHistoryReport.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_comparison') {
                 // Refs #1957: Test Plan Comparison report (two plans of the
                 // same test project side by side, delta per metric).

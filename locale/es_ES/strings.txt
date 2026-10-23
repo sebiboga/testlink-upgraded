@@ -3895,5 +3895,6 @@ $TLS_title_risk_coverage_matrix = "Matriz de cobertura de riesgos"; // "Risk Cov
 $TLS_href_test_strategy_exit_evaluation = "Evaluación de criterios de salida"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "Casos de prueba inestables / intermitentes"; // Flaky / Unstable Test Cases report (Refs #1954)
 $TLS_link_report_plan_comparison = "Comparación de planes de prueba"; // Test Plan Comparison report (Refs #1957)
+$TLS_link_report_exec_history = 'Historial de ejecuciones del plan de pruebas'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "Tokens de acceso a la API"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Resultados de análisis de accesibilidad Koa11y"; // Koa11y accessibility scan results (Refs #1959)
