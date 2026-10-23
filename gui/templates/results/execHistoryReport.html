@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Execution History report of TestLink 2.0.1 (Refs #1961)">
+<title>Test Plan Execution History</title>
+<!--
+  Test Plan Execution History report (Refs #1961).
+
+  Net-new modern Reports-menu screen. 1.9.20 showed the execution history of a
+  SINGLE test case (lib/execute/execHistory.php) but no plan-wide report, so
+  "what was executed, when, by whom, on which build/platform and with which
+  defects?" had to be answered by opening the cases one by one. This screen
+  lists every execution row of a test plan (newest first) with filters and a
+  detail modal; the CSV export mirrors the visible rows.
+
+  Data comes from api/exechistoryreport/index.php (actions init / report /
+  detail); see that file for the documented semantics (the unit is one
+  execution row, defects are DISTINCT bug ids, the client tproject_id is only
+  an assertion of the plan's owning project).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 200px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 140px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.card { flex: 1 1 106px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 12px; padding: 10px 12px; white-space: nowrap; }
+table.dataTable tbody td { padding: 8px 12px; font-size: 13px; vertical-align: middle; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.passed { background: #1e7a34; }
+.badge-st.failed { background: #c0392b; }
+.badge-st.blocked { background: #2a5fb8; }
+.badge-st.other { background: #6b7280; }
+.badge-count { display: inline-block; min-width: 20px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #eceef2; color: #445; text-align: center; }
+.badge-count.has { background: #fdecea; color: #8a2b28; }
+.btn-hist { background: #4ECDC4; color: #0d3f3c; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.btn-hist:hover { background: #3dbdb5; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 760px; max-width: 94vw; max-height: 88vh; overflow: hidden; display: flex; flex-direction: column; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; overflow: auto; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-bottom: 16px; }
+.meta .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.meta .v { font-size: 13px; color: #22242a; font-weight: 600; }
+.notes-block { background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; font-size: 13px; white-space: pre-wrap; word-break: break-word; min-height: 42px; }
+.bugs { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+.bug-chip { background: #fdecea; color: #8a2b28; border: 1px solid #f5c6c2; border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+.hist-empty { color: #5c6470; padding: 18px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-timeline" style="margin-right:8px;"></i>
+  <span data-i18n="ehr.title">Test Plan Execution History</span>
+  <span class="sub" data-i18n="ehr.subtitle">every run of the plan, newest first</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="ehr.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="ehr.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="ehr.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="ehr.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <label for="selStatus" data-i18n="ehr.status">Status</label>
+  <select id="selStatus"></select>
+  <label for="selTester" data-i18n="ehr.tester">Tester</label>
+  <select id="selTester"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="ehr.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="ehr.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="ehr.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxStatus">Status</span><span class="v" id="ctxStatus">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ehr.ctxTester">Tester</span><span class="v" id="ctxTester">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="ehr.summaryTitle">Execution summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="ehr.kpiExecutions">Executions</div><div class="v" id="sExecutions">0</div></div>
+      <div class="card good"><div class="k" data-i18n="ehr.kpiPassed">Passed</div><div class="v" id="sPassed">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="ehr.kpiFailed">Failed</div><div class="v" id="sFailed">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="ehr.kpiBlocked">Blocked</div><div class="v" id="sBlocked">0</div></div>
+      <div class="card"><div class="k" data-i18n="ehr.kpiTestCases">Test cases</div><div class="v" id="sTestCases">0</div></div>
+      <div class="card"><div class="k" data-i18n="ehr.kpiTesters">Testers</div><div class="v" id="sTesters">0</div></div>
+      <div class="card"><div class="k" data-i18n="ehr.kpiBuilds">Builds</div><div class="v" id="sBuilds">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="ehr.kpiDefects">Defects</div><div class="v" id="sDefects">0</div></div>
+      <div class="card info"><div class="k" data-i18n="ehr.kpiAvgDuration">Avg. duration (s)</div><div class="v" id="sAvgDuration">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="ehr.tableCaption">Execution rows of the test plan, newest first</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="ehr.colTime">Date</th>
+          <th scope="col" data-i18n="ehr.colCase">Test case</th>
+          <th scope="col" data-i18n="ehr.colExternalId">ID</th>
+          <th scope="col" data-i18n="ehr.colSuite">Suite</th>
+          <th scope="col" data-i18n="ehr.colVersion">Version</th>
+          <th scope="col" data-i18n="ehr.colStatus">Status</th>
+          <th scope="col" data-i18n="ehr.colBuild">Build</th>
+          <th scope="col" data-i18n="ehr.colPlatform">Platform</th>
+          <th scope="col" data-i18n="ehr.colTester">Tester</th>
+          <th scope="col" data-i18n="ehr.colDuration">Duration (s)</th>
+          <th scope="col" data-i18n="ehr.colDefects">Defects</th>
+          <th scope="col" data-i18n="ehr.colActions">Detail</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.execHistoryReport"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="detailModal">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" tabindex="-1">
+    <div class="modalhead"><i class="fa fa-magnifying-glass"></i> <span id="detailModalTitle" data-i18n="ehr.detailTitle">Execution detail</span></div>
+    <div class="modalbody" id="detailModalBody"></div>
+    <div class="modalfoot">
+      <button id="detailModalClose"><span data-i18n="ehr.closeModal">Close</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/exechistoryreport/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'ehr.deniedTitle',  body: 'ehr.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'ehr.deniedTitle',  body: 'ehr.expiredBody' },
+    no_right:          { cls: 'deny', title: 'ehr.deniedTitle',  body: 'ehr.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'ehr.notFoundTitle', body: 'ehr.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'ehr.notFoundTitle', body: 'ehr.mismatchBody' },
+    execution_not_found: { cls: 'warn', title: 'ehr.notFoundTitle', body: 'ehr.execNotFoundBody' },
+    invalid_request:   { cls: 'warn', title: 'ehr.badRequestTitle', body: 'ehr.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'ehr.badRequestTitle', body: 'ehr.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'ehr.badRequestTitle', body: 'ehr.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'ehr.serverErrorTitle', body: 'ehr.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('ehr.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function statusKey(v) {
+  if (v === 'passed')  { return 'ehr.statusPassed'; }
+  if (v === 'failed')  { return 'ehr.statusFailed'; }
+  if (v === 'blocked') { return 'ehr.statusBlocked'; }
+  return 'ehr.statusOther';
+}
+
+function statusLabel(v) {
+  return TLi18n.t(statusKey(v));
+}
+
+function labelFrom(list, id, allKey) {
+  if (!id) { return TLi18n.t(allKey); }
+  var found = '—';
+  $.each(list || [], function (i, it) {
+    if (String(it.id) === String(id)) { found = it.name; }
+  });
+  return found;
+}
+
+function renderBanner(s) {
+  var html = '';
+  if (s.executions > 0 && s.defects > 0) {
+    html = '<div class="banner bad"><i class="fa fa-bug"></i><span>'
+         + esc(TLi18n.t('ehr.bannerDefects', { executions: s.executions, defects: s.defects })) + '</span></div>';
+  } else if (s.executions > 0) {
+    html = '<div class="banner good"><i class="fa fa-circle-check"></i><span>'
+         + esc(TLi18n.t('ehr.bannerActivity', { executions: s.executions, first: s.first_ts, last: s.last_ts })) + '</span></div>';
+  } else {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('ehr.bannerNoData')) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(labelFrom(data.filters.builds, data.filter.build_id, 'ehr.allBuilds'));
+  $('#ctxPlatform').text(labelFrom(data.filters.platforms, data.filter.platform_id, 'ehr.allPlatforms'));
+  $('#ctxStatus').text(data.filter.status ? statusLabel(statusFromChar(data.filter.status)) : TLi18n.t('ehr.allStatuses'));
+  $('#ctxTester').text(labelFrom(data.filters.testers, data.filter.tester_id, 'ehr.allTesters'));
+  $('#sExecutions').text(s.executions);
+  $('#sPassed').text(s.passed);
+  $('#sFailed').text(s.failed);
+  $('#sBlocked').text(s.blocked);
+  $('#sTestCases').text(s.test_cases);
+  $('#sTesters').text(s.testers);
+  $('#sBuilds').text(s.builds);
+  $('#sDefects').text(s.defects);
+  $('#sAvgDuration').text(parseFloat(s.avg_duration) || 0);
+}
+
+function statusFromChar(c) {
+  if (c === 'p') { return 'passed'; }
+  if (c === 'f') { return 'failed'; }
+  if (c === 'b') { return 'blocked'; }
+  return 'other';
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    var defects = parseInt(r.defects, 10) || 0;
+    rows += '<tr>'
+      + '<td>' + esc(r.execution_ts || '-') + '</td>'
+      + '<td><strong>' + esc(r.tcase_name) + '</strong></td>'
+      + '<td>' + esc(r.external_id) + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td>' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td><span class="badge-st ' + esc(r.status) + '">' + esc(statusLabel(r.status)) + '</span></td>'
+      + '<td>' + esc(r.build_name || '-') + '</td>'
+      + '<td>' + esc(r.platform_name || '-') + '</td>'
+      + '<td>' + esc(r.tester_name || '-') + '</td>'
+      + '<td>' + (parseFloat(r.duration) || 0) + '</td>'
+      + '<td><span class="badge-count' + (defects > 0 ? ' has' : '') + '">' + defects + '</span></td>'
+      + '<td><button type="button" class="btn-hist" data-exec="' + parseInt(r.id, 10) + '" '
+      + 'data-name="' + esc(r.tcase_name) + '"><i class="fa fa-magnifying-glass"></i> '
+      + esc(TLi18n.t('ehr.detail')) + '</button></td>'
+      + '</tr>';
+  });
+  if (dt) {
+    dt.destroy();
+    dt = null;
+  }
+  if (rows === '') {
+    // One colspan cell, no DataTables init: a 1-cell row would trigger the
+    // "Incorrect column count" warning of DataTables on every empty filter.
+    $('#tbl tbody').html('<tr><td colspan="12" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('ehr.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [11], orderable: false }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'execHistoryReportTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'execHistoryReportTableSearch'); }
+    }
+  }, 0);
+}
+
+function fillFilters(filters, filter) {
+  var build = '<option value="0">' + esc(TLi18n.t('ehr.allBuilds')) + '</option>';
+  $.each(filters.builds, function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('ehr.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+
+  var stat = '<option value="">' + esc(TLi18n.t('ehr.allStatuses')) + '</option>'
+    + '<option value="p">' + esc(TLi18n.t('ehr.statusPassed')) + '</option>'
+    + '<option value="f">' + esc(TLi18n.t('ehr.statusFailed')) + '</option>'
+    + '<option value="b">' + esc(TLi18n.t('ehr.statusBlocked')) + '</option>';
+  $('#selStatus').html(stat).val(filter && filter.status ? filter.status : '');
+
+  var tester = '<option value="0">' + esc(TLi18n.t('ehr.allTesters')) + '</option>';
+  $.each(filters.testers, function (i, t) {
+    tester += '<option value="' + t.id + '">' + esc(t.name) + '</option>';
+  });
+  $('#selTester').html(tester).val(String(filter && filter.tester_id ? filter.tester_id : 0));
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('ehr.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('ehr.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: tplanId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.set('build_id', b); }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.set('platform_id', p); }
+  var st = $('#selStatus').val();
+  if (st) { params.set('status', st); }
+  var t = $('#selTester').val();
+  if (t && t !== '0') { params.set('tester_id', t); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderBanner(data.summary);
+    renderTable(data);
+    $('#stateBox').html('');
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+/* ------------------------------------------------------------- detail modal */
+
+var detailTrigger = null;
+
+function setBackgroundInert(inert) {
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
+
+function closeDetailModal() {
+  $('#detailModal').removeClass('show');
+  setBackgroundInert(false);
+  if (detailTrigger && detailTrigger.length) {
+    detailTrigger.trigger('focus');
+  }
+  detailTrigger = null;
+}
+
+function openDetailModal(execId, name, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  $('#detailModal').addClass('show');
+  setBackgroundInert(true);
+  $('.modalwin').trigger('focus');
+  $('#detailModalBody').html('<div class="hist-empty"><span class="spinner" style="border-color:#4ECDC4;border-top-color:transparent;display:inline-block;width:16px;height:16px;border-radius:50%;animation:spin .8s linear infinite;"></span> '
+    + esc(TLi18n.t('ehr.loading')) + '</div>');
+  var params = new URLSearchParams({ action: 'detail', tplan_id: q('tplan_id'), exec_id: execId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      $('#detailModalBody').html('<div class="hist-empty">' + esc(TLi18n.t('ehr.detailError')) + '</div>');
+      return;
+    }
+    var e = data.execution;
+    var html = '<div style="font-weight:700;margin-bottom:2px;">' + esc(name || e.tcase_name) + '</div>'
+      + '<div style="color:#7b8794;font-size:12px;margin-bottom:14px;">'
+      + esc(e.external_id) + ' &middot; v' + (parseInt(e.tcversion_number, 10) || 0)
+      + (e.suite_path ? ' &middot; ' + esc(e.suite_path) : '') + '</div>'
+      + '<div class="meta">'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colTime')) + '</span><span class="v">' + esc(e.execution_ts) + '</span></div>'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colStatus')) + '</span><span class="v"><span class="badge-st '
+      + esc(e.status) + '">' + esc(statusLabel(e.status)) + '</span></span></div>'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colBuild')) + '</span><span class="v">' + esc(e.build_name || '-') + '</span></div>'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colPlatform')) + '</span><span class="v">' + esc(e.platform_name || '-') + '</span></div>'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colTester')) + '</span><span class="v">' + esc(e.tester_name || '-') + '</span></div>'
+      + '<div><span class="k">' + esc(TLi18n.t('ehr.colDuration')) + '</span><span class="v">' + (parseFloat(e.duration) || 0) + '</span></div>'
+      + '</div>'
+      + '<h4 style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#5c6470;margin:0 0 6px 0;">'
+      + esc(TLi18n.t('ehr.detailNotes')) + '</h4>'
+      + '<div class="notes-block">' + (e.notes ? esc(e.notes) : esc(TLi18n.t('ehr.detailNone'))) + '</div>';
+
+    if (e.bugs && e.bugs.length) {
+      html += '<h4 style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#5c6470;margin:16px 0 6px 0;">'
+        + esc(TLi18n.t('ehr.detailDefects')) + '</h4><div class="bugs">';
+      $.each(e.bugs, function (i, bug) {
+        html += '<span class="bug-chip">' + esc(bug) + '</span>';
+      });
+      html += '</div>';
+    }
+    $('#detailModalBody').html(html);
+    TLi18n.apply($('#detailModalBody'));
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e2) { body = null; }
+    $('#detailModalBody').html('<div class="hist-empty">'
+      + esc(TLi18n.t('ehr.detailError')) + ' <span class="code">'
+      + esc((body && body.code) || ('http_' + xhr.status)) + '</span></div>');
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows || currentData.rows.length === 0) {
+    toast(TLi18n.t('ehr.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('ehr.colTime'), TLi18n.t('ehr.colCase'), TLi18n.t('ehr.colExternalId'),
+    TLi18n.t('ehr.colSuite'), TLi18n.t('ehr.colVersion'), TLi18n.t('ehr.colStatus'),
+    TLi18n.t('ehr.colBuild'), TLi18n.t('ehr.colPlatform'), TLi18n.t('ehr.colTester'),
+    TLi18n.t('ehr.colDuration'), TLi18n.t('ehr.colDefects')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    lines.push($.map([r.execution_ts, r.tcase_name, r.external_id, r.suite_path,
+      r.version, statusLabel(r.status), r.build_name, r.platform_name, r.tester_name,
+      r.duration, r.defects], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'execution-history-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('ehr.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#detailModal').on('click', function (e) {
+    if (e.target === this) { closeDetailModal(); }
+  });
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $('#detailModal').hasClass('show')) { closeDetailModal(); }
+  });
+  $('#detailModal').on('keydown', function (e) {
+    if (e.key !== 'Tab') { return; }
+    var $f = $('.modalwin').find('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!$f.length) { return; }
+    var first = $f.first().get(0);
+    var last = $f.last().get(0);
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  });
+  $('#detailModalClose').on('click', function () { closeDetailModal(); });
+  $('#tbl tbody').on('click', '.btn-hist', function () {
+    openDetailModal(parseInt($(this).attr('data-exec'), 10), $(this).attr('data-name'), this);
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('ehr.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>
