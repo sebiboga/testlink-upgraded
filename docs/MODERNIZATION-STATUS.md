@@ -218,6 +218,8 @@
 
 ---
 
+| DONE (modernized) | **Create Requirements from Mantis Issue XML (`reqCreateFromIssueMantisXML` → `reqMantisImport`)** — `gui/templates/requirements/reqMantisImport.html` + BFF `api/reqmantisimport/index.php` (`GET|HEAD ?action=init|import&req_spec_id=N`, `POST ?action=import` multipart) delegating to `api/reqfromissues/index.php` (Refs #1503). Session auth + `bffSameOriginGuard` + `bffEnforceSession`; rights `mgt_view_req` AND `mgt_modify_req` on the owning project (resolved before use); Mantis `<mantis>/<issue>` mapping preserved (title `Issue:<id> - <summary>`, docid `Mantis Task ID:<id>`, description + steps_to_reproduce + additional_information joined with `<p>`, labels localized via client `locale` hint). Legacy `lib/requirements/reqCreateFromIssueMantisXML.php` is a session-guarded non-mutating **302 shim** (GET→modern with `req_spec_id`/`tproject_id` forwarded) whose write verbs return **405 `modern_endpoint_only`**. Entry point added to `requirements/reqSpecView.html` (`createFromMantisLink`) gated on `mgt_modify_req` alongside the #1503 screen. `rqmi.*` + `footers.reqMantisImport` in all 10 bundles, `$actions->reqMantisImport` in `common.php`. Browser/admin verified: init 200, import creates requirement, RO locale switch, invalid `req_spec_id` error card, legacy GET 302 / POST 405. Screenshots `docs/screenshots/issue-1960-reqmantis-{normal,result,error}.png`. Suite `Issue #1960` appended. **Refs #1960**, 2026-10-23. |
+
 ## ✅ DONE — modernized screens
 
 Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
