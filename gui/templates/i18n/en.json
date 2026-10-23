@@ -9725,8 +9725,8 @@
   "rqmi.reqRows": "requirement(s)",
   "rqmi.resultTitle": "Import result",
   "rqmi.sizeHint": "max file size: {0} KB",
-  "rqmi.title": "Create Requirements from Issues",
+  "rqmi.title": "Create Requirements from Mantis XML",
   "rqmi.uploadBtn": "Import issues",
   "rqmi.uploadTitle": "Upload Mantis XML export",
-  "footers.reqMantisImport": "TestLink 2.0.1 - Create Requirements from Issues"
+  "footers.reqMantisImport": "TestLink 2.0.1 - Create Requirements from Mantis XML"
 }

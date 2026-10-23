@@ -141,7 +141,7 @@ function load() {
       TPROJECT_ID = r.tproject.id;
       REQ_SPEC_ID = r.req_spec.id;
       $('#projLine').text(r.tproject.name);
-      $('#specLine').text((r.req_spec.path ? (r.req_spec.path + ' / ') : '') + r.req_spec.name);
+      $('#specLine').text(r.req_spec.path || r.req_spec.name);
       $('#ctxLine').text(r.tproject.name + ' / ' + r.req_spec.name);
       var kb = Math.max(1, Math.round(r.maxUploadBytes / 1024));
       $('#sizeHint').text(TLi18n.t('rqmi.sizeHint', 'max file size: {0} KB').replace('{0}', kb));
