@@ -36,3 +36,4 @@ The modern Dashio page **`gui/templates/results/execHistoryReport.html`**, backe
 ## Screenshots
 - `docs/screenshots/1961-exechistory-normal.png` — the report (EN).
 - `docs/screenshots/1961-exechistory-detail.png` — execution detail modal.
+- `docs/screenshots/1961-exechistory-ro.png` — the report in Romanian.
