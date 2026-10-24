@@ -2471,3 +2471,4 @@ $TLS_link_report_plan_comparison = "Confronto piani di test"; // Test Plan Compa
 $TLS_link_report_exec_history = 'Cronologia delle esecuzioni del piano di test'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "Token di accesso API"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Risultati delle scansioni di accessibilità Koa11y"; // Koa11y accessibility scan results (Refs #1959)
+$TLS_link_report_build_comparison = "Confronto build del piano di test"; // Test Plan Build Comparison report (Refs #1962)

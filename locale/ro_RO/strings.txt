@@ -231,3 +231,4 @@ $TLS_test_status_passed = "Trecut"; // execution status (Refs #1961 Event Viewer
 $TLS_test_status_failed = "Eșuat";
 $TLS_test_status_blocked = "Blocat";
 $TLS_test_status_not_run = "Neexecutat";
+$TLS_link_report_build_comparison = "Comparație build-uri plan de test"; // Test Plan Build Comparison report (Refs #1962)

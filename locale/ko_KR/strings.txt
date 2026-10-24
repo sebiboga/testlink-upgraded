@@ -2495,3 +2495,4 @@ $TLS_link_report_plan_comparison = "테스트 계획 비교"; // Test Plan Compa
 $TLS_link_report_exec_history = '테스트 계획 실행 이력'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "API 액세스 토큰"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)
+$TLS_link_report_build_comparison = "테스트 계획 빌드 비교"; // Test Plan Build Comparison report (Refs #1962)

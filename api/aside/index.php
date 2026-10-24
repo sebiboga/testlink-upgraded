@@ -260,6 +260,11 @@ if ($tplan_id > 0) {
                 // execution row of the plan, newest first).
                 $hrefR = '/gui/templates/results/execHistoryReport.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_build_comparison') {
+                // Refs #1962: Test Plan Build Comparison report (per test-case
+                // status diff between two builds of the same plan).
+                $hrefR = '/gui/templates/results/buildComparison.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_comparison') {
                 // Refs #1957: Test Plan Comparison report (two plans of the
                 // same test project side by side, delta per metric).

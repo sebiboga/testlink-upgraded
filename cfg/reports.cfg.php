@@ -447,6 +447,20 @@ $tlCfg->reports_list['exec_history'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1962 - Test Plan Build Comparison report (buildComparison). A new
+// 2.0.1 view that no legacy entry exposed: 1.9.20 shows only the CURRENT
+// status of a plan, planComparison compares two PLANS and metricsTrends shows
+// an aggregate per-build trend - none answers "what changed for the individual
+// test cases between build A and build B?". Registered here pointing at the
+// modern HTML screen; the BFF action 'report' enforces testplan_metrics.
+// directLink is empty: the modern screen is HTML only.
+$tlCfg->reports_list['build_comparison'] = array(
+	'title' => 'link_report_build_comparison',
+	'url' => 'gui/templates/results/buildComparison.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

@@ -2201,3 +2201,4 @@ $TLS_link_report_plan_comparison = "Testisuunnitelmien vertailu"; // Test Plan C
 $TLS_link_report_exec_history = 'Testisuunnitelman suoritushistoria'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "API-käyttöavaimet"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)
+$TLS_link_report_build_comparison = "Testisuunnitelman buildien vertailu"; // Test Plan Build Comparison report (Refs #1962)

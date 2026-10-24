@@ -525,19 +525,7 @@ function renderRows() {
   dtDiff = $('#tblDiff').DataTable({
     paging: true, pageLength: 25, searching: true, info: true, order: [],
     columnDefs: [{ targets: [1], className: 'num' }],
-    language: {
-      search: TLi18n.t('common.search'),
-      lengthMenu: TLi18n.t('common.lengthMenu'),
-      info: TLi18n.t('common.tableInfo'),
-      infoEmpty: TLi18n.t('common.tableInfoEmpty'),
-      zeroRecords: TLi18n.t('common.tableNoRecords'),
-      paginate: {
-        first: TLi18n.t('common.paginateFirst'),
-        last: TLi18n.t('common.paginateLast'),
-        next: TLi18n.t('common.paginateNext'),
-        previous: TLi18n.t('common.paginatePrevious')
-      }
-    }
+    language: { search: TLi18n.t('common.search') }
   });
 }
 
