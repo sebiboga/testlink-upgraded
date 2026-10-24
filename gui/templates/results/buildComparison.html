@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Build Comparison report of TestLink 2.0.1 (Refs #1962)">
+<title>Test Plan Build Comparison</title>
+<!--
+  Test Plan Build Comparison report (Refs #1962, parent #1073).
+
+  Net-new modern Reports-menu screen. 1.9.20 only shows the CURRENT status of
+  a plan; planComparison compares two PLANS and metricsTrends shows an
+  aggregate per-build trend - none of them answers "what changed for the
+  individual test cases between build A and build B?".
+
+  Numbers come from api/buildcomparison/index.php (actions init / report);
+  see that file for the documented semantics (unit = test-case version,
+  latest execution wins per build, never executed = not run).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.plan-row { display: flex; flex-wrap: wrap; gap: 14px; }
+.plan-col { flex: 1 1 320px; }
+.plan-head { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #22242a; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #eceef2; }
+.plan-head .tag { font-size: 10px; font-weight: 700; letter-spacing: .6px; padding: 2px 8px; border-radius: 10px; color: #fff; }
+.plan-head .tag.a { background: #22242a; }
+.plan-head .tag.b { background: #4ECDC4; color: #0d3f3c; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 108px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.passed { background: #1e7a34; }
+.badge-st.failed { background: #c0392b; }
+.badge-st.blocked { background: #2a5fb8; }
+.badge-st.not_run { background: #b9bec7; color: #333; }
+.badge-ch { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge-ch.fixed, .badge-ch.new_pass { background: #eaf7ee; color: #1e7a33; }
+.badge-ch.regressed, .badge-ch.new_fail { background: #fdecea; color: #a12f28; }
+.badge-ch.revived, .badge-ch.changed { background: #fff6e5; color: #8a6216; }
+.badge-ch.same_passed, .badge-ch.same_failed, .badge-ch.same_blocked, .badge-ch.same_not_run { background: #eceef2; color: #4a505b; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-code-compare" style="margin-right:8px;"></i>
+  <span data-i18n="bcmp.title">Test Plan Build Comparison</span>
+  <span class="sub" data-i18n="bcmp.subtitle">what changed between two builds</span>
+</div>
+
+<div class="toolbar">
+  <label for="selProject" data-i18n="bcmp.project">Test project</label>
+  <select id="selProject"></select>
+  <label for="selPlan" data-i18n="bcmp.plan">Test plan</label>
+  <select id="selPlan"></select>
+  <label for="selBuildA" data-i18n="bcmp.buildA">Build A (baseline)</label>
+  <select id="selBuildA"></select>
+  <label for="selBuildB" data-i18n="bcmp.buildB">Build B (target)</label>
+  <select id="selBuildB"></select>
+  <label for="selPlatform" data-i18n="bcmp.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="bcmp.apply">Apply</span></button>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="bcmp.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="bcmp.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="bcmp.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="bcmp.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="bcmp.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bcmp.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bcmp.ctxBuildA">Build A</span><span class="v" id="ctxBuildA">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bcmp.ctxBuildB">Build B</span><span class="v" id="ctxBuildB">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bcmp.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-chart-simple"></i><span data-i18n="bcmp.summaryTitle">Build summary</span></h3>
+    <div class="plan-row">
+      <div class="plan-col">
+        <div class="plan-head"><span class="tag a">A</span><span id="buildAHead">&mdash;</span></div>
+        <div class="cards">
+          <div class="card"><div class="k" data-i18n="bcmp.kpiAssigned">Assigned</div><div class="v" id="aAssigned">0</div></div>
+          <div class="card info"><div class="k" data-i18n="bcmp.kpiExecuted">Executed</div><div class="v" id="aExecuted">0</div></div>
+          <div class="card good"><div class="k" data-i18n="bcmp.kpiPassed">Passed</div><div class="v" id="aPassed">0</div></div>
+          <div class="card bad"><div class="k" data-i18n="bcmp.kpiFailed">Failed</div><div class="v" id="aFailed">0</div></div>
+          <div class="card warn"><div class="k" data-i18n="bcmp.kpiBlocked">Blocked</div><div class="v" id="aBlocked">0</div></div>
+          <div class="card"><div class="k" data-i18n="bcmp.kpiNotRun">Not run</div><div class="v" id="aNotRun">0</div></div>
+          <div class="card good"><div class="k" data-i18n="bcmp.kpiPassRate">Pass rate</div><div class="v" id="aPassRate">0%</div></div>
+          <div class="card info"><div class="k" data-i18n="bcmp.kpiCoverage">Coverage</div><div class="v" id="aCoverage">0%</div></div>
+        </div>
+      </div>
+      <div class="plan-col">
+        <div class="plan-head"><span class="tag b">B</span><span id="buildBHead">&mdash;</span></div>
+        <div class="cards">
+          <div class="card"><div class="k" data-i18n="bcmp.kpiAssigned">Assigned</div><div class="v" id="bAssigned">0</div></div>
+          <div class="card info"><div class="k" data-i18n="bcmp.kpiExecuted">Executed</div><div class="v" id="bExecuted">0</div></div>
+          <div class="card good"><div class="k" data-i18n="bcmp.kpiPassed">Passed</div><div class="v" id="bPassed">0</div></div>
+          <div class="card bad"><div class="k" data-i18n="bcmp.kpiFailed">Failed</div><div class="v" id="bFailed">0</div></div>
+          <div class="card warn"><div class="k" data-i18n="bcmp.kpiBlocked">Blocked</div><div class="v" id="bBlocked">0</div></div>
+          <div class="card"><div class="k" data-i18n="bcmp.kpiNotRun">Not run</div><div class="v" id="bNotRun">0</div></div>
+          <div class="card good"><div class="k" data-i18n="bcmp.kpiPassRate">Pass rate</div><div class="v" id="bPassRate">0%</div></div>
+          <div class="card info"><div class="k" data-i18n="bcmp.kpiCoverage">Coverage</div><div class="v" id="bCoverage">0%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-arrows-left-right"></i><span data-i18n="bcmp.changesTitle">Change summary</span></h3>
+    <div class="cards" id="changeCards"></div>
+  </div>
+
+  <div class="panel" style="padding-bottom:8px;">
+    <h3><i class="fa fa-list-check"></i><span data-i18n="bcmp.diffTitle">Per test case changes</span></h3>
+    <label for="selChange" style="font-size:12px;color:#5c6470;" data-i18n="bcmp.filterChange">Show change type</label>
+    <select id="selChange" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:13px;margin-left:6px;"></select>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblDiff" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="bcmp.diffCaption">Status of every test-case version in build A and build B</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="bcmp.colCase">Test case</th>
+          <th scope="col" data-i18n="bcmp.colVersion">Version</th>
+          <th scope="col" data-i18n="bcmp.colSuite">Test suite</th>
+          <th scope="col" data-i18n="bcmp.colStatusA">Status build A</th>
+          <th scope="col" data-i18n="bcmp.colStatusB">Status build B</th>
+          <th scope="col" data-i18n="bcmp.colChange">Change</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.buildComparison"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/buildcomparison/index.php';
+var currentData = null;
+var initData = null;
+var dtDiff = null;
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  var v = new URLSearchParams(window.location.search).get(name);
+  return (v === null) ? '' : v;
+}
+
+function isId(v) {
+  return !!v && /^[0-9]+$/.test(String(v));
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('bcmp.loading')) + '</div>');
+}
+
+function stateFor(code) {
+  var c = code || 'server_error';
+  var html = '';
+  if (c === 'not_authenticated' || c === 'session_expired') {
+    html = '<div class="state deny"><h4>' + esc(TLi18n.t('bcmp.sessionTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.sessionText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'no_right') {
+    html = '<div class="state deny"><h4>' + esc(TLi18n.t('bcmp.noRightTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.noRightText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'tplan_not_found' || c === 'tproject_not_found' || c === 'project_mismatch') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.notFoundTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.notFoundText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'invalid_request' || c === 'invalid_parameter' || c === 'unknown_action') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.badRequestText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'method_not_allowed') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.methodTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.methodText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.serverErrorTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.serverErrorText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  }
+  return html;
+}
+
+function getJSON(params, onOk, onFail) {
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      onFail({ code: (data && data.code) || 'server_error' });
+      return;
+    }
+    onOk(data);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    onFail({ code: (body && body.code) || ('http_' + xhr.status) });
+  });
+}
+
+/* --------------------------------------------------------------- pickers */
+
+function fillProjects(projects, selected) {
+  var html = '';
+  $.each(projects, function (i, p) {
+    html += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selProject').html(html);
+  if (selected && isId(selected)) { $('#selProject').val(String(selected)); }
+}
+
+function fillPlans(plans, selected) {
+  var html = '';
+  $.each(plans, function (i, p) {
+    html += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlan').html(html);
+  if (selected && isId(selected)) { $('#selPlan').val(String(selected)); }
+}
+
+var pendingBuilds = null;
+
+function fillFilters(filters, buildA, buildB) {
+  var html = '';
+  $.each(filters.builds, function (i, b) {
+    html += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  if (html === '') {
+    html = '<option value="0">' + esc(TLi18n.t('bcmp.noBuilds')) + '</option>';
+  }
+  $('#selBuildA').html(html);
+  $('#selBuildB').html(html);
+  var ids = $('#selBuildA').find('option').map(function () { return $(this).val(); }).get();
+  var a = isId(buildA) ? String(buildA) : '';
+  var b = isId(buildB) ? String(buildB) : '';
+  $('#selBuildA').val(a && ids.indexOf(a) >= 0 ? a : (ids[0] || '0'));
+  a = String($('#selBuildA').val() || '0');
+  var choice = (b && b !== a && ids.indexOf(b) >= 0) ? b : '';
+  if (!choice) {
+    for (var i = 0; i < ids.length; i++) {
+      if (ids[i] !== a) { choice = ids[i]; break; }
+    }
+  }
+  $('#selBuildB').val(choice || a || '0');
+
+  var plat = '<option value="0">' + esc(TLi18n.t('bcmp.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat);
+}
+
+function fillChangeFilter() {
+  var types = ['all', 'fixed', 'regressed', 'new_pass', 'new_fail', 'revived',
+    'changed', 'same_passed', 'same_failed', 'same_blocked', 'same_not_run'];
+  var html = '';
+  $.each(types, function (i, t) {
+    html += '<option value="' + t + '">'
+      + esc(TLi18n.t(t === 'all' ? 'bcmp.allChanges' : 'bcmp.change.' + t)) + '</option>';
+  });
+  $('#selChange').html(html);
+}
+
+/* --------------------------------------------------------------- loading */
+
+function loadInit() {
+  var pid = $('#selProject').val();
+  if (!isId(pid)) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.noProjectText')) + '</div><div class="code">tproject_id</div></div>');
+    return Promise.resolve(false);
+  }
+  return new Promise(function (resolve) {
+    var params = new URLSearchParams({ action: 'init', tproject_id: pid });
+    getJSON(params, function (data) {
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
+      initData = data;
+      fillPlans(data.plans || [], q('tplan_id'));
+      fillFilters(data.filters || {}, q('build_a'), q('build_b'));
+      resolve(true);
+    }, function (err) {
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
+      showState(stateFor(err.code));
+      resolve(false);
+    });
+  });
+}
+
+function loadProjects() {
+  return new Promise(function (resolve) {
+    getJSON(new URLSearchParams({ action: 'projects' }), function (data) {
+      fillProjects(data.projects || [], q('tproject_id'));
+      resolve((data.projects || []).length > 0);
+    }, function (err) {
+      showState(stateFor(err.code));
+      resolve(false);
+    });
+  }).then(function (ok) { return ok; });
+}
+
+function loadReport() {
+  var plan = $('#selPlan').val();
+  var a = $('#selBuildA').val();
+  var b = $('#selBuildB').val();
+  if (!isId(plan)) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.noPlanText')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  if (!isId(a) || !isId(b) || a === '0' || b === '0') {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.needTwoBuilds')) + '</div><div class="code">build_a / build_b</div></div>');
+    return;
+  }
+  if (String(a) === String(b)) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bcmp.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bcmp.sameBuild')) + '</div><div class="code">' + esc(String(a)) + '</div></div>');
+    return;
+  }
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: plan, build_a: a, build_b: b });
+  var asserted = $('#selProject').val();
+  if (isId(asserted)) { params.set('tproject_id', asserted); }
+  var plat = $('#selPlatform').val();
+  if (plat && plat !== '0') { params.set('platform_id', plat); }
+
+  getJSON(params, function (data) {
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    render(data);
+    $('#stateBox').html('');
+    $('#report').show();
+  }, function (err) {
+    showState(stateFor(err.code));
+  });
+}
+
+/* --------------------------------------------------------------- render */
+
+function statusBadge(key) {
+  return '<span class="badge-st ' + esc(key) + '">' + esc(TLi18n.t('bcmp.status.' + key)) + '</span>';
+}
+
+function renderTiles(prefix, m) {
+  $('#' + prefix + 'Assigned').text(m.assigned);
+  $('#' + prefix + 'Executed').text(m.executed);
+  $('#' + prefix + 'Passed').text(m.passed);
+  $('#' + prefix + 'Failed').text(m.failed);
+  $('#' + prefix + 'Blocked').text(m.blocked);
+  $('#' + prefix + 'NotRun').text(m.not_run);
+  $('#' + prefix + 'PassRate').text(parseFloat(m.pass_rate).toFixed(1) + '%');
+  $('#' + prefix + 'Coverage').text(parseFloat(m.coverage).toFixed(1) + '%');
+}
+
+function renderChangeCards(changes) {
+  var kinds = [
+    ['fixed', 'good'], ['regressed', 'bad'], ['new_pass', 'good'], ['new_fail', 'bad'],
+    ['revived', 'warn'], ['changed', 'info']
+  ];
+  var html = '';
+  $.each(kinds, function (i, k) {
+    html += '<div class="card ' + k[1] + '"><div class="k">'
+      + esc(TLi18n.t('bcmp.change.' + k[0])) + '</div><div class="v">'
+      + (parseInt(changes[k[0]], 10) || 0) + '</div></div>';
+  });
+  $('#changeCards').html(html);
+}
+
+function renderBanner(data) {
+  var a = data.builds.a;
+  var b = data.builds.b;
+  var ch = data.changes || {};
+  var html = '';
+  if (!a.executed && !b.executed) {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+      + esc(TLi18n.t('bcmp.bannerNoData')) + '</span></div>';
+  } else if ((parseInt(ch.regressed, 10) || 0) + (parseInt(ch.new_fail, 10) || 0) > 0) {
+    html = '<div class="banner bad"><i class="fa fa-triangle-exclamation"></i><span>'
+      + esc(TLi18n.t('bcmp.bannerRegressions', {
+          regressed: parseInt(ch.regressed, 10) || 0,
+          newFail: parseInt(ch.new_fail, 10) || 0
+        })) + '</span></div>';
+  } else if ((parseInt(ch.fixed, 10) || 0) + (parseInt(ch.new_pass, 10) || 0) > 0) {
+    html = '<div class="banner good"><i class="fa fa-circle-check"></i><span>'
+      + esc(TLi18n.t('bcmp.bannerImproved', {
+          fixed: parseInt(ch.fixed, 10) || 0,
+          newPass: parseInt(ch.new_pass, 10) || 0
+        })) + '</span></div>';
+  } else {
+    html = '<div class="banner warn"><i class="fa fa-equals"></i><span>'
+      + esc(TLi18n.t('bcmp.bannerStable')) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function filteredRows() {
+  if (!currentData || !currentData.rows) { return []; }
+  var want = $('#selChange').val() || 'all';
+  if (want === 'all') { return currentData.rows; }
+  return $.grep(currentData.rows, function (r) { return r.change === want; });
+}
+
+function renderRows() {
+  var rows = filteredRows();
+  var html = '';
+  $.each(rows, function (i, r) {
+    html += '<tr>'
+      + '<td><strong>' + esc(r.external_id) + '</strong> ' + esc(r.name) + '</td>'
+      + '<td class="num">' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td>' + esc(r.suite) + '</td>'
+      + '<td>' + statusBadge(r.status_a) + '</td>'
+      + '<td>' + statusBadge(r.status_b) + '</td>'
+      + '<td><span class="badge-ch ' + esc(r.change) + '">'
+      + esc(TLi18n.t('bcmp.change.' + r.change)) + '</span></td>'
+      + '</tr>';
+  });
+  if (dtDiff) { dtDiff.destroy(); dtDiff = null; }
+  if (html === '') {
+    $('#tblDiff tbody').html('<tr><td colspan="6" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('bcmp.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tblDiff tbody').html(html);
+  dtDiff = $('#tblDiff').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [1], className: 'num' }],
+    language: {
+      search: TLi18n.t('common.search'),
+      lengthMenu: TLi18n.t('common.lengthMenu'),
+      info: TLi18n.t('common.tableInfo'),
+      infoEmpty: TLi18n.t('common.tableInfoEmpty'),
+      zeroRecords: TLi18n.t('common.tableNoRecords'),
+      paginate: {
+        first: TLi18n.t('common.paginateFirst'),
+        last: TLi18n.t('common.paginateLast'),
+        next: TLi18n.t('common.paginateNext'),
+        previous: TLi18n.t('common.paginatePrevious')
+      }
+    }
+  });
+}
+
+function render(data) {
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuildA').text(data.context.build_a ? data.context.build_a.name : '-');
+  $('#ctxBuildB').text(data.context.build_b ? data.context.build_b.name : '-');
+  $('#ctxPlatform').text(platformLabel(data.context.platform_id));
+  $('#buildAHead').text(data.context.build_a ? data.context.build_a.name : '-');
+  $('#buildBHead').text(data.context.build_b ? data.context.build_b.name : '-');
+  renderTiles('a', data.builds.a);
+  renderTiles('b', data.builds.b);
+  renderChangeCards(data.changes || {});
+  renderBanner(data);
+  renderRows();
+}
+
+function platformLabel(id) {
+  if (!id) { return TLi18n.t('bcmp.allPlatforms'); }
+  var found = '—';
+  var list = initData && initData.filters ? initData.filters.platforms : [];
+  $.each(list, function (i, p) {
+    if (String(p.id) === String(id)) { found = p.name; }
+  });
+  return found;
+}
+
+/* --------------------------------------------------------------- CSV */
+
+function csvCell(v) {
+  var t = String(v === null || v === undefined ? '' : v);
+  if (!/^-?\d+(?:\.\d+)?$/.test(t) && /^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+  return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows) {
+    toast(TLi18n.t('bcmp.nothingToExport'), 'err');
+    return;
+  }
+  var lines = [];
+  lines.push([csvCell(TLi18n.t('bcmp.csvSectionSummary')),
+    csvCell(currentData.context.tproject_name || ''),
+    csvCell(currentData.context.tplan_name || ''),
+    csvCell(currentData.context.build_a.name), csvCell(currentData.context.build_b.name)].join(';'));
+  lines.push(['', csvCell('A'), csvCell('B')].join(';'));
+  var keys = ['assigned', 'executed', 'passed', 'failed', 'blocked', 'not_run', 'pass_rate', 'coverage'];
+  $.each(keys, function (i, k) {
+    lines.push([csvCell(TLi18n.t('bcmp.kpi.' + k)), csvCell(currentData.builds.a[k]),
+      csvCell(currentData.builds.b[k])].join(';'));
+  });
+  lines.push('');
+  lines.push([csvCell(TLi18n.t('bcmp.csvSectionDiff')),
+    csvCell(TLi18n.t('bcmp.colCase')), csvCell(TLi18n.t('bcmp.colVersion')),
+    csvCell(TLi18n.t('bcmp.colSuite')), csvCell(TLi18n.t('bcmp.colStatusA')),
+    csvCell(TLi18n.t('bcmp.colStatusB')), csvCell(TLi18n.t('bcmp.colChange'))].join(';'));
+  $.each(filteredRows(), function (i, r) {
+    lines.push([csvCell(r.external_id + ' ' + r.name), csvCell(r.version),
+      csvCell(r.suite), csvCell(TLi18n.t('bcmp.status.' + r.status_a)),
+      csvCell(TLi18n.t('bcmp.status.' + r.status_b)),
+      csvCell(TLi18n.t('bcmp.change.' + r.change))].join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'build-comparison-' + (currentData.context.tplan_id || 0) + '-'
+    + (currentData.context.build_a.id || 0) + '-' + (currentData.context.build_b.id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('bcmp.csvDone'), 'ok');
+}
+
+/* --------------------------------------------------------------- wiring */
+
+function reload() {
+  showLoading();
+  loadProjects()
+    .then(function (ok) { return ok ? loadInit() : false; })
+    .then(function (ok) { if (ok) { loadReport(); } });
+}
+
+$(function () {
+  $('#btnRefresh').on('click', reload);
+  $('#btnApply').on('click', loadReport);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#selProject').on('change', function () {
+    showState('<div class="state"><div class="spinner"></div>'
+      + esc(TLi18n.t('bcmp.loading')) + '</div>');
+    loadInit().then(function (ok) { if (ok) { loadReport(); } });
+  });
+  $('#selPlan').on('change', loadReport);
+  $('#selChange').on('change', renderRows);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('bcmp.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    fillChangeFilter();
+    reload();
+  });
+});
+</script>
+</body>
+</html>
