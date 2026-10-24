@@ -45659,3 +45659,54 @@ Refs #1961. Net-new plan-wide report (no legacy ASIDE entry existed): every exec
 ### Test Case 1961-9: Event Viewer
 - After the full pass, no new Error/Warning entries caused by the screen or its ASIDE menu entry. Fixed the pre-existing `test_status_*`/`link_report_exec_history` ro_RO localization warnings (added `locale/ro_RO/strings.txt` entries).
 - Result: PASS
+
+## Issue #1962 - Modernize: Test Plan Build Comparison report (buildComparison)
+
+### Objective
+Verify the net-new Dashio screen `gui/templates/results/buildComparison.html` backed by `api/buildcomparison/index.php` compares the same test plan across two builds per test-case version with correct diff semantics, i18n, wiring, and security.
+
+### Preconditions
+- MariaDB fixture with testproject 1961 (EHR Project), testplan 1961961 (EHR Test Plan), builds 196130 (Build 1.0), 196131 (Build 1.1), platforms 196140 (Chrome), 196141 (Firefox), tcversions 196120/196121 assigned on Chrome, executions giving latest v121 blocked on build130 and passed on build131, v120 passed on build130 failed on build131.
+- Logged in as admin; BFF enforces `testplan_metrics` on owning project.
+
+### Test Cases
+1. **TC1962-001 - Load via deep link with params**  
+   URL: `/gui/templates/results/buildComparison.html?tproject_id=1961&tplan_id=1961961&build_a=196130&build_b=196131`  
+   Expected: Toolbar shows project/plan/build A/build B/platform populated, context cards show correct names, no client error.  
+   Result: PASS
+
+2. **TC1962-002 - Build summary and change summary**  
+   Build A: assigned 2/executed 2/passed 1/failed 0/blocked 1/not run 0/pass 50.0%/coverage 100.0%. Build B: passed 1/failed 1/blocked 0. Changes: Regressed 1, Fixed 1, others 0.  
+   Result: PASS
+
+3. **TC1962-003 - Per test case diff correctness**  
+   Rows: 101 Login smoke 1.0 passed->failed = Regressed; 102 Checkout 1.1 blocked->passed = Fixed.  
+   Result: PASS
+
+4. **TC1962-004 - Change type filter**  
+   Filter "Regressed" shows only row 101; counts update to "Showing 1 to 1 of 1 entries". Filter "Fixed" shows only 102. Filter "All changes" restores both.  
+   Result: PASS
+
+5. **TC1962-005 - Platform filter**  
+   Platform Firefox (196141): universe has no assignments => assigned 0/executed 0, rows empty, banner shows "No execution data" / empty state. Platform Chrome/All gives full results.  
+   Result: PASS
+
+6. **TC1962-006 - Apply/Refresh reloads**  
+   Change build B to Build 1.0 (same) / toggle filters and click Apply/Refresh; request sent to BFF with correct params, UI updates.  
+   Result: PASS
+
+7. **TC1962-007 - CSV export**  
+   Click Export CSV; CSV produced with summary sections and diff rows; values match table (formula-injection guard present).  
+   Result: PASS
+
+8. **TC1962-008 - BFF security**  
+   Anonymous GET to `api/buildcomparison/index.php?action=init&tproject_id=1961` -> `{"status":"error","code":"not_authenticated"}`. POST -> `method_not_allowed`. Missing params -> `invalid_request`. Plan not found -> `tplan_not_found`.  
+   Result: PASS
+
+9. **TC1962-009 - i18n and locale switch**  
+   Switch to Română via footer switcher; header/toolbar/cards/table labels translated from `bcmp.*`; footer shows `TestLink 2.0.1 - Comparație build-uri plan de test`. All 10 client bundles and 19 server locales updated.  
+   Result: PASS
+
+10. **TC1962-010 - Wiring**  
+   `lib/functions/common.php` defines `$actions->buildComparison`; `cfg/reports.cfg.php` has `build_comparison` entry pointing to `gui/templates/results/buildComparison.html`; `api/aside/index.php` maps `link_report_build_comparison` to the screen with `tproject_id`/`tplan_id`; visible in Reports menu for a plan with metrics right.  
+   Result: PASS
