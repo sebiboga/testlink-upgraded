@@ -210,7 +210,7 @@ $action = strtolower(trim((string)($_GET['action'] ?? 'init')));
 if (is_array($_GET['action'] ?? null)) {
     bcFail(400, 'invalid_parameter', 'Invalid action');
 }
-if (!in_array($action, array('init', 'report'), true)) {
+if (!in_array($action, array('projects', 'init', 'report'), true)) {
     bcFail(400, 'unknown_action', 'Unknown action');
 }
 
@@ -225,6 +225,27 @@ $requestedPlanId = bcPositiveInt($_GET['tplan_id'] ?? null);
 // ---------------------------------------------------------------------------
 // init: project context + plans + the build / platform filters
 // ---------------------------------------------------------------------------
+if ($action === 'projects') {
+    $rows = (array)$db->get_recordset(
+        "SELECT p.id AS id, p.prefix AS prefix, nh.name AS name " .
+        "FROM {$tbl['testprojects']} p " .
+        "INNER JOIN {$tbl['nodes_hierarchy']} nh ON nh.id = p.id AND nh.node_type_id = 1 " .
+        "ORDER BY nh.name ASC, p.id ASC");
+    $projects = array();
+    foreach ($rows as $r) {
+        $pid = intval($r['id']);
+        if (!bcCanViewProject($user, $db, $pid)) {
+            continue;
+        }
+        $projects[] = array(
+            'id' => $pid,
+            'name' => bcDecode($r['name']),
+            'prefix' => (string)$r['prefix'],
+        );
+    }
+    bcOut(array('status' => 'ok', 'code' => 'ok', 'projects' => $projects));
+}
+
 if ($action === 'init') {
     $tpid = ($assertedProjectId > 0) ? $assertedProjectId
                                      : intval($_SESSION['testprojectID'] ?? 0);
