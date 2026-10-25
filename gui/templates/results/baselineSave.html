@@ -229,6 +229,7 @@ function load() {
 function render(r) {
   $('#tprojectName').text(r.context.tproject_name || '-');
   $('#tplanName').text(r.plan ? r.plan.name : '-');
+  document.title = (r.plan ? r.plan.name + ' - ' : '') + TLi18n.t('bsv.header');
   var $ps = $('#planSelect').empty();
   (r.plans || []).forEach(function (p) {
     $ps.append($('<option>').val(p.id).text(p.name).prop('selected', r.plan && p.id === r.plan.id));
