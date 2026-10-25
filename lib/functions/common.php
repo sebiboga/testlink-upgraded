@@ -2688,6 +2688,13 @@ function getActions(&$gui,$baseURL) {
   $actions->rtm =
     "/gui/templates/results/rtm.html?{$ctx}";
 
+  // Refs #1964: Baseline snapshot creation (gap #1189). The 1.9.20 save was a
+  // GET side effect of the Results-by-Test-Suite report and had no modern
+  // write path; api/baselinesave owns the insert into
+  // baseline_l1l2_context/details behind testplan_metrics.
+  $actions->baselineSave =
+    "/gui/templates/results/baselineSave.html?{$ctx}";
+
 
   $pp = $bb . '/plan';
   // Test Plan Management modernized screen (Dashio standalone page) - Refs #576
