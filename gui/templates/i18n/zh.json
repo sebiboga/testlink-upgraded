@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "该测试计划还没有执行记录。请执行至少一个测试用例，然后保存基线。",
   "bsv.savedOk": "基线已保存",
   "bsv.action": "创建基线",
-  "footers.baselineSave": "TestLink 2.0.1 - 创建基线快照"
+  "footers.baselineSave": "TestLink 2.0.1 - 创建基线快照",
+  "bsv.errSaveFailed": "无法保存基线，请重试。"
 }

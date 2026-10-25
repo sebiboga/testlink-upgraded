@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "Este plan de pruebas aún no tiene ejecuciones. Ejecute al menos un caso de prueba y luego guarde la línea base.",
   "bsv.savedOk": "Línea base guardada",
   "bsv.action": "Crear línea base",
-  "footers.baselineSave": "TestLink 2.0.1 - Crear instantánea de línea base"
+  "footers.baselineSave": "TestLink 2.0.1 - Crear instantánea de línea base",
+  "bsv.errSaveFailed": "No se pudo guardar la línea base. Inténtelo de nuevo."
 }

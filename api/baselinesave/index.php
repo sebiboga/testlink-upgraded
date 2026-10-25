@@ -83,6 +83,17 @@ function bsvInt($source, $key)
     return intval($v);
 }
 
+/** True only for a unique-key violation (e.g. same-second save); other DB
+ *  errors must not be reported as a duplicate. */
+function bsvIsDuplicateError(Throwable $e)
+{
+    if (intval($e->getCode()) === 1062) { return true; }
+    $msg = strtolower($e->getMessage());
+    return strpos($msg, 'duplicate entry') !== false
+        || strpos($msg, 'duplicate key') !== false
+        || strpos($msg, 'unique constraint') !== false;
+}
+
 function bsvOut($payload, $code = 200)
 {
     http_response_code($code);
@@ -358,74 +369,127 @@ if ($action === 'save') {
     $verboseCode = $preview['verbose_code'];
 
     $saved = array();
-    foreach ($tsInf->infoL2 as $platId => $elem) {
-        $platId = intval($platId);
-        $sp = null;
-        if ($showPlatforms) {
-            if (!is_null($span) && isset($span[$tplanId][$platId])) {
-                $sp = $span[$tplanId][$platId];
-            }
-        } else {
-            if (!is_null($span) && isset($span[$tplanId]) && !is_null($span[$tplanId])) {
-                $sp = $span[$tplanId];
-            }
-        }
-        // No execution records for this platform => nothing to baseline.
-        if (!is_array($sp) || empty($sp['begin']) || empty($sp['end'])) {
-            continue;
-        }
+    if (!$db->exec_query('START TRANSACTION')) {
+        bsvOut(array('status' => 'error', 'code' => 'save_failed',
+            'message' => 'Baseline save failed. Please try again.'), 500);
+    }
 
-        $begin = date('Y-m-d H:i:s', strtotime((string)$sp['begin']));
-        $end = date('Y-m-d H:i:s', strtotime((string)$sp['end']));
-        if ($begin === false || $end === false) { continue; }
+    try {
+        foreach ($tsInf->infoL2 as $platId => $elem) {
+            $platId = intval($platId);
+            $sp = null;
+            if ($showPlatforms) {
+                if (!is_null($span) && isset($span[$tplanId][$platId])) {
+                    $sp = $span[$tplanId][$platId];
+                }
+            } else {
+                if (!is_null($span) && isset($span[$tplanId]) && !is_null($span[$tplanId])) {
+                    $sp = $span[$tplanId];
+                }
+            }
+            // No execution records for this platform => nothing to baseline.
+            if (!is_array($sp) || empty($sp['begin']) || empty($sp['end'])) {
+                continue;
+            }
 
-        try {
-            $db->exec_query(
+            $begin = date('Y-m-d H:i:s', strtotime((string)$sp['begin']));
+            $end = date('Y-m-d H:i:s', strtotime((string)$sp['end']));
+            if ($begin === false || $end === false) { continue; }
+
+            // udx1_context (testplan_id, platform_id, creation_ts): saving twice
+            // inside the same second is a duplicate, not a server error. Resolve
+            // it explicitly because exec_query() throws a message-less exception
+            // for every DB failure (database.class.php:205).
+            $creationTs = date('Y-m-d H:i:s');
+            $dupRs = $db->exec_query(
+                "SELECT COUNT(1) AS c FROM {$ctxTable}" .
+                " WHERE testplan_id=" . intval($tplanId) .
+                " AND platform_id=" . $platId .
+                " AND creation_ts='" . $db->prepare_string($creationTs) . "'");
+            $dup = $dupRs ? intval($db->fetch_array($dupRs)['c']) : 0;
+            if ($dup > 0) {
+                $db->exec_query('ROLLBACK');
+                bsvOut(array('status' => 'error', 'code' => 'duplicate_snapshot',
+                    'message' => 'A baseline for this platform was already saved in this second. Try again.',
+                    'snapshots' => $snapshots), 409);
+            }
+
+            $ctxInserted = $db->exec_query(
                 "INSERT INTO {$ctxTable}" .
-                " (testplan_id,platform_id,begin_exec_ts,end_exec_ts)" .
+                " (testplan_id,platform_id,begin_exec_ts,end_exec_ts,creation_ts)" .
                 " VALUES(" . intval($tplanId) . "," . $platId . "," .
                 "'" . $db->prepare_string($begin) . "'," .
-                "'" . $db->prepare_string($end) . "')");
-        } catch (Exception $e) {
-            // udx1_context (testplan_id, platform_id, creation_ts): a second
-            // save inside the same second is a duplicate, not a server error.
+                "'" . $db->prepare_string($end) . "'," .
+                "'" . $db->prepare_string($creationTs) . "')");
+            if (!$ctxInserted) {
+                $dupRs = $db->exec_query(
+                    "SELECT COUNT(1) AS c FROM {$ctxTable}" .
+                    " WHERE testplan_id=" . intval($tplanId) .
+                    " AND platform_id=" . $platId .
+                    " AND creation_ts='" . $db->prepare_string($creationTs) . "'");
+                if ($dupRs && intval($db->fetch_array($dupRs)['c']) > 0) {
+                    $db->exec_query('ROLLBACK');
+                    bsvOut(array('status' => 'error', 'code' => 'duplicate_snapshot',
+                        'message' => 'A baseline for this platform was already saved in this second. Try again.',
+                        'snapshots' => $snapshots), 409);
+                }
+                throw new RuntimeException('baseline context insert failed');
+            }
+
+            $contextId = intval($db->insert_id($ctxTable));
+            $written = 0;
+            foreach ($elem as $l2Id => $row) {
+                $parentId = isset($row['parent_id']) ? intval($row['parent_id']) : 0;
+                $totalTc = isset($row['total_tc']) ? intval($row['total_tc']) : 0;
+                if (!isset($row['details'])) { continue; }
+                foreach ($row['details'] as $verbose => $figures) {
+                    $status = isset($verboseCode[$verbose])
+                        ? (string)$verboseCode[$verbose] : (string)$verbose;
+                    $status = substr($status, 0, 1);
+                    $qty = isset($figures['qty']) ? intval($figures['qty']) : 0;
+                    $detInserted = $db->exec_query(
+                        "INSERT INTO {$detTable}" .
+                        " (context_id,top_tsuite_id,child_tsuite_id,status,qty,total_tc)" .
+                        " VALUES(" . $contextId . "," . $parentId . "," . intval($l2Id) . "," .
+                        "'" . $db->prepare_string($status) . "'," . $qty . "," . $totalTc . ")");
+                    if (!$detInserted) {
+                        throw new RuntimeException('baseline detail insert failed');
+                    }
+                    $written++;
+                }
+            }
+
+            $saved[] = array('platform_id' => $platId, 'context_id' => $contextId,
+                             'details' => $written);
+        }
+    } catch (Throwable $e) {
+        $db->exec_query('ROLLBACK');
+        if (bsvIsDuplicateError($e)) {
             bsvOut(array('status' => 'error', 'code' => 'duplicate_snapshot',
                 'message' => 'A baseline for this platform was already saved in this second. Try again.',
                 'snapshots' => $snapshots), 409);
         }
-
-        $contextId = intval($db->insert_id($ctxTable));
-        $written = 0;
-        foreach ($elem as $l2Id => $row) {
-            $parentId = isset($row['parent_id']) ? intval($row['parent_id']) : 0;
-            $totalTc = isset($row['total_tc']) ? intval($row['total_tc']) : 0;
-            if (!isset($row['details'])) { continue; }
-            foreach ($row['details'] as $verbose => $figures) {
-                $status = isset($verboseCode[$verbose])
-                    ? (string)$verboseCode[$verbose] : (string)$verbose;
-                $status = substr($status, 0, 1);
-                $qty = isset($figures['qty']) ? intval($figures['qty']) : 0;
-                $db->exec_query(
-                    "INSERT INTO {$detTable}" .
-                    " (context_id,top_tsuite_id,child_tsuite_id,status,qty,total_tc)" .
-                    " VALUES(" . $contextId . "," . $parentId . "," . intval($l2Id) . "," .
-                    "'" . $db->prepare_string($status) . "'," . $qty . "," . $totalTc . ")");
-                $written++;
-            }
-        }
-
-        logAuditEvent(
-            'Baseline snapshot saved for test plan ' . intval($tplanId) .
-            ' platform ' . $platId . ' (' . $written . ' detail rows)',
-            'CREATE', $contextId, 'baseline_l1l2_context');
-        $saved[] = array('platform_id' => $platId, 'context_id' => $contextId,
-                         'details' => $written);
+        bsvOut(array('status' => 'error', 'code' => 'save_failed',
+            'message' => 'Baseline save failed. Please try again.'), 500);
     }
 
     if (empty($saved)) {
+        $db->exec_query('ROLLBACK');
         bsvOut(array('status' => 'error', 'code' => 'no_executions',
             'message' => 'Baseline NOT saved: the test plan has no execution records yet.',
             'snapshots' => $snapshots), 409);
+    }
+    if (!$db->exec_query('COMMIT')) {
+        $db->exec_query('ROLLBACK');
+        bsvOut(array('status' => 'error', 'code' => 'save_failed',
+            'message' => 'Baseline save failed. Please try again.'), 500);
+    }
+    foreach ($saved as $one) {
+        logAuditEvent(
+            'Baseline snapshot saved for test plan ' . intval($tplanId) .
+            ' platform ' . intval($one['platform_id']) .
+            ' (' . intval($one['details']) . ' detail rows)',
+            'CREATE', intval($one['context_id']), 'baseline_l1l2_context');
     }
 
     bsvOut(array(

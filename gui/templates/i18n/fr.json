@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "Ce plan de test n'a pas encore d'exécutions. Exécutez au moins un cas de test, puis enregistrez la référence.",
   "bsv.savedOk": "Référence enregistrée",
   "bsv.action": "Créer la référence",
-  "footers.baselineSave": "TestLink 2.0.1 - Créer un instantané de référence"
+  "footers.baselineSave": "TestLink 2.0.1 - Créer un instantané de référence",
+  "bsv.errSaveFailed": "La référence n'a pas pu être enregistrée. Veuillez réessayer."
 }

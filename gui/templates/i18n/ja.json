@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "このテストプランにはまだ実行記録がありません。少なくとも1つのテストケースを実行してからベースラインを保存してください。",
   "bsv.savedOk": "ベースラインを保存しました",
   "bsv.action": "ベースラインを作成",
-  "footers.baselineSave": "TestLink 2.0.1 - ベースラインスナップショットの作成"
+  "footers.baselineSave": "TestLink 2.0.1 - ベースラインスナップショットの作成",
+  "bsv.errSaveFailed": "ベースラインを保存できませんでした。もう一度お試しください。"
 }

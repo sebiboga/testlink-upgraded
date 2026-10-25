@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "Acest plan de test nu are încă înregistrări de execuție. Executați cel puțin un caz de test, apoi salvați linia de bază.",
   "bsv.savedOk": "Linie de bază salvată",
   "bsv.action": "Creează linia de bază",
-  "footers.baselineSave": "TestLink 2.0.1 - Creează un instantaneu de referință"
+  "footers.baselineSave": "TestLink 2.0.1 - Creează un instantaneu de referință",
+  "bsv.errSaveFailed": "Linia de bază nu a putut fi salvată. Încercați din nou."
 }

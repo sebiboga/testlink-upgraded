@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "This test plan has no execution records yet. Execute at least one test case, then save the baseline.",
   "bsv.savedOk": "Baseline saved",
   "bsv.action": "Create baseline",
-  "footers.baselineSave": "TestLink 2.0.1 - Create Baseline Snapshot"
+  "footers.baselineSave": "TestLink 2.0.1 - Create Baseline Snapshot",
+  "bsv.errSaveFailed": "The baseline could not be saved. Please try again."
 }

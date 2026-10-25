@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "Dieser Testplan hat noch keine Ausführungsdatensätze. Führen Sie mindestens einen Testfall aus und speichern Sie dann die Basislinie.",
   "bsv.savedOk": "Basislinie gespeichert",
   "bsv.action": "Basislinie erstellen",
-  "footers.baselineSave": "TestLink 2.0.1 - Basislinien-Snapshot erstellen"
+  "footers.baselineSave": "TestLink 2.0.1 - Basislinien-Snapshot erstellen",
+  "bsv.errSaveFailed": "Die Basislinie konnte nicht gespeichert werden. Bitte erneut versuchen."
 }

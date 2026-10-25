@@ -9954,5 +9954,6 @@
   "bsv.noExecutionsWarn": "Questo piano di test non ha ancora esecuzioni. Esegui almeno un caso di test, poi salva la baseline.",
   "bsv.savedOk": "Baseline salvata",
   "bsv.action": "Crea baseline",
-  "footers.baselineSave": "TestLink 2.0.1 - Crea istantanea di baseline"
+  "footers.baselineSave": "TestLink 2.0.1 - Crea istantanea di baseline",
+  "bsv.errSaveFailed": "Impossibile salvare la baseline. Riprova."
 }

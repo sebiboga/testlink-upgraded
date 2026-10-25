@@ -329,7 +329,9 @@ function save() {
       toast(TLi18n.t('bsv.savedOk'));
       load();
     } else {
-      toast((r && r.message) || TLi18n.t('bsv.errGeneric'), true);
+      toast(r && r.code === 'save_failed'
+        ? TLi18n.t('bsv.errSaveFailed')
+        : ((r && r.message) || TLi18n.t('bsv.errGeneric')), true);
       if (r && r.code === 'no_executions') { load(); }
       else { $('#btnSave').prop('disabled', false); }
     }
@@ -340,7 +342,9 @@ function save() {
       showState(r.code || 'not_authenticated', r.message);
       return;
     }
-    toast(r.message || TLi18n.t('bsv.errGeneric'), true);
+    toast(r.code === 'save_failed'
+      ? TLi18n.t('bsv.errSaveFailed')
+      : (r.message || TLi18n.t('bsv.errGeneric')), true);
     $('#btnSave').prop('disabled', false);
   });
 }
