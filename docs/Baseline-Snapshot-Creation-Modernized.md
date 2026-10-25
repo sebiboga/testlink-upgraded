@@ -74,8 +74,11 @@ Stable error codes: `unknown_action` (400), `invalid_parameter` (400),
 The figures come from
 `tlTestPlanMetrics::getStatusTotalsTSuiteDepth2ForRender()` (grouped by
 platform) and `getExecTimeSpan()`; platforms come from `testplan::getPlatforms()`.
-A successful save writes an AUDIT event (`CREATE`, context id,
-`baseline_l1l2_context`).
+The context and detail inserts of one save run in a single transaction: a
+unique-key collision is answered as `409 duplicate_snapshot`, any other DB
+failure rolls the whole save back and answers `500 save_failed` (never a false
+"duplicate"). Only after the commit are the AUDIT events written (`CREATE`,
+context id, `baseline_l1l2_context`).
 
 ## Legacy behavior preserved
 
