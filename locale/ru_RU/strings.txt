@@ -2868,3 +2868,4 @@ $TLS_link_report_exec_history = 'История выполнения тест-п
 $TLS_title_api_tokens = "Токены доступа к API"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Результаты проверки доступности Koa11y"; // Koa11y accessibility scan results (Refs #1959)
 $TLS_link_report_build_comparison = "Сравнение сборок тест-плана"; // Test Plan Build Comparison report (Refs #1962)
+$TLS_link_report_platform_comparison = "Сравнение платформ тест-плана"; // Test Plan Platform Comparison report (Refs #1963)

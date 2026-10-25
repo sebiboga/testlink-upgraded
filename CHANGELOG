@@ -331,6 +331,14 @@ Every screen of the application was ported one-by-one in a screen-compare
   Docs mirror `docs/Test-Specification-Health-Modernized.md`, wiki page +
   5 screenshots. Refs #1956.
 
+- [SCREEN] - #1963: the **Test Plan Platform Comparison** report
+  (`gui/templates/results/platformComparison.html`, BFF `api/platformcomparison/index.php`) is a
+  net-new read-only 2.0.1 report comparing the same plan's latest per-test-case status across two
+  of its platforms (KPI tiles, fixed/regressed/new pass/new fail/revived/same change summary,
+  filterable DataTable, CSV). Wiring: `reports_list['platform_comparison']`, ASIDE + resultsnav
+  maps, `$actions->platformComparison`, `pcomp.*` keys in all 10 bundles and
+  `$TLS_link_report_platform_comparison` in all 19 server locales. Refs #1963.
+
 - [SCREEN] - #1961: the **Test Plan Execution History** report
   (`gui/templates/results/execHistoryReport.html`, BFF `api/exechistoryreport/index.php`) is a
   read-only Dashio report showing the execution history of a test plan in chronological order

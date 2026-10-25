@@ -461,6 +461,20 @@ $tlCfg->reports_list['build_comparison'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1963 - Test Plan Platform Comparison report (platformComparison). A
+// new 2.0.1 view: the same plan's latest status per test case, side by side
+// for two platforms of the plan (fixed / regressed / new pass / new fail /
+// revived / unchanged). 1.9.20 repeats the current status once per platform
+// and never diffs them; buildComparison diffs two BUILDS. Registered here
+// pointing at the modern HTML screen; the BFF action 'report' enforces
+// testplan_metrics. directLink is empty: the modern screen is HTML only.
+$tlCfg->reports_list['platform_comparison'] = array(
+	'title' => 'link_report_platform_comparison',
+	'url' => 'gui/templates/results/platformComparison.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

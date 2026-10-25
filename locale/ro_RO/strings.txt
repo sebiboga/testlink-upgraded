@@ -232,3 +232,4 @@ $TLS_test_status_failed = "Eșuat";
 $TLS_test_status_blocked = "Blocat";
 $TLS_test_status_not_run = "Neexecutat";
 $TLS_link_report_build_comparison = "Comparație build-uri plan de test"; // Test Plan Build Comparison report (Refs #1962)
+$TLS_link_report_platform_comparison = "Comparație platforme plan de test"; // Test Plan Platform Comparison report (Refs #1963)

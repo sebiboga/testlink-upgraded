@@ -2625,6 +2625,16 @@ function getActions(&$gui,$baseURL) {
   $actions->buildComparison =
     "/gui/templates/results/buildComparison.html?{$ctx}";
 
+  // Refs #1963: Test Plan Platform Comparison report (net-new screen). The
+  // SAME test plan across two of its platforms at the individual test-case
+  // version level (fixed / regressed / new pass / new fail / unchanged),
+  // because 1.9.20 only repeats the current status per platform. Backed by the
+  // api/platformcomparison BFF (init/report actions), which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->platformComparison =
+    "/gui/templates/results/platformComparison.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

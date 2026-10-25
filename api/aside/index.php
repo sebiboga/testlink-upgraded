@@ -265,6 +265,11 @@ if ($tplan_id > 0) {
                 // status diff between two builds of the same plan).
                 $hrefR = '/gui/templates/results/buildComparison.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_platform_comparison') {
+                // Refs #1963: Test Plan Platform Comparison report (per
+                // test-case status diff between two platforms of the plan).
+                $hrefR = '/gui/templates/results/platformComparison.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_comparison') {
                 // Refs #1957: Test Plan Comparison report (two plans of the
                 // same test project side by side, delta per metric).

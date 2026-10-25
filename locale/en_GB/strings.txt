@@ -4265,3 +4265,4 @@ $TLS_link_report_exec_history = 'Test Plan Execution History'; // Test Plan Exec
 $TLS_title_api_tokens = "API Access Tokens"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)
 $TLS_link_report_build_comparison = "Test Plan Build Comparison"; // Test Plan Build Comparison report (Refs #1962)
+$TLS_link_report_platform_comparison = "Test Plan Platform Comparison"; // Test Plan Platform Comparison report (Refs #1963)

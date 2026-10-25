@@ -174,6 +174,8 @@ $bff = function ($action) use ($db, $user) {
             'flaky_tests' => 'gui/templates/results/flakyTests.html',
             // Refs #1957: Test Plan Comparison report.
             'plan_comparison' => 'gui/templates/results/planComparison.html',
+            // Refs #1963: Test Plan Platform Comparison report.
+            'platform_comparison' => 'gui/templates/results/platformComparison.html',
         );
 
         $reportList = config_get('reports_list');

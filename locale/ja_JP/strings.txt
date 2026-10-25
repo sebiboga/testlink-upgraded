@@ -4606,3 +4606,4 @@ $TLS_link_report_exec_history = 'テストプラン実行履歴'; // Test Plan E
 $TLS_title_api_tokens = "APIアクセストークン"; // API Access Tokens manager (Refs #1958)
 $TLS_title_a11y_scans = "Koa11y アクセシビリティスキャン結果"; // Koa11y accessibility scan results (Refs #1959)
 $TLS_link_report_build_comparison = "テストプランのビルド比較"; // Test Plan Build Comparison report (Refs #1962)
+$TLS_link_report_platform_comparison = "テストプラン プラットフォーム比較"; // Test Plan Platform Comparison report (Refs #1963)
