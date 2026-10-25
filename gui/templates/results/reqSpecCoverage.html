@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rscov.header">Requirement Spec Coverage Summary</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: #333; color: #ddd; border: 1px solid #555; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-ghost:hover { background: #3a3a41; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+.kpi-row { display: flex; gap: 14px; padding: 14px 20px; flex-wrap: wrap; }
+.kpi { flex: 1 1 140px; background: #fafafa; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; }
+.kpi .k { font-size: 11px; color: #778; text-transform: uppercase; letter-spacing: .4px; }
+.kpi .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 2px; }
+.kpi.good .v { color: #28a745; }
+.kpi.warn .v { color: #c9a227; }
+.kpi.bad .v { color: #dc3545; }
+.badge-row { display: flex; gap: 12px; padding: 0 20px 14px; flex-wrap: wrap; }
+.eval-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; color: #fff; }
+.eval-badge .cnt { background: rgba(255,255,255,.3); border-radius: 10px; padding: 1px 7px; font-size: 11px; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.spec { min-width: 200px; }
+td.spec b { color: #2c3e50; }
+td.spec .t { color: #667; font-size: 11px; }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10.5px; font-weight: 600; }
+.chip.notinplan { background: #eee; color: #888; }
+.chip.orphan { background: #fff3cd; color: #8a6d00; }
+.age-chip { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+.age-chip.covered { background: #28a745; }
+.age-chip.partial { background: #007bff; }
+.age-chip.uncovered { background: #6c757d; }
+.pct-wrap { min-width: 120px; }
+.pct-bar { height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.pct-bar span { display: block; height: 8px; background: #4ECDC4; }
+.pct-bar.low span { background: #dc3545; }
+.pct-bar.mid span { background: #ffc107; }
+.pct-bar.high span { background: #28a745; }
+.btn-gap { background: #fff3cd; color: #8a6d00; border: 1px solid #ffe08a; border-radius: 4px; padding: 2px 9px; font-size: 11px; font-weight: 600; cursor: pointer; }
+.btn-gap:hover { background: #ffe08a; }
+.status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+.status-dot.passed { background: #28a745; }
+.status-dot.failed { background: #dc3545; }
+.status-dot.blocked { background: #ffc107; }
+.status-dot.not_run { background: #6c757d; }
+.orphan-tc { font-size: 12px; padding: 4px 4px; color: #7a6a22; }
+.note { background: #f0f8ff; border: 1px solid #b7dcf5; color: #31708f; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
+.empty { text-align: center; color: #888; font-size: 14px; padding: 40px 20px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.errbox { margin: 16px 24px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.errbox .inner { padding: 22px; text-align: center; color: #7a1f1f; background: #fdecea; border: 1px solid #f5c6cb; border-radius: 8px; }
+.machine-code { font-family: monospace; font-size: 11px; color: #a35; background: #ffeef2; border-radius: 3px; padding: 1px 6px; display: inline-block; margin-top: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+#gapModal .modal-content { border-radius: 8px; overflow: hidden; }
+#gapModal .modal-header { background: #4ECDC4; color: #fff; border: none; }
+#gapModal .modal-title { font-weight: 700; }
+#gapModal .modal-body { max-height: 70vh; overflow-y: auto; }
+#gapModal table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#gapModal th { background: #22242a; color: #fff; padding: 6px 9px; text-align: left; white-space: nowrap; font-size: 11px; }
+#gapModal td { padding: 5px 9px; border-bottom: 1px solid #eee; vertical-align: top; }
+#gapModal tr:hover td { background: #f4fbfa; }
+.tc-list { margin: 4px 0 0; padding: 0 0 0 2px; list-style: none; font-size: 11px; color: #556; }
+.tc-list li { margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-layer-group" style="margin-right:8px;"></i>
+  <span data-i18n="rscov.header">Requirement Spec Coverage Summary</span>
+  <span class="sub"><span data-i18n="reqcov.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="reqcov.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <label><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0">Any</option></select></label>
+  <label><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0">Any</option></select></label>
+  <button class="btn-teal" id="btnApply"><i class="fa fa-play"></i> <span data-i18n="rtm.apply">Apply</span></button>
+  <button class="btn-ghost" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="rtm.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="rscov.refresh">Refresh</span></button>
+</div>
+
+<div id="loadingBox" class="spin">
+  <i class="fa fa-spinner"></i><br>
+  <span data-i18n="common.loading">Loading...</span>
+</div>
+
+<div id="errBox" class="errbox" style="display:none;">
+  <div class="inner">
+    <i class="fa fa-triangle-exclamation" style="font-size:26px;display:block;margin-bottom:8px;"></i>
+    <div id="errMsg"></div>
+    <div class="machine-code" id="errCode"></div>
+  </div>
+</div>
+
+<div id="warnBox" class="warnbox"></div>
+
+<div id="summaryBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-chart-bar"></i>
+    <span data-i18n="rscov.summary">Coverage Summary</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:400;color:#667;" id="sumDetail"></span>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="badge-row" id="summaryRow"></div>
+</div>
+
+<div id="tableBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-table"></i>
+    <span data-i18n="rscov.specs">Requirement specifications</span>
+  </div>
+  <div class="section-body">
+    <table class="flat" id="dtSpecs" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="rscov.spec">Requirement spec</th>
+          <th data-i18n="rscov.thReqs">Reqs</th>
+          <th data-i18n="rscov.thCovered">Covered</th>
+          <th data-i18n="rscov.thPartial">Partial</th>
+          <th data-i18n="rscov.thUncovered">Uncovered</th>
+          <th data-i18n="rscov.thOrphan">Orphan reqs</th>
+          <th data-i18n="rscov.thPlanTcs">Plan TCs</th>
+          <th data-i18n="rscov.thExecuted">Executed</th>
+          <th data-i18n="rscov.thPassed">Passed</th>
+          <th data-i18n="rscov.thFailed">Failed</th>
+          <th data-i18n="rscov.thBlocked">Blocked</th>
+          <th data-i18n="rscov.thDefects">Defects</th>
+          <th data-i18n="rscov.thPct">Coverage %</th>
+          <th data-i18n="rscov.thGaps">Gaps</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="orphanBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-unlink" style="color:#c9a227;"></i>
+    <span data-i18n="rscov.orphanTcs">Orphan test cases</span>
+    <span class="chip notinplan" id="orphanCount" style="margin-left:auto;">0</span>
+  </div>
+  <div class="section-body">
+    <div class="note" style="margin-bottom:10px;"><span data-i18n="rtm.orphanHint">Test cases assigned to the plan but not linked to any requirement (no row in the traceability link table).</span></div>
+    <div id="orphanList" class="orphan-tc"></div>
+  </div>
+</div>
+
+<div id="emptyBox" class="section" style="display:none;">
+  <div class="empty">
+    <i class="fa fa-layer-group"></i>
+    <div id="emptyMsg" data-i18n="rscov.noSpecs">No requirement specifications found for this test project.</div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.reqSpecCoverage">TestLink 2.0.1 - Requirement Spec Coverage Summary</span></div>
+
+<div class="toast" id="toastBox"></div>
+
+<div class="modal fade" id="gapModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;opacity:.9;"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title"><i class="fa fa-triangle-exclamation"></i> <span data-i18n="rscov.gapTitle">Coverage gaps</span> <span id="gapSpecName" style="font-weight:400;"></span></h4>
+      </div>
+      <div class="modal-body">
+        <div class="note" style="margin-bottom:10px;" data-i18n="rscov.gapHint">Requirements in this specification that are not fully covered: no linked test case assigned to the plan, nothing executed, or a non-pass latest result.</div>
+        <div id="gapBody"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal"><span data-i18n="rscov.close">Close</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var qp = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(qp.get('tproject_id')) || 0;
+var tplan_id = parseInt(qp.get('tplan_id')) || 0;
+
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toast(msg, isErr) {
+  var $t = $('#toastBox').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function statusChip(status) {
+  if (!status) return '<span class="status-dot not_run"></span>' + esc(t('rtm.sNotRun', 'not run'));
+  var cls = status === 'p' ? 'passed' : (status === 'f' ? 'failed' : 'blocked');
+  var lab = status === 'p' ? t('rtm.sPassed', 'passed') : (status === 'f' ? t('rtm.sFailed', 'failed') : t('rtm.sBlocked', 'blocked'));
+  return '<span class="status-dot ' + cls + '"></span>' + esc(lab);
+}
+function covChip(status) {
+  var key = 'rtm.st' + status.charAt(0).toUpperCase() + status.slice(1);
+  return '<span class="age-chip ' + status + '">' + esc(t(key, status)) + '</span>';
+}
+function pctClass(p) {
+  if (p >= 80) return 'high';
+  if (p >= 40) return 'mid';
+  return 'low';
+}
+
+var state = { specs: [], gap_rows: [], orphan_tcs: [], summary: null };
+var reqSeq = 0;
+
+function renderFilters(d) {
+  if (d.builds && d.builds.length > 0) {
+    var $b = $('#buildSel').empty();
+    $b.append('<option value="0">[' + t('rtm.any', 'Any') + ']</option>');
+    $.each(d.builds, function (i, b) { $b.append('<option value="' + b.id + '">' + esc(b.name) + '</option>'); });
+    $b.val(String(parseInt(d.build_id) || 0));
+  }
+  if (d.platforms && d.platforms.length > 0) {
+    var $p = $('#platSel').empty();
+    $p.append('<option value="0">[' + t('rtm.any', 'Any') + ']</option>');
+    $.each(d.platforms, function (i, pl) {
+      $p.append('<option value="' + pl.id + '">' + esc(pl.name || t('rtm.defaultPlatform', 'default')) + '</option>');
+    });
+    $p.val(String(parseInt(d.platform_id) || 0));
+  }
+}
+
+function render() {
+  var d = state;
+  $('#tplanName').text(d.tplan_name || '-');
+  $('#tprojectName').text(d.tproject_name || '-');
+  $('#errBox, #warnBox, #loadingBox').hide();
+
+  if (d.status === 'error') {
+    $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
+    $('#errBox').show();
+    $('#errMsg').text(d.message || t('common.error', 'Error'));
+    $('#errCode').text(d.code || '');
+    return;
+  }
+  if (d.requirements_enabled === false) {
+    $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
+    $('#warnBox').html('<i class="fa fa-info-circle" style="margin-right:6px;"></i>'
+      + esc(t('rtm.reqDisabled', 'Requirements are not enabled for this test project.'))).show();
+    return;
+  }
+
+  renderFilters(d);
+
+  var s = d.summary || {};
+  var specs = d.specs || [];
+  var covPct = s.total > 0 ? Math.round(1000 * s.covered / s.total) / 10 : 0;
+  var kpis = [
+    { k: t('rscov.specs', 'Requirement specs'), v: specs.length, cls: '' },
+    { k: t('rtm.requirements', 'Requirements'), v: s.total || 0, cls: '' },
+    { k: t('rscov.coveragePct', 'Coverage'), v: covPct + '%', cls: covPct >= 80 ? 'good' : (covPct >= 40 ? 'warn' : 'bad') },
+    { k: t('rscov.gapReqs', 'Gap requirements'), v: (s.partial || 0) + (s.uncovered || 0), cls: (s.partial || 0) + (s.uncovered || 0) > 0 ? 'warn' : 'good' },
+    { k: t('rscov.orphanReqs', 'Orphan requirements'), v: s.orphan_reqs || 0, cls: (s.orphan_reqs || 0) > 0 ? 'warn' : '' },
+    { k: t('rscov.planTcs', 'Plan test cases'), v: s.plan_tcs || 0, cls: '' },
+    { k: t('rscov.orphanTcs', 'Orphan test cases'), v: s.orphan_tcs || 0, cls: (s.orphan_tcs || 0) > 0 ? 'warn' : '' }
+  ];
+  var kh = '';
+  $.each(kpis, function (i, k) {
+    kh += '<div class="kpi ' + k.cls + '"><div class="k">' + esc(k.k) + '</div><div class="v">' + esc(k.v) + '</div></div>';
+  });
+  $('#kpiRow').html(kh);
+
+  var badges = [
+    { k: 'rtm.stCovered', v: s.covered || 0, cls: 'covered', ic: 'fa-check-circle', color: '#28a745' },
+    { k: 'rtm.stPartial', v: s.partial || 0, cls: 'partial', ic: 'fa-circle-half-stroke', color: '#007bff' },
+    { k: 'rtm.stUncovered', v: s.uncovered || 0, cls: 'uncovered', ic: 'fa-circle-xmark', color: '#6c757d' },
+    { k: 'rtm.orphanReqs', v: s.orphan_reqs || 0, cls: '', ic: 'fa-unlink', color: '#c9a227' }
+  ];
+  var bh = '';
+  $.each(badges, function (i, b) {
+    bh += '<span class="eval-badge" style="background:' + b.color + ';"><i class="fa ' + b.ic + '"></i> '
+        + esc(t(b.k, b.k)) + ' <span class="cnt">' + b.v + '</span></span>';
+  });
+  $('#summaryRow').html(bh);
+  $('#sumDetail').text(t('rtm.sumDetail', '{total} requirements · {linked} of {plan} plan test cases traceable')
+    .replace('{total}', s.total || 0).replace('{linked}', s.plan_linked_tcs || 0).replace('{plan}', s.plan_tcs || 0));
+  $('#summaryBox').show();
+
+  if ($.fn.DataTable.isDataTable('#dtSpecs')) { $('#dtSpecs').DataTable().destroy(); }
+  var tbody = $('#dtSpecs tbody').empty();
+  if (specs.length > 0) {
+    $.each(specs, function (i, r) {
+      var pct = parseFloat(r.coverage_pct) || 0;
+      var row = '<tr>'
+        + '<td class="spec"><b>' + esc(r.spec_doc_id) + '</b><div class="t">' + esc(r.spec_title) + '</div></td>'
+        + '<td>' + r.requirements + '</td>'
+        + '<td>' + r.covered + '</td>'
+        + '<td>' + r.partial + '</td>'
+        + '<td>' + r.uncovered + '</td>'
+        + '<td>' + (r.orphan_reqs > 0 ? '<span class="chip orphan">' + r.orphan_reqs + '</span>' : '0') + '</td>'
+        + '<td>' + r.plan_tcversions + '</td>'
+        + '<td>' + r.executed + '</td>'
+        + '<td>' + r.passed + '</td>'
+        + '<td>' + r.failed + '</td>'
+        + '<td>' + r.blocked + '</td>'
+        + '<td>' + r.defects + '</td>'
+        + '<td class="pct-wrap" data-order="' + pct + '"><b>' + pct.toFixed(1) + '%</b>'
+        + '<div class="pct-bar ' + pctClass(pct) + '"><span style="width:' + Math.min(100, pct) + '%"></span></div></td>'
+        + '<td>' + (r.gaps > 0
+            ? '<button class="btn-gap" data-spec="' + esc(r.spec_doc_id) + '" data-title="' + esc(r.spec_title) + '"><i class="fa fa-triangle-exclamation"></i> ' + r.gaps + '</button>'
+            : '<span style="color:#28a745;"><i class="fa fa-check"></i> 0</span>') + '</td>'
+        + '</tr>';
+      tbody.append(row);
+    });
+
+    $('#dtSpecs').DataTable({
+      pageLength: 25,
+      autoWidth: false,
+      order: [[12, 'asc'], [0, 'asc']],
+      columnDefs: [{ targets: [1,2,3,4,5,6,7,8,9,10,11], className: 'dt-body-right' }],
+      language: { emptyTable: t('rscov.noSpecs', 'No requirement specifications') }
+    });
+    var $inp = $('#dtSpecs').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) { if (!$inp.attr('id')) $inp.attr('id', 'dtSpecsSearch'); if (!$inp.attr('name')) $inp.attr('name', 'dtSpecsSearch'); }
+    $('#tableBox').show();
+  } else {
+    $('#tableBox').hide();
+    $('#emptyBox').show();
+    $('#emptyMsg').text(t('rscov.noSpecs', 'No requirement specifications found for this test project.'));
+  }
+
+  if (d.orphan_tcs && d.orphan_tcs.length > 0) {
+    var oh = '';
+    $.each(d.orphan_tcs, function (i, tc) {
+      oh += '<div><span class="status-dot not_run"></span> ' + esc(tc.tc_external_id || '') + ': '
+          + esc(tc.tc_name) + ' <span style="color:#889;">v' + tc.tc_version + '</span>'
+          + (tc.suite_name ? ' · <span style="color:#889;">' + esc(tc.suite_name) + '</span>' : '') + '</div>';
+    });
+    $('#orphanList').html(oh);
+    $('#orphanCount').text(d.orphan_tcs.length);
+    $('#orphanBox').show();
+  } else {
+    $('#orphanBox').hide();
+  }
+}
+
+function openGaps(docId, title) {
+  $('#gapSpecName').text('· ' + docId + (title ? ' · ' + title : ''));
+  var rows = $.grep(state.gap_rows || [], function (r) { return String(r.spec_doc_id) === String(docId); });
+  if (rows.length === 0) {
+    $('#gapBody').html('<div class="note">' + esc(t('rscov.noGaps', 'No coverage gaps in this specification.')) + '</div>');
+  } else {
+    var h = '<table><thead><tr>'
+      + '<th>' + esc(t('rtm.thDocId', 'Req ID')) + '</th>'
+      + '<th>' + esc(t('rscov.thTitle', 'Requirement')) + '</th>'
+      + '<th>' + esc(t('rscov.thType', 'Type')) + '</th>'
+      + '<th>' + esc(t('rscov.thExpected', 'Expected coverage')) + '</th>'
+      + '<th>' + esc(t('rscov.thLinkedTcs', 'Linked test cases')) + '</th>'
+      + '<th>' + esc(t('rscov.thStatus', 'Coverage')) + '</th>'
+      + '<th>' + esc(t('rtm.thDefects', 'Defects')) + '</th>'
+      + '</tr></thead><tbody>';
+    $.each(rows, function (i, r) {
+      var tcs = '';
+      if (r.linked_tcs && r.linked_tcs.length > 0) {
+        tcs = '<ul class="tc-list">';
+        $.each(r.linked_tcs, function (j, tc) {
+          tcs += '<li>' + esc(tc.tc_external_id || '') + ': ' + esc(tc.name)
+              + ' <span style="color:#889;">v' + tc.version + '</span> · '
+              + (tc.in_plan ? '<span style="color:#1a7f45;">' + esc(t('rtm.yes', 'yes')) + '</span>'
+                            : '<span style="color:#999;">' + esc(t('rtm.no', 'no')) + '</span>')
+              + ' · ' + statusChip(tc.exec_status) + '</li>';
+        });
+        tcs += '</ul>';
+      } else {
+        tcs = '<span class="chip notinplan">' + esc(t('rscov.noLinkedTcs', 'no linked test cases')) + '</span>';
+      }
+      h += '<tr>'
+        + '<td>' + esc(r.doc_id) + (r.orphan ? ' <span class="chip orphan">' + esc(t('rtm.orphanReq', 'orphan')) + '</span>' : '') + '</td>'
+        + '<td>' + esc(r.title) + '</td>'
+        + '<td>' + esc(r.req_type || '') + '</td>'
+        + '<td>' + r.expected_coverage + '</td>'
+        + '<td>' + tcs + '</td>'
+        + '<td>' + covChip(r.coverage_status) + '</td>'
+        + '<td>' + r.defects + '</td>'
+        + '</tr>';
+    });
+    h += '</tbody></table>';
+    $('#gapBody').html(h);
+  }
+  $('#gapModal').modal('show');
+}
+
+function exportCsv() {
+  var specs = state.specs || [];
+  if (!specs.length) { toast(t('rscov.noSpecs', 'No requirement specifications'), true); return; }
+  function csvCell(v) {
+    return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+  }
+  var lines = [];
+  lines.push([t('rscov.spec','Requirement spec'), t('rscov.thTitle','Requirement'), t('rscov.thReqs','Reqs'),
+    t('rscov.thCovered','Covered'), t('rscov.thPartial','Partial'), t('rscov.thUncovered','Uncovered'),
+    t('rscov.thOrphan','Orphan reqs'), t('rscov.thPlanTcs','Plan TCs'), t('rscov.thExecuted','Executed'),
+    t('rscov.thPassed','Passed'), t('rscov.thFailed','Failed'), t('rscov.thBlocked','Blocked'),
+    t('rscov.thDefects','Defects'), t('rscov.thPct','Coverage %'), t('rscov.thGaps','Gaps')].map(csvCell).join(','));
+  $.each(specs, function (i, r) {
+    lines.push([r.spec_doc_id, r.spec_title, r.requirements, r.covered, r.partial, r.uncovered,
+      r.orphan_reqs, r.plan_tcversions, r.executed, r.passed, r.failed, r.blocked, r.defects,
+      r.coverage_pct, r.gaps].map(csvCell).join(','));
+  });
+  var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'requirement-spec-coverage.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function loadData() {
+  var seq = ++reqSeq;
+  var build = $('#buildSel').val() || 0;
+  var plat = $('#platSel').val() || 0;
+  $('#loadingBox').show();
+  $('#tableBox, #summaryBox, #orphanBox, #errBox, #emptyBox').hide();
+  $.ajax({
+    url: '/api/reqspeccoverage/index.php',
+    data: { action: 'report', tplan_id: tplan_id, tproject_id: tproject_id, build_id: build, platform_id: plat },
+    dataType: 'json',
+    success: function (d) {
+      if (seq !== reqSeq) { return; }
+      state = d;
+      $('#loadingBox').hide();
+      render();
+    },
+    error: function (xhr) {
+      var msg = t('common.errorLoading', 'Error loading data');
+      var code = '';
+      try {
+        var r = JSON.parse(xhr.responseText);
+        if (r && r.message) { msg = r.message; code = r.code || ''; }
+      } catch (e) { /* keep defaults */ }
+      if (seq !== reqSeq) { return; }
+      state = { status: 'error', message: msg, code: code || ('http_' + xhr.status) };
+      $('#loadingBox').hide();
+      render();
+    }
+  });
+}
+
+$('#gapModal').on('hidden.bs.modal', function () {
+  $('#btnApply').focus();
+});
+$(document).on('click', '.btn-gap', function () {
+  openGaps($(this).data('spec'), $(this).data('title'));
+});
+$('#btnApply').on('click', loadData);
+$('#btnRefresh').on('click', loadData);
+$('#btnCsv').on('click', exportCsv);
+
+var i18nReady = false;
+TLi18n.load(function () {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  i18nReady = true;
+  loadData();
+});
+$(function () { if (i18nReady) loadData(); });
+</script>
+</body>
+</html>

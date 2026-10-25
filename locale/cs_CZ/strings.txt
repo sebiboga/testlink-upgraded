@@ -3994,6 +3994,7 @@ $TLS_title_solr_integration = "Integrace SOLR"; // Apache SOLR integration (Refs
 $TLS_title_risk_coverage_matrix = "Matice pokryti rizik"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Vyhodnocení kritérií výstupu"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "Flaky / nestabilní testovací případy"; // Flaky / Unstable Test Cases report (Refs #1954)
+$TLS_link_report_req_spec_coverage = "Přehled pokrytí specifikací požadavků"; // Requirement Spec Coverage Summary (Refs #1965)
 $TLS_link_report_plan_comparison = "Porovnání testovacích plánů"; // Test Plan Comparison report (Refs #1957)
 $TLS_link_report_exec_history = 'Historie provádění testovacího plánu'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "Přístupové tokeny API"; // API Access Tokens manager (Refs #1958)

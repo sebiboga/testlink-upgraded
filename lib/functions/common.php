@@ -2688,6 +2688,14 @@ function getActions(&$gui,$baseURL) {
   $actions->rtm =
     "/gui/templates/results/rtm.html?{$ctx}";
 
+  // Refs #1965 (roadmap #1065): Requirement Spec Coverage Summary report -
+  // the per-spec (module / feature / requirement group) rollup of the RTM
+  // coverage semantics. Backed by the api/reqspeccoverage BFF (report/context
+  // actions, testplan_metrics on the owning project) and registered in
+  // reports_list as req_spec_coverage so the Reports ASIDE + hub expose it.
+  $actions->reqSpecCoverage =
+    "/gui/templates/results/reqSpecCoverage.html?{$ctx}";
+
   // Refs #1964: Baseline snapshot creation (gap #1189). The 1.9.20 save was a
   // GET side effect of the Results-by-Test-Suite report and had no modern
   // write path; api/baselinesave owns the insert into

@@ -224,6 +224,19 @@ $tlCfg->reports_list['requirements_traceability_matrix'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1965 (roadmap #1065) - Requirement Spec Coverage Summary. The RTM
+// report is requirement-centric; #1065 also asks for a coverage summary by
+// module / feature / requirement group, which in TestLink is the requirement
+// SPECIFICATION. This read-only view rolls the RTM coverage semantics up per
+// requirement spec (api/reqspeccoverage enforces testplan_metrics).
+$tlCfg->reports_list['req_spec_coverage'] = array(
+	'title' => 'link_report_req_spec_coverage',
+	'url' => 'gui/templates/results/reqSpecCoverage.html',
+	'enabled' => 'req',
+	'directLink' => '',
+	'format' => 'format_html'
+);
+
 
 // Refs #843 - Uncovered Test Cases report modernized
 // (gui/templates/results/uncoveredTestCases.html + api/reports uncovered_testcases action).

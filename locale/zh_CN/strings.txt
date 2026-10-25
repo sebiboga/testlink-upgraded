@@ -4199,6 +4199,7 @@ $TLS_title_solr_integration = "SOLR 集成"; // Apache SOLR integration (Refs #1
 $TLS_title_risk_coverage_matrix = "风险覆盖矩阵"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "退出准则评估"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "浮动／不稳定的测试用例"; // Flaky / Unstable Test Cases report (Refs #1954)
+$TLS_link_report_req_spec_coverage = "需求规格覆盖率摘要"; // Requirement Spec Coverage Summary (Refs #1965)
 $TLS_link_report_plan_comparison = "测试计划对比"; // Test Plan Comparison report (Refs #1957)
 $TLS_link_report_exec_history = '测试计划执行历史'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "API 访问令牌"; // API Access Tokens manager (Refs #1958)

@@ -2197,6 +2197,7 @@ $TLS_title_solr_integration = "SOLR-integraatio"; // Apache SOLR integration (Re
 $TLS_title_risk_coverage_matrix = "Riskien kattavuusmatriisi"; // "Risk Coverage Matrix" (Refs #1951)
 $TLS_href_test_strategy_exit_evaluation = "Exit-kriteerien arviointi"; // Exit Criteria Evaluation (Refs #1953)
 $TLS_link_report_flaky_tests = "Epävakaat / epävarmat testitapaukset"; // Flaky / Unstable Test Cases report (Refs #1954)
+$TLS_link_report_req_spec_coverage = "Vaatimusmäärittelyjen kattavuuden yhteenveto"; // Requirement Spec Coverage Summary (Refs #1965)
 $TLS_link_report_plan_comparison = "Testisuunnitelmien vertailu"; // Test Plan Comparison report (Refs #1957)
 $TLS_link_report_exec_history = 'Testisuunnitelman suoritushistoria'; // Test Plan Execution History report (Refs #1961)
 $TLS_title_api_tokens = "API-käyttöavaimet"; // API Access Tokens manager (Refs #1958)
