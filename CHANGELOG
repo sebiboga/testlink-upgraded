@@ -339,6 +339,19 @@ Every screen of the application was ported one-by-one in a screen-compare
   maps, `$actions->platformComparison`, `pcomp.*` keys in all 10 bundles and
   `$TLS_link_report_platform_comparison` in all 19 server locales. Refs #1963.
 
+- [SCREEN] - #1964 (closes gap #1189): **Baseline snapshot creation**
+  (`gui/templates/results/baselineSave.html`, BFF `api/baselinesave/index.php`) restores
+  the write path 1.9.20 only had as a GET side effect of the Results-by-Test-Suite report.
+  The Dashio screen previews the per-platform execution window, L2-suite/test-case counts
+  and status totals, saves one `baseline_l1l2_context` + `baseline_l1l2_details` snapshot
+  per executable platform (legacy `n`/`p`/`f`/`b` letters), lists existing snapshots and
+  handles no-plan/no-execution/401/403/404/409 states. Rights `testplan_metrics` are checked
+  on the addressed project BEFORE resolving the plan; writes are POST-only behind
+  `bffSameOriginGuard` + `bffEnforceSession` and log an AUDIT `CREATE`. Entry buttons added
+  to `baselineL1L2.html` and `resultsByTSuite.html`, `$actions->baselineSave` added, and
+  `bsv.*` (44 keys) + `footers.baselineSave` ship in all 10 client bundles. Suite 1964 = 10/10.
+  Refs #1964.
+
 - [SCREEN] - #1961: the **Test Plan Execution History** report
   (`gui/templates/results/execHistoryReport.html`, BFF `api/exechistoryreport/index.php`) is a
   read-only Dashio report showing the execution history of a test plan in chronological order
