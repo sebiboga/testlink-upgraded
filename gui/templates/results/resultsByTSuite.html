@@ -67,6 +67,7 @@ td.tot { font-weight: 700; color: #22242a; }
   <form id="xlsForm" method="POST" target="_blank" style="display:inline;">
     <button type="submit" class="btn-dark" id="btnXls" title=""><i class="fa fa-file-excel"></i> <span data-i18n="rbs.btnExportXls">Export as spreadsheet</span></button>
   </form>
+  <a class="btn-dark" id="btnBaselineSave" href="/gui/templates/results/baselineSave.html"><i class="fa fa-camera-retro"></i> <span data-i18n="bsv.action">Create baseline</span></a>
   <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
 
@@ -99,6 +100,7 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  $('#btnBaselineSave').attr('href', '/gui/templates/results/baselineSave.html?tproject_id=' + encodeURIComponent(tprojectId) + '&tplan_id=' + encodeURIComponent(tplanId));
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

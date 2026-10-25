@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="bsv.header">Create Baseline Snapshot</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 280px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal[disabled] { background: #9adbd6; cursor: not-allowed; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-dark:hover { background: #3d4049; color: #fff; }
+.notice { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+.kpis { display: flex; gap: 14px; padding: 14px 20px 4px; flex-wrap: wrap; }
+.kpi { background: #f7fbfb; border: 1px solid #e3efee; border-radius: 7px; padding: 10px 16px; min-width: 130px; }
+.kpi .v { font-size: 20px; font-weight: 700; color: #22242a; }
+.kpi .l { font-size: 11px; color: #667; text-transform: uppercase; letter-spacing: .4px; }
+table.grid { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.grid th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 12px; }
+table.grid td { padding: 7px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.grid tr:hover td { background: #f4fbfa; }
+.chip { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.chip.ok { background: #d9f2e4; color: #1a7f45; }
+.chip.no { background: #fdecea; color: #b94a48; }
+.muted { color: #888; font-size: 12px; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.statebox { margin: 16px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+.statebox .icon { font-size: 38px; color: #e6605e; }
+.statebox h3 { font-size: 17px; margin: 10px 0 6px; color: #22242a; }
+.statebox p { color: #667; font-size: 13px; margin: 0 0 8px; }
+.machine-code { font-family: monospace; font-size: 11px; color: #a35; background: #ffeef2; border-radius: 3px; padding: 2px 7px; display: inline-block; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-camera-retro" style="margin-right:8px;"></i><span data-i18n="bsv.header">Create Baseline Snapshot</span>
+  <span class="sub"><span data-i18n="bsv.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="bsv.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <label class="ctx" for="planSelect" style="margin:0;"><span data-i18n="bsv.testPlan">Test Plan</span>:</label>
+  <select id="planSelect"></select>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnSave" disabled><i class="fa fa-camera-retro"></i> <span data-i18n="bsv.save">Save baseline</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-dark" id="btnReport" href="#"><i class="fa fa-layer-group"></i> <span data-i18n="bsv.openReport">Open Baselines report</span></a>
+</div>
+
+<div class="notice"><i class="fa fa-info-circle"></i> <span data-i18n="bsv.notice">A baseline stores the current per-suite execution figures of the selected plan. Existing reports keep reading the saved snapshots; saving again adds a new snapshot.</span></div>
+
+<div class="warnbox" id="warnBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="content" style="display:none;">
+
+  <div class="section">
+    <div class="section-head"><i class="fa fa-chart-simple"></i> <span data-i18n="bsv.preview">Snapshot preview</span></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="section-body">
+      <table class="grid" id="platTable">
+        <thead><tr>
+          <th data-i18n="bsv.platform">Platform</th>
+          <th data-i18n="bsv.firstExec">First execution</th>
+          <th data-i18n="bsv.latestExec">Latest execution</th>
+          <th data-i18n="bsv.suites">L2 suites</th>
+          <th data-i18n="bsv.testCases">Test cases</th>
+          <th data-i18n="bsv.passed">Passed</th>
+          <th data-i18n="bsv.failed">Failed</th>
+          <th data-i18n="bsv.blocked">Blocked</th>
+          <th data-i18n="bsv.notRun">Not run</th>
+          <th data-i18n="bsv.ready">Can snapshot</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="bsv.snapshots">Saved snapshots</span></div>
+    <div class="section-body">
+      <table class="grid" id="snapTable">
+        <thead><tr>
+          <th data-i18n="bsv.created">Created</th>
+          <th data-i18n="bsv.platform">Platform</th>
+          <th data-i18n="bsv.window">Execution window</th>
+          <th data-i18n="bsv.detailRows">Detail rows</th>
+          <th data-i18n="bsv.qtyTotal">Executions</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="muted" id="snapEmpty" style="display:none;padding:8px 0;"><i class="fa fa-circle-info"></i> <span data-i18n="bsv.noSnapshots">No baseline saved yet for this test plan.</span></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="empty" id="emptyBox" style="display:none;"></div>
+<div class="footer"><span data-i18n="footers.baselineSave">TestLink 2.0.1 - Create Baseline Snapshot</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/baselinesave/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var busy = false;
+var last = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', load);
+    $('#planSelect').on('change', function () {
+      tplanId = parseInt($(this).val() || '0', 10);
+      syncUrl();
+      load();
+    });
+    $('#btnSave').on('click', save);
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function fmtTs(v) {
+  if (!v) { return '-'; }
+  var d = new Date(String(v).replace(' ', 'T'));
+  return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+}
+
+function syncUrl() {
+  var q = '?tproject_id=' + encodeURIComponent(tprojectId) +
+          '&tplan_id=' + encodeURIComponent(tplanId);
+  try { window.history.replaceState(null, '', 'baselineSave.html' + q); } catch (e) {}
+}
+
+function showState(code, message) {
+  var keys = {
+    not_authenticated: 'bsv.errAuth',
+    session_expired: 'bsv.errSession',
+    no_right: 'bsv.errRight',
+    no_testproject: 'bsv.errNoProject',
+    tproject_not_found: 'bsv.errProjectNotFound',
+    tplan_not_found: 'bsv.errPlanNotFound',
+    no_executions: 'bsv.errNoExecutions',
+    duplicate_snapshot: 'bsv.errDuplicate'
+  };
+  var html = '<div class="statebox"><div class="icon"><i class="fa fa-triangle-exclamation"></i></div>' +
+    '<h3>' + esc(TLi18n.t('bsv.cannotProceed')) + '</h3>' +
+    '<p>' + esc(message || TLi18n.t(keys[code] || 'bsv.errGeneric')) + '</p>' +
+    (code ? '<span class="machine-code">' + esc(code) + '</span>' : '') + '</div>';
+  $('#stateBox').html(html).show();
+  $('#content').hide();
+  $('#emptyBox').hide();
+  $('#loadingBox').hide();
+}
+
+function load() {
+  if (busy) { return; }
+  $('#stateBox').empty();
+  $('#emptyBox').hide();
+  $('#warnBox').hide();
+  $('#loadingBox').show();
+  var params = { action: 'init' };
+  if (tprojectId > 0) { params.tproject_id = tprojectId; }
+  if (tplanId > 0) { params.tplan_id = tplanId; }
+  $.ajax({ url: API, data: params, dataType: 'json' })
+    .done(function (r) {
+      $('#loadingBox').hide();
+      if (!r || r.status !== 'ok') {
+        showState(r && r.code, r && r.message);
+        return;
+      }
+      last = r;
+      tprojectId = r.context.tproject_id;
+      tplanId = r.plan ? r.plan.id : 0;
+      syncUrl();
+      render(r);
+    })
+    .fail(function (xhr) {
+      $('#loadingBox').hide();
+      var r = xhr.responseJSON || {};
+      showState(r.code || ('http_' + xhr.status), r.message);
+    });
+}
+
+function render(r) {
+  $('#tprojectName').text(r.context.tproject_name || '-');
+  $('#tplanName').text(r.plan ? r.plan.name : '-');
+  var $ps = $('#planSelect').empty();
+  (r.plans || []).forEach(function (p) {
+    $ps.append($('<option>').val(p.id).text(p.name).prop('selected', r.plan && p.id === r.plan.id));
+  });
+  $('#btnReport').attr('href', '/gui/templates/results/baselineL1L2.html?tproject_id=' +
+    encodeURIComponent(r.context.tproject_id) + '&tplan_id=' + encodeURIComponent(tplanId));
+
+  if (!r.plan) {
+    $('#content').hide();
+    $('#emptyBox').html('<i class="fa fa-diagram-project"></i>' +
+      esc(TLi18n.t('bsv.noPlans'))).show();
+    $('#btnSave').prop('disabled', true);
+    return;
+  }
+
+  var canSave = r.executable_platforms > 0 && !busy;
+  $('#btnSave').prop('disabled', !canSave)
+    .attr('title', canSave ? '' : TLi18n.t('bsv.noExecutionsHint'));
+
+  var totals = { suites: 0, tc: 0, passed: 0, failed: 0, blocked: 0, notrun: 0 };
+  var $tb = $('#platTable tbody').empty();
+  (r.platforms || []).forEach(function (p) {
+    var st = p.status_totals || {};
+    totals.suites += p.suite_count || 0;
+    totals.tc += p.total_tc || 0;
+    totals.passed += st.passed || 0;
+    totals.failed += st.failed || 0;
+    totals.blocked += st.blocked || 0;
+    totals.notrun += st.not_run || 0;
+    $tb.append('<tr>' +
+      '<td>' + (p.name ? esc(p.name) : '<span class="muted">' + esc(TLi18n.t('bsv.noPlatform')) + '</span>') + '</td>' +
+      '<td>' + esc(fmtTs(p.begin_exec_ts)) + '</td>' +
+      '<td>' + esc(fmtTs(p.end_exec_ts)) + '</td>' +
+      '<td>' + (p.suite_count || 0) + '</td>' +
+      '<td>' + (p.total_tc || 0) + '</td>' +
+      '<td>' + (st.passed || 0) + '</td>' +
+      '<td>' + (st.failed || 0) + '</td>' +
+      '<td>' + (st.blocked || 0) + '</td>' +
+      '<td>' + (st.not_run || 0) + '</td>' +
+      '<td>' + (p.has_executions
+        ? '<span class="chip ok">' + esc(TLi18n.t('bsv.yes')) + '</span>'
+        : '<span class="chip no">' + esc(TLi18n.t('bsv.no')) + '</span>') + '</td>' +
+    '</tr>');
+  });
+  if (!r.platforms || !r.platforms.length) {
+    $tb.append('<tr><td colspan="10" class="muted">' + esc(TLi18n.t('bsv.noData')) + '</td></tr>');
+  }
+
+  var $k = $('#kpis').empty();
+  function kpi(v, label) {
+    $k.append('<div class="kpi"><div class="v">' + esc(v) + '</div><div class="l">' + esc(label) + '</div></div>');
+  }
+  kpi(totals.suites, TLi18n.t('bsv.suites'));
+  kpi(totals.tc, TLi18n.t('bsv.testCases'));
+  kpi(totals.passed, TLi18n.t('bsv.passed'));
+  kpi(totals.failed, TLi18n.t('bsv.failed'));
+  kpi(totals.blocked, TLi18n.t('bsv.blocked'));
+  kpi(totals.notrun, TLi18n.t('bsv.notRun'));
+
+  var $sb = $('#snapTable tbody').empty();
+  (r.snapshots || []).forEach(function (s) {
+    $sb.append('<tr>' +
+      '<td>' + esc(fmtTs(s.creation_ts)) + '</td>' +
+      '<td>' + (s.platform_name ? esc(s.platform_name) : '<span class="muted">' + esc(TLi18n.t('bsv.noPlatform')) + '</span>') + '</td>' +
+      '<td>' + esc(fmtTs(s.begin_exec_ts)) + ' &rarr; ' + esc(fmtTs(s.end_exec_ts)) + '</td>' +
+      '<td>' + (s.detail_rows || 0) + '</td>' +
+      '<td>' + (s.qty_total || 0) + '</td>' +
+    '</tr>');
+  });
+  $('#snapEmpty').toggle(!(r.snapshots || []).length);
+
+  if (!r.plan || (!r.platforms || !r.platforms.length)) {
+    $('#content').hide();
+    $('#emptyBox').html('<i class="fa fa-circle-info"></i>' + esc(TLi18n.t('bsv.noData'))).show();
+    return;
+  }
+  $('#emptyBox').hide();
+  $('#content').show();
+  if (r.executable_platforms <= 0) {
+    $('#warnBox').html('<i class="fa fa-triangle-exclamation"></i> ' +
+      esc(TLi18n.t('bsv.noExecutionsWarn'))).show();
+  }
+}
+
+function save() {
+  if (busy) { return; }
+  busy = true;
+  $('#btnSave').prop('disabled', true);
+  $.ajax({
+    url: API,
+    method: 'POST',
+    dataType: 'json',
+    data: { action: 'save', tproject_id: tprojectId, tplan_id: tplanId }
+  }).done(function (r) {
+    busy = false;
+    if (r && r.status === 'ok') {
+      toast(TLi18n.t('bsv.savedOk'));
+      load();
+    } else {
+      toast((r && r.message) || TLi18n.t('bsv.errGeneric'), true);
+      if (r && r.code === 'no_executions') { load(); }
+      else { $('#btnSave').prop('disabled', false); }
+    }
+  }).fail(function (xhr) {
+    busy = false;
+    var r = xhr.responseJSON || {};
+    if (xhr.status === 401) {
+      showState(r.code || 'not_authenticated', r.message);
+      return;
+    }
+    toast(r.message || TLi18n.t('bsv.errGeneric'), true);
+    $('#btnSave').prop('disabled', false);
+  });
+}
+</script>
+</body>
+</html>
