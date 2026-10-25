@@ -45754,3 +45754,47 @@ Fixture: test project 1 "Demo Project" (prefix DEMO), plan 2 "Platform Compariso
 10. **TC1963-010 - Reports-menu wiring**  
     `cfg/reports.cfg.php` has `reports_list['platform_comparison']` -> `gui/templates/results/platformComparison.html`; `api/aside/index.php` maps `link_report_platform_comparison` to the screen with `tproject_id`/`tplan_id` (ASIDE init returns the platformComparison href); `api/resultsnav/index.php` maps `platform_comparison`; `lib/functions/common.php` defines `$actions->platformComparison`. Event Viewer: 0 new Error/Warning rows.  
     Result: PASS
+
+## Issue #1964 — Baseline snapshot creation (baselineSave)
+
+Fixture: test project 1 "BSV1964" (prefix BS), plan 2 "BSV Plan" with one root suite 4 + child suite 5, build 1, two test-case versions assigned, one passed and one failed execution; plan 3 "BSV Empty Plan" with no executions; user `bsvnoright` (role 3). Browser: `gui/templates/results/baselineSave.html?tproject_id=1&tplan_id=2`.
+
+1. **TC1964-001 - Screen render and preview**  
+   Open the screen as admin. Header shows "Create Baseline Snapshot" for "BSV Plan", project "BSV1964", plan picker lists both plans with plan 2 selected. KPI tiles show 1 L2 suite, 2 test cases, 1 passed, 1 failed, 0 blocked, 0 not run; the platform row shows the execution window, suite/test-case counts, status counts and "Yes" in Can snapshot; the Saved snapshots table lists the existing snapshots newest first. Console clean.  
+   Result: PASS
+
+2. **TC1964-002 - Save a new snapshot**  
+   Click Save baseline. BFF POST `action=save&tproject_id=1&tplan_id=2` returns `{"status":"ok"}` with one saved platform (4 detail rows); the toast "Baseline saved" appears and the screen reloads with an additional snapshot row. DB check: a new `baseline_l1l2_context` row plus 4 `baseline_l1l2_details` rows (statuses n/p/f/b, total_tc=2, top_tsuite_id=4, child_tsuite_id=5).  
+   Result: PASS
+
+3. **TC1964-003 - Plan without executions**  
+   Select "BSV Empty Plan" (plan 3). The Save button is disabled, the red warning "This test plan has no execution records yet. Execute at least one test case, then save the baseline." is visible and the preview shows the no-data state. A direct POST returns 400 `no_executions` and no rows are inserted.  
+   Result: PASS
+
+4. **TC1964-004 - Duplicate snapshot guard**  
+   Send two saves for the same plan/platform within one second. The first succeeds; the second returns 409 `duplicate_snapshot` ("A baseline for this platform was already saved in this second. Try again.") and does not insert a second row. The screen shows the localized error toast and re-enables Save.  
+   Result: PASS
+
+5. **TC1964-005 - Authentication and rights**  
+   Anonymous `GET ?action=init` -> 401 `session_expired`; `bsvnoright` (role 3) -> 403 `no_right` ("No permission to save baselines for this test project"). Rights (`testplan_metrics`) are checked on the addressed project BEFORE resolving the plan, so a foreign/bogus id does not become an existence oracle. The screen shows the matching localized state cards for 401/403.  
+   Result: PASS
+
+6. **TC1964-006 - Invalid ids and methods**  
+   Unknown plan -> 404 `tplan_not_found`; unknown project -> 404 `tproject_not_found`; `PUT ?action=save` with the same-origin header -> 405 `wrong_method`; unknown `action` -> 400 `unknown_action`; a write without `X-Requested-With`/Origin is refused by `bffSameOriginGuard`.  
+   Result: PASS
+
+7. **TC1964-007 - Entry points**  
+   `baselineL1L2.html?tproject_id=1&tplan_id=2` and `resultsByTSuite.html?tproject_id=1&tplan_id=2` both render a "Create baseline" button whose href carries the current `tproject_id`/`tplan_id`; clicking it opens the modern save screen for the same plan. The save screen's "Open Baselines report" link returns to `baselineL1L2.html` with the same ids. `$actions->baselineSave` is defined in `lib/functions/common.php`.  
+   Result: PASS
+
+8. **TC1964-008 - Empty / error UI states**  
+   A project with no plans shows "This test project has no test plan yet."; a no-execution plan keeps the content visible with the warning and a disabled Save; a 404 plan renders the "Cannot create the baseline" card with the machine code; a 403 session renders the permission card. No raw `bsv.*` keys appear in EN.  
+   Result: PASS
+
+9. **TC1964-009 - i18n**  
+   Switch to Română: header "Creează un instantaneu de referință", Save "Salvează linia de bază", footer "TestLink 2.0.1 - Creează un instantaneu de referință", KPI/table labels translated. `bash ai/verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (44 `bsv.*` keys + `footers.baselineSave` in all 10 client bundles).  
+   Result: PASS
+
+10. **TC1964-010 - Audit and Event Viewer**  
+    Every successful save writes an AUDIT row via `logAuditEvent(..., 'CREATE', <context_id>, 'baseline_l1l2_context')`. Event Viewer contains no new Error/Warning rows after the browser pass.  
+    Result: PASS
