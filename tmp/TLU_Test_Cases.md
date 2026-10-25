@@ -45710,3 +45710,47 @@ Verify the net-new Dashio screen `gui/templates/results/buildComparison.html` ba
 10. **TC1962-010 - Wiring**  
    `lib/functions/common.php` defines `$actions->buildComparison`; `cfg/reports.cfg.php` has `build_comparison` entry pointing to `gui/templates/results/buildComparison.html`; `api/aside/index.php` maps `link_report_build_comparison` to the screen with `tproject_id`/`tplan_id`; visible in Reports menu for a plan with metrics right.  
    Result: PASS
+
+## Issue #1963 — Test Plan Platform Comparison (platformComparison)
+
+Fixture: test project 1 "Demo Project" (prefix DEMO), plan 2 "Platform Comparison Plan" with platforms 10 Android and 11 iOS, suite "Smoke suite", three test-case versions (Login 7, Logout 8, Search 9) assigned to both platforms; executions: v7 passed->failed, v8 failed->passed, v9 passed->passed. Plan 12 has no platforms. Browser: `gui/templates/results/platformComparison.html?tproject_id=1&tplan_id=2`.
+
+1. **TC1963-001 - Screen render (normal state)**  
+   Open the screen as admin. Header, toolbar (project/plan/platform A/B + Apply/Refresh/Export CSV/Close), context panel, KPI tiles, change cards and the 3-row DataTable render; banner says "Regressions detected: 1 regressed, 0 newly failing."; console has no errors (only the shared DataTables search-field a11y notice).  
+   Result: PASS
+
+2. **TC1963-002 - Platform auto-selection and swap**  
+   With `platform_a=10&platform_b=11` Android/iOS are selected. Changing Platform A to iOS makes the screen require two different platforms; changing Platform B to Android restores a valid pair and the report reloads.  
+   Result: PASS
+
+3. **TC1963-003 - Change classification**  
+   Login test: Passed (Android) -> Failed (iOS) = Regressed; Logout test: Failed -> Passed = Fixed; Search test: Passed -> Passed = Still passing. Change cards show Fixed 1, Regressed 1, New pass/fail 0.  
+   Result: PASS
+
+4. **TC1963-004 - Change filter**  
+   Filter "Regressed" leaves only "1 Login test" (Showing 1 to 1 of 1); "All changes" restores all three rows.  
+   Result: PASS
+
+5. **TC1963-005 - Apply / Refresh / plan change**  
+   Apply re-queries the BFF with the selected parameters; Refresh resets and reloads projects/plans/platforms. Switching the plan to "No Platform Plan" reloads the platform pickers and shows the no-platforms state.  
+   Result: PASS
+
+6. **TC1963-006 - CSV export**  
+   Export CSV downloads `platform-comparison-2-10-11.csv` with the platform summary section (assigned/executed/passed/failed/blocked/not run/pass rate/coverage) and the per-test-case diff; toast "CSV exported." (RO: "CSV exportat."); formulas are guarded and the separator is `;`.  
+   Result: PASS
+
+7. **TC1963-007 - Plan without platforms**  
+   Plan 12 (no `testplan_platforms` rows) reaches the toolbar with "No platforms" in both selectors and the dedicated state "This test plan has no active platforms assigned, so a platform comparison is not possible."; Export CSV stays disabled.  
+   Result: PASS
+
+8. **TC1963-008 - BFF security and error codes**  
+   Anonymous GET -> 401 `not_authenticated`; POST with `X-Requested-With` -> 405 `method_not_allowed`; same platform twice -> 400 `invalid_request`; platform from another project -> 400 `invalid_request`; platform not linked to the plan -> 400; mismatching `tproject_id` -> 404 `project_mismatch`; unknown plan -> 404 `tplan_not_found`. Session auth + `bffSameOriginGuard` + `bffEnforceSession`; `testplan_metrics` is checked on the owning project (403 path).  
+   Result: PASS
+
+9. **TC1963-009 - i18n**  
+   Switch to Română: header "Comparație platforme plan de test", summary "Sumar platforme", caption "Statusul fiecărei versiuni de caz de test pe platforma A și platforma B", footer "TestLink 2.0.1 - Comparație platforme plan de test". `ai/verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (10 client bundles + 19 server locales updated).  
+   Result: PASS
+
+10. **TC1963-010 - Reports-menu wiring**  
+    `cfg/reports.cfg.php` has `reports_list['platform_comparison']` -> `gui/templates/results/platformComparison.html`; `api/aside/index.php` maps `link_report_platform_comparison` to the screen with `tproject_id`/`tplan_id` (ASIDE init returns the platformComparison href); `api/resultsnav/index.php` maps `platform_comparison`; `lib/functions/common.php` defines `$actions->platformComparison`. Event Viewer: 0 new Error/Warning rows.  
+    Result: PASS
