@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "Résumé de l'Évaluation",
   "reqcov.forPlan": "pour le plan de test",
   "reqcov.header": "Couverture des Exigences",
+  "reqcov.countRequirements": "{n} exigences",
+  "reqcov.tcCount": "{n} cas de test",
   "reqcov.loading": "Chargement des données...",
   "reqcov.noMatchingReqs": "Aucune exigence correspondante disponible.",
   "reqcov.noSrsDefined": "Aucun dossier d’exigences disponible pour le projet.",

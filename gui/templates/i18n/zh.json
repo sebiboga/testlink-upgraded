@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "评估摘要",
   "reqcov.forPlan": "测试计划",
   "reqcov.header": "需求覆盖率",
+  "reqcov.countRequirements": "{n} 个需求",
+  "reqcov.tcCount": "{n} 个测试用例",
   "reqcov.loading": "正在加载数据...",
   "reqcov.noMatchingReqs": "未找到匹配的产品需求",
   "reqcov.noSrsDefined": "这个测试项目没有可用的产品需求规格",

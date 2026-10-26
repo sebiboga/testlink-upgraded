@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "評価サマリー",
   "reqcov.forPlan": "テスト計画",
   "reqcov.header": "要件カバレッジ",
+  "reqcov.countRequirements": "{n} 件の要件",
+  "reqcov.tcCount": "{n} 件のテストケース",
   "reqcov.loading": "データを読み込み中...",
   "reqcov.noMatchingReqs": "一致する要件はありません。",
   "reqcov.noSrsDefined": "このテストプロジェクトには要件定義がありません",

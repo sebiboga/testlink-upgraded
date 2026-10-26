@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "Bewertungsübersicht",
   "reqcov.forPlan": "für Testplan",
   "reqcov.header": "Anforderungsabdeckung",
+  "reqcov.countRequirements": "{n} Anforderungen",
+  "reqcov.tcCount": "{n} Testfälle",
   "reqcov.loading": "Daten werden geladen...",
   "reqcov.noMatchingReqs": "Es sind keine passenden Anforderungen für dieses Testprojekt verfügbar.",
   "reqcov.noSrsDefined": "Keine Anforderungs-Definition für dieses Testprojekt vorhanden.",

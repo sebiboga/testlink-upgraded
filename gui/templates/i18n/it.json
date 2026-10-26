@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "Riepilogo Valutazione",
   "reqcov.forPlan": "per il piano di test",
   "reqcov.header": "Copertura dei Requisiti",
+  "reqcov.countRequirements": "{n} requisiti",
+  "reqcov.tcCount": "{n} casi di test",
   "reqcov.loading": "Caricamento dati...",
   "reqcov.noMatchingReqs": "Nessun requisito corrispondente disponibile.",
   "reqcov.noSrsDefined": "Nessuna specifica dei requisiti disponibile per questo Progetto di Test.",

@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "Сводка оценки",
   "reqcov.forPlan": "для плана тестирования",
   "reqcov.header": "Покрытие требований",
+  "reqcov.countRequirements": "{n} требований",
+  "reqcov.tcCount": "{n} тест-кейсов",
   "reqcov.loading": "Загрузка данных...",
   "reqcov.noMatchingReqs": "Нет подходящих требований.",
   "reqcov.noSrsDefined": "Нет спецификации требований для этого тестового проекта.",

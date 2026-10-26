@@ -5123,6 +5123,8 @@
   "reqcov.evaluationSummary": "Resumo da Avaliação",
   "reqcov.forPlan": "para o plano de teste",
   "reqcov.header": "Cobertura de Requisitos",
+  "reqcov.countRequirements": "{n} requisitos",
+  "reqcov.tcCount": "{n} casos de teste",
   "reqcov.loading": "Carregando dados...",
   "reqcov.noMatchingReqs": "Nenhum requisito disponível.",
   "reqcov.noSrsDefined": "Nenhuma especificação de requisitos disponível para este projeto de teste",
