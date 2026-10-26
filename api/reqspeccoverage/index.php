@@ -352,6 +352,7 @@ $bff = function ($action) use ($db, $user) {
         $summary = ['total' => 0, 'covered' => 0, 'partial' => 0, 'uncovered' => 0,
                     'orphan_reqs' => 0, 'plan_tcs' => count($planTcvs),
                     'plan_linked_tcs' => 0, 'orphan_tcs' => count($orphanTcs)];
+        $linkedPlanTcvsSummary = array();
         $rows = array();
 
         foreach ($reqRows as $req) {
@@ -368,7 +369,7 @@ $bff = function ($action) use ($db, $user) {
                 $inPlanFlag = isset($planTcvs[$tcv]);
                 if ($inPlanFlag) {
                     $inPlan++;
-                    $summary['plan_linked_tcs']++;
+                    $linkedPlanTcvsSummary[$tcv] = true;
                 }
                 $status = '';
                 if (isset($execByTcv[$tcv])) {
@@ -424,6 +425,8 @@ $bff = function ($action) use ($db, $user) {
             ];
         }
 
+        $summary['plan_linked_tcs'] = count($linkedPlanTcvsSummary);
+
         // Per requirement-spec rollup. The requirement spec is the module /
         // feature / requirement-group level of the project, so this is the
         // coverage summary by module that #1065 asks for and the
@@ -441,6 +444,11 @@ $bff = function ($action) use ($db, $user) {
                     'in_plan_tcs' => 0, 'executed' => 0, 'passed' => 0,
                     'failed' => 0, 'blocked' => 0, 'defects' => 0,
                     '_tcversions' => array(),
+                    '_in_plan_tcv' => array(),
+                    '_executed_tcv' => array(),
+                    '_passed_tcv' => array(),
+                    '_failed_tcv' => array(),
+                    '_blocked_tcv' => array(),
                 ];
             }
             $a = &$specAgg[$key];
@@ -457,11 +465,16 @@ $bff = function ($action) use ($db, $user) {
             foreach ($row['linked_tcs'] as $ltc) {
                 if ($ltc['in_plan']) {
                     $a['_tcversions'][$ltc['tcversion_id']] = true;
-                }
-                if ($ltc['exec_status'] === 'f') {
-                    $a['failed']++;
-                } elseif ($ltc['exec_status'] === 'b') {
-                    $a['blocked']++;
+                    $a['_in_plan_tcv'][$ltc['tcversion_id']] = true;
+                    $a['_executed_tcv'][$ltc['tcversion_id']] = true;
+                    if ($ltc['exec_status'] === 'p') {
+                        $a['_passed_tcv'][$ltc['tcversion_id']] = true;
+                    }
+                    if ($ltc['exec_status'] === 'f') {
+                        $a['_failed_tcv'][$ltc['tcversion_id']] = true;
+                    } elseif ($ltc['exec_status'] === 'b') {
+                        $a['_blocked_tcv'][$ltc['tcversion_id']] = true;
+                    }
                 }
             }
             unset($a);
@@ -491,6 +504,26 @@ $bff = function ($action) use ($db, $user) {
         foreach ($specAgg as $a) {
             $tcCount = count($a['_tcversions']);
             unset($a['_tcversions']);
+            if (isset($a['_in_plan_tcv'])) {
+                $a['in_plan_tcs'] = count($a['_in_plan_tcv']);
+                unset($a['_in_plan_tcv']);
+            }
+            if (isset($a['_executed_tcv'])) {
+                $a['executed'] = count($a['_executed_tcv']);
+                unset($a['_executed_tcv']);
+            }
+            if (isset($a['_passed_tcv'])) {
+                $a['passed'] = count($a['_passed_tcv']);
+                unset($a['_passed_tcv']);
+            }
+            if (isset($a['_failed_tcv'])) {
+                $a['failed'] = count($a['_failed_tcv']);
+                unset($a['_failed_tcv']);
+            }
+            if (isset($a['_blocked_tcv'])) {
+                $a['blocked'] = count($a['_blocked_tcv']);
+                unset($a['_blocked_tcv']);
+            }
             $a['plan_tcversions'] = $tcCount;
             $a['coverage_pct'] = $a['requirements'] > 0
                 ? round(100 * $a['covered'] / $a['requirements'], 1) : 0;

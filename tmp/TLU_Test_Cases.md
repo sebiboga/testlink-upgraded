@@ -45908,3 +45908,21 @@ Before the guard fix admin was 403 `no_right` (measured, checkpoint 1/3).
 **Part G — CHANGELOG + docs**
 1. `CHANGELOG` has the 2.0.1 bugfix line referencing #1968; `docs/Bugfix-Issue-1968-*.md` mirrors the wiki.
 **Actual:** PASS.
+
+## Regression — Issue #1969: Requirement Spec Coverage shared test cases double-count in plan/executed counters
+**Precondition**
+- Project with requirements enabled, test plan with assigned test cases.
+- Same tcversion linked (active) to more than one requirement via req_coverage.
+
+**Repro steps (pre-fix)**
+1. Open Requirement Spec Coverage Summary for the plan.
+2. Add second active req_coverage link for same tcversion to another requirement (e.g. via SQL or UI if available).
+3. Load report via BFF action=report.
+
+**Expected post-fix behavior**
+- summary.plan_linked_tcs = number of distinct plan test case versions linked (not number of links).
+- Per-spec executed/passed/failed/blocked/in_plan_tcs count distinct plan tcversions; executed never exceeds plan_tcversions.
+- Summary counters consistent with distinct counts.
+
+**Actual result observed**
+- BFF updated to deduplicate by tcversion_id across requirements for summary and per-spec aggregates. Syntax validated. Logic matches issue suggested fix.
