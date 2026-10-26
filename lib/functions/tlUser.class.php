@@ -982,7 +982,16 @@ class tlUser extends tlDBObject {
         // pre-#1763 semantics for the 3-argument call shape, keeps the guard
         // fully effective for the $getAccess === true callers it was written
         // for (a private plan still denies), and logs nothing.
-        if(isset($accessPublic['tplan']) && $accessPublic['tplan'] == 0) {
+        //
+        // Refs #1968: with the guard live again, the admin exemption of the
+        // sibling TEST PROJECT branch (:938-945) and of legacy
+        // roles.inc.php:407-416 must apply here too. An admin holds no
+        // user_testplan_roles row either, so without it the 18 metrics BFFs
+        // that pass $getAccess === true deny the administrator every private
+        // plan (measured: admin 403 on api/rtm and api/exechistoryreport) while
+        // a project-level-only role is correctly refused.
+        if(isset($accessPublic['tplan']) && $accessPublic['tplan'] == 0
+           && $this->globalRoleID != TL_ROLES_ADMIN) {
           return false;
         }
       }
