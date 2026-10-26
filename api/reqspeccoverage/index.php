@@ -296,14 +296,18 @@ $bff = function ($action) use ($db, $user) {
         }
 
         // Orphan test cases: in plan, active req_coverage link NOT present.
-        // tcversion nodes are children of the testcase node in nodes_hierarchy
-        // (TV.id == version node id), so names need a two-hop walk.
+        // In 2.0.1 tcversions.id is the VERSION node (empty name) whose
+        // parent_id is the test-case node (#1771); the test-case name lives in
+        // that parent and the suite is its parent again. Read the version node
+        // first, then walk the two hops - joining NTC.id = TV.id returns the
+        // version node and put the test-case name in the suite column.
         $orphanRows = $db->get_recordset(
             "SELECT TV.id AS tcversion_id, NTC.name AS tc_name, TV.tc_external_id, TV.version AS tc_version,
                     PN.name AS suite_name
              FROM {$tables['testplan_tcversions']} TPTV
              JOIN {$tables['tcversions']} TV ON TV.id = TPTV.tcversion_id
-             JOIN {$tables['nodes_hierarchy']} NTC ON NTC.id = TV.id
+             JOIN {$tables['nodes_hierarchy']} NV ON NV.id = TV.id
+             JOIN {$tables['nodes_hierarchy']} NTC ON NTC.id = NV.parent_id
              LEFT JOIN {$tables['nodes_hierarchy']} PN ON PN.id = NTC.parent_id
              WHERE TPTV.testplan_id = " . intval($tplan_id) .
             ' AND NOT EXISTS (SELECT 1 FROM ' . $tables['req_coverage'] . ' RC
