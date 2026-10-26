@@ -45798,3 +45798,55 @@ Fixture: test project 1 "BSV1964" (prefix BS), plan 2 "BSV Plan" with one root s
 10. **TC1964-010 - Audit and Event Viewer**  
     Every successful save writes an AUDIT row via `logAuditEvent(..., 'CREATE', <context_id>, 'baseline_l1l2_context')`. Event Viewer contains no new Error/Warning rows after the browser pass.  
     Result: PASS
+
+## Issue #1966 — Requirements based Report (resultsReqs / resultsRequirements)
+
+Fixture (`tmp/fixtures_1065.php`): test project 1 "RTM1065" (prefix R6, requirements enabled), plan 2 "R6 Plan", builds 1/2, spec 28 "R6 SPEC A", requirements R6-REQ-1 (3 linked TCs), R6-REQ-2 (1), R6-REQ-4 (1), plus R6-REQ-3 (no links); executions on both builds so the build filter changes the verdict. User `rtmnorights` (role 3). Screen: `gui/templates/results/resultsRequirements.html?tproject_id=1&tplan_id=2`.
+
+1. **TC1966-001 - Screen render**  
+   Open as admin. Header "Requirements Coverage" for plan "R6 Plan", project "RTM1065"; Evaluation Summary shows 1 Passed / 1 Failed / 1 Blocked and the localized total badge "3 requirements"; the DataTable lists the three covered requirements with spec path, doc-id/title, version, coverage, eval/type/status, per-status counts, progress bar and the localized linked-TC badge ("3 TCs"/"1 TCs"). Console clean.  
+   Result: PASS
+
+2. **TC1966-002 - Build filter re-scopes the latest result**  
+   Select "R6 Build 2" and Apply. REQ-1 stays Failed (b2 fail is latest), REQ-2 flips Blocked -> Not Run and REQ-4 flips Passed -> Not Run because build 2 has no execution for them. Resetting to "[Any]" restores the mixed verdicts.  
+   Result: PASS
+
+3. **TC1966-003 - Column list filters**  
+   The footer selects for Evaluation/Type/Status are populated from the BFF (`eval_filter_options`/`type_filter_options`/`status_filter_options`) and filter the table only: Evaluation=Passed leaves exactly REQ-4; clearing the filter restores all three rows.  
+   Result: PASS
+
+4. **TC1966-004 - Expand linked test cases**  
+   Clicking the "3 TCs" badge expands the inline detail table for REQ-1 with one row per linked test case (external id/name, platform, localized execution status). Clicking again collapses it.  
+   Result: PASS
+
+5. **TC1966-005 - Localized title and count labels (regression for this run)**  
+   The copy-pasted 10× DataTables search-input initializer is gone; a single `ensureSearchInputId()` runs once. Count labels no longer hardcode English: EN shows "3 requirements"/"3 TCs" from `reqcov.countRequirements`/`reqcov.tcCount`, and `document.title` is localized from `reqcov.header`.  
+   Result: PASS
+
+6. **TC1966-006 - Română locale**  
+   Switch to Română. Title/header "Acoperire Cerințe", total "3 cerințe", linked badge "3 cazuri de test", all headers/filters translated, zero raw `reqcov.*` keys rendered.  
+   Result: PASS
+
+7. **TC1966-007 - Empty project / no data state**  
+   A requirements-disabled project returns `warning=no_srs_defined` and the screen renders the localized red info box (no empty table). A plan whose requirements have no in-force coverage TC returns `warning=no_matching_reqs` with its own message.  
+   Result: PASS
+
+8. **TC1966-008 - Invalid plan**  
+   `?tplan_id=9999` -> BFF 400 `Invalid test plan id`; the loading spinner is hidden, the content stays empty and the localized error toast "Error loading data" appears.  
+   Result: PASS
+
+9. **TC1966-009 - Authentication and rights**  
+   Anonymous request -> 401 (global `testplan_metrics` gate fails closed). `rtmnorights` (role 3) -> 403 `{"status":"error","message":"No permission"}` and the screen shows the error toast. The global gate evaluates the request's own project/plan context before any plan resolution, so no existence oracle.  
+   Result: PASS
+
+10. **TC1966-010 - Legacy shim**  
+    GET `lib/results/resultsReqs.php?tproject_id=1&tplan_id=2` (logged-in browser) emits the JS redirect to `gui/templates/results/resultsRequirements.html?tproject_id=1&tplan_id=2`; non-GET verbs answer 405 `Allow: GET, HEAD`; an anonymous hit redirects to `login.php?...&destination=...` so a stale bookmark cannot leak data.  
+    Result: PASS
+
+11. **TC1966-011 - Wiring and i18n coverage**  
+    `cfg/reports.cfg.php` keeps the report entry, `api/aside/index.php:201-203` maps `link_report_reqs_coverage` to the modern screen with the current ids, and `$actions`/ASIDE resolve without a `lib/results/resultsReqs.php` href. `bash ai/verify_i18n_coverage.sh`: 9/9 bundles, 0 missing (9991 keys; 2 new `reqcov.*` keys × 10 bundles).  
+    Result: PASS
+
+12. **TC1966-012 - Event Viewer and screenshots**  
+    After the browser pass the events table contains only INFO/AUDIT rows (0 ERROR/WARNING). Screenshots `docs/screenshots/issue-1966-resultsreqs-en.png` and `-ro.png` captured.  
+    Result: PASS
