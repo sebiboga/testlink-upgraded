@@ -45851,3 +45851,60 @@ Fixture (`tmp/fixtures_1065.php`): test project 1 "RTM1065" (prefix R6, requirem
 12. **TC1966-012 - Event Viewer and screenshots**  
     After the browser pass the events table contains only INFO/AUDIT rows (0 ERROR/WARNING). Screenshots `docs/screenshots/issue-1966-resultsreqs-en.png` and `-ro.png` captured.  
     Result: PASS
+
+## Regression — Issue #1968: RTM ignores `testplans.is_public` + admin lockout in the plan-scope guard
+
+**Precondition:** running instance at http://localhost:8082, fresh DB, two users. Fixture created
+from scratch (SQL under "Repro" below): project `1` `PrivProj` (`is_public=1`), private plan `2`
+(`testplans.is_public=0`), public plan `3` (`is_public=1`); `metricsuser` (id 2, global role 5
+guest, **project role 6 senior tester only**, no `user_testplan_roles` row) and `admin` (role 8,
+no plan-role row). Session cookies via `POST /api/auth/login` with `Origin: http://localhost:8082`.
+
+**Repro / fixture:**
+```sql
+INSERT INTO nodes_hierarchy (id,name,parent_id,node_type_id,node_order) VALUES
+ (1,'PrivProj',NULL,1,0),(2,'Private Plan',1,5,0),(3,'Public Plan',1,5,1);
+INSERT INTO testprojects (id,prefix,active,is_public,api_key) VALUES (1,'PP',1,1,'fixtureproj');
+INSERT INTO testplans (id,testproject_id,active,is_open,is_public,api_key) VALUES
+ (2,1,1,1,0,'fixtureplan2'),(3,1,1,1,1,'fixtureplan3');
+INSERT INTO users (id,login,password,role_id,email,first,last,cookie_string,active) VALUES
+ (2,'metricsuser','<bcrypt>',5,'m@example.test','M','U','fixturecookie',1);
+INSERT INTO user_testproject_roles (user_id,testproject_id,role_id) VALUES (2,1,6);
+```
+
+**Part A — original leak (private plan is not readable by a project-level-only role)**
+1. `curl -b cj_user 'http://localhost:8082/api/rtm/index.php?action=context&tplan_id=2'`.
+**Expected (post-fix):** HTTP **403** `{"code":"no_right"}`. Pre-fix (4-argument `hasRight`) it was 200.
+**Actual:** PASS — 403 `no_right`.
+
+**Part B — admin must still read the private plan (issue's own verification)**
+1. `curl -b cj_admin '.../api/rtm/index.php?action=context&tplan_id=2'`.
+**Expected:** HTTP **200** with `tplan_name:"Private Plan"`, `tproject_id:1`.
+**Actual:** PASS — 200 `{"status":"ok","tplan_id":2,...,"tplan_name":"Private Plan","tproject_id":1}`.
+Before the guard fix admin was 403 `no_right` (measured, checkpoint 1/3).
+
+**Part C — public plan unchanged**
+1. Both users request `tplan_id=3`.
+**Expected:** 200 for both.
+**Actual:** PASS — 200/200.
+
+**Part D — rights evaluated before the project assertion (no existence oracle)**
+1. `metricsuser` → `...?action=context&tplan_id=2&tproject_id=999` → **403 `no_right`** (not 404).
+2. `admin` → same → **404 `project_mismatch`**.
+**Actual:** PASS — 403 then 404.
+
+**Part E — blast radius: the shared primitive, not only RTM**
+1. `admin` → `api/exechistoryreport/index.php?tplan_id=2` → **200** (was 403 before the guard fix).
+2. `metricsuser` → same → **403**.
+**Actual:** PASS — 200 / 403.
+
+**Part F — 3-argument callers unchanged**
+1. Normal BFF traffic as `admin` and as `metricsuser` (login, RTM context, exechistory context).
+2. `SELECT log_level,COUNT(*) FROM events` after the run.
+**Expected:** no `Undefined array key "tplan"` / `E_WARNING`; only INFO/AUDIT rows remain.
+**Actual:** PASS — `php -l lib/functions/tlUser.class.php` clean; test-probe ERROR rows deleted,
+`events` left with the 2 audit-login rows only (0 ERROR/WARNING).
+
+**Part G — CHANGELOG + docs**
+1. `CHANGELOG` has the 2.0.1 bugfix line referencing #1968; `docs/Bugfix-Issue-1968-*.md` mirrors the wiki.
+**Actual:** PASS.
