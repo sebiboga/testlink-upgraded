@@ -75,6 +75,23 @@ Every screen of the application was ported one-by-one in a screen-compare
   planUpdateTC/cfieldsAssignView) filed as **#1941**, out of this issue's scope.
   (Fixes #1939)
 
+- [KEY BUGFIX] - #1968: the **Requirements Traceability Matrix** BFF ignored
+  `testplans.is_public` (4-argument `hasRight`), so a user holding
+  `testplan_metrics` through a project-level role could read a **private** plan.
+  The call-site change (5th `$getAccess=true` argument + rights check before the
+  `tproject_id` assertion) is in `api/rtm/index.php:112-124`; this run completes it
+  in the shared primitive: `tlUser::hasRight()` denied the private plan
+  unconditionally when `$accessPublic['tplan'] == 0`, locking **admin** (no
+  `user_testplan_roles` row) out of every private plan on every 5-argument caller (18 `api/*` metrics call
+  sites — 17 with a plan id — plus plan-scoped callers such as `pageAccessCheck()`
+  and `exec_delete`); measured admin 403 on RTM and exechistoryreport. Fix: apply the same
+  `globalRoleID != TL_ROLES_ADMIN` exemption the project branch (`:938-945`) and
+  legacy `roles.inc.php:407-416` already use. Verified: project-level-only metrics
+  user 403, admin 200 on the private plan, public plan 200 for both, mismatch
+  answered 404 only after the rights check, 3-argument callers unchanged, Event
+  Viewer clean. Regression suite "Regression — Issue #1968" A–G PASS; suite gate
+  34 PASS / 0 FAIL. Docs: `docs/Bugfix-Issue-1968-RTM-Private-TestPlan-Rights-Admin-Exemption.md`.
+  (Fixes #1968)
 - [KEY BUGFIX] - #1941: cross-screen Chrome a11y — added for= on labels, id/name on DataTables filter inputs, and id attributes on row checkboxes (buildsView, planUpdateTC, cfieldsAssignView, planView; widespread DataTable filter id/name wiring). (Refs #1941)
 - [KEY BUGFIX] - #1918: the modern **Move/Copy Test Cases** screen
   (`gui/templates/testcases/containerMoveTC.html`) rendered **raw i18n keys** in
