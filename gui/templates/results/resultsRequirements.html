@@ -154,7 +154,13 @@ function t(key, fallback) {
 }
 
 var i18nReady = false;
-TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher'); i18nReady = true; start(); });
+TLi18n.load(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  document.title = t('reqcov.header', 'Requirements Coverage');
+  i18nReady = true;
+  start();
+});
 
 function esc(s) {
   if (!s) return '';
@@ -200,7 +206,7 @@ function loadData() {
                 + esc(sc.label) + ' <span class="cnt">' + sc.count + '</span></span>';
         });
         $('#summaryRow').html(html);
-        $('#totalCountBadge').text(d.total_reqs + ' requirements');
+        $('#totalCountBadge').text(t('reqcov.countRequirements', '{n} requirements').replace('{n}', d.total_reqs));
         $('#summaryBox').show();
       }
 
@@ -245,7 +251,7 @@ function loadData() {
             + '<td class="progress-cell"><div class="progress-bar-mini">'
             + '<div class="fill" style="width:' + r.progress + '%;background:' + progressColor + ';"></div>'
             + '<div class="txt">' + r.progress + '%</div></div></td>'
-            + '<td><span class="tc-expand" data-idx="' + i + '"><i class="fa fa-expand"></i> ' + (r.linked_tcs ? r.linked_tcs.length : 0) + ' TCs</span>'
+            + '<td><span class="tc-expand" data-idx="' + i + '"><i class="fa fa-expand"></i> ' + t('reqcov.tcCount', '{n} TCs').replace('{n}', (r.linked_tcs ? r.linked_tcs.length : 0)) + '</span>'
             + '<div class="tc-detail" id="tcDetail' + i + '">' + tcLinks + '</div></td>'
             + '</tr>';
           tbody.append(row);
@@ -255,96 +261,7 @@ function loadData() {
         $('#dtReqs tfoot').remove();
         $('#dtReqs').append(buildFilters(d));
         var dt = $('#dtReqs').DataTable({ pageLength: 25, order: [[11, 'desc']], autoWidth: false });
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
+        ensureSearchInputId();
         bindColumnFilters(dt);
         $('#tableBox').show();
 
@@ -432,6 +349,17 @@ $('#btnApply').on('click', start);
 $(function() {
   if (i18nReady) start();
 });
+
+function ensureSearchInputId() {
+  setTimeout(function() {
+    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
+    if (!$wrap.length) return;
+    var $inp = $wrap.find('.dataTables_filter input[type=search]');
+    if (!$inp.length) return;
+    if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
+    if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
+  }, 0);
+}
 
 function clearHeaderAria() {
   $('#dtReqs thead th').removeAttr('aria-label');
