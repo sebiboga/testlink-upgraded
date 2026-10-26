@@ -45841,6 +45841,7 @@ Fixture (`tmp/fixtures_1065.php`): test project 1 "RTM1065" (prefix R6, requirem
 
 10. **TC1966-010 - Legacy shim**  
     GET `lib/results/resultsReqs.php?tproject_id=1&tplan_id=2` (logged-in browser) emits the JS redirect to `gui/templates/results/resultsRequirements.html?tproject_id=1&tplan_id=2`; non-GET verbs answer 405 `Allow: GET, HEAD`; an anonymous hit redirects to `login.php?...&destination=...` so a stale bookmark cannot leak data.  
+   Post-review update: the shim now answers a real `302 Location:` (CRLF-stripped same-origin `basehref`) instead of the earlier JS redirect; verified browser lands on the modern screen and POST -> 405.  
     Result: PASS
 
 11. **TC1966-011 - Wiring and i18n coverage**  
