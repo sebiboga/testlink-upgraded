@@ -9992,5 +9992,17 @@
   "rscov.refresh": "更新",
   "rscov.close": "閉じる",
   "rscov.noSpecs": "このテストプロジェクトの要求仕様が見つかりません。",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - 要求仕様カバレッジ概要"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - 要求仕様カバレッジ概要",
+  "rscov.errDeniedTitle": "アクセスが拒否されました",
+  "rscov.errDeniedBody": "このテストプロジェクトの計画メトリクスを表示する権限がありません。",
+  "rscov.errNotFoundTitle": "見つかりません",
+  "rscov.errNotFoundBody": "要求されたテスト計画は存在しないか、別のテストプロジェクトに属しています。",
+  "rscov.errBadTitle": "無効なリクエスト",
+  "rscov.errBadBody": "リクエストに有効なテスト計画のコンテキストがありません。",
+  "rscov.errMethodTitle": "メソッドが許可されていません",
+  "rscov.errMethodBody": "このレポートは読み取り専用です。GET リクエストのみ受け付けます。",
+  "rscov.errGenericTitle": "エラー",
+  "rscov.errGenericBody": "レポートを読み込めませんでした。再試行してください。",
+  "rscov.retry": "再試行",
+  "rscov.thSpecTitle": "仕様のタイトル"
 }

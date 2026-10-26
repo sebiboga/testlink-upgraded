@@ -107,17 +107,23 @@ $bff = function ($action) use ($db, $user) {
     }
     $tproject_id = intval($owning);
 
+    // Rights before the ownership assertion: an unauthorised caller must not be
+    // able to tell "this plan belongs to another project" from "no right".
+    // The fifth argument makes hasRight evaluate testplans.is_public (#1763);
+    // without it project-level testplan_metrics users could read private plans.
+    if (!$user->hasRight($db, 'testplan_metrics', $tproject_id, $tplan_id, true)) {
+        http_response_code(403);
+        return ['status' => 'error', 'code' => 'no_right',
+                'message' => 'Missing rights: testplan_metrics'];
+    }
+
     // tproject_id, when supplied, is a client-side assertion (stale deep link
     // or cross-project hand-off must not silently read another project).
     if (isset($query['tproject_id']) && intval($query['tproject_id']) > 0
         && intval($query['tproject_id']) !== $tproject_id) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Project mismatch'];
-    }
-
-    if (!$user->hasRight($db, 'testplan_metrics', $tproject_id, $tplan_id)) {
-        http_response_code(403);
-        return ['status' => 'error', 'message' => 'Missing rights: testplan_metrics'];
+        return ['status' => 'error', 'code' => 'project_mismatch',
+                'message' => 'Project mismatch'];
     }
 
     // 2.0.1 schema drift (#1767 lesson): testplans / testprojects carry NO

@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Aktualisieren",
   "rscov.close": "Schließen",
   "rscov.noSpecs": "Keine Anforderungsspezifikationen für dieses Testprojekt gefunden.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Zusammenfassung der Anforderungsspezifikations-Abdeckung"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Zusammenfassung der Anforderungsspezifikations-Abdeckung",
+  "rscov.errDeniedTitle": "Zugriff verweigert",
+  "rscov.errDeniedBody": "Sie haben keine Berechtigung, die Planmetriken für dieses Testprojekt anzuzeigen.",
+  "rscov.errNotFoundTitle": "Nicht gefunden",
+  "rscov.errNotFoundBody": "Der angeforderte Testplan existiert nicht oder gehört zu einem anderen Testprojekt.",
+  "rscov.errBadTitle": "Ungültige Anfrage",
+  "rscov.errBadBody": "Der Anfrage fehlt ein gültiger Testplan-Kontext.",
+  "rscov.errMethodTitle": "Methode nicht erlaubt",
+  "rscov.errMethodBody": "Dieser Bericht ist schreibgeschützt; es werden nur GET-Anfragen akzeptiert.",
+  "rscov.errGenericTitle": "Fehler",
+  "rscov.errGenericBody": "Der Bericht konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+  "rscov.retry": "Erneut versuchen",
+  "rscov.thSpecTitle": "Spezifikationstitel"
 }

@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Reîmprospătează",
   "rscov.close": "Închide",
   "rscov.noSpecs": "Nu s-au găsit specificații de cerințe pentru acest proiect de test.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Sumar acoperire specificații cerințe"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Sumar acoperire specificații cerințe",
+  "rscov.errDeniedTitle": "Acces refuzat",
+  "rscov.errDeniedBody": "Nu aveți drepturi să vizualizați metricile planului pentru acest proiect de testare.",
+  "rscov.errNotFoundTitle": "Nu a fost găsit",
+  "rscov.errNotFoundBody": "Planul de testare solicitat nu există sau aparține altui proiect de testare.",
+  "rscov.errBadTitle": "Cerere invalidă",
+  "rscov.errBadBody": "Cererii îi lipsește un context valid de plan de testare.",
+  "rscov.errMethodTitle": "Metodă nepermisă",
+  "rscov.errMethodBody": "Acest raport este doar pentru citire; sunt acceptate doar cereri GET.",
+  "rscov.errGenericTitle": "Eroare",
+  "rscov.errGenericBody": "Raportul nu a putut fi încărcat. Încercați din nou.",
+  "rscov.retry": "Reîncearcă",
+  "rscov.thSpecTitle": "Titlu specificație"
 }

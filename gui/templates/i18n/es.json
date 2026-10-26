@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Actualizar",
   "rscov.close": "Cerrar",
   "rscov.noSpecs": "No se encontraron especificaciones de requisitos para este proyecto de prueba.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Resumen de cobertura de especificaciones de requisitos"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Resumen de cobertura de especificaciones de requisitos",
+  "rscov.errDeniedTitle": "Acceso denegado",
+  "rscov.errDeniedBody": "No tiene permisos para ver las métricas del plan de este proyecto de pruebas.",
+  "rscov.errNotFoundTitle": "No encontrado",
+  "rscov.errNotFoundBody": "El plan de pruebas solicitado no existe o pertenece a otro proyecto de pruebas.",
+  "rscov.errBadTitle": "Solicitud no válida",
+  "rscov.errBadBody": "A la solicitud le falta un contexto de plan de pruebas válido.",
+  "rscov.errMethodTitle": "Método no permitido",
+  "rscov.errMethodBody": "Este informe es de solo lectura; solo se aceptan solicitudes GET.",
+  "rscov.errGenericTitle": "Error",
+  "rscov.errGenericBody": "No se pudo cargar el informe. Inténtelo de nuevo.",
+  "rscov.retry": "Reintentar",
+  "rscov.thSpecTitle": "Título de la especificación"
 }

@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Refresh",
   "rscov.close": "Close",
   "rscov.noSpecs": "No requirement specifications found for this test project.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Requirement Spec Coverage Summary"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Requirement Spec Coverage Summary",
+  "rscov.errDeniedTitle": "Access denied",
+  "rscov.errDeniedBody": "You do not have the rights to view plan metrics for this test project.",
+  "rscov.errNotFoundTitle": "Not found",
+  "rscov.errNotFoundBody": "The requested test plan does not exist or belongs to another test project.",
+  "rscov.errBadTitle": "Invalid request",
+  "rscov.errBadBody": "The request is missing a valid test plan context.",
+  "rscov.errMethodTitle": "Method not allowed",
+  "rscov.errMethodBody": "This report is read-only; only GET requests are accepted.",
+  "rscov.errGenericTitle": "Error",
+  "rscov.errGenericBody": "The report could not be loaded. Please retry.",
+  "rscov.retry": "Retry",
+  "rscov.thSpecTitle": "Specification title"
 }

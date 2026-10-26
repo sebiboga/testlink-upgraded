@@ -103,8 +103,8 @@ td.spec .t { color: #667; font-size: 11px; }
 <div class="toolbar">
   <span class="ctx"><span data-i18n="reqcov.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span style="flex:1"></span>
-  <label><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0">Any</option></select></label>
-  <label><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0">Any</option></select></label>
+  <label><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0" data-i18n="rtm.any">Any</option></select></label>
+  <label><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0" data-i18n="rtm.any">Any</option></select></label>
   <button class="btn-teal" id="btnApply"><i class="fa fa-play"></i> <span data-i18n="rtm.apply">Apply</span></button>
   <button class="btn-ghost" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="rtm.exportCsv">Export CSV</span></button>
   <button class="btn-ghost" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="rscov.refresh">Refresh</span></button>
@@ -118,8 +118,12 @@ td.spec .t { color: #667; font-size: 11px; }
 <div id="errBox" class="errbox" style="display:none;">
   <div class="inner">
     <i class="fa fa-triangle-exclamation" style="font-size:26px;display:block;margin-bottom:8px;"></i>
+    <div id="errTitle" style="font-size:16px;font-weight:700;margin-bottom:6px;"></div>
     <div id="errMsg"></div>
     <div class="machine-code" id="errCode"></div>
+    <button type="button" class="btn-ghost" id="btnRetry" style="display:none;margin-top:12px;">
+      <i class="fa fa-refresh"></i> <span data-i18n="rscov.retry">Retry</span>
+    </button>
   </div>
 </div>
 
@@ -188,7 +192,7 @@ td.spec .t { color: #667; font-size: 11px; }
 
 <div class="toast" id="toastBox"></div>
 
-<div class="modal fade" id="gapModal" tabindex="-1" role="dialog">
+<div class="modal fade" id="gapModal" tabindex="-1" role="dialog" aria-modal="true">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
@@ -214,6 +218,8 @@ td.spec .t { color: #667; font-size: 11px; }
 var qp = new URLSearchParams(window.location.search);
 var tproject_id = parseInt(qp.get('tproject_id')) || 0;
 var tplan_id = parseInt(qp.get('tplan_id')) || 0;
+var urlBuild = parseInt(qp.get('build_id')) || 0;
+var urlPlatform = parseInt(qp.get('platform_id')) || 0;
 
 function t(key, fallback) {
   var v = TLi18n.t(key);
@@ -247,12 +253,52 @@ function pctClass(p) {
 var state = { specs: [], gap_rows: [], orphan_tcs: [], summary: null };
 var reqSeq = 0;
 
+// Refs #1965: stable BFF codes -> localized state cards. The server message is
+// English diagnostics only; the user-facing text always comes from TLi18n.
+var STATE_MAP = {
+  no_right:          ['rscov.errDeniedTitle',    'rscov.errDeniedBody'],
+  not_authenticated: ['rscov.errDeniedTitle',    'rscov.errDeniedBody'],
+  session_expired:   ['rscov.errDeniedTitle',    'rscov.errDeniedBody'],
+  tplan_not_found:   ['rscov.errNotFoundTitle',  'rscov.errNotFoundBody'],
+  project_mismatch:  ['rscov.errNotFoundTitle',  'rscov.errNotFoundBody'],
+  invalid_request:   ['rscov.errBadTitle',       'rscov.errBadBody'],
+  method_not_allowed:['rscov.errMethodTitle',    'rscov.errMethodBody']
+};
+
+function isAuthCode(code) {
+  return code === 'not_authenticated' || code === 'session_expired';
+}
+
+function showError(code, httpStatus, rawMessage) {
+  var m = STATE_MAP[code] || ['rscov.errGenericTitle', 'rscov.errGenericBody'];
+  $('#errTitle').text(t(m[0], 'Error'));
+  $('#errMsg').text(t(m[1], 'The report could not be loaded. Please retry.'));
+  var detail = code || ('http_' + httpStatus);
+  // Raw server text is English diagnostics; show it only for unmapped codes.
+  if (!STATE_MAP[code] && rawMessage && rawMessage !== detail) { detail += ' - ' + rawMessage; }
+  $('#errCode').text(detail);
+  $('#btnRetry').toggle(!STATE_MAP[code] || code === 'invalid_request');
+  $('#errBox').show();
+}
+
+function syncUrl() {
+  if (!window.history || !window.history.replaceState) { return; }
+  var u = new URL(window.location.href);
+  u.searchParams.set('build_id', $('#buildSel').val() || 0);
+  u.searchParams.set('platform_id', $('#platSel').val() || 0);
+  window.history.replaceState(null, '', u.pathname + '?' + u.searchParams.toString() + u.hash);
+}
+
 function renderFilters(d) {
   if (d.builds && d.builds.length > 0) {
     var $b = $('#buildSel').empty();
     $b.append('<option value="0">[' + t('rtm.any', 'Any') + ']</option>');
     $.each(d.builds, function (i, b) { $b.append('<option value="' + b.id + '">' + esc(b.name) + '</option>'); });
-    $b.val(String(parseInt(d.build_id) || 0));
+    var bid = String(parseInt(d.build_id) || 0);
+    if (bid !== '0' && $b.find('option[value="' + bid + '"]').length === 0) {
+      $b.append('<option value="' + esc(bid) + '">#' + esc(bid) + '</option>');
+    }
+    $b.val(bid);
   }
   if (d.platforms && d.platforms.length > 0) {
     var $p = $('#platSel').empty();
@@ -260,8 +306,13 @@ function renderFilters(d) {
     $.each(d.platforms, function (i, pl) {
       $p.append('<option value="' + pl.id + '">' + esc(pl.name || t('rtm.defaultPlatform', 'default')) + '</option>');
     });
-    $p.val(String(parseInt(d.platform_id) || 0));
+    var pid = String(parseInt(d.platform_id) || 0);
+    if (pid !== '0' && $p.find('option[value="' + pid + '"]').length === 0) {
+      $p.append('<option value="' + esc(pid) + '">#' + esc(pid) + '</option>');
+    }
+    $p.val(pid);
   }
+  syncUrl();
 }
 
 function render() {
@@ -269,22 +320,23 @@ function render() {
   $('#tplanName').text(d.tplan_name || '-');
   $('#tprojectName').text(d.tproject_name || '-');
   $('#errBox, #warnBox, #loadingBox').hide();
+  $('#btnRetry').hide();
 
   if (d.status === 'error') {
     $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
-    $('#errBox').show();
-    $('#errMsg').text(d.message || t('common.error', 'Error'));
-    $('#errCode').text(d.code || '');
+    showError(d.code || '', 200, d.message || '');
     return;
   }
   if (d.requirements_enabled === false) {
     $('#emptyBox, #summaryBox, #tableBox, #orphanBox').hide();
+    syncUrl();
     $('#warnBox').html('<i class="fa fa-info-circle" style="margin-right:6px;"></i>'
       + esc(t('rtm.reqDisabled', 'Requirements are not enabled for this test project.'))).show();
     return;
   }
 
   renderFilters(d);
+  $('#btnCsv').prop('disabled', false);
 
   var s = d.summary || {};
   var specs = d.specs || [];
@@ -428,20 +480,24 @@ function exportCsv() {
   var specs = state.specs || [];
   if (!specs.length) { toast(t('rscov.noSpecs', 'No requirement specifications'), true); return; }
   function csvCell(v) {
-    return '"' + String(v === null || v === undefined ? '' : v).replace(/"/g, '""') + '"';
+    var s = String(v === null || v === undefined ? '' : v);
+    // Refs #1965: stop spreadsheet formula injection on user-controlled titles,
+    // including payloads padded with leading whitespace.
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(s)) { s = "'" + s; }
+    return '"' + s.replace(/"/g, '""') + '"';
   }
   var lines = [];
-  lines.push([t('rscov.spec','Requirement spec'), t('rscov.thTitle','Requirement'), t('rscov.thReqs','Reqs'),
+  lines.push([t('rscov.spec','Requirement spec'), t('rscov.thSpecTitle','Specification title'), t('rscov.thReqs','Reqs'),
     t('rscov.thCovered','Covered'), t('rscov.thPartial','Partial'), t('rscov.thUncovered','Uncovered'),
     t('rscov.thOrphan','Orphan reqs'), t('rscov.thPlanTcs','Plan TCs'), t('rscov.thExecuted','Executed'),
     t('rscov.thPassed','Passed'), t('rscov.thFailed','Failed'), t('rscov.thBlocked','Blocked'),
-    t('rscov.thDefects','Defects'), t('rscov.thPct','Coverage %'), t('rscov.thGaps','Gaps')].map(csvCell).join(','));
+    t('rscov.thDefects','Defects'), t('rscov.thPct','Coverage %'), t('rscov.thGaps','Gaps')].map(csvCell).join(';'));
   $.each(specs, function (i, r) {
     lines.push([r.spec_doc_id, r.spec_title, r.requirements, r.covered, r.partial, r.uncovered,
       r.orphan_reqs, r.plan_tcversions, r.executed, r.passed, r.failed, r.blocked, r.defects,
-      r.coverage_pct, r.gaps].map(csvCell).join(','));
+      r.coverage_pct, r.gaps].map(csvCell).join(';'));
   });
-  var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'requirement-spec-coverage.csv';
@@ -453,10 +509,14 @@ function exportCsv() {
 
 function loadData() {
   var seq = ++reqSeq;
-  var build = $('#buildSel').val() || 0;
-  var plat = $('#platSel').val() || 0;
+  // Before the first response fills the selects, honour build/platform deep links.
+  var build = $('#buildSel option').length > 1 ? ($('#buildSel').val() || 0) : urlBuild;
+  var plat = $('#platSel option').length > 1 ? ($('#platSel').val() || 0) : urlPlatform;
+  // Never leave the previous payload exportable after a failed refresh.
+  state = { specs: [], gap_rows: [], orphan_tcs: [], summary: null };
+  $('#btnCsv').prop('disabled', true);
   $('#loadingBox').show();
-  $('#tableBox, #summaryBox, #orphanBox, #errBox, #emptyBox').hide();
+  $('#tableBox, #summaryBox, #orphanBox, #errBox, #emptyBox, #warnBox').hide();
   $.ajax({
     url: '/api/reqspeccoverage/index.php',
     data: { action: 'report', tplan_id: tplan_id, tproject_id: tproject_id, build_id: build, platform_id: plat },
@@ -468,16 +528,22 @@ function loadData() {
       render();
     },
     error: function (xhr) {
-      var msg = t('common.errorLoading', 'Error loading data');
+      var msg = '';
       var code = '';
       try {
         var r = JSON.parse(xhr.responseText);
-        if (r && r.message) { msg = r.message; code = r.code || ''; }
+        if (r) { msg = r.message || ''; code = r.code || ''; }
       } catch (e) { /* keep defaults */ }
+      if (!code && xhr.status === 401) { code = 'not_authenticated'; }
       if (seq !== reqSeq) { return; }
-      state = { status: 'error', message: msg, code: code || ('http_' + xhr.status) };
+      if (isAuthCode(code)) {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
       $('#loadingBox').hide();
-      render();
+      $('#emptyBox, #summaryBox, #tableBox, #orphanBox, #warnBox').hide();
+      showError(code, xhr.status, msg);
     }
   });
 }
@@ -490,16 +556,15 @@ $(document).on('click', '.btn-gap', function () {
 });
 $('#btnApply').on('click', loadData);
 $('#btnRefresh').on('click', loadData);
+$('#btnRetry').on('click', loadData);
 $('#btnCsv').on('click', exportCsv);
 
-var i18nReady = false;
 TLi18n.load(function () {
   TLi18n.apply();
   TLi18n.initLocaleSwitcher('#localeSwitcher');
-  i18nReady = true;
+  $('#gapModal .close').attr('aria-label', TLi18n.t('rscov.close'));
   loadData();
 });
-$(function () { if (i18nReady) loadData(); });
 </script>
 </body>
 </html>

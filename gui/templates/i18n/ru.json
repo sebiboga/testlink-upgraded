@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Обновить",
   "rscov.close": "Закрыть",
   "rscov.noSpecs": "Для этого тестового проекта не найдено спецификаций требований.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Сводка покрытия спецификаций требований"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Сводка покрытия спецификаций требований",
+  "rscov.errDeniedTitle": "Доступ запрещён",
+  "rscov.errDeniedBody": "У вас нет прав на просмотр метрик плана этого тестового проекта.",
+  "rscov.errNotFoundTitle": "Не найдено",
+  "rscov.errNotFoundBody": "Запрошенный тестовый план не существует или относится к другому тестовому проекту.",
+  "rscov.errBadTitle": "Недопустимый запрос",
+  "rscov.errBadBody": "В запросе отсутствует допустимый контекст тестового плана.",
+  "rscov.errMethodTitle": "Метод не разрешён",
+  "rscov.errMethodBody": "Этот отчёт доступен только для чтения; принимаются только GET-запросы.",
+  "rscov.errGenericTitle": "Ошибка",
+  "rscov.errGenericBody": "Не удалось загрузить отчёт. Повторите попытку.",
+  "rscov.retry": "Повторить",
+  "rscov.thSpecTitle": "Название спецификации"
 }

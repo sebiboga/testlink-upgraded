@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Aggiorna",
   "rscov.close": "Chiudi",
   "rscov.noSpecs": "Nessuna specifica dei requisiti trovata per questo progetto di test.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Riepilogo copertura specifiche requisiti"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Riepilogo copertura specifiche requisiti",
+  "rscov.errDeniedTitle": "Accesso negato",
+  "rscov.errDeniedBody": "Non hai i permessi per visualizzare le metriche del piano di questo progetto di test.",
+  "rscov.errNotFoundTitle": "Non trovato",
+  "rscov.errNotFoundBody": "Il piano di test richiesto non esiste o appartiene a un altro progetto di test.",
+  "rscov.errBadTitle": "Richiesta non valida",
+  "rscov.errBadBody": "Alla richiesta manca un contesto valido del piano di test.",
+  "rscov.errMethodTitle": "Metodo non consentito",
+  "rscov.errMethodBody": "Questo report è di sola lettura; sono accettate solo richieste GET.",
+  "rscov.errGenericTitle": "Errore",
+  "rscov.errGenericBody": "Impossibile caricare il report. Riprova.",
+  "rscov.retry": "Riprova",
+  "rscov.thSpecTitle": "Titolo della specifica"
 }

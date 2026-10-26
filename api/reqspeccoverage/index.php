@@ -62,21 +62,28 @@ doDBConnect($db);
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    echo json_encode(['status' => 'error', 'code' => 'not_authenticated',
+                      'message' => 'Not authenticated']);
     exit;
 }
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    echo json_encode(['status' => 'error', 'code' => 'not_authenticated',
+                      'message' => 'User not found']);
     exit;
 }
+
+// Refs #1614: a tab left open past the inactivity timeout must not keep
+// reading the report through a BFF that only checks userID > 0.
+bffEnforceSession($db);
 
 $method = $_SERVER['REQUEST_METHOD'];
 if ($method !== 'GET') {
     http_response_code(405);
-    echo json_encode(['status' => 'error', 'message' => 'Method not allowed']);
+    echo json_encode(['status' => 'error', 'code' => 'method_not_allowed',
+                      'message' => 'Method not allowed']);
     exit;
 }
 
@@ -90,35 +97,45 @@ $bff = function ($action) use ($db, $user) {
     }
     if ($tplan_id <= 0) {
         http_response_code(400);
-        return ['status' => 'error', 'message' => 'No test plan in context'];
+        return ['status' => 'error', 'code' => 'invalid_request',
+                'message' => 'No test plan in context'];
     }
 
     $planInfo = $db->fetchOneValue(
         'SELECT TP.id FROM ' . $tables['testplans'] . ' TP WHERE TP.id = ' . intval($tplan_id));
     if (!$planInfo) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Unknown test plan'];
+        return ['status' => 'error', 'code' => 'tplan_not_found',
+                'message' => 'Unknown test plan'];
     }
 
     $owning = $db->fetchOneValue(
         'SELECT TP.testproject_id FROM ' . $tables['testplans'] . ' TP WHERE TP.id = ' . intval($tplan_id));
     if (!$owning) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Unknown test plan'];
+        return ['status' => 'error', 'code' => 'tplan_not_found',
+                'message' => 'Unknown test plan'];
     }
     $tproject_id = intval($owning);
+
+    // Rights before the ownership assertion: an unauthorised caller must not be
+    // able to tell "this plan belongs to another project" from "no right".
+    // The fifth argument makes hasRight evaluate testplans.is_public (#1763);
+    // without it a user holding project-level testplan_metrics could read a
+    // private plan's metrics.
+    if (!$user->hasRight($db, 'testplan_metrics', $tproject_id, $tplan_id, true)) {
+        http_response_code(403);
+        return ['status' => 'error', 'code' => 'no_right',
+                'message' => 'Missing rights: testplan_metrics'];
+    }
 
     // tproject_id, when supplied, is a client-side assertion (stale deep link
     // or cross-project hand-off must not silently read another project).
     if (isset($query['tproject_id']) && intval($query['tproject_id']) > 0
         && intval($query['tproject_id']) !== $tproject_id) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Project mismatch'];
-    }
-
-    if (!$user->hasRight($db, 'testplan_metrics', $tproject_id, $tplan_id)) {
-        http_response_code(403);
-        return ['status' => 'error', 'message' => 'Missing rights: testplan_metrics'];
+        return ['status' => 'error', 'code' => 'project_mismatch',
+                'message' => 'Project mismatch'];
     }
 
     // 2.0.1 schema drift (#1767 lesson): testplans / testprojects carry NO
@@ -170,15 +187,19 @@ $bff = function ($action) use ($db, $user) {
     }
 
     if ($action === 'matrix' || $action === 'report') {
+        $buildFilter = isset($query['build_id']) ? intval($query['build_id']) : 0;
+        $platformFilter = isset($query['platform_id']) ? intval($query['platform_id']) : 0;
+
         if (!$reqEnabled) {
             http_response_code(200);
             return ['status' => 'ok', 'requirements_enabled' => false,
+                    'tplan_id' => $tplan_id, 'tproject_id' => $tproject_id,
+                    'tplan_name' => $planName, 'tproject_name' => $projectName,
+                    'build_id' => $buildFilter, 'platform_id' => $platformFilter,
+                    'builds' => $builds, 'platforms' => $platformSet,
                     'summary' => null, 'rows' => [], 'specs' => [],
                     'gap_rows' => [], 'orphan_tcs' => []];
         }
-
-        $buildFilter = isset($query['build_id']) ? intval($query['build_id']) : 0;
-        $platformFilter = isset($query['platform_id']) ? intval($query['platform_id']) : 0;
 
         $buildWhere = $buildFilter > 0 ? " AND E.build_id = " . intval($buildFilter) : '';
         $platformWhere = $platformFilter > 0 ? " AND E.platform_id = " . intval($platformFilter) : '';
@@ -208,6 +229,9 @@ $bff = function ($action) use ($db, $user) {
             return [
                 'status' => 'ok',
                 'requirements_enabled' => true,
+                'tplan_id' => $tplan_id, 'tproject_id' => $tproject_id,
+                'tplan_name' => $planName, 'tproject_name' => $projectName,
+                'build_id' => $buildFilter, 'platform_id' => $platformFilter,
                 'summary' => ['total' => 0, 'covered' => 0, 'partial' => 0,
                               'uncovered' => 0, 'orphan_reqs' => 0,
                               'plan_tcs' => 0, 'plan_linked_tcs' => 0,
@@ -510,7 +534,8 @@ $bff = function ($action) use ($db, $user) {
     }
 
     http_response_code(400);
-    return ['status' => 'error', 'message' => 'Unknown action'];
+    return ['status' => 'error', 'code' => 'invalid_request',
+            'message' => 'Unknown action'];
 };
 
 try {
@@ -519,9 +544,11 @@ try {
         echo json_encode($bff($action));
     } else {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Unknown or missing action']);
+        echo json_encode(['status' => 'error', 'code' => 'invalid_request',
+                          'message' => 'Unknown or missing action']);
     }
-} catch (Exception $e) {
+} catch (Throwable $e) {
     http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => 'Server error']);
+    echo json_encode(['status' => 'error', 'code' => 'server_error',
+                      'message' => 'Server error']);
 }

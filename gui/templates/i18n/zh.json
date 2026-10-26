@@ -9992,5 +9992,17 @@
   "rscov.refresh": "刷新",
   "rscov.close": "关闭",
   "rscov.noSpecs": "未找到此测试项目的需求规格。",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - 需求规格覆盖率摘要"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - 需求规格覆盖率摘要",
+  "rscov.errDeniedTitle": "访问被拒绝",
+  "rscov.errDeniedBody": "您没有权限查看此测试项目的计划指标。",
+  "rscov.errNotFoundTitle": "未找到",
+  "rscov.errNotFoundBody": "请求的测试计划不存在或属于其他测试项目。",
+  "rscov.errBadTitle": "无效请求",
+  "rscov.errBadBody": "请求缺少有效的测试计划上下文。",
+  "rscov.errMethodTitle": "方法不允许",
+  "rscov.errMethodBody": "此报告为只读；仅接受 GET 请求。",
+  "rscov.errGenericTitle": "错误",
+  "rscov.errGenericBody": "无法加载报告。请重试。",
+  "rscov.retry": "重试",
+  "rscov.thSpecTitle": "规格标题"
 }

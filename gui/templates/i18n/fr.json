@@ -9992,5 +9992,17 @@
   "rscov.refresh": "Actualiser",
   "rscov.close": "Fermer",
   "rscov.noSpecs": "Aucune spécification d'exigences trouvée pour ce projet de test.",
-  "footers.reqSpecCoverage": "TestLink 2.0.1 - Résumé de couverture des spécifications d'exigences"
+  "footers.reqSpecCoverage": "TestLink 2.0.1 - Résumé de couverture des spécifications d'exigences",
+  "rscov.errDeniedTitle": "Accès refusé",
+  "rscov.errDeniedBody": "Vous n'avez pas le droit de consulter les métriques du plan de ce projet de test.",
+  "rscov.errNotFoundTitle": "Introuvable",
+  "rscov.errNotFoundBody": "Le plan de test demandé n'existe pas ou appartient à un autre projet de test.",
+  "rscov.errBadTitle": "Requête invalide",
+  "rscov.errBadBody": "La requête ne contient pas de contexte de plan de test valide.",
+  "rscov.errMethodTitle": "Méthode non autorisée",
+  "rscov.errMethodBody": "Ce rapport est en lecture seule ; seules les requêtes GET sont acceptées.",
+  "rscov.errGenericTitle": "Erreur",
+  "rscov.errGenericBody": "Le rapport n'a pas pu être chargé. Veuillez réessayer.",
+  "rscov.retry": "Réessayer",
+  "rscov.thSpecTitle": "Titre de la spécification"
 }
