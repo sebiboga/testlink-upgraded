@@ -25,8 +25,8 @@ screen. #1966 closes that gap and finishes the screen's verification cycle.
   (`current/expected`), evaluation, type, status, per-status counters, progress
   bar and the linked-test-case badge.
 - Footer list filters for **Evaluation / Type / Status** (fed by the BFF
-  `*_filter_options` arrays, so only values present in the result set are
-  offered) — they narrow the table only.
+  `*_filter_options` arrays — the legacy `filterOptions` label catalogues) —
+  they narrow the table only.
 - Clicking the linked-TC badge expands an inline detail table (external id and
   name, platform, localized execution status).
 - Empty states mirroring legacy `resultsReqs.php`: `no_srs_defined` when the
@@ -58,9 +58,12 @@ File: `api/reports/index.php`, action `metrics_results_reqs`.
 - accepts `GET`/`HEAD` only (other verbs → `405 Allow: GET, HEAD`);
 - anonymous → `login.php?note=expired&destination=<legacy path>` so a stale
   bookmark is not silently rendered;
-- otherwise emits a JavaScript `window.location.replace()` to the modern
-  screen, forwarding `tproject_id` / `tplan_id` (falling back to the session
-  project/plan just like legacy `init_args()` did).
+- otherwise answers `302 Location:` to the modern screen, forwarding
+  `tproject_id` / `tplan_id` (falling back to the session project/plan just
+  like legacy `init_args()` did);
+- builds the target from a CRLF-stripped, same-origin `basehref` (the
+  #1947/#1948 hardening) so subdirectory installs work and a poisoned session
+  cannot turn the shim into an open redirect.
 
 ## This run's fixes
 
