@@ -45926,3 +45926,102 @@ Before the guard fix admin was 403 `no_right` (measured, checkpoint 1/3).
 
 **Actual result observed**
 - BFF updated to deduplicate by tcversion_id across requirements for summary and per-spec aggregates. Syntax validated. Logic matches issue suggested fix.
+
+## Issue #1965 — Requirement Spec Coverage Summary (reqSpecCoverage)
+
+Fixture (`tmp/fixtures_1965.php`): project `RSC1965` (prefix `R65`, requirements enabled), plan
+`R65 Plan`, builds `R65 Build 1`/`R65 Build 2`, suite `R65 Root`, 6 test cases, specs
+`RS-R65A` (REQ-1/2/3) and `RS-R65B` (REQ-4/5), executions on both builds incl. a `BUG-1965`
+defect, user `rscnorights` (role 3). Screen:
+`gui/templates/results/reqSpecCoverage.html?tproject_id=<fixture>&tplan_id=<fixture>`;
+BFF: `api/reqspeccoverage/index.php`.
+
+1. **TC1965-001 - Screen render and summary counters**  
+   As admin the header reads "Requirement Spec Coverage Summary" for plan "R65 Plan" /
+   project "RSC1965"; KPI row shows 2 specs, 5 requirements, 20% coverage, 4 gap
+   requirements, 2 orphan requirements, 6 plan TCs, 1 orphan TC; verdict badges show
+   covered 1 / partial 2 / uncovered 2 / orphan requirements 2; detail line reads
+   "5 requirements · 5 of 6 plan test cases traceable". DataTable renders 2 rows
+   (RS-R65A 0.0%, RS-R65B 50.0%), the orphan-test-case panel lists `R65 No Trace`, and the
+   browser console is clean.  
+   Result: PASS
+
+2. **TC1965-002 - Build filter re-scopes executions**  
+   Select `R65 Build 1` → Apply. URL gains `build_id=1`; Alpha executed/passed/failed/blocked
+   becomes 3/1/1/1 (Login Pass flips to pass on b1) and Beta stays 1/1/0/0. Resetting to
+   `[Any]` restores Alpha 3/0/2/1. The Refresh button reloads the same counts without an
+   error card.  
+   Result: PASS
+
+3. **TC1965-003 - Gap drill-down modal**  
+   Clicking the Alpha gaps button (`3`) opens the "Coverage gaps · RS-R65A · R65 Spec Alpha"
+   modal with 3 requirement rows: R65-REQ-3 uncovered/orphan/no linked TCs, R65-REQ-1 partial
+   (3 linked TCs, defect count 1), R65-REQ-2 partial (blocked). Closing the modal returns to
+   the report; the Beta button (`1`) opens its own single-row modal.  
+   Result: PASS
+
+4. **TC1965-004 - DataTable search, sorting and entries controls**  
+   The search box (`#dtSpecsSearch`, id/name wired) filters to 1 row for "Beta" and back to
+   2 when cleared; the Coverage % column is the default sort (ascending) and the Show-entries
+   select is present with 10/25/50/100 options.  
+   Result: PASS
+
+5. **TC1965-005 - CSV export**  
+   Export CSV builds a UTF-8 BOM + semicolon-separated file with the localized header row and
+   two data rows; Alpha exports 3 requirements / executed 3 / passed 1 / failed 1 / blocked 1 /
+   coverage 0 / gaps 3, Beta 2 / 1 / 1 / 0 / 0 / 50 / 1. The filename carries the plan and
+   locale-independent date.  
+   Result: PASS
+
+6. **TC1965-006 - Română locale**  
+   Switching to `Română` reloads with `locale=ro`; title/header become "Sumar acoperire
+   specificații cerințe", the KPI label "SPECIFICAȚII DE CERINȚE", and the footer is localized.
+   A body scan finds zero rendered `rscov.*`, `rtm.*` or `reqcov.*` raw keys.  
+   Result: PASS
+
+7. **TC1965-007 - Requirements-disabled project**  
+   With the fixture project's serialized option `requirementsEnabled` temporarily set to 0,
+   `action=report` returns `requirements_enabled:false` and the screen hides summary/table and
+   shows the localized info box "Requirements are not enabled for this test project."; the
+   option is restored to 1 afterwards.  
+   Result: PASS
+
+8. **TC1965-008 - Unknown plan and project mismatch states**  
+   `?tplan_id=9999` → `404 tplan_not_found`, state card "Not found" with localized text and
+   no summary; a valid plan with a foreign `tproject_id` → `404 project_mismatch` via the BFF.
+   Both cards hide the data sections.  
+   Result: PASS
+
+9. **TC1965-009 - Authentication, session and rights**  
+   No session → `401 not_authenticated`; `rscnorights` (role 3) → `403 no_right`
+   ("Missing rights: testplan_metrics") and the browser shows the "Access denied" card with
+   no retry button; a session older than the inactivity timeout → `session_expired`. The
+   rights check runs on the owning project before the `tproject_id` assertion (unknown plan
+   ids are resolved first, matching the RTM convention).  
+   Result: PASS
+
+10. **TC1965-010 - BFF method and CSRF contract**  
+    `GET`/`HEAD` only: `HEAD` answers `200`; `POST` with a same-origin `Origin` → `405 method_not_allowed`; `POST`
+    without same-origin proof → `403` (shared `bffSameOriginGuard`); unknown `action` or no
+    plan in context → `400 invalid_request`; `action=context` returns plan/project/builds/
+    platforms without report data.  
+    Result: PASS
+
+11. **TC1965-011 - Counter regressions from this run**  
+    `summary.plan_linked_tcs` is the distinct traceable plan-TC count (5 of 6, not 0 after a
+    merge artifact and not per-link duplicates); per-spec `executed` only counts plan-assigned
+    test cases with a non-empty latest execution (Alpha 3, Beta 1; never 4) and never exceeds
+    `plan_tcversions`. Temporarily removing the plan assignment of an executed linked TC
+    leaves the requirement `uncovered` with executed 0 (stale executions outside the plan do
+    not count). Assigning the orphan TC to an extra platform keeps `orphan_tcs` at 1 (deduped
+    by `tcversion_id`), and the #1969 shared-TC dedupe is preserved.  
+    Result: PASS
+
+12. **TC1965-012 - Wiring, i18n gate and Event Viewer**  
+    `cfg/reports.cfg.php` report entry `req_spec_coverage` points to the modern screen,
+    `$actions->reqSpecCoverage` resolves, and the Reports aside item opens the modern screen
+    with `format=0&tproject_id=…&tplan_id=…`. `bash ai/verify_i18n_coverage.sh` passes 9/9
+    bundles with 0 missing keys (46 `rscov.*` keys per bundle). The events table after the
+    browser/API pass contains only INFO/AUDIT rows (0 ERROR/WARNING). Screenshots
+    `docs/screenshots/issue-1965-reqspeccoverage-normal.png` and `-gaps.png` captured.  
+    Result: PASS

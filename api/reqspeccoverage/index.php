@@ -80,7 +80,7 @@ if (is_null($user)) {
 bffEnforceSession($db);
 
 $method = $_SERVER['REQUEST_METHOD'];
-if ($method !== 'GET') {
+if ($method !== 'GET' && $method !== 'HEAD') {
     http_response_code(405);
     echo json_encode(['status' => 'error', 'code' => 'method_not_allowed',
                       'message' => 'Method not allowed']);
@@ -336,6 +336,7 @@ $bff = function ($action) use ($db, $user) {
              WHERE TPTV.testplan_id = " . intval($tplan_id) .
             ' AND NOT EXISTS (SELECT 1 FROM ' . $tables['req_coverage'] . ' RC
                               WHERE RC.tcversion_id = TPTV.tcversion_id AND RC.is_active = 1)
+             GROUP BY TV.id, NTC.name, TV.tc_external_id, TV.version, PN.name
              ORDER BY TV.tc_external_id');
         $orphanTcs = array();
         foreach ((array)$orphanRows as $row) {
@@ -377,9 +378,15 @@ $bff = function ($action) use ($db, $user) {
                 $status = '';
                 if (isset($execByTcv[$tcv])) {
                     $status = $execByTcv[$tcv];
-                    $executed++;
-                    if ($status === 'p') {
-                        $passed++;
+                    // Coverage is plan-scoped: an execution of a tcversion
+                    // that is no longer assigned to the plan must not make a
+                    // requirement look executed/covered (same rule as the
+                    // per-spec rollup below).
+                    if ($inPlanFlag) {
+                        $executed++;
+                        if ($status === 'p') {
+                            $passed++;
+                        }
                     }
                 }
                 $linkedTcs[] = [
