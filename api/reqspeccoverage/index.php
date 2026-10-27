@@ -468,7 +468,12 @@ $bff = function ($action) use ($db, $user) {
                 if ($ltc['in_plan']) {
                     $a['_tcversions'][$ltc['tcversion_id']] = true;
                     $a['_in_plan_tcv'][$ltc['tcversion_id']] = true;
-                    $a['_executed_tcv'][$ltc['tcversion_id']] = true;
+                    // Executed means an execution exists for the selected
+                    // build/platform filter; an assigned test case that was
+                    // never run must not inflate the per-spec executed count.
+                    if ($ltc['exec_status'] !== '') {
+                        $a['_executed_tcv'][$ltc['tcversion_id']] = true;
+                    }
                     if ($ltc['exec_status'] === 'p') {
                         $a['_passed_tcv'][$ltc['tcversion_id']] = true;
                     }
