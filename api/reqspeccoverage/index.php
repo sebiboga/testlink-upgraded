@@ -357,7 +357,6 @@ $bff = function ($action) use ($db, $user) {
         // Distinct plan test case versions that trace to at least one
         // requirement. A test case commonly covers several requirements; the
         // "X of Y plan test cases traceable" counter must not count it twice.
-        $linkedPlanTcvs = array();
 
         foreach ($reqRows as $req) {
             $rid = intval($req['id']);
@@ -373,7 +372,7 @@ $bff = function ($action) use ($db, $user) {
                 $inPlanFlag = isset($planTcvs[$tcv]);
                 if ($inPlanFlag) {
                     $inPlan++;
-                    $linkedPlanTcvs[$tcv] = true;
+                    $linkedPlanTcvsSummary[$tcv] = true;
                 }
                 $status = '';
                 if (isset($execByTcv[$tcv])) {
@@ -428,8 +427,6 @@ $bff = function ($action) use ($db, $user) {
                 'linked_tcs' => $linkedTcs,
             ];
         }
-        $summary['plan_linked_tcs'] = count($linkedPlanTcvs);
-
         $summary['plan_linked_tcs'] = count($linkedPlanTcvsSummary);
 
         // Per requirement-spec rollup. The requirement spec is the module /
