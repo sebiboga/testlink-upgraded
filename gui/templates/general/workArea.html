@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="wa.header">Work Areas</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-teal:hover { background: #3dbdb5; color: #fff; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-dark:hover { background: #3d4049; color: #fff; }
+.notice { margin: 14px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.areas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin: 16px 24px 0; }
+.area { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; }
+.area.locked { opacity: .72; }
+.area-head { padding: 14px 18px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; }
+.area-head i { color: #4ECDC4; font-size: 18px; }
+.area-head .title { font-size: 15px; font-weight: 700; color: #22242a; flex: 1; }
+.area-head .chip { font-size: 10px; font-weight: 700; border-radius: 10px; padding: 2px 8px; }
+.chip.ok { background: #d9f2e4; color: #1a7f45; }
+.chip.no { background: #fdecea; color: #b94a48; }
+.area-body { padding: 8px 10px 14px; flex: 1; }
+.area-body a.item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 5px; color: #333; font-size: 13px; text-decoration: none; }
+.area-body a.item:hover { background: #f4fbfa; color: #158f87; }
+.area-body a.item i { color: #9aa; font-size: 12px; width: 14px; text-align: center; }
+.area-body .denied { padding: 8px 10px; color: #b94a48; font-size: 12px; }
+.statebox { margin: 16px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 26px; text-align: center; }
+.statebox .icon { font-size: 38px; color: #e6605e; }
+.statebox h3 { font-size: 17px; margin: 10px 0 6px; color: #22242a; }
+.statebox p { color: #667; font-size: 13px; margin: 0 0 10px; }
+.machine-code { font-family: monospace; font-size: 11px; color: #a35; background: #ffeef2; border-radius: 3px; padding: 2px 7px; display: inline-block; }
+.redirect-card { margin: 30px auto; max-width: 560px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 26px; text-align: center; }
+.redirect-card .icon { font-size: 42px; color: #4ECDC4; margin-bottom: 12px; }
+.redirect-card h3 { font-size: 18px; margin: 0 0 8px; color: #22242a; }
+.redirect-card p { color: #667; font-size: 13px; margin: 0 0 16px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 22px; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table-columns" style="margin-right:8px;"></i><span data-i18n="wa.header">Work Areas</span>
+  <span class="sub"><span data-i18n="wa.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="wa.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span class="ctx"><span data-i18n="wa.testPlan">Test Plan</span>: <b id="ctxPlan">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-dark" id="btnHome" href="/index.php"><i class="fa fa-house"></i> <span data-i18n="wa.backHome">Back to dashboard</span></a>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="wa.close">Close</span></button>
+</div>
+
+<div class="notice"><i class="fa fa-circle-info"></i> <span data-i18n="wa.notice">Pick a work area to open one of its screens. The list honours your project rights and keeps the current test project / test plan context.</span></div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="redirectBox" style="display:none;"></div>
+<div id="areasBox" style="display:none;"></div>
+
+<div class="footer"><span data-i18n="footers.workArea">TestLink 2.0.1 - Work Areas</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/workarea/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var feature = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  feature = p.get('feature');
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', load);
+    $('#btnClose').on('click', function () {
+      if (window.top && window.top !== window) { window.top.location.href = '/index.php'; }
+      else { window.history.length > 1 ? history.back() : (window.location.href = '/index.php'); }
+    });
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function t(k, d) {
+  var v = TLi18n.t(k);
+  return (v && v !== k) ? v : (d || k);
+}
+
+function showState(icon, titleKey, msgKey, code) {
+  $('#areasBox, #redirectBox').hide();
+  $('#stateBox').html(
+    '<div class="statebox">' +
+      '<div class="icon"><i class="fa ' + esc(icon) + '"></i></div>' +
+      '<h3>' + esc(t(titleKey)) + '</h3>' +
+      '<p>' + esc(t(msgKey)) + '</p>' +
+      (code ? '<span class="machine-code">' + esc(code) + '</span>' : '') +
+    '</div>'
+  ).show();
+}
+
+function load() {
+  $('#stateBox, #areasBox, #redirectBox').hide();
+  $('#loadingBox').show();
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(tprojectId) +
+            '&tplan_id=' + encodeURIComponent(tplanId);
+  if (feature) { url += '&feature=' + encodeURIComponent(feature); }
+  $.ajax({ url: url, method: 'GET', dataType: 'json' })
+    .done(render)
+    .fail(function (xhr) {
+      $('#loadingBox').hide();
+      var body = xhr.responseJSON || {};
+      var code = body.code || ('http_' + xhr.status);
+      if (xhr.status === 401) {
+        showState('fa-right-to-bracket', 'wa.sessionExpired', 'wa.sessionExpiredMsg', code);
+        return;
+      }
+      if (xhr.status === 403) {
+        showState('fa-lock', 'wa.noRight', 'wa.noRightMsg', code);
+        return;
+      }
+      if (xhr.status === 404) {
+        showState('fa-circle-question', 'wa.unknownFeature', 'wa.unknownFeatureMsg', code);
+        return;
+      }
+      showState('fa-triangle-exclamation', 'wa.errTitle', 'wa.errGeneric', code);
+    });
+}
+
+function render(r) {
+  $('#loadingBox').hide();
+  tprojectId = r.context.tproject_id || 0;
+  tplanId = r.context.tplan_id || 0;
+  var pname = r.context.tproject_name || '';
+  var plname = r.context.tplan_name || '';
+  $('#tprojectName').text(pname || '-');
+  $('#ctxProject').text(pname || '-');
+  $('#ctxPlan').text(plname || '-');
+  document.title = t('wa.header') + (pname ? ' - ' + pname : '');
+
+  if (r.feature) {
+    renderRedirect(r.feature);
+    return;
+  }
+
+  var $box = $('#areasBox').empty();
+  if (!r.areas || !r.areas.length) {
+    showState('fa-circle-info', 'wa.emptyTitle', 'wa.emptyMsg', '');
+    return;
+  }
+  var $grid = $('<div class="areas"></div>');
+  $.each(r.areas, function (_, a) {
+    var $a = $('<div class="area"></div>').toggleClass('locked', !a.allowed);
+    var $head = $('<div class="area-head"></div>');
+    $head.append('<i class="' + esc(a.icon) + '"></i>');
+    $head.append($('<span class="title"></span>').text(t(a.label_key)));
+    $head.append(a.allowed
+      ? '<span class="chip ok">' + esc(t('wa.allowed')) + '</span>'
+      : '<span class="chip no">' + esc(t('wa.denied')) + '</span>');
+    $a.append($head);
+
+    var $body = $('<div class="area-body"></div>');
+    if (!a.allowed) {
+      $body.append($('<div class="denied"></div>').text(t('wa.noRightMsg')));
+    } else {
+      $.each(a.items, function (_, it) {
+        var $link = $('<a class="item" target="mainframe"></a>')
+          .attr('href', it.href)
+          .append('<i class="fa fa-arrow-right"></i>')
+          .append($('<span></span>').text(t(it.label_key)));
+        $body.append($link);
+      });
+    }
+    $a.append($body);
+    $grid.append($a);
+  });
+  $box.append($grid).show();
+}
+
+function renderRedirect(f) {
+  var label = t(f.label_key);
+  var $box = $('#redirectBox').empty();
+  $box.append(
+    '<div class="redirect-card">' +
+      '<div class="icon"><i class="fa fa-circle-notch fa-spin"></i></div>' +
+      '<h3>' + esc(t('wa.opening')) + '</h3>' +
+      '<p>' + esc(label) + '</p>' +
+      '<a class="btn-teal" id="manualLink"></a>' +
+    '</div>'
+  );
+  $('#manualLink').attr('href', f.target).text(t('wa.openManually'));
+  $box.show();
+  setTimeout(function () {
+    if (window.top && window.top !== window) {
+      window.top.location.href = f.target;
+    } else {
+      window.location.replace(f.target);
+    }
+  }, 450);
+}
+</script>
+</body>
+</html>
