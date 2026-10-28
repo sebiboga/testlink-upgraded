@@ -10045,5 +10045,9 @@
   "wa.feature.newest_tcversions": "Newest Test Case Versions",
   "wa.feature.test_urgency": "Test Urgency",
   "wa.feature.tc_exec_assignment": "Test Case Execution Assignment",
-  "wa.feature.showMetrics": "Metrics Dashboard"
+  "wa.feature.showMetrics": "Metrics Dashboard",
+  "wa.area.requirements": "Requirements",
+  "wa.area.spec": "Test Specification",
+  "wa.area.execute": "Execute Tests",
+  "wa.area.results": "Results & Metrics"
 }

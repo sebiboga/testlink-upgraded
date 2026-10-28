@@ -10045,5 +10045,9 @@
   "wa.feature.newest_tcversions": "最新のテストケースバージョン",
   "wa.feature.test_urgency": "テストの緊急度",
   "wa.feature.tc_exec_assignment": "テストケース実行の割り当て",
-  "wa.feature.showMetrics": "メトリクスダッシュボード"
+  "wa.feature.showMetrics": "メトリクスダッシュボード",
+  "wa.area.requirements": "要件",
+  "wa.area.spec": "テスト仕様",
+  "wa.area.execute": "テストを実行",
+  "wa.area.results": "結果とメトリクス"
 }

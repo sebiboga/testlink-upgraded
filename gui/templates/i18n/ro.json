@@ -10045,5 +10045,9 @@
   "wa.feature.newest_tcversions": "Cele mai noi versiuni ale cazurilor de test",
   "wa.feature.test_urgency": "Urgența testelor",
   "wa.feature.tc_exec_assignment": "Atribuirea execuției cazurilor de test",
-  "wa.feature.showMetrics": "Panou de metrici"
+  "wa.feature.showMetrics": "Panou de metrici",
+  "wa.area.requirements": "Cerințe",
+  "wa.area.spec": "Specificația testelor",
+  "wa.area.execute": "Execută teste",
+  "wa.area.results": "Rezultate și metrici"
 }

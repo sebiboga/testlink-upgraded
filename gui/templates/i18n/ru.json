@@ -10045,5 +10045,9 @@
   "wa.feature.newest_tcversions": "Новейшие версии тест-кейсов",
   "wa.feature.test_urgency": "Срочность тестов",
   "wa.feature.tc_exec_assignment": "Назначение выполнения тест-кейсов",
-  "wa.feature.showMetrics": "Панель метрик"
+  "wa.feature.showMetrics": "Панель метрик",
+  "wa.area.requirements": "Требования",
+  "wa.area.spec": "Спецификация тестов",
+  "wa.area.execute": "Выполнить тесты",
+  "wa.area.results": "Результаты и метрики"
 }

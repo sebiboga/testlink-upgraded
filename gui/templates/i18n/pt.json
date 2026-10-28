@@ -10045,5 +10045,9 @@
   "wa.feature.newest_tcversions": "Versões mais recentes dos casos de teste",
   "wa.feature.test_urgency": "Urgência dos testes",
   "wa.feature.tc_exec_assignment": "Atribuição de execução de casos de teste",
-  "wa.feature.showMetrics": "Painel de métricas"
+  "wa.feature.showMetrics": "Painel de métricas",
+  "wa.area.requirements": "Requisitos",
+  "wa.area.spec": "Especificação de testes",
+  "wa.area.execute": "Executar testes",
+  "wa.area.results": "Resultados e métricas"
 }
