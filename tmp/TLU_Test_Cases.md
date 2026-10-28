@@ -46025,3 +46025,68 @@ BFF: `api/reqspeccoverage/index.php`.
     browser/API pass contains only INFO/AUDIT rows (0 ERROR/WARNING). Screenshots
     `docs/screenshots/issue-1965-reqspeccoverage-normal.png` and `-gaps.png` captured.  
     Result: PASS
+
+## Issue #1971 — Work Areas hub (workArea)
+
+Fixture (`tmp/fixtures_1971.php`): project `WA1971` (prefix `WA1971`, requirements
+enabled) + plan `WA1971 Plan`, and the role-3 user `norights`. Screen:
+`gui/templates/general/workArea.html?tproject_id=<fixture>&tplan_id=<fixture>`;
+BFF: `api/workarea/index.php`.
+
+1. **TC1971-001 - Hub render and context**  
+   As admin the header reads "Work Areas" with project "WA1971" / plan "WA1971 Plan";
+   the toolbar shows the same project/plan, Refresh, Back to dashboard and Close. Four
+   area cards (Requirements, Test Specification, Execute Tests, Results & Metrics) are
+   all marked "Available" and list 5 / 4 / 6 / 1 links respectively. Document title is
+   "Work Areas - WA1971". No console errors.  
+   Result: PASS
+
+2. **TC1971-002 - Link targets keep context**  
+   Every card link points at the existing modern screen with `?tproject_id=11&tplan_id=12`
+   (e.g. Test Case Specification → `/gui/templates/testcases/testSpec.html?...`), so the
+   target screen opens in the current project/plan scope. Opening three links
+   (reqSpecMgmt, execTest, resultsNavigator) loads the expected screens.  
+   Result: PASS
+
+3. **TC1971-003 - Legacy feature deep link auto-redirect**  
+   `workArea.html?...&feature=reqSpecMgmt` shows the "Opening screen..." card with a
+   manual link and, after ~0.5 s, lands on
+   `gui/templates/requirements/reqSpecMgmt.html?tproject_id=11&tplan_id=12` for the same
+   project. `feature=executeTest` and `feature=showMetrics` resolve to their modern
+   screens; all 19 legacy `$feature_map` entries resolve (curl matrix).  
+   Result: PASS
+
+4. **TC1971-004 - Legacy shim parity**  
+   `lib/general/frmWorkArea.php` without `feature` → 302 to the modern hub with the
+   session context; `?feature=executeTest` → 302 to `execute/execTest.html` with context;
+   request `tproject_id`/`tplan_id` overrides still apply.  
+   Result: PASS
+
+5. **TC1971-005 - Unknown feature and invalid parameters**  
+   `feature=bogus` → 404 `unknown_feature`; the screen renders the "Unknown screen" state
+   card with the machine code. Array-shaped input (`feature[]=x`) → 400
+   `invalid_parameter`; unknown/missing `action` → 400 `invalid_request`. The shim maps
+   an unknown/missing feature to the hub instead of the legacy empty page.  
+   Result: PASS
+
+6. **TC1971-006 - Rights gating**  
+   As `norights` (role 3) the BFF returns all four areas `allowed=false` and the screen
+   shows each card locked with "No access" / "You do not have the right required for this
+   work area."; a `feature=` deep link without the right → 403 `no_right` and the
+   "Access denied" state card. `rights` is computed on the addressed project before its
+   name is resolved (no existence oracle).  
+   Result: PASS
+
+7. **TC1971-007 - Auth, verb and CSRF contract**  
+   Anonymous → 401 `not_authenticated`; `POST` with same-origin proof → 405
+   `method_not_allowed` (`Allow: GET, HEAD`); `POST` without same-origin proof → 403
+   (shared `bffSameOriginGuard`); response is JSON, `no-store`, `nosniff`.  
+   Result: PASS
+
+8. **TC1971-008 - i18n and wiring**  
+   `wa.*` (41 keys) + `footers.workArea` in all 10 bundles; `?locale=ro` renders
+   "Zone de lucru", "Cerințe", "Execută teste", "Rezultate și metrici" with no raw keys;
+   `bash ai/verify_i18n_coverage.sh` passes 9/9 with 0 missing. `$actions->workArea`
+   resolves to `/gui/templates/general/workArea.html?{ctx}`. Event Viewer shows no new
+   ERROR/WARNING rows from this run.  
+   Result: PASS
