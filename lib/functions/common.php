@@ -2876,6 +2876,11 @@ function getActions(&$gui,$baseURL) {
   // modern /gui/templates HTML links (see the overrides below). The $actions
   // map is consumed by the aside BFF (api/aside) and by legacy tl-classic
   // templates only.
+  //
+  // Work Areas hub - modern replacement for the legacy frmWorkArea.php
+  // launcher (Refs #1971). Project-scoped (no test plan needed); the BFF
+  // gates every area by the right the target screens enforce.
+  $actions->workArea = "/gui/templates/general/workArea.html?{$ctx}";
   $actions->executeTest = null;
   $actions->planUpdateTC = null;
   $actions->showNewestTCV = null;

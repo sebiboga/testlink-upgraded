@@ -48,10 +48,12 @@ $feature_map = array(
 );
 
 $showFeature = $args->feature;
-if (isset($feature_map[$showFeature]) === FALSE) {
-  // argument is wrong
-  tLog("Wrong page argument feature = ".$showFeature, 'ERROR');
-  exit();
+$knownFeature = isset($feature_map[$showFeature]);
+if ($knownFeature === FALSE) {
+  // Ref 1971: a missing/unknown feature used to produce an empty page; it now
+  // lands on the modern Work Areas hub, which offers every area gated by the
+  // caller's project rights.
+  tLog("Work area feature = ".strval($showFeature)." -> hub", 'WARNING');
 }
 
 $base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
@@ -64,8 +66,11 @@ if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
 if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
     $base = '/';
 }
-$url = $base . $feature_map[$showFeature];
-$url .= (strpos($feature_map[$showFeature], "?") === false) ? "?" : "&";
+$target = $knownFeature
+  ? $feature_map[$showFeature]
+  : 'gui/templates/general/workArea.html';
+$url = $base . $target;
+$url .= (strpos($target, "?") === false) ? "?" : "&";
 $tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
 $tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 $url .= "tproject_id={$tproject_id}&tplan_id={$tplan_id}";
