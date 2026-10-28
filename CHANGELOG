@@ -348,6 +348,20 @@ Every screen of the application was ported one-by-one in a screen-compare
   Docs mirror `docs/Test-Specification-Health-Modernized.md`, wiki page +
   5 screenshots. Refs #1956.
 
+- [SCREEN] - #1971: the **Work Areas hub** (`gui/templates/general/workArea.html`, BFF
+  `api/workarea/index.php`) modernizes the last legacy launcher without a modern landing:
+  the top-menu / bookmark entry `lib/general/frmWorkArea.php` (#1575 had only turned it into
+  a per-feature shim). The Dashio hub renders four area cards - Requirements, Test
+  Specification, Execute Tests, Results & Metrics - listing 16 modern screens, keeps the
+  current `tproject_id`/`tplan_id`, and resolves all 19 legacy `feature=` ids to their modern
+  screen with an auto-redirect card. Each area is rights-gated (`mgt_view_req|mgt_modify_req`,
+  `mgt_view_tc|mgt_modify_tc`, `testplan_execute|exec_ro_access`, `testplan_metrics`) on the
+  addressed project before it is resolved; 401/400/403/404/405 JSON contract, same-origin
+  guard and GET/HEAD only. The shim now sends a missing/unknown feature to the hub instead of
+  the legacy empty page. `wa.*` (45 keys) + `footers.workArea` in all 10 client bundles,
+  `$actions->workArea`, Suite #1971 = 8/8 PASS, i18n gate 9/9, Event Viewer clean.
+  Refs #1971.
+
 - [SCREEN] - #1966: the **Requirements based Report** (`resultsReqs`) legacy
   controller is retired to a GET/HEAD-only 302 shim into the modern
   `gui/templates/results/resultsRequirements.html` + BFF
