@@ -46161,3 +46161,67 @@ assigned test-case versions, builds 500/501; latest executions: admin passed
    only the intentional `no_right` audit ERROR from TC1972-005 (same tLog policy
    as the sibling chart BFFs), no unexpected WARNING/ERROR.  
    Result: PASS
+
+## Issue #1973 - Test Plan Execution Burn-down (execBurnDown)
+
+Screen: `gui/templates/results/execBurnDown.html` (linked from the Reports
+launcher `link_report_exec_burndown`); BFF: `api/execburndown/index.php`.
+Fixture: project 1 "EBD1973", plan 2 "EB Plan", 5 assignment rows (EB A-D on
+platform 0 plus EB A on platform 1), builds 1 "EB Build 1" / 2 "EB Build 2" /
+3 "EB Build Empty", 7 executions spread over 40 days (one before the window)
+plus reruns; user `ebd_norights` (role 3) for the 403 path.
+
+1. **TC1973-001 - Burn-down line and KPIs**  
+   As admin the header reads "Execution Burn-down"; context shows EBD1973 /
+   EB Plan / All builds / 2026-09-30 → 2026-10-29 (30 days). KPIs: planned 5,
+   executed 4, remaining 1, coverage 80%, executions 7. The chart draws two
+   series (Cumulative executed rising 1→4, Remaining to run falling 4→1) and
+   the table shows one row per day plus a Totals row (7 / 4 / 4 / 2 / 1 / 4 /
+   1 / 80%). Document title/footer resolve from the bundle (no raw keys).  
+   Result: PASS
+
+2. **TC1973-002 - Distinct assignments and baseline before the window**  
+   EB A was executed 40 days ago, i.e. before the 30-day window: it is counted
+   in the baseline (first row cumulative = 1) but not in `executions` or
+   `new_cases`. Reruns on EB A (day -10) and EB C (today) add executions but
+   do not raise the cumulative count, so the final cumulative is 4 distinct
+   assignments out of 5 planned (80%), not 7 executions. Platform-1 EB A is
+   never executed and stays in "remaining".  
+   Result: PASS
+
+3. **TC1973-003 - Build scope filter**  
+   Selecting "EB Build 2" and pressing Apply reloads with `build_id=2`:
+   context "Build scope" becomes EB Build 2, KPIs become planned 5 / executed 2
+   / remaining 3 / coverage 40%, and only 2026-10-28 carries executions (2,
+   1 passed, 1 failed). "EB Build Empty" (build 3) renders the empty state
+   "Nothing to plot" with the explanatory body while keeping the context/KPIs.  
+   Result: PASS
+
+4. **TC1973-004 - Window selector and CSV export**  
+   Switching Window to 7 and pressing Apply returns 7 day rows ending today
+   (baseline still counted, cumulative unchanged at the last day). Export CSV
+   downloads `execution-burndown-tplan-2.csv` with a BOM, the nine localized
+   headers, one line per day and a totals line; a toast confirms the download.  
+   Result: PASS
+
+5. **TC1973-005 - Rights and error states**  
+   `ebd_norights` (role 3) sees "Access denied" with the
+   `testplan_metrics` explanation, the report panel stays hidden and the BFF
+   answers 403 `no_right`. Anonymous requests get 401 `not_authenticated`;
+   missing `tplan_id` → 400 `invalid_request`; unknown action → 400; plan 9999
+   → 404 `tplan_not_found`; plan of another project → 404 `project_mismatch`;
+   POST → 405 `method_not_allowed`; no `tplan_id` in the URL → the
+   "missing context" card with a link to the Reports launcher.  
+   Result: PASS
+
+6. **TC1973-006 - Reports launcher / ASIDE / i18n**  
+   The Reports launcher lists "Execution Burn-down" (from
+   `cfg/reports.cfg.php`), the ASIDE Reports sub-menu shows the same entry and
+   both link to `/gui/templates/results/execBurnDown.html?tplan_id=2&tproject_id=1`;
+   `api/resultsnav` maps `exec_burndown` to the modern page. Switching the
+   locale to Romanian renders "Burndown de execuție", "Nimic de afișat" and the
+   Romanian column headers; `bash ai/verify_i18n_coverage.sh` passes (10
+   bundles, 0 missing). Browser console has no errors/warnings; Event Viewer
+   shows only the intentional `no_right` audit ERROR from TC1973-005 (same
+   tLog policy as the sibling chart BFFs).  
+   Result: PASS

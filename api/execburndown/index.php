@@ -343,6 +343,12 @@ while ($cursor <= $today) {
     $cursor->modify('+1 day');
 }
 
+if (count($rows) === 0) {
+    // Nothing was recorded in this scope: let the screen show its empty state
+    // instead of a flat zero chart that looks like a broken report.
+    $outDays = array();
+}
+
 $executed = count($firstDay);
 $remainingTotal = $planned - $executed;
 if ($remainingTotal < 0) {
