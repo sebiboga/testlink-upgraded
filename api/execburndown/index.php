@@ -349,6 +349,24 @@ if (count($rows) === 0) {
     $outDays = array();
 }
 
+// Refs #1974: the table, the Executions KPI and the CSV print these totals, so
+// they must describe the SAME window as the emitted day rows. The per-day
+// counters above were accumulated over the whole plan (they also feed the
+// cumulative baseline), so summing the emitted rows here is the only way to
+// keep a 7-day window from reporting the plan lifetime in its Totals row.
+$totals['executions'] = 0;
+$totals['passed'] = 0;
+$totals['failed'] = 0;
+$totals['blocked'] = 0;
+$totals['new_cases'] = 0;
+foreach ($outDays as $d) {
+    $totals['executions'] += intval($d['executions']);
+    $totals['passed'] += intval($d['passed']);
+    $totals['failed'] += intval($d['failed']);
+    $totals['blocked'] += intval($d['blocked']);
+    $totals['new_cases'] += intval($d['new_cases']);
+}
+
 $executed = count($firstDay);
 $remainingTotal = $planned - $executed;
 if ($remainingTotal < 0) {
