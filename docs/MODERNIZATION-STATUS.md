@@ -1,3 +1,4 @@
+> Last updated: 2026-10-29 (screen **1973** recorded DONE: Test Plan Execution Burn-down `execBurnDown`, net-new plan-wide progress-over-time report with window/build filters; **bug #1974 fixed**: Totals row, Executions KPI and CSV totals now describe the emitted window; Suite #1973 = 8/8, i18n gate 9/9, Event Viewer clean)
 > Last updated: 2026-10-29 (screen **1972** recorded DONE: Results by Tester Bar Chart `ownerBarChart`, net-new standalone chart for the undeclared-in-UI `results_by_tester` dimension, Suite #1972 = 8/8)
 > Last updated: 2026-10-28 (screen **1971** recorded DONE: Work Areas hub `workArea`, modern replacement for the legacy `frmWorkArea.php` launcher, Suite #1971 = 8/8)
 > Last updated: 2026-10-27 (screen **1965** recorded DONE: Requirement Spec Coverage Summary `reqSpecCoverage`, new screen + `api/reqspeccoverage` BFF, Suite #1965 = 12/12)
@@ -360,6 +361,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 62c | Test Specification — Duplicate Name Check | `testcases/nameCheck.html` | api/namecheck | #1724 |
 | 63 | Reports — Results by Issues / Bugs per TC | `results/resultsBugs.html` | api/reports | #763 |
 | 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
+| 64b | Reports — Test Plan Execution Burn-down | `results/execBurnDown.html` | api/execburndown | Refs #1973 (net-new plan-wide progress-over-time series: distinct executed assignments vs remaining, window 1–365 days + build scope, KPI/DataTable/chart/CSV; bug #1974 fixed window-scoped totals; Suite 1973 = 8/8) |
 | 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
 | 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764, #1281 |
 | 67 | System — Install / Upgrade check | `install/installView.html` | api/install | #797 |
