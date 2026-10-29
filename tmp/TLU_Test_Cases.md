@@ -46243,3 +46243,22 @@ Corrections after the #1974 fix and the final fixture run (2026-10-29):
    failed / 1 blocked. The per-day numbers are unchanged, so only the aggregate
    was wrong before the fix.  
    Result: PASS
+
+9. **TC1973-009 - Code-review hardening: invalid params + pre-window baseline**  
+   `days=abc` and `build_id=abc` now answer 400 `invalid_request` instead of
+   silently using 30 days / all builds; `days=366` still clamps to 365. The
+   30-day report still starts with cumulative = 1 from the pre-window baseline
+   after the query was split into an in-window aggregate + a pre-window
+   DISTINCT baseline (no whole-history scan); window 7 still reports
+   cumulative 1→4 and totals 6 / 3 / 2 / 3 / 1. A build with no executions
+   (build 3) still returns `has_executions=false` and zero days.  
+   Result: PASS
+
+10. **TC1973-010 - Stale CSV + Refresh build scope**  
+    After a successful load, a failed reload clears `currentData`, disables
+    Export CSV and shows the state card (verified with `tplan_id=abc`: button
+    disabled, report hidden); loading also disables the button. Selecting
+    "EB Build 2" + Apply then pressing Refresh keeps build 2 selected and
+    re-renders the same 2 executions / 40% scope. CSV cells that start with
+    `= + - @` are prefixed with an apostrophe.  
+    Result: PASS
