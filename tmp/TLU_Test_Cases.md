@@ -46225,3 +46225,21 @@ plus reruns; user `ebd_norights` (role 3) for the 403 path.
    shows only the intentional `no_right` audit ERROR from TC1973-005 (same
    tLog policy as the sibling chart BFFs).  
    Result: PASS
+
+Corrections after the #1974 fix and the final fixture run (2026-10-29):
+- Fixture total is **8** executions (one 40 days ago, outside the 30-day window,
+  plus 7 inside); the suite header above said 7.
+- TC1973-001 Totals row reads **7 executions / 3 first-time cases / 3 passed /
+  3 failed / 1 blocked / 4 cumulative / 1 remaining / 80%** (the earlier
+  "7 / 4 / 4 / 2 / 1" transcription did not match the rendered row).
+- TC1973-004's Totals row is now window-scoped (#1974): for Window = 7 it reads
+  6 executions / 3 first-time / 2 passed / 3 failed / 1 blocked.
+
+8. **TC1973-008 - Window-scoped totals (regression #1974)**  
+   With Window = 7 (2026-10-23 → 2026-10-29) the Executions KPI, the table
+   Totals row and the CSV totals all read 6, not the plan lifetime 7; passed 2,
+   failed 3, blocked 1, first-time cases 3, cumulative 4/5 (80%). Switching back
+   to Window = 30 restores 7 executions, 3 first-time cases, 3 passed / 3
+   failed / 1 blocked. The per-day numbers are unchanged, so only the aggregate
+   was wrong before the fix.  
+   Result: PASS
