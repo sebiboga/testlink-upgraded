@@ -38,6 +38,12 @@ require_once('testproject.class.php');
 
 doSessionStart();
 
+// Set the JSON headers before any guard/verb branch so even a 405 carries the
+// same content type/nosniff/cache contract as the other error responses.
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store');
+
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 if ($method !== 'GET' && $method !== 'HEAD') {
     header('Allow: GET, HEAD');
@@ -46,10 +52,6 @@ if ($method !== 'GET' && $method !== 'HEAD') {
 
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
-
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
-header('Cache-Control: no-store');
 
 function ebdOut($payload, $code = null)
 {
@@ -82,6 +84,18 @@ function ebdPositiveInt($raw)
     return ($n > 0) ? $n : 0;
 }
 
+function ebdInvalidIntParam($raw)
+{
+    if ($raw === null) {
+        return false;
+    }
+    if (is_array($raw)) {
+        return true;
+    }
+    $raw = trim((string)$raw);
+    return ($raw !== '' && !preg_match('/^[0-9]+$/', $raw));
+}
+
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
@@ -106,6 +120,16 @@ $tplanId = ebdPositiveInt($_GET['tplan_id'] ?? null);
 $assertedProjectId = ebdPositiveInt($_GET['tproject_id'] ?? null);
 $buildId = ebdPositiveInt($_GET['build_id'] ?? null);
 $days = ebdPositiveInt($_GET['days'] ?? null);
+
+// A present-but-malformed build/window must not silently widen the report to
+// "all builds"/30 days: that is a different dataset than the caller asked for.
+if (ebdInvalidIntParam($_GET['tplan_id'] ?? null)
+    || ebdInvalidIntParam($_GET['tproject_id'] ?? null)
+    || ebdInvalidIntParam($_GET['build_id'] ?? null)
+    || ebdInvalidIntParam($_GET['days'] ?? null)) {
+    ebdFail(400, 'invalid_request', 'Invalid numeric parameter');
+}
+
 if ($days <= 0) {
     $days = 30;
 }
@@ -222,12 +246,20 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 // report: aggregate executions per day + first-execution day per assignment.
 // ---------------------------------------------------------------------------
+$tz = new DateTimeZone(date_default_timezone_get());
+$today = new DateTime('today', $tz);
+$start = (clone $today)->modify('-' . ($days - 1) . ' days');
+$windowStartStr = $start->format('Y-m-d');
+$tomorrowStr = (clone $today)->modify('+1 day')->format('Y-m-d');
+
 $buildFilter = ($buildId > 0) ? " AND e.build_id = " . intval($buildId) : '';
 $sql =
   "SELECT e.id, e.execution_ts, e.status, e.tcversion_id, e.platform_id " .
   "FROM {$ex} e " .
   "WHERE e.testplan_id = {$tp} " . $buildFilter .
   "  AND e.execution_ts IS NOT NULL " .
+  "  AND e.execution_ts >= '{$windowStartStr}' " .
+  "  AND e.execution_ts < '{$tomorrowStr}' " .
   "  AND EXISTS (SELECT 1 FROM {$tpv} t WHERE t.testplan_id = {$tp} " .
   "              AND t.tcversion_id = e.tcversion_id " .
   "              AND t.platform_id = e.platform_id) " .
@@ -236,6 +268,26 @@ $sql =
 $rows = $db->get_recordset($sql);
 if (!is_array($rows)) {
     $rows = array();
+}
+
+// Pre-window baseline: distinct assignments first executed before the window,
+// so the first emitted day already carries the correct cumulative value. This
+// is a small grouped/DISTINCT query instead of loading the whole plan history.
+$baselineSql =
+  "SELECT DISTINCT e.tcversion_id, e.platform_id " .
+  "FROM {$ex} e " .
+  "WHERE e.testplan_id = {$tp} " . $buildFilter .
+  "  AND e.execution_ts IS NOT NULL " .
+  "  AND e.execution_ts < '{$windowStartStr}' " .
+  "  AND EXISTS (SELECT 1 FROM {$tpv} t WHERE t.testplan_id = {$tp} " .
+  "              AND t.tcversion_id = e.tcversion_id " .
+  "              AND t.platform_id = e.platform_id)";
+$baselineRows = $db->get_recordset($baselineSql);
+$baselinePairs = array();
+if (is_array($baselineRows)) {
+    foreach ($baselineRows as $br) {
+        $baselinePairs[intval($br['tcversion_id']) . ':' . intval($br['platform_id'])] = true;
+    }
 }
 
 $perDay = array();
@@ -274,7 +326,7 @@ foreach ($rows as $r) {
     }
 
     $pair = intval($r['tcversion_id']) . ':' . intval($r['platform_id']);
-    if (!isset($firstDay[$pair])) {
+    if (!isset($baselinePairs[$pair]) && !isset($firstDay[$pair])) {
         $firstDay[$pair] = $day;
     }
 }
@@ -289,24 +341,15 @@ foreach ($firstDay as $pair => $day) {
     $totals['new_cases']++;
 }
 
-$tz = new DateTimeZone(date_default_timezone_get());
-$today = new DateTime('today', $tz);
-$start = (clone $today)->modify('-' . ($days - 1) . ' days');
-
-// Sorted list of first-execution days for the cumulative baseline.
+// Sorted list of first-execution days for the cumulative line. Pairs already
+// counted in the pre-window baseline are excluded above, so the first day starts
+// at the baseline size instead of zero.
 $firstDaysSorted = array_values($firstDay);
 sort($firstDaysSorted, SORT_STRING);
 
-$cumulative = 0;
+$cumulative = count($baselinePairs);
 $firstIdx = 0;
 $firstCount = count($firstDaysSorted);
-$windowStartStr = $start->format('Y-m-d');
-
-// Baseline: everything first executed strictly before the window.
-while ($firstIdx < $firstCount && $firstDaysSorted[$firstIdx] < $windowStartStr) {
-    $cumulative++;
-    $firstIdx++;
-}
 
 $outDays = array();
 $cursor = clone $start;
@@ -343,9 +386,9 @@ while ($cursor <= $today) {
     $cursor->modify('+1 day');
 }
 
-if (count($rows) === 0) {
-    // Nothing was recorded in this scope: let the screen show its empty state
-    // instead of a flat zero chart that looks like a broken report.
+if (count($rows) === 0 && count($baselinePairs) === 0) {
+    // Nothing was ever recorded in this scope: let the screen show its empty
+    // state instead of a flat zero chart that looks like a broken report.
     $outDays = array();
 }
 
@@ -367,7 +410,7 @@ foreach ($outDays as $d) {
     $totals['new_cases'] += intval($d['new_cases']);
 }
 
-$executed = count($firstDay);
+$executed = count($baselinePairs) + count($firstDay);
 $remainingTotal = $planned - $executed;
 if ($remainingTotal < 0) {
     $remainingTotal = 0;
@@ -388,7 +431,7 @@ foreach ($statusDomain as $status => $code) {
     );
 }
 
-$context['has_executions'] = (count($rows) > 0);
+$context['has_executions'] = (count($rows) > 0 || count($baselinePairs) > 0);
 $context['window_start'] = $windowStartStr;
 $context['window_end'] = $today->format('Y-m-d');
 

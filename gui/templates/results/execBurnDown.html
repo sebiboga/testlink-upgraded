@@ -205,11 +205,15 @@ function stateFor(code, httpStatus, rawMessage) {
 }
 
 function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
   $('#report').hide();
   $('#stateBox').html(html);
 }
 
 function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
   $('#report').hide();
   $('#stateBox').html('<div class="state"><div class="spinner"></div>'
     + esc(TLi18n.t('ebd.loading')) + '</div>');
@@ -339,17 +343,11 @@ function renderTable(data) {
     paging: false, ordering: false, info: false, searching: false,
     order: [[0, 'asc']]
   });
-  setTimeout(function () {
-    var $inp = $('#burnTable_wrapper .dataTables_filter input[type=search]');
-    if ($inp.length) {
-      if (!$inp.attr('id')) $inp.attr('id', 'burnTableSearch');
-      if (!$inp.attr('name')) $inp.attr('name', 'burnTableSearch');
-    }
-  }, 0);
 }
 
 function fillBuilds(builds) {
   var $sel = $('#buildSel');
+  var keep = $sel.val();
   $sel.html('<option value="0">' + esc(TLi18n.t('ebd.allBuilds')) + '</option>');
   $.each(builds || [], function (i, b) {
     var label = b.name + (b.is_open ? '' : ' (' + TLi18n.t('ebd.closed') + ')');
@@ -357,6 +355,8 @@ function fillBuilds(builds) {
   });
   if (q('build_id')) {
     $sel.val(String(parseInt(q('build_id'), 10) || 0));
+  } else if (keep !== null && keep !== undefined) {
+    $sel.val(keep);
   }
 }
 
@@ -383,6 +383,7 @@ function loadReport() {
       return;
     }
     currentData = data;
+    $('#btnCsv').prop('disabled', !(data.days && data.days.length > 0));
     renderContext(data.context);
     renderKpis(data.totals || {});
     if (!data.days || data.days.length === 0) {
@@ -450,6 +451,7 @@ function exportCsv() {
     TLi18n.t('ebd.colCumulative'), TLi18n.t('ebd.colRemaining'), TLi18n.t('ebd.colPercent')];
   var cell = function (v) {
     var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
     return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
   };
   var lines = [$.map(head, cell).join(';')];
@@ -484,6 +486,7 @@ $(function () {
   $('#btnClose').on('click', function () { window.close(); });
   TLi18n.load(function () {
     TLi18n.apply();
+    document.title = TLi18n.t('ebd.title');
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     load();
   });
