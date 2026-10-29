@@ -176,6 +176,8 @@ $bff = function ($action) use ($db, $user) {
             'plan_comparison' => 'gui/templates/results/planComparison.html',
             // Refs #1963: Test Plan Platform Comparison report.
             'platform_comparison' => 'gui/templates/results/platformComparison.html',
+            // Refs #1973: Test Plan Execution Burn-down report.
+            'exec_burndown' => 'gui/templates/results/execBurnDown.html',
         );
 
         $reportList = config_get('reports_list');

@@ -2635,6 +2635,17 @@ function getActions(&$gui,$baseURL) {
   $actions->platformComparison =
     "/gui/templates/results/platformComparison.html?{$ctx}";
 
+  // Refs #1973: Test Plan Execution Burn-down report (net-new screen). Every
+  // 1.9.20 report is a point-in-time snapshot; the only time axis was the
+  // per-build strip of metricsTrends. This screen plots the distinct executed
+  // (test-case version, platform) assignments against the remaining-to-run
+  // over the last N days, optionally scoped to one build. Backed by the
+  // api/execburndown BFF (init/report actions), which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->execBurnDown =
+    "/gui/templates/results/execBurnDown.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

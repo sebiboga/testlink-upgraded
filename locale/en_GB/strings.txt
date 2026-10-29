@@ -4267,3 +4267,4 @@ $TLS_title_api_tokens = "API Access Tokens"; // API Access Tokens manager (Refs 
 $TLS_title_a11y_scans = "Koa11y Accessibility Scan Results"; // Koa11y accessibility scan results (Refs #1959)
 $TLS_link_report_build_comparison = "Test Plan Build Comparison"; // Test Plan Build Comparison report (Refs #1962)
 $TLS_link_report_platform_comparison = "Test Plan Platform Comparison"; // Test Plan Platform Comparison report (Refs #1963)
+$TLS_link_report_exec_burndown = "Execution Burn-down"; // Test Plan Execution Burn-down (Refs #1973)

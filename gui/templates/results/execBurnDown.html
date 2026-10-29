@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Burn-down</title>
+<!--
+  Test Plan Execution Burn-down (Refs #1973).
+
+  Net-new 2.0.1 report: every 1.9.20 report is a point-in-time snapshot and the
+  only time axis was the per-build strip of metricsTrends. This screen answers
+  the plan-wide progress-over-time series (distinct executed assignments vs
+  remaining-to-run) with an optional build scope.
+  Data: api/execburndown/index.php (see that file for the exact semantics).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 140px; }
+.ctx-item .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 4px; }
+.kpi { border: 1px solid #eee; border-radius: 6px; padding: 12px 14px; background: #fafbfc; }
+.kpi .k { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.2; }
+.kpi .v.teal { color: #2d8e88; }
+.kpi .v.red { color: #c94a4a; }
+.chart-wrap { position: relative; height: 340px; }
+.chart-wrap canvas { width: 100% !important; height: 100% !important; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 10px; font-size: 12px; color: #444; }
+.legend span.sw { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.sw-executed { background: #4ECDC4; }
+.sw-remaining { background: #e05c5c; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .spinner { width: 26px; height: 26px; border: 3px solid #d8dde2; border-top-color: #4ECDC4; border-radius: 50%; margin: 0 auto 12px; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 20px 24px; background: #fff; border-radius: 8px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr.total-row { background: #eef7f7; font-weight: 700; }
+.badge-st { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-st.passed { background: #2f9e44; }
+.badge-st.failed { background: #e05c5c; }
+.badge-st.blocked { background: #3a7bd5; }
+.meter { background: #eceff1; border-radius: 3px; height: 8px; width: 90px; display: inline-block; vertical-align: middle; margin-right: 8px; }
+.meter > span { display: block; height: 100%; background: #4ECDC4; border-radius: 3px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ebd.title">Execution Burn-down</span>
+  <span class="sub" data-i18n="ebd.subtitle">distinct executed assignments vs remaining-to-run over time</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="ebd.apply">Apply</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="ebd.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="ebd.exportCsv">Export CSV</span></button>
+  <label for="buildSel" data-i18n="ebd.filterBuild">Build</label>
+  <select id="buildSel"></select>
+  <label for="daysSel" data-i18n="ebd.filterDays">Window</label>
+  <select id="daysSel">
+    <option value="7">7</option>
+    <option value="14">14</option>
+    <option value="30" selected>30</option>
+    <option value="60">60</option>
+    <option value="90">90</option>
+    <option value="180">180</option>
+    <option value="365">365</option>
+  </select>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnReports"><i class="fa fa-list"></i> <span data-i18n="ebd.allReports">All reports</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="ebd.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="ebd.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="ebd.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ebd.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ebd.ctxBuild">Build scope</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ebd.ctxWindow">Window</span><span class="v" id="ctxWindow">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-tachometer"></i><span data-i18n="ebd.kpiTitle">Progress summary</span></h3>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="k" data-i18n="ebd.kpiPlanned">Planned</div><div class="v" id="kpiPlanned">0</div></div>
+      <div class="kpi"><div class="k" data-i18n="ebd.kpiExecuted">Executed</div><div class="v teal" id="kpiExecuted">0</div></div>
+      <div class="kpi"><div class="k" data-i18n="ebd.kpiRemaining">Remaining</div><div class="v red" id="kpiRemaining">0</div></div>
+      <div class="kpi"><div class="k" data-i18n="ebd.kpiPercent">Coverage</div><div class="v" id="kpiPercent">0%</div></div>
+      <div class="kpi"><div class="k" data-i18n="ebd.kpiExecutions">Executions</div><div class="v" id="kpiExecutions">0</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-line-chart"></i><span data-i18n="ebd.chartTitle">Burn-down over time</span></h3>
+    <div class="legend">
+      <span><span class="sw sw-executed"></span><span data-i18n="ebd.seriesExecuted">Cumulative executed</span></span>
+      <span><span class="sw sw-remaining"></span><span data-i18n="ebd.seriesRemaining">Remaining to run</span></span>
+    </div>
+    <div class="chart-wrap"><canvas id="burnChart"></canvas></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="burnTable" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="ebd.colDate">Date</th>
+          <th data-i18n="ebd.colExecutions">Executions</th>
+          <th data-i18n="ebd.colNewCases">First-time cases</th>
+          <th data-i18n="ebd.colPassed">Passed</th>
+          <th data-i18n="ebd.colFailed">Failed</th>
+          <th data-i18n="ebd.colBlocked">Blocked</th>
+          <th data-i18n="ebd.colCumulative">Executed (cum.)</th>
+          <th data-i18n="ebd.colRemaining">Remaining</th>
+          <th data-i18n="ebd.colPercent">Coverage</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.execBurnDown"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/execburndown/index.php';
+var currentData = null;
+var dt = null;
+var chart = null;
+var ctx = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'ebd.deniedTitle', body: 'ebd.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'ebd.deniedTitle', body: 'ebd.expiredBody' },
+    no_right:          { cls: 'deny', title: 'ebd.deniedTitle', body: 'ebd.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'ebd.notFoundTitle', body: 'ebd.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'ebd.notFoundTitle', body: 'ebd.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'ebd.badRequestTitle', body: 'ebd.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'ebd.badRequestTitle', body: 'ebd.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'ebd.serverErrorTitle', body: 'ebd.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  $('#report').hide();
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('ebd.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function baseParams() {
+  var p = new URLSearchParams({ tplan_id: q('tplan_id') });
+  if (q('tproject_id')) { p.set('tproject_id', q('tproject_id')); }
+  return p;
+}
+
+function renderContext(ctx) {
+  $('#ctxProject').text(ctx.tproject_name || '-');
+  $('#ctxPlan').text(ctx.tplan_name || '-');
+  var build = TLi18n.t('ebd.allBuilds');
+  if (parseInt(ctx.build_id, 10) > 0) {
+    $.each(ctx.builds || [], function (i, b) {
+      if (parseInt(b.id, 10) === parseInt(ctx.build_id, 10)) { build = b.name; }
+    });
+  }
+  $('#ctxBuild').text(build);
+  $('#ctxWindow').text((ctx.window_start || '-') + ' \u2192 ' + (ctx.window_end || '-'));
+}
+
+function renderKpis(t) {
+  $('#kpiPlanned').text(t.planned || 0);
+  $('#kpiExecuted').text(t.executed || 0);
+  $('#kpiRemaining').text(t.remaining || 0);
+  $('#kpiPercent').text((parseFloat(t.percent) || 0) + '%');
+  $('#kpiExecutions').text(t.executions || 0);
+}
+
+function renderChart(data) {
+  var labels = [];
+  var executed = [];
+  var remaining = [];
+  $.each(data.days || [], function (i, d) {
+    labels.push(d.date);
+    executed.push(parseInt(d.cumulative, 10) || 0);
+    remaining.push(parseInt(d.remaining, 10) || 0);
+  });
+  if (ctx) { ctx.destroy(); ctx = null; }
+  var el = document.getElementById('burnChart');
+  if (!el || !window.Chart) { return; }
+  ctx = new Chart(el, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: TLi18n.t('ebd.seriesExecuted'),
+          data: executed,
+          borderColor: '#4ECDC4',
+          backgroundColor: 'rgba(78,205,196,.15)',
+          fill: true,
+          tension: .25,
+          pointRadius: 2
+        },
+        {
+          label: TLi18n.t('ebd.seriesRemaining'),
+          data: remaining,
+          borderColor: '#e05c5c',
+          backgroundColor: 'rgba(224,92,92,.08)',
+          fill: true,
+          tension: .25,
+          pointRadius: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+function badge(cls, value) {
+  var v = parseInt(value, 10) || 0;
+  return '<span class="badge-st ' + cls + '">' + v + '</span>';
+}
+
+function rowsHtml(data) {
+  var rows = '';
+  $.each(data.days || [], function (i, d) {
+    rows += '<tr>'
+      + '<td>' + esc(d.date) + '</td>'
+      + '<td>' + (parseInt(d.executions, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(d.new_cases, 10) || 0) + '</td>'
+      + '<td>' + badge('passed', d.passed) + '</td>'
+      + '<td>' + badge('failed', d.failed) + '</td>'
+      + '<td>' + badge('blocked', d.blocked) + '</td>'
+      + '<td>' + (parseInt(d.cumulative, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(d.remaining, 10) || 0) + '</td>'
+      + '<td><span class="meter"><span style="width:' + (parseFloat(d.percent) || 0) + '%"></span></span>'
+      + (parseFloat(d.percent) || 0) + '%</td>'
+      + '</tr>';
+  });
+  var t = data.totals || {};
+  rows += '<tr class="total-row">'
+    + '<td>' + esc(TLi18n.t('ebd.totals')) + '</td>'
+    + '<td>' + (parseInt(t.executions, 10) || 0) + '</td>'
+    + '<td>' + (parseInt(t.new_cases, 10) || 0) + '</td>'
+    + '<td>' + badge('passed', t.passed) + '</td>'
+    + '<td>' + badge('failed', t.failed) + '</td>'
+    + '<td>' + badge('blocked', t.blocked) + '</td>'
+    + '<td>' + (parseInt(t.executed, 10) || 0) + '</td>'
+    + '<td>' + (parseInt(t.remaining, 10) || 0) + '</td>'
+    + '<td>' + (parseFloat(t.percent) || 0) + '%</td>'
+    + '</tr>';
+  return rows;
+}
+
+function renderTable(data) {
+  if (dt) { dt.destroy(); dt = null; }
+  $('#burnTable tbody').html(rowsHtml(data));
+  dt = $('#burnTable').DataTable({
+    paging: false, ordering: false, info: false, searching: false,
+    order: [[0, 'asc']]
+  });
+  setTimeout(function () {
+    var $inp = $('#burnTable_wrapper .dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) $inp.attr('id', 'burnTableSearch');
+      if (!$inp.attr('name')) $inp.attr('name', 'burnTableSearch');
+    }
+  }, 0);
+}
+
+function fillBuilds(builds) {
+  var $sel = $('#buildSel');
+  $sel.html('<option value="0">' + esc(TLi18n.t('ebd.allBuilds')) + '</option>');
+  $.each(builds || [], function (i, b) {
+    var label = b.name + (b.is_open ? '' : ' (' + TLi18n.t('ebd.closed') + ')');
+    $sel.append('<option value="' + parseInt(b.id, 10) + '">' + esc(label) + '</option>');
+  });
+  if (q('build_id')) {
+    $sel.val(String(parseInt(q('build_id'), 10) || 0));
+  }
+}
+
+function loadReport() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('ebd.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('ebd.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var p = baseParams();
+  p.set('action', 'report');
+  var bid = parseInt($('#buildSel').val(), 10) || 0;
+  if (bid > 0) { p.set('build_id', bid); }
+  p.set('days', parseInt($('#daysSel').val(), 10) || 30);
+
+  $.ajax({
+    url: API, method: 'GET', data: p.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    renderContext(data.context);
+    renderKpis(data.totals || {});
+    if (!data.days || data.days.length === 0) {
+      $('#stateBox').html('<div class="state"><h4>' + esc(TLi18n.t('ebd.emptyTitle'))
+        + '</h4><div>' + esc(TLi18n.t('ebd.emptyBody')) + '</div></div>');
+      $('#report').show();
+      if (ctx) { ctx.destroy(); ctx = null; }
+      if (dt) { dt.destroy(); dt = null; }
+      $('#burnTable tbody').html('');
+      return;
+    }
+    $('#stateBox').html('');
+    renderChart(data);
+    renderTable(data);
+    $('#report').show();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('ebd.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('ebd.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var p = baseParams();
+  p.set('action', 'init');
+  $.ajax({
+    url: API, method: 'GET', data: p.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    fillBuilds(data.context.builds);
+    loadReport();
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.days || currentData.days.length === 0) {
+    toast(TLi18n.t('ebd.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('ebd.colDate'), TLi18n.t('ebd.colExecutions'), TLi18n.t('ebd.colNewCases'),
+    TLi18n.t('ebd.colPassed'), TLi18n.t('ebd.colFailed'), TLi18n.t('ebd.colBlocked'),
+    TLi18n.t('ebd.colCumulative'), TLi18n.t('ebd.colRemaining'), TLi18n.t('ebd.colPercent')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(currentData.days, function (i, d) {
+    lines.push($.map([d.date, d.executions, d.new_cases, d.passed, d.failed, d.blocked,
+      d.cumulative, d.remaining, (parseFloat(d.percent) || 0) + '%'], cell).join(';'));
+  });
+  var t = currentData.totals || {};
+  lines.push($.map([TLi18n.t('ebd.totals'), t.executions, t.new_cases, t.passed, t.failed,
+    t.blocked, t.executed, t.remaining, (parseFloat(t.percent) || 0) + '%'], cell).join(';'));
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'execution-burndown-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('ebd.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#btnApply').on('click', loadReport);
+  $('#btnRefresh').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnReports').on('click', function () {
+    var p = new URLSearchParams();
+    if (q('tproject_id')) { p.set('tproject_id', q('tproject_id')); }
+    if (q('tplan_id')) { p.set('tplan_id', q('tplan_id')); }
+    window.location.href = '/gui/templates/results/resultsNavigator.html' + (p.toString() ? '?' + p.toString() : '');
+  });
+  $('#btnClose').on('click', function () { window.close(); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>

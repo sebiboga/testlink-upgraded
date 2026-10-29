@@ -275,6 +275,11 @@ if ($tplan_id > 0) {
                 // same test project side by side, delta per metric).
                 $hrefR = '/gui/templates/results/planComparison.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_burndown') {
+                // Refs #1973: Test Plan Execution Burn-down (distinct executed
+                // assignments vs remaining-to-run over time).
+                $hrefR = '/gui/templates/results/execBurnDown.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

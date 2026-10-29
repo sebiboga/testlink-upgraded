@@ -488,6 +488,17 @@ $tlCfg->reports_list['platform_comparison'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1973: Test Plan Execution Burn-down (net-new screen). 1.9.20 reports are
+// point-in-time snapshots; this plots the distinct executed assignments against
+// the remaining-to-run over time, optionally scoped to one build. The BFF
+// action 'report' enforces testplan_metrics; directLink is empty (HTML only).
+$tlCfg->reports_list['exec_burndown'] = array(
+	'title' => 'link_report_exec_burndown',
+	'url' => 'gui/templates/results/execBurnDown.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',
