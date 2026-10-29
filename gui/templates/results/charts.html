@@ -126,6 +126,23 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     </div>
   </div>
 
+  <!-- Results by Tester (aggregate across builds) - Refs #1972. -->
+  <div class="section" id="secTester">
+    <div class="section-head">
+      <i class="fa fa-user-check"></i>
+      <span data-i18n="charts.resultsByTester">Results by Tester</span>
+      <!-- Refs #1972: at-a-glance stacked chart of the latest execution result
+           per test-case version + platform, grouped by the tester who
+           recorded it (all builds). The per-build table lives in the
+           Results by Tester per Build report. -->
+      <a class="sec-link" id="linkObc" href="#" target="_blank"
+         data-i18n="charts.openOwnerBarChart">Open Results by Tester Bar Chart</a>
+    </div>
+    <div class="section-body">
+      <p data-i18n="charts.resultsByTesterHint" style="margin:0;color:#666;font-size:13px;">Latest execution result per tester, across all builds, with pass rate and CSV export.</p>
+    </div>
+  </div>
+
   <!-- Results by Top-Level Suite Bar -->
   <div class="section" id="secSuite">
     <div class="section-head">
@@ -239,6 +256,17 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
       $pbc.attr('href', '#').css('display', 'none');
     }
   }
+  // Refs #1972: the standalone Results by Tester Bar Chart report.
+  var $obc = $('#linkObc');
+  if ($obc.length) {
+    if (tplan_id) {
+      $obc.attr('href', '/gui/templates/results/ownerBarChart.html?tplan_id=' + tplan_id
+        + '&tproject_id=' + tproject_id);
+    } else {
+      $obc.attr('href', '#').css('display', 'none');
+    }
+  }
+
   // Refs #1905: the standalone Top Level Suites Bar Chart report.
   var $tlsbc = $('#linkTlsbc');
   if ($tlsbc.length) {

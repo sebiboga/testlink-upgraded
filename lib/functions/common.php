@@ -2836,6 +2836,13 @@ function getActions(&$gui,$baseURL) {
     // inside the tplan_id guard.
     $actions->keywordBarChart =
       "/gui/templates/results/keywordBarChart.html?{$ctx}";
+    // Refs #1972: Results by Tester Bar Chart (net-new standalone chart for
+    // the 'ownerBarChart' / results_by_tester dimension that cfg/const.inc.php
+    // still declares but the Charts hub never exposed). Backed by
+    // api/ownerbarchart, which enforces testplan_metrics on the OWNING project
+    // + plan. Plan-scoped report -> inside the tplan_id guard.
+    $actions->ownerBarChart =
+      "/gui/templates/results/ownerBarChart.html?{$ctx}";
     // Refs #1906: Overll Metrics by Platform report (legacy
     // lib/results/platformPieChart.php: a pChart PNG endpoint that drew ONE
     // status pie per platform_id, never rendered a Smarty template and checked

@@ -46090,3 +46090,74 @@ BFF: `api/workarea/index.php`.
    resolves to `/gui/templates/general/workArea.html?{ctx}`. Event Viewer shows no new
    ERROR/WARNING rows from this run.  
    Result: PASS
+
+## Issue #1972 - Results by Tester Bar Chart (ownerBarChart)
+
+Screen: `gui/templates/results/ownerBarChart.html` (linked from the Charts hub
+section "Results by Tester"); BFF: `api/ownerbarchart/index.php`.
+Fixture: project 100 "OBC Project", plan 400 "OBC Plan", two testers, three
+assigned test-case versions, builds 500/501; latest executions: admin passed
+(1), tester2 failed (1), unattributed passed (1).
+
+1. **TC1972-001 - Aggregate chart and context**  
+   As admin the header reads "Results by Tester Bar Chart"; context shows
+   OBC Project / OBC Plan / 2 testers / 3 latest executions / 1 without tester.
+   Two stacked bars (Testlink Administrator 1 passed, Tina Tester 1 failed),
+   each with pass-rate text; the totals row is 3 / 2 / 1 / 0 / 66.7%. Document
+   title and footer resolve from the bundle (no raw keys).  
+   Result: PASS
+
+2. **TC1972-002 - Latest execution per version+platform across builds**  
+   Version 301 has build-500 admin pass then build-501 tester2 fail; only the
+   tester2 failure is counted. Version 311 has build-500 tester2 blocked then
+   build-501 admin pass; only admin's pass is counted. Version 321 has a single
+   tester-less pass, surfaced as "Without tester" = 1 and never drawn as a fake
+   tester bar. `testers=2`, `executions=3`.  
+   Result: PASS
+
+3. **TC1972-003 - Charts hub integration**  
+   `charts.html?tplan_id=400&tproject_id=100` renders the new "Results by
+   Tester" section; its link is
+   `/gui/templates/results/ownerBarChart.html?tplan_id=400&tproject_id=100`.
+   With no plan id the link is hidden. The screen's "All charts" button returns
+   to the hub with the same query string.  
+   Result: PASS
+
+4. **TC1972-004 - CSV export and empty state**  
+   Export CSV downloads `results-by-tester-tplan-400.csv` with a BOM, the six
+   localized headers, one line per tester and a totals line; toast confirms the
+   download. Plan 401 (no executions) renders "Nothing to plot" + the
+   explanatory body, hides the chart and leaves the table empty (HTTP 200,
+   `items: []`, `can_draw: false`).  
+   Result: PASS
+
+5. **TC1972-005 - Rights gating**  
+   As `norights` (role 3) → 403 `no_right`, screen shows "Access denied" and
+   the exact `testplan_metrics` requirement. Anonymous → 401
+   `not_authenticated`. The plan is resolved before the right check, so a
+   missing plan yields 404 `tplan_not_found`, never a right oracle.  
+   Result: PASS
+
+6. **TC1972-006 - Request validation**  
+   Missing / non-numeric / zero `tplan_id` → 400 `invalid_request`; unknown
+   `action` → 400; `tplan_id=400&tproject_id=999` → 404 `project_mismatch`;
+   `tplan_id=999` → 404 `tplan_not_found`; `POST` → 405
+   `method_not_allowed` with `Allow: GET, HEAD` (checked before the CSRF guard).  
+   Result: PASS
+
+7. **TC1972-007 - i18n**  
+   `obc.*` (45 keys) + `charts.resultsByTester`,
+   `charts.openOwnerBarChart`, `charts.resultsByTesterHint` and
+   `footers.ownerBarChart` exist in all 10 client bundles; `?locale=ro` renders
+   "Grafic cu rezultate pe tester", "Reîmprospătare", "Toate graficele",
+   "Contextul raportului" with no raw keys. `bash ai/verify_i18n_coverage.sh`
+   passes 9/9 with 0 missing.  
+   Result: PASS
+
+8. **TC1972-008 - Wiring, console and Event Viewer**  
+   `$actions->ownerBarChart` resolves to
+   `/gui/templates/results/ownerBarChart.html?{ctx}`; PHP lint clean. Browser
+   console has no errors on populated, empty and RO loads. Event Viewer shows
+   only the intentional `no_right` audit ERROR from TC1972-005 (same tLog policy
+   as the sibling chart BFFs), no unexpected WARNING/ERROR.  
+   Result: PASS
