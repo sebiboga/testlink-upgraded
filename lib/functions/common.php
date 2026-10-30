@@ -2659,6 +2659,16 @@ function getActions(&$gui,$baseURL) {
   $actions->execDuration =
     "/gui/templates/results/execDuration.html?{$ctx}";
 
+  // Refs #1976: Test Plan Attachment Inventory report (net-new screen). 1.9.20
+  // only lists the attachments of one object at a time; this screen aggregates
+  // every file carried by the plan, its linked test cases, their versions and
+  // steps, and its executions (size, MIME type, upload date, download link).
+  // Backed by the api/attachmentinventory BFF (action init), which enforces
+  // testplan_metrics on the owning project+plan. Reachable from the Reports
+  // menu (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->attachmentInventory =
+    "/gui/templates/results/attachmentInventory.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

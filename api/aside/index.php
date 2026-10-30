@@ -285,6 +285,11 @@ if ($tplan_id > 0) {
                 // (recorded execution minutes, slowest versions, throughput).
                 $hrefR = '/gui/templates/results/execDuration.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_attachment_inventory') {
+                // Refs #1976: Test Plan Attachment Inventory (every file on the
+                // plan, its test cases/versions/steps and its executions).
+                $hrefR = '/gui/templates/results/attachmentInventory.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

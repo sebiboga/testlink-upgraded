@@ -514,6 +514,18 @@ $tlCfg->reports_list['exec_duration'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1976: Test Plan Attachment Inventory (net-new screen). 1.9.20 only
+// lists the attachments of ONE object at a time; nothing aggregates every file
+// carried by the artifacts of a test plan (plan, linked test cases, their
+// versions and steps, executions). The BFF action 'init' enforces
+// testplan_metrics; directLink is empty (HTML only).
+$tlCfg->reports_list['attachment_inventory'] = array(
+	'title' => 'link_report_attachment_inventory',
+	'url' => 'gui/templates/results/attachmentInventory.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',
