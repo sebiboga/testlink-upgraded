@@ -46337,3 +46337,62 @@ Environment: http://localhost:8082, admin/admin, locale EN.
 **Result: 15/15 PASS.** Screenshots:
 `docs/screenshots/issue-1975-execduration-normal.png`,
 `docs/screenshots/issue-1975-execduration-filtered.png`.
+
+
+## Issue #1976 — Test Plan Attachment Inventory (attachmentInventory)
+
+Net-new read-only report aggregating every attachment carried by a test plan's
+artifacts: the plan itself (`testplans`), its linked test cases/versions
+(`tcversions`, where the test-case/version attachment dialog stores files),
+steps (`tcsteps`) and executions (`executions`). Screen:
+`gui/templates/results/attachmentInventory.html`; BFF:
+`api/attachmentinventory/index.php`. Fixture: `tmp/fixtures_1976.php`.
+Environment: http://localhost:8082, admin/admin, locale EN + RO.
+
+### Setup
+1. `php tmp/fixtures_1976.php` (creates tproject `AII1976` with plan `AI Plan`,
+   the empty project `AII1976 EMPTY` with `AE Plan`, user `ainorights`, and
+   five real files under `upload_area/ai1976/`).
+2. Re-read the ids printed by the fixture (they change on every run; this run:
+   project 40 / plan 42, empty project 41 / empty plan 43, attachments 11–15).
+3. Open `/gui/templates/results/attachmentInventory.html?tproject_id=40&tplan_id=42`.
+
+| # | Check | Expected | Result |
+| --- | --- | --- | --- |
+| 1 | `GET ?action=init&tplan_id=42` authenticated | 200, context `AI Plan` / `AII1976`, 5 items, total 5, bytes 300544, each `by_type` = 1 | PASS |
+| 2 | Row resolution | plan → `AI Plan`; tcversion → `AI Case Attached v1`; step → `AI Case Attached v1 / 1`; execution → `AI Build 1 / Passed / admin` | PASS |
+| 3 | Empty plan (`tplan_id=43`) | 200, `items: []`, `totals.total=0`, `bytes=0`; screen shows "No attachments" card + zero KPIs | PASS |
+| 4 | Unknown plan | 404 `tplan_not_found` | PASS |
+| 5 | Cross-project assertion (`tplan_id=42&tproject_id=41`) | 404 `project_mismatch`, no data leaked | PASS |
+| 6 | Unknown action | 400 `invalid_request` | PASS |
+| 7 | POST with same-origin header | 405 `method_not_allowed` | PASS |
+| 8 | No session | 401 `not_authenticated`; screen redirects to login / denied card | PASS |
+| 9 | User without `testplan_metrics` (`ainorights`) | 403 `no_right`; browser shows "Access denied" card + `no_right` chip | PASS |
+| 10 | CSV export (admin, 5 rows) | BOM bytes `EF BB BF`, 6 CRLF lines, localized header, 5 data rows | PASS |
+| 11 | Object-type filter = Test case | exactly 1 row (`ai-case-spec.txt`), DataTable info "1 to 1 of 1" | PASS |
+| 12 | i18n EN → RO switch | title/subtitle/toolbar/KPIs/table/headers/empty + denied cards translated, no raw keys | PASS |
+| 13 | Download link (`/api/attachments/...&id=11`) | 200, `application/pdf`, 24576 bytes (owner rights enforced by the attachment API) | PASS |
+| 14 | Missing context (`?` without `tplan_id`) | warn card "Bad request" + `tplan_id` code chip, no API call | PASS |
+| 15 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` → 9/9 PASS incl. 48 `ai.*` keys + `footers.attachmentInventory` | PASS |
+| 16 | Console + Event Viewer | No JS console errors; only the intentional `no_right` probe logs an Error, plus this run's transient pre-fix SQL/label iterations (fixed, not reproducible on final code) | PASS |
+
+### Test execution
+- [PASS] TC-#1976-01 .. TC-#1976-16 — 16/16 PASS.
+- [FAIL→FIX] first fixture draft used `compression_type=0` and `NULL` `file_path`
+  → download 404; switched to the real FS repository layout (`upload_area/ai1976/`,
+  `compression_type=1`, matching `file_size`).
+- [FAIL→FIX] `tcversions` has no `testcase_id`/`tcsteps` no `tcversion_id`
+  column; both are `nodes_hierarchy` nodes (version parent = test case; step
+  parent = version) — query rewritten.
+- [FAIL→FIX] execution status label used the `p/f/b/n` code as the
+  `status_label` key (`LOCALIZE: test_status_p`); mapped to the verbose names.
+- Fixture ids change on every re-run; re-read them before testing.
+
+### Notes
+- The test-case / test-case-version attachment dialog stores its files with
+  `fk_table='tcversions'` (`testcase.class.php:123`), so the version bucket is
+  the primary test-case bucket; the `testcases` bucket is kept for legacy rows.
+- Test suites are project-scoped, not plan-scoped, and stay out of this report.
+- The download URL re-checks the attachment owner's rights
+  (`api/attachments/index.php`), so the inventory itself only enforces
+  `testplan_metrics`.
