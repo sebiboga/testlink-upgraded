@@ -2871,3 +2871,4 @@ $TLS_title_a11y_scans = "Результаты проверки доступно�
 $TLS_link_report_build_comparison = "Сравнение сборок тест-плана"; // Test Plan Build Comparison report (Refs #1962)
 $TLS_link_report_platform_comparison = "Сравнение платформ тест-плана"; // Test Plan Platform Comparison report (Refs #1963)
 $TLS_link_report_exec_burndown = "Burndown выполнения"; // Test Plan Execution Burn-down (Refs #1973)
+$TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test Execution Duration & Throughput (Refs #1975)

@@ -46301,3 +46301,39 @@ edge project 155 / plan 157 / builds 9,10 / platform 4). Admin login via `login.
 ### Notes
 - Coverage filter is client-side on a hidden DataTables column so it composes with the search box and does not refetch.
 - The detail grid is intentionally `div`-based; do not reintroduce a nested `<table>` inside `#dtReqs`.
+
+
+## Issue #1975 — Test Execution Duration & Throughput report (execDuration)
+
+Modernized screen: `gui/templates/results/execDuration.html` + BFF
+`api/execduration/index.php`. Net-new report over `executions.execution_duration`
+(minutes). Fixture: `tmp/fixtures_1953.php` (plan 4) with durations seeded via
+SQL (`execution_duration = id * 15`, `execution_ts = NOW() - id days`).
+Environment: http://localhost:8082, admin/admin, locale EN.
+
+### Setup
+1. `php tmp/fixtures_1953.php` (creates tproject ECV1953 / plan EV Plan = id 4).
+2. `UPDATE executions SET execution_duration = id*15, execution_ts = DATE_SUB(NOW(), INTERVAL id DAY) WHERE testplan_id=4;`
+3. Log in as admin and open `/gui/templates/results/execDuration.html?tplan_id=4&tproject_id=1`.
+
+| # | Check | Expected | Result |
+| --- | --- | --- | --- |
+| 1 | `GET ?action=init&tplan_id=4` authenticated | 200, context EV Plan / ECV1953, builds 1–2, platform 1, defaults window 30 / slow 30 | PASS |
+| 2 | `GET ?action=report&tplan_id=4` | 200, 7 executions, 7 timed, coverage 100%, total 420 min, avg 60, median 60, P90 105, min 15, max 105, throughput 0.23, 4 slow versions, 1 tester | PASS |
+| 3 | Rows order | Slowest average first (EV Fail 67.5, EV Pass 65, EV Blocked 60, EV Pass 2 30) | PASS |
+| 4 | Build filter (EV Build 2) | 1 execution, 105 min, 1 slow version, per-build table shows only build 2 | PASS |
+| 5 | Platform filter (EV Platform 1) | 2 executions, rows EV Pass / EV Fail only | PASS |
+| 6 | Window filter (7 days) | Only executions within the last 7 days are counted | PASS |
+| 7 | Slow threshold (120 min) | Slow versions KPI becomes 0, banner switches to the normal state | PASS |
+| 8 | CSV export | File downloads, 4 data rows, header localized, BOM present | PASS |
+| 9 | No session | HTTP 401 `not_authenticated`, localized denied card | PASS |
+| 10 | Unknown plan / project mismatch | HTTP 404 `tplan_not_found` / `project_mismatch`, not-found card | PASS |
+| 11 | Invalid `window_days=abc` / `window_days=999` | HTTP 400 `invalid_request` | PASS |
+| 12 | User without `testplan_metrics` (ecvnorights) | HTTP 403 `no_right`, no data leaked | PASS |
+| 13 | i18n (EN + RO switch) | All labels/headers/state cards translated, no raw keys | PASS |
+| 14 | Console + Event Viewer | No JS errors; 0 new Error/Warning rows | PASS |
+| 15 | i18n coverage gate | `bash ai/verify_i18n_coverage.sh` → 9/9 PASS | PASS |
+
+**Result: 15/15 PASS.** Screenshots:
+`docs/screenshots/issue-1975-execduration-normal.png`,
+`docs/screenshots/issue-1975-execduration-filtered.png`.

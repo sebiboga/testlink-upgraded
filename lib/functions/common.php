@@ -2646,6 +2646,19 @@ function getActions(&$gui,$baseURL) {
   $actions->execBurnDown =
     "/gui/templates/results/execBurnDown.html?{$ctx}";
 
+  // Refs #1975 / #1073: Test Execution Duration & Throughput report (net-new
+  // screen). TestLink 1.9.20 stores the actual duration of every execution
+  // (executions.execution_duration, minutes) but no screen reports it: the
+  // history of a test case shows one run at a time and every report aggregates
+  // STATUS only. This report aggregates the recorded durations (avg / median /
+  // p90 / min / max / total), the per-day throughput and the slowest versions
+  // over a rolling window. Backed by the api/execduration BFF (init/report
+  // actions), which enforces testplan_metrics on the owning project.
+  // Reachable from the Reports menu (cfg/reports.cfg.php entry + api/aside
+  // mapping) and via this action.
+  $actions->execDuration =
+    "/gui/templates/results/execDuration.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

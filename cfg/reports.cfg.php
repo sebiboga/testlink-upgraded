@@ -499,6 +499,21 @@ $tlCfg->reports_list['exec_burndown'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1975 / #1073: Test Execution Duration & Throughput report (net-new
+// screen). 1.9.20 stores the actual duration of every execution
+// (executions.execution_duration, minutes) but no screen reports it: the
+// history of a test case shows one run at a time and every report aggregates
+// STATUS only. This report aggregates the recorded durations (avg / median /
+// p90 / min / max / total), the per-day throughput and the slowest versions
+// over a rolling window. The BFF action 'report' enforces testplan_metrics;
+// directLink is empty (HTML only).
+$tlCfg->reports_list['exec_duration'] = array(
+	'title' => 'link_report_exec_duration',
+	'url' => 'gui/templates/results/execDuration.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

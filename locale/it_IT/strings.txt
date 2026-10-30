@@ -2475,3 +2475,4 @@ $TLS_title_a11y_scans = "Risultati delle scansioni di accessibilità Koa11y"; //
 $TLS_link_report_build_comparison = "Confronto build del piano di test"; // Test Plan Build Comparison report (Refs #1962)
 $TLS_link_report_platform_comparison = "Confronto piattaforme del piano di test"; // Test Plan Platform Comparison report (Refs #1963)
 $TLS_link_report_exec_burndown = "Burndown di esecuzione"; // Test Plan Execution Burn-down (Refs #1973)
+$TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test Execution Duration & Throughput (Refs #1975)

@@ -280,6 +280,11 @@ if ($tplan_id > 0) {
                 // assignments vs remaining-to-run over time).
                 $hrefR = '/gui/templates/results/execBurnDown.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_duration') {
+                // Refs #1975 / #1073: Test Execution Duration & Throughput
+                // (recorded execution minutes, slowest versions, throughput).
+                $hrefR = '/gui/templates/results/execDuration.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .
