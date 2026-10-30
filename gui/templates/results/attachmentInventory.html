@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="ai.title">Test Plan Attachment Inventory</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; flex: 0 0 auto; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0 4px 0 0; }
+.toolbar select { background: #2d3038; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #34373f; color: #eee; border: 1px solid #4a4d55; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-dl { display: inline-block; background: #eef7f7; color: #167d76; border: 1px solid #bfe6e3; border-radius: 4px; padding: 3px 10px; font-size: 12px; text-decoration: none; }
+.btn-dl:hover { background: #4ECDC4; color: #fff; border-color: #4ECDC4; text-decoration: none; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 18px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 16px 18px; border-left: 4px solid #4ECDC4; }
+.kpi .k { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+.kpi .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 6px; }
+.kpi .v small { font-size: 12px; font-weight: 400; color: #999; }
+.panel { margin: 18px 24px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel h3 { margin: 0; padding: 12px 18px; font-size: 14px; color: #22242a; background: #f7f7f7; border-bottom: 1px solid #eee; }
+.panel h3 i { color: #4ECDC4; margin-right: 7px; }
+.ctx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; padding: 16px 18px; }
+.ctx-item .k { display: block; font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: .4px; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #aaa; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 18px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.fname { font-weight: 600; color: #22242a; word-break: break-all; }
+.mono { font-family: monospace; font-size: 11px; color: #888; }
+.badge-type { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
+.badge-type.testplans { background: #3a7bd5; }
+.badge-type.testcases { background: #2f9e44; }
+.badge-type.tcversions { background: #8e6bd4; }
+.badge-type.tcsteps { background: #e6b34d; color: #3c2f0b; }
+.badge-type.executions { background: #e05c5c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ddd; border-radius: 4px; padding: 3px 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ai.title">Test Plan Attachment Inventory</span>
+  <span class="sub" data-i18n="ai.subtitle">every file attached to the plan's artifacts</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="ai.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="ai.exportCsv">Export CSV</span></button>
+  <label for="typeFilter" data-i18n="ai.typeFilter">Object type</label>
+  <select id="typeFilter"><option value="" data-i18n="ai.typeAll">All objects</option></select>
+  <span class="spacer"></span>
+  <a class="btn-dark" id="backCharts" href="/gui/templates/results/charts.html"><i class="fa fa-arrow-left"></i> <span data-i18n="ai.backReports">Reports</span></a>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="ai.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="ai.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="ai.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="ai.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="k" data-i18n="ai.kpiTotal">Attachments</div><div class="v" id="kpiTotal">0</div></div>
+    <div class="kpi"><div class="k" data-i18n="ai.kpiBytes">Total size</div><div class="v" id="kpiBytes">0 B</div></div>
+    <div class="kpi"><div class="k" data-i18n="ai.kpiTypes">Object types</div><div class="v" id="kpiTypes">0</div></div>
+    <div class="kpi"><div class="k" data-i18n="ai.kpiLatest">Latest upload</div><div class="v" id="kpiLatest" style="font-size:15px;">&mdash;</div></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <thead>
+        <tr>
+          <th data-i18n="ai.colFile">File</th>
+          <th data-i18n="ai.colType">Object type</th>
+          <th data-i18n="ai.colObject">Attached to</th>
+          <th data-i18n="ai.colTitle">Title</th>
+          <th data-i18n="ai.colSize">Size</th>
+          <th data-i18n="ai.colMime">MIME type</th>
+          <th data-i18n="ai.colAdded">Added</th>
+          <th data-i18n="ai.colActions">Download</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.attachmentInventory"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/attachmentinventory/index.php';
+var currentData = null;
+var dt = null;
+var TYPE_LABEL = {
+  testplans: 'ai.typeTestplans',
+  testcases: 'ai.typeTestcases',
+  tcversions: 'ai.typeTcversions',
+  tcsteps: 'ai.typeTcsteps',
+  executions: 'ai.typeExecutions'
+};
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function typeLabel(code) {
+  return TLi18n.t(TYPE_LABEL[code] || code);
+}
+
+function fmtDate(value) {
+  if (!value) { return '-'; }
+  var d = new Date(value);
+  if (isNaN(d.getTime())) { return value; }
+  try {
+    return d.toLocaleString(document.documentElement.lang || undefined);
+  } catch (e) {
+    return d.toISOString().slice(0, 16).replace('T', ' ');
+  }
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated:  { cls: 'deny', title: 'ai.deniedTitle',    body: 'ai.deniedBody' },
+    session_expired:    { cls: 'deny', title: 'ai.deniedTitle',    body: 'ai.expiredBody' },
+    no_right:           { cls: 'deny', title: 'ai.deniedTitle',    body: 'ai.noRightBody' },
+    tplan_not_found:    { cls: 'warn', title: 'ai.notFoundTitle',  body: 'ai.notFoundBody' },
+    project_mismatch:   { cls: 'warn', title: 'ai.notFoundTitle',  body: 'ai.mismatchBody' },
+    invalid_request:    { cls: 'warn', title: 'ai.badRequestTitle', body: 'ai.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'ai.badRequestTitle', body: 'ai.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'ai.serverErrorTitle', body: 'ai.serverErrorBody' };
+    if (rawMessage) {
+      detail = '<div class="code">' + esc(rawMessage) + '</div>';
+    }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function showState(html) {
+  $('#report').hide();
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  $('#report').hide();
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('ai.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function renderContext(data) {
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+}
+
+function renderKpis(data) {
+  var t = data.totals || {};
+  var typesUsed = 0;
+  $.each(data.types || [], function (i, ty) { if (parseInt(ty.count, 10) > 0) { typesUsed++; } });
+  $('#kpiTotal').text(parseInt(t.total, 10) || 0);
+  $('#kpiBytes').text(parseInt(t.bytes, 10) > 0 ? humanSize(parseInt(t.bytes, 10)) : '0 B');
+  $('#kpiTypes').text(typesUsed);
+  var latest = null;
+  $.each(data.items || [], function (i, it) {
+    if (!latest || String(it.date_added) > String(latest.date_added)) { latest = it; }
+  });
+  $('#kpiLatest').text(latest ? fmtDate(latest.date_added) : TLi18n.t('ai.kpiNone'));
+}
+
+function humanSize(bytes) {
+  bytes = Math.max(0, parseInt(bytes, 10) || 0);
+  if (bytes < 1024) { return bytes + ' B'; }
+  var units = ['KiB', 'MiB', 'GiB', 'TiB'];
+  var v = bytes / 1024, i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return (Math.round(v * 10) / 10) + ' ' + units[i];
+}
+
+function renderTypeFilter(data) {
+  var counts = {};
+  $.each(data.types || [], function (i, ty) { counts[ty.code] = parseInt(ty.count, 10) || 0; });
+  var html = '<option value="">' + esc(TLi18n.t('ai.typeAll')) + '</option>';
+  $.each(TYPE_LABEL, function (code, key) {
+    html += '<option value="' + esc(code) + '">' + esc(TLi18n.t(key))
+         + ' (' + (counts[code] || 0) + ')</option>';
+  });
+  $('#typeFilter').html(html).val('');
+}
+
+function filteredItems() {
+  if (!currentData) { return []; }
+  var wanted = $('#typeFilter').val();
+  return $.grep(currentData.items || [], function (it) {
+    return !wanted || it.object_type === wanted;
+  });
+}
+
+function renderTable(items) {
+  var rows = '';
+  $.each(items, function (i, it) {
+    rows += '<tr>'
+      + '<td><div class="fname">' + esc(it.file_name) + '</div>'
+      + (it.description ? '<div class="mono">' + esc(it.description) + '</div>' : '') + '</td>'
+      + '<td><span class="badge-type ' + esc(it.object_type) + '">' + esc(typeLabel(it.object_type)) + '</span></td>'
+      + '<td>' + esc(it.object_name) + '</td>'
+      + '<td>' + esc(it.title || '-') + '</td>'
+      + '<td style="white-space:nowrap;">' + esc(it.file_size_human) + '</td>'
+      + '<td><span class="mono">' + esc(it.file_type || '-') + '</span></td>'
+      + '<td style="white-space:nowrap;">' + esc(fmtDate(it.date_added)) + '</td>'
+      + '<td><a class="btn-dl" href="' + esc(it.download_url) + '" target="_blank" rel="noopener">'
+      + '<i class="fa fa-download"></i> ' + esc(TLi18n.t('ai.download')) + '</a></td>'
+      + '</tr>';
+  });
+
+  if (dt) {
+    dt.destroy();
+    dt = null;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true,
+    pageLength: 25,
+    ordering: true,
+    info: true,
+    searching: true,
+    order: [[6, 'desc']],
+    language: { emptyTable: TLi18n.t('ai.emptyTable'), zeroRecords: TLi18n.t('ai.emptyTable') }
+  });
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('ai.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('ai.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+
+  showLoading();
+  var params = new URLSearchParams({ action: 'init', tplan_id: tplanId });
+  var asserted = q('tproject_id');
+  if (asserted && /^[0-9]+$/.test(String(asserted))) { params.set('tproject_id', asserted); }
+
+  $.ajax({
+    url: API,
+    method: 'GET',
+    data: params.toString(),
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    renderContext(data);
+    renderKpis(data);
+    renderTypeFilter(data);
+    $('#stateBox').html('');
+    $('#report').show();
+    if (!data.items || data.items.length === 0) {
+      $('#tbl tbody').html('');
+      if (dt) { dt.destroy(); dt = null; }
+      $('#stateBox').html('<div class="state"><h4>' + esc(TLi18n.t('ai.emptyTitle'))
+        + '</h4><div>' + esc(TLi18n.t('ai.emptyBody')) + '</div></div>');
+      return;
+    }
+    renderTable(data.items);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+function exportCsv() {
+  var items = filteredItems();
+  if (!items.length) {
+    toast(TLi18n.t('ai.nothingToExport'), 'err');
+    return;
+  }
+  var head = [TLi18n.t('ai.colFile'), TLi18n.t('ai.colType'), TLi18n.t('ai.colObject'),
+    TLi18n.t('ai.colTitle'), TLi18n.t('ai.colSize'), TLi18n.t('ai.colMime'),
+    TLi18n.t('ai.colAdded')];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, cell).join(';')];
+  $.each(items, function (i, it) {
+    lines.push($.map([it.file_name, typeLabel(it.object_type), it.object_name,
+      it.title, it.file_size_human, it.file_type, it.date_added], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'attachment-inventory-tplan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('ai.csvDone'), 'ok');
+}
+
+$(function () {
+  $('#backCharts').attr('href', '/gui/templates/results/charts.html' + window.location.search);
+  $('#btnRefresh').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () { window.close(); });
+  $('#typeFilter').on('change', function () {
+    if (currentData) { renderTable(filteredItems()); }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>
