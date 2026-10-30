@@ -288,7 +288,11 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 $whereExec = "e.testplan_id = " . intval($tplanId) .
     " AND e.execution_ts IS NOT NULL" .
-    " AND e.execution_ts >= DATE_SUB(NOW(), INTERVAL " . intval($windowDays) . " DAY)";
+    " AND e.execution_ts >= DATE_SUB(NOW(), INTERVAL " . intval($windowDays) . " DAY)" .
+    // Only versions CURRENTLY linked to the plan: an execution that survives
+    // an un-assignment must not resurrect the version in this plan's report.
+    " AND e.tcversion_id IN (SELECT tpt.tcversion_id FROM {$tbl['testplan_tcversions']} tpt" .
+    " WHERE tpt.testplan_id = " . intval($tplanId) . ")";
 if ($buildId > 0) {
     $whereExec .= " AND e.build_id = " . intval($buildId);
 }
@@ -342,7 +346,11 @@ if (is_array($execRs)) {
             default:  $perVersion[$tcv]['last_status'] = 'not_run'; break;
         }
         if ($bid > 0) { $perVersion[$tcv]['builds'][$bid] = true; }
-        if (intval($r['tester_id']) > 0) { $perVersion[$tcv]['testers'][intval($r['tester_id'])] = true; }
+        $testerId = intval($r['tester_id']);
+        if ($testerId > 0) {
+            $perVersion[$tcv]['testers'][$testerId] = true;
+            $testers[$testerId] = true;
+        }
 
         if (!isset($perBuild[$bid])) {
             $perBuild[$bid] = array('executions' => 0, 'timed' => 0, 'sum' => 0.0);
@@ -353,7 +361,6 @@ if (is_array($execRs)) {
             $timedExecutions++;
             $totalMinutes += $dur;
             $durations[] = $dur;
-            $testers[intval($r['tester_id'])] = true;
 
             $perVersion[$tcv]['timed']++;
             $perVersion[$tcv]['sum'] += $dur;
@@ -383,7 +390,7 @@ $summary = array(
     'min_minutes' => $timedExecutions > 0 ? edRound($durations[0], 2) : 0.0,
     'max_minutes' => $timedExecutions > 0 ? edRound($durations[count($durations) - 1], 2) : 0.0,
     'throughput_per_day' => edRound($totalExecutions / $windowDays, 2),
-    'testers' => count(array_filter(array_keys($testers), function ($k) { return $k > 0; })),
+    'testers' => count($testers),
     'passed' => $statusCount['passed'],
     'failed' => $statusCount['failed'],
     'blocked' => $statusCount['blocked'],
@@ -466,7 +473,9 @@ foreach ($perVersion as $tcv => $v) {
         'tcase_name' => $m['tcase_name'],
         'external_id' => $m['external_id'],
         'version' => $m['version'],
-        'external_full' => ($prefix !== '' ? $prefix . '-' : '') . $m['external_id'],
+        'external_full' => ($m['external_id'] > 0
+            ? (($prefix !== '' ? $prefix . '-' : '') . $m['external_id'])
+            : ''),
         'suite_path' => $m['tcase_node_id'] > 0 ? ($suitePaths[$m['tcase_node_id']] ?? '') : '',
         'executions' => $v['executions'],
         'timed' => $v['timed'],

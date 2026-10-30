@@ -448,7 +448,8 @@ function load() {
   params.window_days = $('#selWindow').val() || '30';
   params.slow_min = $('#selSlow').val() || '30';
 
-  $.ajax({ url: API, data: params, dataType: 'json', cache: false })
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .done(function (data) {
       if (!data || data.status !== 'ok') {
         showState(stateFor(data && data.code, 200, data && data.message));
@@ -467,9 +468,7 @@ function load() {
     .fail(function (xhr) {
       var payload = null;
       try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
-      var code = payload && payload.code ? payload.code : ('http_' + xhr.status);
       showState(stateFor(payload && payload.code, xhr.status, payload && payload.message));
-      if (!payload) { $('#stateBox').find('.code').text(code); }
     });
 }
 
@@ -480,7 +479,8 @@ function loadInit() {
   var params = { action: 'init', tplan_id: tplanId };
   var tprojectId = q('tproject_id');
   if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
-  $.ajax({ url: API, data: params, dataType: 'json', cache: false })
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .done(function (data) {
       if (!data || data.status !== 'ok') {
         showState(stateFor(data && data.code, 200, data && data.message));
@@ -498,6 +498,8 @@ function loadInit() {
 
 function csvCell(v) {
   var s = String(v === null || v === undefined ? '' : v);
+  // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR).
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
   return '"' + s.replace(/"/g, '""') + '"';
 }
 
@@ -530,7 +532,10 @@ $(function () {
   $('#btnRefresh').on('click', load);
   $('#btnApply').on('click', load);
   $('#btnCsv').on('click', exportCsv);
-  $('#btnClose').on('click', function () { window.close(); });
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
   TLi18n.load(function () {
     TLi18n.apply();
     document.title = TLi18n.t('execDuration.title') + ' - TestLink 2.0.1';

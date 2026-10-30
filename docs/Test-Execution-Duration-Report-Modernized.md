@@ -63,7 +63,9 @@ Error contract: `not_authenticated` (401), `no_right` (403),
 - `execution_duration` is the **actual** duration in minutes. A `NULL` or `0`
   duration means "not recorded" and is excluded from the duration maths but
   still counts for throughput and status distribution.
-- The unit of the table is the test-case **version** (`tcversion_id`).
+- The unit of the table is the test-case **version** (`tcversion_id`); only
+  versions currently linked to the plan (`testplan_tcversions`) are considered,
+  so an execution that survives an un-assignment cannot resurrect a version.
 - A version is **slow** when its average recorded duration is at least
   `slow_min` minutes.
 
