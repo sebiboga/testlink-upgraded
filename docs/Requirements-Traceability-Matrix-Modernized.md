@@ -54,7 +54,9 @@ build shadows an earlier one.
 ## Toolbar actions
 
 * **Platform / Build** selects (`[Any]` = `0`) — re-fetch the matrix on **Apply**.
-* **Export CSV** — client-side CSV of the current matrix rows (Req ID, Requirement, Spec, Linked TCs, Executed, Passed, Defects, Coverage, orphan flag), correctly quoted, UTF-8.
+* **Coverage** select — client-side filter (`All` / `covered` / `partial` / `uncovered` / `orphan`)
+  applied through a hidden DataTables column, so it combines with the search box and does not re-fetch.
+* **Export CSV** — client-side CSV of the current matrix rows (Req ID, Requirement, Spec, Linked TCs, Executed, Passed, Defects, Coverage, orphan flag), correctly quoted, UTF-8 **with BOM**, and spreadsheet-formula characters (`= + - @`, tab/CR) neutralised.
 
 ## States
 
@@ -62,6 +64,7 @@ build shadows an earlier one.
 * **Requirements disabled** for the project → info message "Requirements are not enabled for this test project.", no table (BFF returns `requirements_enabled: false`).
 * **No requirements** → empty panel.
 * **403** (user lacks `testplan_metrics`) → error card "Missing rights: testplan_metrics" with machine code chip; **401** for anonymous. Both are JSON from the BFF surfaced by the screen's Ajax error handler.
+* **401 / `session_expired`** → the screen redirects to `/login.php?note=expired` (same as the other BFF-backed screens) instead of leaving a dead tab.
 
 ## BFF notes & schema drift
 
@@ -70,10 +73,42 @@ build shadows an earlier one.
 * Rights are proved on the plan's owning project; a supplied `tproject_id` that does not match the plan → `404 project_mismatch` (client-side assertion only).
 * Machine codes: 400 (missing/unknown action or missing plan), 401 (anonymous), 403 (no rights / same-origin guard), 404 (unknown plan / project mismatch), 405 semantics guarded by `bffSameOriginGuard` (foreign or absent Origin → 403), session-based auth + `bffSameOriginGuard` + `bffEnforceSession`.
 
+## Hardening pass (2026-10-30)
+
+A verification pass over the screen found and fixed four defects:
+
+* **Orphan test-case names were empty and the suite column showed the test case.**
+  The orphan query joined `nodes_hierarchy` on `NTC.id = TV.id` (the tcversion
+  node) and took `NTC.parent_id` (the test case) as the suite. It now walks
+  version → test case → suite (`TVN.parent_id` then `NTC.parent_id`), matching
+  the requirement-links query. Regression fixture `tmp/fixtures_1065_edges.php`
+  (project `RTM1065E`) proves `tc_name` / `suite_name` are populated.
+* **DataTables rows were corrupted after a second render when a detail row had
+  been expanded.** The per-requirement detail used a nested `<table><tr>`;
+  DataTables walks `tbody tr` and ingested those nested rows as data rows after
+  re-initialisation, nesting the whole matrix inside the first detail cell.
+  The detail is now rendered with `div` rows (`.tc-detail-grid`), so it is
+  invisible to DataTables.
+* **Session timeout was not enforced.** The BFF now calls
+  `bffEnforceSession($db)` (401 `session_expired`), sends
+  `Cache-Control: no-store`, supports `HEAD`, and returns machine codes on
+  every error (`not_authenticated`, `wrong_method`, `no_testplan`,
+  `unknown_testplan`, `unknown_action`).
+* **CSV hardening.** UTF-8 BOM for Excel and formula-injection neutralisation.
+
+The same pass added the **Coverage** filter and removed ten duplicated
+`setTimeout` blocks that re-applied the DataTables search-input accessibility
+attributes.
+
 ## Verification
 
-See the screenshot set `docs/1065-rtm-*.png` and the test suite
-"Modernize — Issue #1065" in `tmp/TLU_Test_Cases.md` (19 cases, all PASS).
+See the screenshot set `docs/1065-rtm-*.png` and the test suites
+"Modernize — Issue #1065" and "Regression — Issue #1065" in
+`tmp/TLU_Test_Cases.md`.
 Fixture `tmp/fixtures_1065.php` rebuilds a deterministic project (RTM1065/R6)
 with two builds, an orphan requirement, an orphan test case, a defect and a
 failing login test, so the build/config flips are observable end to end.
+Fixture `tmp/fixtures_1065_edges.php` (project `RTM1065E`) adds edge cases:
+an inactive coverage link, a second requirement version, a linked test case
+outside the plan, a real platform, and a second project/plan for the
+`project_mismatch` 404.

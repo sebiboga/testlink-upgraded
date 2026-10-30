@@ -53,9 +53,9 @@ td.spec { color: #667; font-size: 11px; max-width: 190px; word-break: break-word
 .status-dot.not_run { background: #6c757d; }
 .tc-expand { cursor: pointer; color: #4ECDC4; font-size: 11px; white-space: nowrap; }
 .tc-detail { display: none; background: #f9f9f9; padding: 8px 12px; font-size: 11.5px; border-top: 1px solid #eee; }
-.tc-detail table { width: 100%; border-collapse: collapse; }
-.tc-detail th { background: #eef6f5; padding: 3px 8px; text-align: left; font-size: 11px; color: #445; }
-.tc-detail td { padding: 3px 8px; border-bottom: 1px solid #eef1f1; }
+.tc-detail-grid { width: 100%; }
+.tc-detail-row { display: grid; grid-template-columns: minmax(150px, 1.6fr) 40px minmax(110px, 1fr) 60px 120px; gap: 6px; padding: 3px 8px; border-bottom: 1px solid #eef1f1; white-space: normal; word-break: break-word; }
+.tc-detail-head { background: #eef6f5; font-size: 11px; color: #445; font-weight: 600; }
 .orphan-tc { font-size: 12px; padding: 4px 4px; color: #7a6a22; }
 .empty { text-align: center; color: #888; font-size: 14px; padding: 40px 20px; }
 .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
@@ -88,6 +88,13 @@ td.spec { color: #667; font-size: 11px; max-width: 190px; word-break: break-word
   <span style="flex:1"></span>
   <label><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0">[<span data-i18n="rtm.any">Any</span>]</option></select></label>
   <label><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0">[<span data-i18n="rtm.any">Any</span>]</option></select></label>
+  <label><span data-i18n="rtm.coverageFilter">Coverage</span>: <select id="covSel">
+    <option value="" data-i18n="rtm.all">All</option>
+    <option value="covered" data-i18n="rtm.stCovered">covered</option>
+    <option value="partial" data-i18n="rtm.stPartial">partial</option>
+    <option value="uncovered" data-i18n="rtm.stUncovered">uncovered</option>
+    <option value="orphan" data-i18n="rtm.orphanReq">orphan</option>
+  </select></label>
   <button class="btn-teal" id="btnApply"><i class="fa fa-play"></i> <span data-i18n="rtm.apply">Apply</span></button>
   <button class="btn-ghost" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="rtm.exportCsv">Export CSV</span></button>
 </div>
@@ -133,6 +140,7 @@ td.spec { color: #667; font-size: 11px; max-width: 190px; word-break: break-word
           <th data-i18n="rtm.thPassed">Passed</th>
           <th data-i18n="rtm.thDefects">Defects</th>
           <th data-i18n="rtm.thCoverage">Coverage</th>
+          <th class="cov-col" style="display:none;"></th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -186,6 +194,7 @@ function esc(s) {
 }
 
 var state = { rows: [], orphan_tcs: [], summary: null };
+var rtmDt = null;
 
 function statusChip(status) {
   if (!status) return '<span class="status-dot not_run"></span>' + esc(t('rtm.sNotRun', 'not run'));
@@ -265,21 +274,26 @@ function render() {
     $.each(d.rows, function (i, r) {
       var tcCells = '';
       if (r.linked_tcs && r.linked_tcs.length > 0) {
-        tcCells = '<table>' +
-          '<tr><th>' + esc(t('rtm.tcThCase', 'Test case')) + '</th>' +
-          '<th>' + esc(t('rtm.tcThVer', 'Ver')) + '</th>' +
-          '<th>' + esc(t('rtm.tcThSuite', 'Suite')) + '</th>' +
-          '<th>' + esc(t('rtm.tcThPlan', 'In plan')) + '</th>' +
-          '<th>' + esc(t('rtm.tcThResult', 'Latest result')) + '</th></tr>';
+        // IMPORTANT: no nested <table>/<tr> here. DataTables walks tbody rows
+        // and would ingest the nested detail rows as data rows on the next
+        // render (observed as duplicated/corrupted rows). Use divs instead.
+        tcCells = '<div class="tc-detail-grid">' +
+          '<div class="tc-detail-row tc-detail-head">' +
+          '<span>' + esc(t('rtm.tcThCase', 'Test case')) + '</span>' +
+          '<span>' + esc(t('rtm.tcThVer', 'Ver')) + '</span>' +
+          '<span>' + esc(t('rtm.tcThSuite', 'Suite')) + '</span>' +
+          '<span>' + esc(t('rtm.tcThPlan', 'In plan')) + '</span>' +
+          '<span>' + esc(t('rtm.tcThResult', 'Latest result')) + '</span></div>';
         $.each(r.linked_tcs, function (j, tc) {
-          tcCells += '<tr><td>' + esc(tc.tc_external_id || '') + ': ' + esc(tc.name) + '</td>' +
-            '<td>v' + tc.version + '</td>' +
-            '<td>' + esc(tc.suite) + '</td>' +
-            '<td><span class="chip ' + (tc.in_plan ? 'inplan' : 'notinplan') + '">'
-            + esc(t(tc.in_plan ? 'rtm.yes' : 'rtm.no', tc.in_plan ? 'yes' : 'no')) + '</span></td>' +
-            '<td>' + statusChip(tc.exec_status) + '</td></tr>';
+          tcCells += '<div class="tc-detail-row">' +
+            '<span>' + esc(tc.tc_external_id || '') + ': ' + esc(tc.name) + '</span>' +
+            '<span>v' + tc.version + '</span>' +
+            '<span>' + esc(tc.suite) + '</span>' +
+            '<span><span class="chip ' + (tc.in_plan ? 'inplan' : 'notinplan') + '">'
+            + esc(t(tc.in_plan ? 'rtm.yes' : 'rtm.no', tc.in_plan ? 'yes' : 'no')) + '</span></span>' +
+            '<span>' + statusChip(tc.exec_status) + '</span></div>';
         });
-        tcCells += '</table>';
+        tcCells += '</div>';
       }
       var row = '<tr' + (r.orphan ? ' class="orphan-row"' : '') + '>'
         + '<td class="reqid">' + esc(r.doc_id) + '</td>'
@@ -291,107 +305,21 @@ function render() {
         + '<td>' + r.passed_count + '</td>'
         + '<td>' + r.defects + '</td>'
         + '<td><span class="age-chip ' + r.coverage_status + '">' + esc(t('rtm.st' + r.coverage_status.charAt(0).toUpperCase() + r.coverage_status.slice(1), r.coverage_status)) + '</span></td>'
+        + '<td class="cov-col" style="display:none;">' + esc(r.coverage_status + (r.orphan ? ' orphan' : '')) + '</td>'
         + '</tr>';
       tbody.append(row);
     });
 
     if ($.fn.DataTable.isDataTable('#dtReqs')) { $('#dtReqs').DataTable().destroy(); }
-    var dt = $('#dtReqs').DataTable({
+    rtmDt = $('#dtReqs').DataTable({
       pageLength: 25,
       autoWidth: false,
       order: [[0, 'asc']],
+      columnDefs: [{ targets: [8], visible: false, searchable: true }],
       language: { emptyTable: t('rtm.noRows', 'No requirements') }
     });
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
-  setTimeout(function() {
-    var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
-    if ($wrap.length) {
-      var $inp = $wrap.find('.dataTables_filter input[type=search]');
-      if ($inp.length) {
-        if (!$inp.attr('id')) $inp.attr('id', 'dtReqsSearch');
-        if (!$inp.attr('name')) $inp.attr('name', 'dtReqsSearch');
-      }
-    }
-  }, 0);
+    applyCoverageFilter();
+    fixSearchA11y();
     $('#tableBox').show();
     $(document).off('click', '.tc-expand').on('click', '.tc-expand', function () {
       var idx = $(this).data('idx');
@@ -429,6 +357,8 @@ function exportCsv() {
   var sep = ',';
   function csvCell(v) {
     var s = String(v === null || v === undefined ? '' : v);
+    // Neutralise spreadsheet formula injection (CSV opened in Excel).
+    if (/^[=+\-@\t\r]/.test(s)) { s = "'" + s; }
     return '"' + s.replace(/"/g, '""') + '"';
   }
   var lines = [];
@@ -438,7 +368,7 @@ function exportCsv() {
       r.linked_tcs ? r.linked_tcs.length : 0, r.executed_count, r.passed_count, r.defects,
       r.coverage_status, r.orphan ? 'yes' : ''].map(csvCell).join(sep));
   });
-  var blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'rtm.csv';
@@ -471,6 +401,10 @@ function loadData() {
       toast(t('common.loaded', 'Loaded'));
     },
     error: function (xhr) {
+      if (xhr.status === 401) {
+        window.location.href = '/login.php?note=expired';
+        return;
+      }
       var msg = t('common.errorLoading', 'Error loading data');
       var code = '';
       try {
@@ -486,7 +420,27 @@ function loadData() {
 
 function start() { loadData(); }
 
+function fixSearchA11y() {
+  var $wrap = $('#dtReqs').closest('.dataTables_wrapper');
+  if (!$wrap.length) { return; }
+  var $inp = $wrap.find('.dataTables_filter input[type=search]');
+  if ($inp.length) {
+    if (!$inp.attr('id')) { $inp.attr('id', 'dtReqsSearch'); }
+    if (!$inp.attr('name')) { $inp.attr('name', 'dtReqsSearch'); }
+  }
+}
+
+function applyCoverageFilter() {
+  if (!rtmDt || !$.fn.DataTable.isDataTable('#dtReqs')) { return; }
+  var v = $('#covSel').val() || '';
+  // Exact match: a plain substring search for "covered" would also match
+  // "uncovered" (DataTables smart search), and orphan rows carry a suffix.
+  var rx = v ? '(^| )' + $.fn.dataTable.util.escapeRegex(v) + '( orphan)?$' : '';
+  rtmDt.column(8).search(rx, true, false).draw();
+}
+
 $('#btnApply').on('click', start);
+$('#covSel').on('change', applyCoverageFilter);
 $('#btnCsv').on('click', exportCsv);
 
 var i18nReady = false;

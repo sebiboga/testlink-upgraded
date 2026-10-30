@@ -54,6 +54,7 @@ bffSameOriginGuard();
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -61,21 +62,27 @@ doDBConnect($db);
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    echo json_encode(['status' => 'error', 'code' => 'not_authenticated',
+                      'message' => 'Not authenticated']);
     exit;
 }
 
 $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    echo json_encode(['status' => 'error', 'code' => 'not_authenticated',
+                      'message' => 'User not found']);
     exit;
 }
 
-$method = $_SERVER['REQUEST_METHOD'];
-if ($method !== 'GET') {
+bffEnforceSession($db);
+
+$method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
+if ($method !== 'GET' && $method !== 'HEAD') {
+    header('Allow: GET, HEAD');
     http_response_code(405);
-    echo json_encode(['status' => 'error', 'message' => 'Method not allowed']);
+    echo json_encode(['status' => 'error', 'code' => 'wrong_method',
+                      'message' => 'Method not allowed']);
     exit;
 }
 
@@ -89,21 +96,24 @@ $bff = function ($action) use ($db, $user) {
     }
     if ($tplan_id <= 0) {
         http_response_code(400);
-        return ['status' => 'error', 'message' => 'No test plan in context'];
+        return ['status' => 'error', 'code' => 'no_testplan',
+                'message' => 'No test plan in context'];
     }
 
     $planInfo = $db->fetchOneValue(
         'SELECT TP.id FROM ' . $tables['testplans'] . ' TP WHERE TP.id = ' . intval($tplan_id));
     if (!$planInfo) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Unknown test plan'];
+        return ['status' => 'error', 'code' => 'unknown_testplan',
+                'message' => 'Unknown test plan'];
     }
 
     $owning = $db->fetchOneValue(
         'SELECT TP.testproject_id FROM ' . $tables['testplans'] . ' TP WHERE TP.id = ' . intval($tplan_id));
     if (!$owning) {
         http_response_code(404);
-        return ['status' => 'error', 'message' => 'Unknown test plan'];
+        return ['status' => 'error', 'code' => 'unknown_testplan',
+                'message' => 'Unknown test plan'];
     }
     $tproject_id = intval($owning);
 
@@ -305,7 +315,8 @@ $bff = function ($action) use ($db, $user) {
                     PN.name AS suite_name
              FROM {$tables['testplan_tcversions']} TPTV
              JOIN {$tables['tcversions']} TV ON TV.id = TPTV.tcversion_id
-             JOIN {$tables['nodes_hierarchy']} NTC ON NTC.id = TV.id
+             JOIN {$tables['nodes_hierarchy']} TVN ON TVN.id = TV.id
+             JOIN {$tables['nodes_hierarchy']} NTC ON NTC.id = TVN.parent_id
              LEFT JOIN {$tables['nodes_hierarchy']} PN ON PN.id = NTC.parent_id
              WHERE TPTV.testplan_id = " . intval($tplan_id) .
             ' AND NOT EXISTS (SELECT 1 FROM ' . $tables['req_coverage'] . ' RC
@@ -416,16 +427,19 @@ $bff = function ($action) use ($db, $user) {
     }
 
     http_response_code(400);
-    return ['status' => 'error', 'message' => 'Unknown action'];
+    return ['status' => 'error', 'code' => 'unknown_action',
+            'message' => 'Unknown action'];
 };
 
 try {
     $action = isset($_GET['action']) ? $_GET['action'] : '';
     if ($action === 'context' || $action === 'matrix') {
-        echo json_encode($bff($action));
+        $payload = json_encode($bff($action));
+        echo ($method === 'HEAD') ? '' : $payload;
     } else {
         http_response_code(400);
-        echo json_encode(['status' => 'error', 'message' => 'Unknown or missing action']);
+        echo json_encode(['status' => 'error', 'code' => 'unknown_action',
+                          'message' => 'Unknown or missing action']);
     }
 } catch (Exception $e) {
     http_response_code(500);

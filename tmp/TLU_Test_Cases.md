@@ -46262,3 +46262,42 @@ Corrections after the #1974 fix and the final fixture run (2026-10-29):
     re-renders the same 2 executions / 40% scope. CSV cells that start with
     `= + - @` are prefixed with an apostrophe.  
     Result: PASS
+
+## Regression — Issue #1065: RTM hardening (orphan names, session gate, DataTables re-render, CSV)
+
+Precondition: fresh DB; `php tmp/fixtures_1065.php` (project RTM1065, R6 plan) and
+`php tmp/fixtures_1065_edges.php` (project RTM1065E, edge plan; inactive link,
+second requirement version, unassigned linked TC, real platform, cross-project plan).
+Re-read ids after each run (this run: R6 project 118 / plan 119 / builds 7,8;
+edge project 155 / plan 157 / builds 9,10 / platform 4). Admin login via `login.php`.
+
+| ID | Case | Action | Expected | Observed |
+|---|---|---|---|---|
+| TC-1065R-01 | Orphan TC names (edge fixture) | `GET ?action=matrix&tplan_id=157&tproject_id=155` | `orphan_tcs[0].tc_name="TC-ORPHAN"`, `suite_name="RTM Edge Suite"` | exactly that (pre-fix: `tc_name=""`, `suite_name="TC-ORPHAN"`) |
+| TC-1065R-02 | Orphan TC names (R6 fixture) | `GET ?action=matrix&tplan_id=119&tproject_id=118` | `tc_name="R6 No Trace"`, `suite_name="R6 Root"` | exactly that |
+| TC-1065R-03 | Session/anon gate | anon GET matrix | 401 `not_authenticated` | 401 `{"code":"not_authenticated"}` |
+| TC-1065R-04 | Session inactivity gate | BFF calls `bffEnforceSession($db)` | 401 `session_expired` when the legacy timeout elapses | code path present (grep + same helper as other BFFs); not waited out |
+| TC-1065R-05 | HEAD + cache | `curl -I` matrix as admin | 200, no JSON body, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff` | 200 + those headers |
+| TC-1065R-06 | Rights | login `rtmnorights` (password `rtmnorights`) → matrix | 403 `no_right`, no data | 403 `{"code":"no_right"}` |
+| TC-1065R-07 | Error contract | no plan / unknown plan / unknown action / POST | 400 `no_testplan` / 404 `unknown_testplan` / 400 `unknown_action` / 403 CSRF or 405 | all as expected |
+| TC-1065R-08 | Cross-project guard | `tplan_id=157&tproject_id=155` vs `tproject_id=118` | 404 `project_mismatch`; screen shows error card + code chip | 404 + `Project mismatch` / `project_mismatch` card |
+| TC-1065R-09 | Coverage filter — orphan | screen → Coverage = orphan | only requirements with zero active links (edge: REQ-IN1, REQ-O1 → 2 of 6) | 2 rows: `REQ-IN1`, `REQ-O1` (all 6 before) |
+| TC-1065R-09b | Coverage filter — exactness | Coverage = covered / partial / uncovered | covered matches only `covered` (not `uncovered`); partial 1; uncovered 4 | covered `REQ-C1`; partial `REQ-P1`; uncovered `REQ-IN1,REQ-O1,REQ-U1,REQ-U2` (anchored regex; a plain search for `covered` also matched `uncovered`) |
+| TC-1065R-10 | Build flip + re-render | expand a row, Build = R6 Build 2, Apply | REQ-C1/REQ-1 flips covered→partial; no duplicated/corrupted rows | 6 top-level rows, 0 nested `tr`, summary covered 0 / partial 1 |
+| TC-1065R-11 | DataTables nested-row regression | expand row, re-Apply twice, inspect `#dtReqs > tbody > tr` | exactly the requirement rows; detail rendered as `div.tc-detail-row` (no nested `<table>`) | 6 rows, 0 nested tables; pre-fix the whole matrix was nested in the first detail cell |
+| TC-1065R-12 | CSV BOM + formula guard | `exportCsv()` with a row title `=SUM(1,1)`, capture blob | first 3 bytes `EF BB BF`; cell prefixed `'` | bytes `[239,187,191]`, cell `"'=SUM(1,1)"` |
+| TC-1065R-13 | Requirements disabled | `testproject::setOptions(118,{requirementsEnabled:0})` → reload screen | warnbox "Requirements are not enabled...", table hidden; BFF `requirements_enabled:false` | warnBox shown, tableBox `none`; option restored to 1 afterwards |
+| TC-1065R-14 | i18n coverage | `bash ai/verify_i18n_coverage.sh` | 9 bundles 0 missing incl. `rtm.coverageFilter`, `rtm.all` | PASS 9/9 (10,151 keys) |
+| TC-1065R-15 | Event Viewer delta | events after the fix | no new Error/Warning | one pre-fix DATABASE error (id 4, fixture `link_ts` typo at 01:05) from this run's first fixture draft; none after the fix (AUDIT only) |
+
+### Test execution
+- [PASS] TC-1065R-01 .. TC-1065R-15 — 16/16 PASS (09b included)
+- [FAIL→FIX] TC-1065R-01/02: orphan query joined the tcversion node as the test case and its parent as the suite → empty names/wrong suite; fixed to version→test-case→suite.
+- [FAIL→FIX] TC-1065R-11: nested `<table><tr>` detail rows were ingested by DataTables as data rows after destroy/re-init; converted to `div` rows.
+- [FAIL→FIX] session/HEAD/cache/machine codes were missing; added in `api/rtm/index.php`.
+- [FAIL→FIX] CSV lacked BOM/formula guard; added.
+- [PASS] Fixture ids change on every re-run; re-read them before testing.
+
+### Notes
+- Coverage filter is client-side on a hidden DataTables column so it composes with the search box and does not refetch.
+- The detail grid is intentionally `div`-based; do not reintroduce a nested `<table>` inside `#dtReqs`.
