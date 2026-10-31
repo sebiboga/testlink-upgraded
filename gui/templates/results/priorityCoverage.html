@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Priority Coverage report of TestLink 2.0.1 (Refs #1978)">
+<title>Test Plan Priority Coverage</title>
+<!--
+  Test Plan Priority Coverage report (Refs #1978).
+
+  Net-new modern Reports-menu screen. TestLink 1.9.20 reports execution status
+  per build / suite / tester / keyword (api/prioritybarchart is keyword based
+  despite its name) but never per test-case IMPORTANCE, so a lead cannot see
+  whether the High-priority scope of a plan is executed and green.
+
+  Numbers come from api/prioritycoverage/index.php (actions init / report); see
+  that file for the documented semantics (assigned version, latest execution in
+  scope, coverage/pass-rate definition and the ready/at_risk/watch verdict).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 120px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card .u { font-size: 11px; color: #5c6470; font-weight: 400; margin-left: 3px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.bands { width: 100%; border-collapse: collapse; }
+.bands th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: #5c6470; padding: 6px 10px; border-bottom: 1px solid #eceef2; }
+.bands td { padding: 8px 10px; font-size: 13px; border-bottom: 1px solid #f2f3f5; vertical-align: middle; }
+.bands tr:last-child td { border-bottom: none; }
+.bands .num { text-align: right; font-variant-numeric: tabular-nums; }
+.bands .name { font-weight: 700; }
+.bar { height: 6px; background: #eceef2; border-radius: 4px; overflow: hidden; margin-top: 4px; min-width: 90px; }
+.bar > span { display: block; height: 100%; background: #4ECDC4; }
+.bar > span.bad { background: #e05c5c; }
+.bar > span.warn { background: #e6b34d; }
+.bar > span.good { background: #2f9e44; }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.high { background: #c0392b; }
+.badge-v.medium { background: #b8860b; }
+.badge-v.low { background: #6c757d; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-layer-group" style="margin-right:8px;"></i>
+  <span data-i18n="pcov.title">Test Plan Priority Coverage</span>
+  <span class="sub" data-i18n="pcov.subtitle">is the High priority scope executed and green</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="pcov.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="pcov.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selImportance" data-i18n="pcov.importance">Priority</label>
+  <select id="selImportance"></select>
+  <label for="selBuild" data-i18n="pcov.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="pcov.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="pcov.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="pcov.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="pcov.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="pcov.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pcov.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pcov.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pcov.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pcov.ctxImportance">Priority filter</span><span class="v" id="ctxImportance">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="pcov.summaryTitle">Coverage summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="pcov.kpiTotal">Assigned versions</div><div class="v" id="sTotal">0</div></div>
+      <div class="card"><div class="k" data-i18n="pcov.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="pcov.kpiNotRun">Not run</div><div class="v" id="sNotRun">0</div></div>
+      <div class="card info"><div class="k" data-i18n="pcov.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card good"><div class="k" data-i18n="pcov.kpiPassRate">Pass rate</div><div class="v"><span id="sPassRate">0</span><span class="u">%</span></div></div>
+      <div class="card bad"><div class="k" data-i18n="pcov.kpiHighCoverage">High coverage</div><div class="v"><span id="sHighCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card bad"><div class="k" data-i18n="pcov.kpiHighPassRate">High pass rate</div><div class="v"><span id="sHighPassRate">0</span><span class="u">%</span></div></div>
+      <div class="card warn"><div class="k" data-i18n="pcov.kpiUntestedHigh">Untested High</div><div class="v" id="sUntestedHigh">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="pcov.kpiAtRisk">At-risk bands</div><div class="v" id="sAtRisk">0</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-chart-simple"></i><span data-i18n="pcov.bandsTitle">Coverage by priority</span></h3>
+    <table class="bands">
+      <caption class="sr-only" data-i18n="pcov.bandsCaption">Coverage and pass rate per importance band</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="pcov.colPriority">Priority</th>
+          <th scope="col" class="num" data-i18n="pcov.colTotal">Total</th>
+          <th scope="col" class="num" data-i18n="pcov.colExecuted">Executed</th>
+          <th scope="col" class="num" data-i18n="pcov.colPassed">Passed</th>
+          <th scope="col" class="num" data-i18n="pcov.colFailed">Failed</th>
+          <th scope="col" class="num" data-i18n="pcov.colBlocked">Blocked</th>
+          <th scope="col" class="num" data-i18n="pcov.colNotRun">Not run</th>
+          <th scope="col" data-i18n="pcov.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="pcov.colPassRate">Pass rate</th>
+          <th scope="col" data-i18n="pcov.colVerdict">Verdict</th>
+        </tr>
+      </thead>
+      <tbody id="bandsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="pcov.tableCaption">Test case versions of the plan with their priority and latest execution status</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="pcov.colPriority">Priority</th>
+          <th scope="col" data-i18n="pcov.colTestcase">Test case</th>
+          <th scope="col" data-i18n="pcov.colExternal">External ID</th>
+          <th scope="col" data-i18n="pcov.colSuite">Suite</th>
+          <th scope="col" data-i18n="pcov.colVersion">Version</th>
+          <th scope="col" data-i18n="pcov.colStatus">Status</th>
+          <th scope="col" data-i18n="pcov.colLastExec">Last execution</th>
+          <th scope="col" data-i18n="pcov.colTester">Tester</th>
+          <th scope="col" data-i18n="pcov.colBuild">Build</th>
+          <th scope="col" data-i18n="pcov.colPlatform">Platform</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.priorityCoverage"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/prioritycoverage/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'pcov.deniedTitle',  body: 'pcov.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'pcov.deniedTitle',  body: 'pcov.expiredBody' },
+    no_right:          { cls: 'deny', title: 'pcov.deniedTitle',  body: 'pcov.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'pcov.notFoundTitle', body: 'pcov.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'pcov.notFoundTitle', body: 'pcov.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'pcov.badRequestTitle', body: 'pcov.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'pcov.badRequestTitle', body: 'pcov.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'pcov.serverErrorTitle', body: 'pcov.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('pcov.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function importanceKey(n) {
+  if (Number(n) === 3) { return 'pcov.impHigh'; }
+  if (Number(n) === 1) { return 'pcov.impLow'; }
+  return 'pcov.impMedium';
+}
+function importanceLabel(n) {
+  return TLi18n.t(importanceKey(n));
+}
+function statusKey(s) {
+  if (s === 'p') { return 'pcov.statusPassed'; }
+  if (s === 'f') { return 'pcov.statusFailed'; }
+  if (s === 'b') { return 'pcov.statusBlocked'; }
+  return 'pcov.statusNotRun';
+}
+function statusCls(s) {
+  if (s === 'p') { return 'good'; }
+  if (s === 'f') { return 'bad'; }
+  if (s === 'b') { return 'warn'; }
+  return '';
+}
+function verdictKey(v) {
+  var map = { ready: 'pcov.verdictReady', at_risk: 'pcov.verdictAtRisk',
+    watch: 'pcov.verdictWatch', empty: 'pcov.verdictEmpty' };
+  return map[v] || 'pcov.verdictWatch';
+}
+
+function dtLang() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t('pcov.noRows')
+  };
+}
+
+function renderBanner(s) {
+  var html = '';
+  if (s.verdict === 'empty' || s.total === 0) {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('pcov.bannerEmpty')) + '</span></div>';
+  } else if (s.verdict === 'ready') {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+         + esc(TLi18n.t('pcov.bannerReady')) + '</span></div>';
+  } else if (s.verdict === 'at_risk') {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+         + esc(TLi18n.t('pcov.bannerAtRisk', { coverage: s.high_coverage_pct, pass: s.high_pass_rate_pct })) + '</span></div>';
+  } else {
+    html = '<div class="banner warn"><i class="fa fa-list-check"></i><span>'
+         + esc(TLi18n.t('pcov.bannerWatch', { notRun: s.not_run })) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function buildLabel(id) {
+  if (!id) { return TLi18n.t('pcov.allBuilds'); }
+  var found = '\u2014';
+  $.each(currentData && currentData.filters ? currentData.filters.builds : [], function (i, b) {
+    if (String(b.id) === String(id)) { found = b.name; }
+  });
+  return found;
+}
+function platformLabel(id) {
+  if (!id) { return TLi18n.t('pcov.allPlatforms'); }
+  var found = '\u2014';
+  $.each(currentData && currentData.filters ? currentData.filters.platforms : [], function (i, p) {
+    if (String(p.id) === String(id)) { found = p.name; }
+  });
+  return found;
+}
+function importanceFilterLabel(id) {
+  return id ? importanceLabel(id) : TLi18n.t('pcov.allPriorities');
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(buildLabel(data.filter.build_id));
+  $('#ctxPlatform').text(platformLabel(data.filter.platform_id));
+  $('#ctxImportance').text(importanceFilterLabel(data.filter.importance));
+  $('#sTotal').text(s.total);
+  $('#sExecuted').text(s.executed);
+  $('#sNotRun').text(s.not_run);
+  $('#sCoverage').text(s.coverage_pct);
+  $('#sPassRate').text(s.pass_rate_pct);
+  $('#sHighCoverage').text(s.high_coverage_pct);
+  $('#sHighPassRate').text(s.high_pass_rate_pct);
+  $('#sUntestedHigh').text(s.untested_high);
+  $('#sAtRisk').text(s.at_risk_bands);
+}
+
+function barCls(pct) {
+  if (pct >= 80) { return 'good'; }
+  if (pct >= 50) { return 'warn'; }
+  return 'bad';
+}
+
+function renderBands(data) {
+  var html = '';
+  var first = true;
+  $.each(data.bands, function (i, b) {
+    if (b.total === 0 || data.filter.importance > 0) {
+      if (first) { /* still rendered; empty bands shown greyed */ }
+    }
+    first = false;
+    var cov = Number(b.coverage_pct) || 0;
+    var pr = Number(b.pass_rate_pct) || 0;
+    var prShown = (b.executed > 0) ? pr + '%' : '\u2014';
+    html += '<tr' + (b.total === 0 ? ' style="color:#9aa1ab;"' : '') + '>'
+      + '<td class="name"><span class="badge-v ' + esc(b.label) + '">' + esc(importanceLabel(b.importance)) + '</span></td>'
+      + '<td class="num">' + (parseInt(b.total, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(b.executed, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(b.passed, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(b.failed, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(b.blocked, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(b.not_run, 10) || 0) + '</td>'
+      + '<td><span class="pill ' + barCls(cov) + '">' + esc(cov) + '%</span>'
+      + '<div class="bar"><span class="' + barCls(cov) + '" style="width:' + Math.max(0, Math.min(100, cov)) + '%"></span></div></td>'
+      + '<td>' + (b.executed > 0
+        ? '<span class="pill ' + barCls(pr) + '">' + esc(pr) + '%</span>'
+        : '<span class="pill">' + prShown + '</span>') + '</td>'
+      + '<td>' + (b.total > 0
+        ? '<span class="badge-v ' + (b.at_risk ? 'high' : 'low') + '">'
+          + esc(TLi18n.t(b.at_risk ? 'pcov.bandAtRisk' : 'pcov.bandOk')) + '</span>'
+        : '\u2014') + '</td>'
+      + '</tr>';
+  });
+  $('#bandsBody').html(html);
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    rows += '<tr>'
+      + '<td><span class="badge-v ' + esc(r.importance_label) + '">' + esc(importanceLabel(r.importance)) + '</span></td>'
+      + '<td><strong>' + esc(r.tcase_name) + '</strong></td>'
+      + '<td>' + esc(r.external_full || '-') + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td class="num">' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td><span class="pill ' + statusCls(r.status) + '">' + esc(TLi18n.t(statusKey(r.status))) + '</span></td>'
+      + '<td>' + esc(r.last_ts || '-') + '</td>'
+      + '<td>' + esc(r.tester || '-') + '</td>'
+      + '<td>' + esc(r.build_name || '-') + '</td>'
+      + '<td>' + esc(r.platform_name || '-') + '</td>'
+      + '</tr>';
+  });
+  if (dt) { dt.destroy(); dt = null; }
+  if (rows === '') {
+    $('#tbl tbody').html('<tr><td colspan="10" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('pcov.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true,
+    language: dtLang(),
+    order: [],
+    columnDefs: [{ targets: [4], className: 'num' }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'priorityCoverageTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'priorityCoverageTableSearch'); }
+    }
+  }, 0);
+}
+
+function fillFilters(filters, filter) {
+  var imp = '<option value="0">' + esc(TLi18n.t('pcov.allPriorities')) + '</option>'
+    + '<option value="3">' + esc(TLi18n.t('pcov.impHigh')) + '</option>'
+    + '<option value="2">' + esc(TLi18n.t('pcov.impMedium')) + '</option>'
+    + '<option value="1">' + esc(TLi18n.t('pcov.impLow')) + '</option>';
+  $('#selImportance').html(imp).val(String(filter && filter.importance ? filter.importance : 0));
+
+  var build = '<option value="0">' + esc(TLi18n.t('pcov.allBuilds')) + '</option>';
+  $.each(filters.builds, function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('pcov.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('pcov.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('pcov.badRequestBody', { status: 400 })) + '</div>'
+      + '<div class="code">missing_tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = { action: 'report', tplan_id: tplanId };
+  var tprojectId = q('tproject_id');
+  if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
+  var imp = $('#selImportance').val();
+  if (imp && imp !== '0') { params.importance = imp; }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.build_id = b; }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.platform_id = p; }
+
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      currentData = data;
+      $('#stateBox').html('');
+      $('#report').show();
+      fillFilters(data.filters, data.filter);
+      renderSummary(data);
+      renderBanner(data.summary);
+      renderBands(data);
+      renderTable(data);
+      $('#btnCsv').prop('disabled', data.rows.length === 0);
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function loadInit() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) { load(); return; }
+  showLoading();
+  var params = { action: 'init', tplan_id: tplanId };
+  var tprojectId = q('tproject_id');
+  if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      fillFilters(data.filters, data.filter);
+      load();
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  if (!currentData) { return; }
+  var lines = [];
+  var head = ['pcov.colPriority', 'pcov.colTestcase', 'pcov.colExternal',
+    'pcov.colSuite', 'pcov.colVersion', 'pcov.colStatus', 'pcov.colLastExec',
+    'pcov.colTester', 'pcov.colBuild', 'pcov.colPlatform'];
+  lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  $.each(currentData.rows, function (i, r) {
+    lines.push([importanceLabel(r.importance), r.tcase_name, r.external_full,
+      r.suite_path, r.version, TLi18n.t(statusKey(r.status)), r.last_ts,
+      r.tester, r.build_name, r.platform_name].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'priority-coverage-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('pcov.csvDone'));
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('pcov.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>

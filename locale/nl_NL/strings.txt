@@ -4127,3 +4127,5 @@ $TLS_link_report_exec_burndown = "Uitvoerings-burndown"; // Test Plan Execution 
 $TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test Execution Duration & Throughput (Refs #1975)
 $TLS_link_report_attachment_inventory = "Bijlagenoverzicht van het testplan"; // Test Plan Attachment Inventory (Refs #1976)
 $TLS_link_report_tester_workload = "Werkdruk van testers"; // Test Plan Tester Workload (Refs #1977)
+
+$TLS_link_report_priority_coverage = "Prioriteitsdekking van het testplan"; // Test Plan Priority Coverage (Refs #1978)

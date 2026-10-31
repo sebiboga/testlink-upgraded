@@ -2680,6 +2680,19 @@ function getActions(&$gui,$baseURL) {
   $actions->testerWorkload =
     "/gui/templates/results/testerWorkload.html?{$ctx}";
 
+  // Refs #1978: Test Plan Priority Coverage report (net-new screen). 1.9.20
+  // reports execution status per build / suite / tester / keyword but never per
+  // test case IMPORTANCE, so a lead cannot see whether the High priority scope
+  // is executed and green. This report aggregates every version assigned to the
+  // plan per importance band (total / executed / passed / failed / blocked /
+  // not run / coverage / pass rate) plus the latest execution detail, and
+  // issues a ready / at_risk / watch verdict. Backed by the api/prioritycoverage
+  // BFF (init/report actions), which enforces testplan_metrics on the owning
+  // project. Reachable from the Reports menu (cfg/reports.cfg.php entry +
+  // api/aside mapping) and via this action.
+  $actions->priorityCoverage =
+    "/gui/templates/results/priorityCoverage.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

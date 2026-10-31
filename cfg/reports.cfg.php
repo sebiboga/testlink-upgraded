@@ -537,6 +537,14 @@ $tlCfg->reports_list['tester_workload'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1978: per-importance execution coverage (High / Medium / Low).
+$tlCfg->reports_list['priority_coverage'] = array(
+	'title' => 'link_report_priority_coverage',
+	'url' => 'gui/templates/results/priorityCoverage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

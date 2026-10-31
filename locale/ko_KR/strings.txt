@@ -2502,3 +2502,5 @@ $TLS_link_report_exec_burndown = "실행 번다운"; // Test Plan Execution Burn
 $TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test Execution Duration & Throughput (Refs #1975)
 $TLS_link_report_attachment_inventory = "테스트 계획 첨부 파일 목록"; // Test Plan Attachment Inventory (Refs #1976)
 $TLS_link_report_tester_workload = "테스터 작업량"; // Test Plan Tester Workload (Refs #1977)
+
+$TLS_link_report_priority_coverage = "테스트 계획 우선순위 범위"; // Test Plan Priority Coverage (Refs #1978)

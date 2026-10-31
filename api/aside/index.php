@@ -295,6 +295,12 @@ if ($tplan_id > 0) {
                 // done / remaining / overdue and execution results).
                 $hrefR = '/gui/templates/results/testerWorkload.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_priority_coverage') {
+                // Refs #1978: Test Plan Priority Coverage (per-importance
+                // assigned / executed / passed / failed / blocked / not run,
+                // coverage and pass rate with a ready/at_risk verdict).
+                $hrefR = '/gui/templates/results/priorityCoverage.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .
