@@ -526,6 +526,17 @@ $tlCfg->reports_list['attachment_inventory'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1977: Test Plan Tester Workload report (net-new screen). 1.9.20 shows
+// assignments one test case at a time; nothing aggregates them per tester for
+// the whole plan (assigned/done/remaining/overdue, execution results, verdict).
+// The BFF action 'report' enforces testplan_metrics; directLink is empty.
+$tlCfg->reports_list['tester_workload'] = array(
+	'title' => 'link_report_tester_workload',
+	'url' => 'gui/templates/results/testerWorkload.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

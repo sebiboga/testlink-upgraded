@@ -4611,3 +4611,4 @@ $TLS_link_report_platform_comparison = "テストプラン プラットフォー
 $TLS_link_report_exec_burndown = "実行バーンダウン"; // Test Plan Execution Burn-down (Refs #1973)
 $TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test Execution Duration & Throughput (Refs #1975)
 $TLS_link_report_attachment_inventory = "テストプラン添付ファイル一覧"; // Test Plan Attachment Inventory (Refs #1976)
+$TLS_link_report_tester_workload = "テスター作業量"; // Test Plan Tester Workload (Refs #1977)

@@ -180,6 +180,8 @@ $bff = function ($action) use ($db, $user) {
             'exec_burndown' => 'gui/templates/results/execBurnDown.html',
             // Refs #1975 / #1073: Test Execution Duration & Throughput report.
             'exec_duration' => 'gui/templates/results/execDuration.html',
+            // Refs #1977: Test Plan Tester Workload report.
+            'tester_workload' => 'gui/templates/results/testerWorkload.html',
         );
 
         $reportList = config_get('reports_list');

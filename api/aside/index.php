@@ -290,6 +290,11 @@ if ($tplan_id > 0) {
                 // plan, its test cases/versions/steps and its executions).
                 $hrefR = '/gui/templates/results/attachmentInventory.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_tester_workload') {
+                // Refs #1977: Test Plan Tester Workload (per-tester assigned /
+                // done / remaining / overdue and execution results).
+                $hrefR = '/gui/templates/results/testerWorkload.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

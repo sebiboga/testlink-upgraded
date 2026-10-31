@@ -2669,6 +2669,17 @@ function getActions(&$gui,$baseURL) {
   $actions->attachmentInventory =
     "/gui/templates/results/attachmentInventory.html?{$ctx}";
 
+  // Refs #1977: Test Plan Tester Workload report (net-new screen). 1.9.20
+  // shows assignments one test case at a time and has no per-tester view of
+  // the plan; this report aggregates, per tester, the assignments (any build),
+  // the executed ones, the remaining/overdue ones and the execution results
+  // (passed/failed/blocked, pass rate), plus summary KPIs. Backed by the
+  // api/testerworkload BFF (init/report actions), which enforces
+  // testplan_metrics on the owning project. Reachable from the Reports menu
+  // (cfg/reports.cfg.php entry + api/aside mapping) and via this action.
+  $actions->testerWorkload =
+    "/gui/templates/results/testerWorkload.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only
