@@ -46396,3 +46396,48 @@ Environment: http://localhost:8082, admin/admin, locale EN + RO.
 - The download URL re-checks the attachment owner's rights
   (`api/attachments/index.php`), so the inventory itself only enforces
   `testplan_metrics`.
+
+## Issue #1977 — Test Plan Tester Workload (testerWorkload)
+
+Net-new read-only report aggregating the assignments and executions of a test
+plan per tester: assigned / done / remaining / overdue, execution results
+(passed/failed/blocked, pass rate, last activity), next deadline and verdict.
+Screen: `gui/templates/results/testerWorkload.html`; BFF:
+`api/testerworkload/index.php`. Fixture: `tmp/fixtures_1977.php`.
+Environment: http://localhost:8082, admin/admin, locale EN + RO.
+
+### Setup
+1. `php tmp/fixtures_1977.php` (creates tproject `Demo Project` / plan
+   `Sprint 1 plan`, builds `Build A`/`Build B`, platforms `Chrome`/`Firefox`,
+   users `alice`/`bob`, 4 assignments, 3 executions; ids fixed at 1/2).
+2. Open `/gui/templates/results/testerWorkload.html?tproject_id=1&tplan_id=2`.
+3. For the no-right path log in as `alice` / `alice` (role tester).
+
+| # | Check | Expected | Result |
+| --- | --- | --- | --- |
+| 1 | `GET ?action=init&tplan_id=2` authenticated | 200, context `Sprint 1 plan` / `Demo Project`, 2 builds, 2 platforms | PASS |
+| 2 | `GET ?action=report&tplan_id=2` | 200, 2 testers, 4 assignments, 3 done, 1 remaining, 1 overdue, completion 75% | PASS |
+| 3 | Per-tester rows | Alice 2/2/0 done complete 100%; Bob 2/1/1/1 at_risk 50% | PASS |
+| 4 | Build filter `build_id=2` | 0 done, 3 remaining (executions exist only on build 1) | PASS |
+| 5 | Platform filter `platform_id=2` | 1 tester (Bob), 1 assignment, 1 overdue, 0 executions | PASS |
+| 6 | Cross-project assertion (`tproject_id=5`) | 404 `project_mismatch`, no data leaked | PASS |
+| 7 | Unknown plan | 404 `tplan_not_found` | PASS |
+| 8 | Unknown action | 400 `invalid_request` | PASS |
+| 9 | POST without same-origin header | 403 (same-origin guard) | PASS |
+| 10 | No session | 401 `not_authenticated` | PASS |
+| 11 | User without `testplan_metrics` (`alice`) | 403 `no_right`; screen shows "Access denied" card | PASS |
+| 12 | Browser render (admin, EN) | 9 KPIs, overdue banner, 15-column DataTable, 2 rows, console clean | PASS |
+| 13 | Build + platform Apply | Context shows `Build A` / `All platforms`; table/KPIs refresh | PASS |
+| 14 | CSV export | Toast "CSV exported.", BOM + `;` separator, one row per tester | PASS |
+| 15 | i18n EN → RO switch | title/toolbar/context/KPIs/table translated, no raw keys | PASS |
+| 16 | Reports menu integration | Aside Reports → "Test Plan Tester Workload" opens the screen with current ids | PASS |
+
+### Test execution
+- [PASS] TC-#1977-01 .. TC-#1977-16 — 16/16 PASS.
+- [FAIL→FIX] first fixture draft collided test-case node ids with version node
+  ids (`nodes_hierarchy` shares one id space) → versions moved to 7/8/9.
+- [FAIL→FIX] assignment done-test initially matched executions from any tester;
+  that is intentional (an assignment is covered by any execution) and was
+  documented in the BFF header.
+- The intentional `no_right` probe logs one Error in the Event Viewer, same as
+  the other report BFFs (`execduration`, `attachmentinventory`).
