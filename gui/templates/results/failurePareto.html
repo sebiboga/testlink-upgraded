@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Failure Pareto report of TestLink 2.0.1 (Refs #1979)">
+<title>Test Plan Failure Pareto</title>
+<!--
+  Test Plan Failure Pareto report (Refs #1979).
+
+  Net-new modern Reports-menu screen: ranks the test cases that concentrate the
+  failures of a test plan (80/20 view). Unlike the defect reports, the unit is
+  the test-case version linked to the plan and the failure events are its
+  executions with status failed. Data comes from api/failurepareto/index.php
+  (actions init / report); see that file for the documented semantics.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 240px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 130px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card .u { font-size: 11px; color: #5c6470; font-weight: 400; margin-left: 3px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr.top80 td { background: #fff8f8; }
+.bar { height: 6px; background: #eceef2; border-radius: 4px; overflow: hidden; margin-top: 4px; min-width: 110px; }
+.bar > span { display: block; height: 100%; background: #4ECDC4; }
+.bar > span.bad { background: #e05c5c; }
+.bar > span.warn { background: #e6b34d; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.rank { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; color: #22242a; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-chart-area" style="margin-right:8px;"></i>
+  <span data-i18n="fp.title">Test Plan Failure Pareto</span>
+  <span class="sub" data-i18n="fp.subtitle">which few test cases concentrate most failures</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="fp.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="fp.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="fp.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="fp.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="fp.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="fp.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i> <span data-i18n="fp.context">Report context</span></h3>
+    <div class="ctx-grid" id="ctxGrid"></div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i> <span data-i18n="fp.kpis">Key indicators</span></h3>
+    <div class="cards" id="kpis"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="grid" class="table table-striped table-bordered" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="fp.colRank">#</th>
+          <th data-i18n="fp.colTestcase">Test case</th>
+          <th data-i18n="fp.colExternal">External ID</th>
+          <th data-i18n="fp.colSuite">Test suite</th>
+          <th data-i18n="fp.colFailed">Failed executions</th>
+          <th data-i18n="fp.colTotal">Executions</th>
+          <th data-i18n="fp.colRate">Failure rate</th>
+          <th data-i18n="fp.colFailingUnits">Failing now</th>
+          <th data-i18n="fp.colLatest">Latest status</th>
+          <th data-i18n="fp.colCumulative">Cumulative failures</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.failurePareto"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/failurepareto/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'fp.deniedTitle',  body: 'fp.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'fp.deniedTitle',  body: 'fp.expiredBody' },
+    no_right:          { cls: 'deny', title: 'fp.deniedTitle',  body: 'fp.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'fp.notFoundTitle', body: 'fp.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'fp.notFoundTitle', body: 'fp.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'fp.badRequestTitle', body: 'fp.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'fp.badRequestTitle', body: 'fp.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'fp.badRequestTitle', body: 'fp.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'fp.serverErrorTitle', body: 'fp.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('fp.loading')) + '</div>');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast');
+  $t.text(msg).toggleClass('err', !!isErr).fadeIn(120);
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(function () { $t.fadeOut(160); }, 2600);
+}
+
+function statusKey(s) {
+  if (s === 'p') { return 'fp.statusPassed'; }
+  if (s === 'f') { return 'fp.statusFailed'; }
+  if (s === 'b') { return 'fp.statusBlocked'; }
+  return 'fp.statusNotRun';
+}
+
+function statusCls(s) {
+  if (s === 'p') { return 'good'; }
+  if (s === 'f') { return 'bad'; }
+  if (s === 'b') { return 'warn'; }
+  return '';
+}
+
+function verdictKey(v) {
+  var map = { clean: 'fp.verdictClean', concentrated: 'fp.verdictConcentrated',
+    diffuse: 'fp.verdictDiffuse' };
+  return map[v] || 'fp.verdictDiffuse';
+}
+
+function query() {
+  var p = new URLSearchParams();
+  p.set('action', 'report');
+  var tplan = q('tplan_id') || '';
+  if (tplan) { p.set('tplan_id', tplan); }
+  var tp = q('tproject_id') || '';
+  if (tp) { p.set('tproject_id', tp); }
+  var b = $('#selBuild').val() || '0';
+  var pl = $('#selPlatform').val() || '0';
+  if (Number(b) > 0) { p.set('build_id', b); }
+  if (Number(pl) > 0) { p.set('platform_id', pl); }
+  return p.toString();
+}
+
+function fail(res) {
+  var code = (res && res.code) || '';
+  if (isAuthError(code)) {
+    showState('<div class="state deny"><h4>' + esc(TLi18n.t('fp.deniedTitle')) + '</h4>'
+      + '<div>' + esc(TLi18n.t('fp.expiredBody')) + '</div>'
+      + '<div class="code">' + esc(code) + '</div></div>');
+    window.setTimeout(redirectToLogin, 1600);
+    return;
+  }
+  showState(stateFor(code, (res && res.httpStatus) || 400, (res && res.message) || ''));
+}
+
+function loadInit() {
+  showLoading();
+  fetch(API + '?action=init&tplan_id=' + encodeURIComponent(q('tplan_id') || '')
+    + (q('tproject_id') ? '&tproject_id=' + encodeURIComponent(q('tproject_id')) : ''),
+    { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.json().then(function (j) { j.httpStatus = r.status; return j; }); })
+    .then(function (res) {
+      if (!res || res.status !== 'ok') { fail(res); return; }
+      var f = res.filters || { builds: [], platforms: [] };
+      var build = '<option value="0">' + esc(TLi18n.t('fp.allBuilds')) + '</option>';
+      (f.builds || []).forEach(function (b) {
+        build += '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+      });
+      var plat = '<option value="0">' + esc(TLi18n.t('fp.allPlatforms')) + '</option>';
+      (f.platforms || []).forEach(function (p) {
+        plat += '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+      });
+      $('#selBuild').html(build);
+      $('#selPlatform').html(plat);
+      if (res.filter && res.filter.build_id) { $('#selBuild').val(String(res.filter.build_id)); }
+      if (res.filter && res.filter.platform_id) { $('#selPlatform').val(String(res.filter.platform_id)); }
+      load();
+    })
+    .catch(function () {
+      showState(stateFor('server_error', 500, 'Network error'));
+    });
+}
+
+function kpi(label, value, unit, cls) {
+  return '<div class="card ' + (cls || 'info') + '"><div class="k">' + esc(label) + '</div>'
+    + '<div class="v">' + esc(value) + (unit ? '<span class="u">' + esc(unit) + '</span>' : '')
+    + '</div></div>';
+}
+
+function render(data) {
+  currentData = data;
+  $('#stateBox').html('');
+  $('#report').show();
+  var c = data.context || {};
+  $('#ctxGrid').html(
+    '<div class="ctx-item"><span class="k">' + esc(TLi18n.t('fp.project')) + '</span>'
+      + '<span class="v">' + esc(c.tproject_name) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(TLi18n.t('fp.plan')) + '</span>'
+      + '<span class="v">' + esc(c.tplan_name) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(TLi18n.t('fp.build')) + '</span>'
+      + '<span class="v">' + esc(buildLabel(data.filter && data.filter.build_id)) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(TLi18n.t('fp.platform')) + '</span>'
+      + '<span class="v">' + esc(platformLabel(data.filter && data.filter.platform_id)) + '</span></div>'
+  );
+
+  var s = data.summary || {};
+  var v = s.verdict || 'diffuse';
+  var vcls = (v === 'clean') ? 'good' : (v === 'concentrated' ? 'bad' : 'warn');
+  var banner = '<div class="banner ' + vcls + '"><i class="fa fa-chart-area"></i><span>';
+  if (v === 'clean') {
+    banner += esc(TLi18n.t('fp.bannerClean'));
+  } else if (v === 'concentrated') {
+    banner += esc(TLi18n.t('fp.bannerConcentrated', {
+      cases: s.cases_to_80, total: s.failing_cases, pct: s.cases_to_80_pct
+    }));
+  } else {
+    banner += esc(TLi18n.t('fp.bannerDiffuse', {
+      cases: s.cases_to_80, total: s.failing_cases, pct: s.cases_to_80_pct
+    }));
+  }
+  banner += '</span></div>';
+  $('#bannerBox').html(banner);
+
+  $('#kpis').html(
+    kpi(TLi18n.t('fp.kpiAssigned'), s.assigned_versions, '', 'info')
+    + kpi(TLi18n.t('fp.kpiExecuted'), s.executed_versions, '(' + s.executed_coverage_pct + '%)', 'info')
+    + kpi(TLi18n.t('fp.kpiExecutions'), s.total_executions, '', 'info')
+    + kpi(TLi18n.t('fp.kpiFailed'), s.failed_executions, '', 'bad')
+    + kpi(TLi18n.t('fp.kpiRate'), s.failure_rate_pct, '%', 'bad')
+    + kpi(TLi18n.t('fp.kpiFailingCases'), s.failing_cases, '', 'warn')
+    + kpi(TLi18n.t('fp.kpiFailingUnits'), s.failing_units, '', 'warn')
+    + kpi(TLi18n.t('fp.kpiTopShare'), s.top_case_share_pct, '%', 'warn')
+    + kpi(TLi18n.t('fp.kpiTo80'), s.cases_to_80, '(' + s.cases_to_80_pct + '%)', 'warn')
+  );
+
+  var rows = data.rows || [];
+  if (dt) {
+    dt.clear();
+  } else {
+    dt = $('#grid').DataTable({
+      order: [],
+      pageLength: 25,
+      language: {
+        search: TLi18n.t('common.filter', 'Filter') + ':',
+        lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+          + TLi18n.t('common.entries', 'entries'),
+        info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+        paginate: { previous: TLi18n.t('common.prev', 'Previous'),
+          next: TLi18n.t('common.next', 'Next') },
+        emptyTable: TLi18n.t('fp.noRows')
+      }
+    });
+  }
+  rows.forEach(function (r) {
+    var cls = r.in_top80 ? 'top80' : '';
+    var barCls = r.in_top80 ? 'bad' : 'warn';
+    var line =
+      '<tr class="' + cls + '">'
+      + '<td><span class="rank">' + esc(r.rank) + '</span></td>'
+      + '<td>' + esc(r.tcase_name) + '</td>'
+      + '<td>' + esc(r.external_full) + '</td>'
+      + '<td>' + esc(r.suite_path) + '</td>'
+      + '<td class="num"><span class="pill bad">' + esc(r.failed_executions) + '</span></td>'
+      + '<td class="num">' + esc(r.total_executions) + '</td>'
+      + '<td class="num">' + esc(r.failure_rate_pct) + '%</td>'
+      + '<td class="num">' + esc(r.failing_units) + '</td>'
+      + '<td><span class="pill ' + statusCls(r.latest_status) + '">'
+        + esc(TLi18n.t(statusKey(r.latest_status))) + '</span></td>'
+      + '<td>' + esc(r.cumulative_failures) + ' (' + esc(r.cumulative_pct) + '%)'
+        + '<div class="bar"><span class="' + barCls + '" style="width:'
+        + Math.max(0, Math.min(100, Number(r.cumulative_pct))) + '%"></span></div></td>'
+      + '</tr>';
+    dt.row.add($(line));
+  });
+  dt.draw();
+  $('#btnCsv').prop('disabled', rows.length === 0);
+}
+
+function buildLabel(id) {
+  if (!id) { return TLi18n.t('fp.allBuilds'); }
+  var t = $('#selBuild option[value="' + id + '"]').text();
+  return t || ('#' + id);
+}
+
+function platformLabel(id) {
+  if (!id) { return TLi18n.t('fp.allPlatforms'); }
+  var t = $('#selPlatform option[value="' + id + '"]').text();
+  return t || ('#' + id);
+}
+
+function load() {
+  showLoading();
+  fetch(API + '?' + query(), { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+    .then(function (r) { return r.json().then(function (j) { j.httpStatus = r.status; return j; }); })
+    .then(function (res) {
+      if (!res || res.status !== 'ok') { fail(res); return; }
+      render(res);
+    })
+    .catch(function () {
+      showState(stateFor('server_error', 500, 'Network error'));
+    });
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  if (!currentData || !currentData.rows || !currentData.rows.length) { return; }
+  var lines = [];
+  var head = ['fp.colRank', 'fp.colTestcase', 'fp.colExternal', 'fp.colSuite',
+    'fp.colFailed', 'fp.colTotal', 'fp.colRate', 'fp.colFailingUnits',
+    'fp.colLatest', 'fp.colCumulative'];
+  lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  currentData.rows.forEach(function (r) {
+    lines.push([r.rank, r.tcase_name, r.external_full, r.suite_path,
+      r.failed_executions, r.total_executions, r.failure_rate_pct + '%',
+      r.failing_units, TLi18n.t(statusKey(r.latest_status)),
+      r.cumulative_failures + ' (' + r.cumulative_pct + '%)'
+    ].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'failure-pareto-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('fp.csvDone'));
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('fp.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
