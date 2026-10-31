@@ -3902,3 +3902,4 @@ $TLS_link_report_attachment_inventory = "Spis załączników planu testów"; // 
 $TLS_link_report_tester_workload = "Obciążenie pracy testerów"; // Test Plan Tester Workload (Refs #1977)
 
 $TLS_link_report_priority_coverage = "Pokrycie według priorytetów planu testów"; // Test Plan Priority Coverage (Refs #1978)
+$TLS_link_report_failure_pareto = "Pareto niepowodzeń planu testów"; // Test Plan Failure Pareto (Refs #1979)

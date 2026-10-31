@@ -2693,6 +2693,14 @@ function getActions(&$gui,$baseURL) {
   $actions->priorityCoverage =
     "/gui/templates/results/priorityCoverage.html?{$ctx}";
 
+  // Refs #1979: Test Plan Failure Pareto report (net-new screen). Ranks the
+  // test cases of the plan by number of failed executions and shows which few
+  // of them concentrate 80% of the failures (clean / concentrated / diffuse
+  // verdict). Backed by the api/failurepareto BFF (init/report), reachable from
+  // the Reports menu (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->failurePareto =
+    "/gui/templates/results/failurePareto.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

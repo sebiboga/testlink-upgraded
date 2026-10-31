@@ -3945,3 +3945,4 @@ $TLS_link_report_attachment_inventory = "Test Plan Attachment Inventory"; // Tes
 $TLS_link_report_tester_workload = "Test Plan Tester Workload"; // Test Plan Tester Workload (Refs #1977)
 
 $TLS_link_report_priority_coverage = "Priority coverage of the test plan"; // Test Plan Priority Coverage (Refs #1978)
+$TLS_link_report_failure_pareto = "Test Plan Failure Pareto"; // Test Plan Failure Pareto (Refs #1979)

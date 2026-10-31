@@ -2504,3 +2504,4 @@ $TLS_link_report_attachment_inventory = "테스트 계획 첨부 파일 목록";
 $TLS_link_report_tester_workload = "테스터 작업량"; // Test Plan Tester Workload (Refs #1977)
 
 $TLS_link_report_priority_coverage = "테스트 계획 우선순위 범위"; // Test Plan Priority Coverage (Refs #1978)
+$TLS_link_report_failure_pareto = "테스트 계획 실패 파레토"; // Test Plan Failure Pareto (Refs #1979)

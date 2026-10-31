@@ -182,6 +182,8 @@ $bff = function ($action) use ($db, $user) {
             'exec_duration' => 'gui/templates/results/execDuration.html',
             // Refs #1977: Test Plan Tester Workload report.
             'tester_workload' => 'gui/templates/results/testerWorkload.html',
+            // Refs #1979: Test Plan Failure Pareto report.
+            'failure_pareto' => 'gui/templates/results/failurePareto.html',
         );
 
         $reportList = config_get('reports_list');

@@ -545,6 +545,14 @@ $tlCfg->reports_list['priority_coverage'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1979: which few test cases concentrate most of the failures.
+$tlCfg->reports_list['failure_pareto'] = array(
+	'title' => 'link_report_failure_pareto',
+	'url' => 'gui/templates/results/failurePareto.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

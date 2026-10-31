@@ -301,6 +301,11 @@ if ($tplan_id > 0) {
                 // coverage and pass rate with a ready/at_risk verdict).
                 $hrefR = '/gui/templates/results/priorityCoverage.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_failure_pareto') {
+                // Refs #1979: Test Plan Failure Pareto (which few test cases
+                // concentrate most of the failed executions of the plan).
+                $hrefR = '/gui/templates/results/failurePareto.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

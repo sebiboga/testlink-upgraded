@@ -2210,3 +2210,4 @@ $TLS_link_report_attachment_inventory = "Testisuunnitelman liitteet"; // Test Pl
 $TLS_link_report_tester_workload = "Testaajien työkuorma"; // Test Plan Tester Workload (Refs #1977)
 
 $TLS_link_report_priority_coverage = "Testisuunnitelman prioriteettikattavuus"; // Test Plan Priority Coverage (Refs #1978)
+$TLS_link_report_failure_pareto = "Testisuunnitelman virheiden Pareto"; // Test Plan Failure Pareto (Refs #1979)
