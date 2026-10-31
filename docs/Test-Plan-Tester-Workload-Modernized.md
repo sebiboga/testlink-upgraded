@@ -71,15 +71,26 @@ Error contract: `not_authenticated` (401), `no_right` (403),
 - An assignment counts as **done** when at least one execution exists with the
   same `tcversion_id` and `platform_id`, on the assignment's `build_id` (or on
   any build when `build_id=0`).
+- Closed (`status=2`) and completed (`status=3`) assignments, and rows with no
+  user (`user_id<=0`), are excluded from the workload.
 - An assignment counts as **overdue** when it is not done and
-  `deadline_ts < NOW()`.
+  `deadline_ts < NOW()` (database clock). `next deadline` only considers
+  assignments that are still not executed.
 - Execution counters (passed / failed / blocked / not run) are executions
   **performed by that user** (`executions.tester_id`), not assignments.
+- Executions are loaded once and filtered with an `EXISTS` on
+  `testplan_tcversions`, so an execution whose platform is no longer linked to
+  the plan does not inflate the counters. The same set drives the done test.
 - Build and platform filters narrow both the done test and the executions.
   Invalid ids return `invalid_request` (400).
 - Verdicts: `complete` (assignments done, no remaining), `in_progress` (done
-  work and no overdue), `at_risk` (any overdue or all remaining while the
-  deadline passed), `ad_hoc` (executions without assignments).
+  work and no overdue), `at_risk` (any overdue), `ad_hoc` (executions without
+  assignments).
+- `avg_assignments` divides by testers that actually hold assignments, so
+  ad-hoc executors do not dilute the KPI.
+- CSV uses a UTF-8 BOM and `;` separator, localized headers and verdicts, and
+  neutralises spreadsheet formulas. DataTables controls use the shared
+  `common.*` keys.
 
 ## Wiring
 

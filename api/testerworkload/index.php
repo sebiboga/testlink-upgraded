@@ -27,7 +27,8 @@
  *   GET|HEAD ?action=init&tplan_id=N[&tproject_id=P]
  *       -> context (plan / project) + build and platform filters
  *   GET|HEAD ?action=report&tplan_id=N[&tproject_id=P][&build_id=B][&platform_id=PL]
- *       -> summary KPIs + one row per tester (+ an "unassigned" row)
+ *       -> summary KPIs + one row per tester (closed/completed and unassigned
+ *          assignments are excluded from the workload)
  *
  * Security: session authentication, the shared BFF same-origin guard and the
  * `testplan_metrics` right on the OWNING test project (getAccess = true). The
@@ -222,9 +223,9 @@ if ($platformId > 0) {
 
 $context = array(
     'tplan_id' => $tplanId,
-    'tplan_name' => (string)$planName,
+    'tplan_name' => twDecode((string)$planName),
     'tproject_id' => $owningProjectId,
-    'tproject_name' => (string)$projectName,
+    'tproject_name' => twDecode((string)$projectName),
 );
 $filters = array('builds' => $builds, 'platforms' => $platforms);
 $filterEcho = array('build_id' => $buildId, 'platform_id' => $platformId);
@@ -242,22 +243,8 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 // report
 // ---------------------------------------------------------------------------
-$now = time();
-
-$assignSql =
-    "SELECT ua.id, ua.user_id, ua.build_id, ua.deadline_ts, ua.status AS assign_status, " .
-    "       tpt.id AS tpt_id, tpt.tcversion_id, tpt.platform_id " .
-    "FROM {$tbl['user_assignments']} ua " .
-    "JOIN {$tbl['testplan_tcversions']} tpt ON tpt.id = ua.feature_id " .
-    "WHERE ua.type = 1 AND tpt.testplan_id = " . intval($tplanId);
-if ($platformId > 0) {
-    $assignSql .= " AND tpt.platform_id = " . intval($platformId);
-}
-if ($buildId > 0) {
-    $assignSql .= " AND (ua.build_id = 0 OR ua.build_id = " . intval($buildId) . ")";
-}
-$assignSql .= " ORDER BY ua.user_id, ua.id";
-$assignRs = $db->get_recordset($assignSql);
+$nowRs = $db->get_recordset("SELECT UNIX_TIMESTAMP(NOW()) AS now_ts");
+$now = (is_array($nowRs) && count($nowRs) > 0) ? intval($nowRs[0]['now_ts']) : time();
 
 $perUser = array();
 $summary = array(
@@ -276,74 +263,29 @@ $summary = array(
     'not_run' => 0,
 );
 
-$assignExecs = array();
-if (is_array($assignRs)) {
-    foreach ($assignRs as $a) {
-        $uid = intval($a['user_id']);
-        if ($uid <= 0) {
-            continue;
-        }
-        if (!isset($perUser[$uid])) {
-            $perUser[$uid] = array(
-                'assigned' => 0, 'done' => 0, 'open' => 0, 'overdue' => 0,
-                'executions' => 0, 'passed' => 0, 'failed' => 0,
-                'blocked' => 0, 'not_run' => 0, 'last_ts' => '', 'next_deadline' => '',
-            );
-        }
-        $perUser[$uid]['assigned']++;
-        $summary['assignments']++;
-
-        $tcv = intval($a['tcversion_id']);
-        $plat = intval($a['platform_id']);
-        $abuild = intval($a['build_id']);
-        $execWhere =
-            "e.testplan_id = " . intval($tplanId) .
-            " AND e.tcversion_id = " . $tcv .
-            " AND e.platform_id = " . $plat;
-        if ($abuild > 0) {
-            $execWhere .= " AND e.build_id = " . $abuild;
-        }
-        if ($buildId > 0 && $abuild === 0) {
-            $execWhere .= " AND e.build_id = " . intval($buildId);
-        }
-        if (!isset($assignExecs[$execWhere])) {
-            $cntRs = $db->get_recordset(
-                "SELECT COUNT(*) AS c FROM {$tbl['executions']} e WHERE " . $execWhere);
-            $assignExecs[$execWhere] = (is_array($cntRs) && count($cntRs) > 0)
-                ? intval($cntRs[0]['c']) : 0;
-        }
-        $execCount = $assignExecs[$execWhere];
-
-        $deadline = (string)($a['deadline_ts'] ?? '');
-        $isOpen = (intval($a['assign_status'] ?? 1) !== 2 && intval($a['assign_status'] ?? 1) !== 3);
-        if ($execCount > 0) {
-            $perUser[$uid]['done']++;
-            $summary['done']++;
-        } else {
-            $perUser[$uid]['open']++;
-            $summary['remaining']++;
-            if ($deadline !== '' && strtotime($deadline) !== false && strtotime($deadline) < $now) {
-                $perUser[$uid]['overdue']++;
-                $summary['overdue']++;
-            }
-        }
-        if ($isOpen && $deadline !== '') {
-            $dl = strtotime($deadline);
-            if ($dl !== false && ($perUser[$uid]['next_deadline'] === '' ||
-                                  $dl < strtotime($perUser[$uid]['next_deadline']))) {
-                $perUser[$uid]['next_deadline'] = $deadline;
-            }
-        }
+/** Lazily create one per-tester accumulator. */
+function twTester(&$perUser, $uid)
+{
+    if (!isset($perUser[$uid])) {
+        $perUser[$uid] = array(
+            'assigned' => 0, 'done' => 0, 'open' => 0, 'overdue' => 0,
+            'executions' => 0, 'passed' => 0, 'failed' => 0,
+            'blocked' => 0, 'not_run' => 0, 'last_ts' => '', 'next_deadline' => '',
+        );
     }
 }
 
-// Executions IN scope (performed per tester).
+// Executions in scope, loaded ONCE: used both for the "assignment is done"
+// test and for the per-tester result counters. EXISTS proves that the
+// (tcversion, platform) pair is still linked to the plan (a platform_id = 0
+// link matches every platform).
 $execSql =
     "SELECT e.tester_id, e.status, e.execution_ts, e.tcversion_id, e.build_id, e.platform_id " .
     "FROM {$tbl['executions']} e WHERE e.testplan_id = " . intval($tplanId) .
-    " AND e.tester_id IS NOT NULL AND e.tester_id > 0" .
-    " AND e.tcversion_id IN (SELECT tpt.tcversion_id FROM {$tbl['testplan_tcversions']} tpt" .
-    " WHERE tpt.testplan_id = " . intval($tplanId) . ")";
+    " AND EXISTS (SELECT 1 FROM {$tbl['testplan_tcversions']} tpt" .
+    "             WHERE tpt.testplan_id = " . intval($tplanId) .
+    "               AND tpt.tcversion_id = e.tcversion_id" .
+    "               AND (tpt.platform_id = 0 OR tpt.platform_id = e.platform_id))";
 if ($buildId > 0) {
     $execSql .= " AND e.build_id = " . intval($buildId);
 }
@@ -353,25 +295,92 @@ if ($platformId > 0) {
 $execSql .= " ORDER BY e.execution_ts, e.id";
 $execRs = $db->get_recordset($execSql);
 
+$execAny = array();
+$execBuild = array();
 if (is_array($execRs)) {
     foreach ($execRs as $e) {
+        $tcv = intval($e['tcversion_id']);
+        $plat = intval($e['platform_id']);
+        $ebuild = intval($e['build_id']);
+        $execAny[$tcv . '|' . $plat] = true;
+        $execBuild[$tcv . '|' . $plat . '|' . $ebuild] = true;
+
         $uid = intval($e['tester_id']);
         if ($uid <= 0) {
             continue;
         }
-        if (!isset($perUser[$uid])) {
-            $perUser[$uid] = array(
-                'assigned' => 0, 'done' => 0, 'open' => 0, 'overdue' => 0,
-                'executions' => 0, 'passed' => 0, 'failed' => 0,
-                'blocked' => 0, 'not_run' => 0, 'last_ts' => '', 'next_deadline' => '',
-            );
-        }
+        twTester($perUser, $uid);
         $st = twStatus($e['status']);
         $perUser[$uid]['executions']++;
         $perUser[$uid][$st]++;
         $perUser[$uid]['last_ts'] = (string)$e['execution_ts'];
         $summary['executions']++;
         $summary[$st]++;
+    }
+}
+
+$assignSql =
+    "SELECT ua.id, ua.user_id, ua.build_id, ua.deadline_ts, ua.status AS assign_status, " .
+    "       tpt.id AS tpt_id, tpt.tcversion_id, tpt.platform_id " .
+    "FROM {$tbl['user_assignments']} ua " .
+    "JOIN {$tbl['testplan_tcversions']} tpt ON tpt.id = ua.feature_id " .
+    "WHERE ua.type = 1 AND tpt.testplan_id = " . intval($tplanId);
+if ($platformId > 0) {
+    $assignSql .= " AND tpt.platform_id = " . intval($platformId);
+}
+if ($buildId > 0) {
+    $assignSql .= " AND (ua.build_id = 0 OR ua.build_id = " . intval($buildId) . ")";
+}
+$assignSql .= " ORDER BY ua.user_id, ua.id";
+$assignRs = $db->get_recordset($assignSql);
+
+if (is_array($assignRs)) {
+    foreach ($assignRs as $a) {
+        // Closed / completed assignments are no longer part of the workload.
+        $assignStatus = intval($a['assign_status'] ?? 1);
+        if ($assignStatus === 2 || $assignStatus === 3) {
+            continue;
+        }
+        // Unassigned rows are not a tester workload.
+        $uid = intval($a['user_id']);
+        if ($uid <= 0) {
+            continue;
+        }
+        twTester($perUser, $uid);
+        $perUser[$uid]['assigned']++;
+        $summary['assignments']++;
+
+        $tcv = intval($a['tcversion_id']);
+        $plat = intval($a['platform_id']);
+        $abuild = intval($a['build_id']);
+        if ($buildId > 0) {
+            $execCount = isset($execBuild[$tcv . '|' . $plat . '|' . $buildId]) ? 1 : 0;
+        } elseif ($abuild > 0) {
+            $execCount = isset($execBuild[$tcv . '|' . $plat . '|' . $abuild]) ? 1 : 0;
+        } else {
+            $execCount = isset($execAny[$tcv . '|' . $plat]) ? 1 : 0;
+        }
+
+        $deadline = (string)($a['deadline_ts'] ?? '');
+        $hasDeadline = ($deadline !== '' && strtotime($deadline) !== false);
+        if ($execCount > 0) {
+            $perUser[$uid]['done']++;
+            $summary['done']++;
+        } else {
+            $perUser[$uid]['open']++;
+            $summary['remaining']++;
+            if ($hasDeadline && strtotime($deadline) < $now) {
+                $perUser[$uid]['overdue']++;
+                $summary['overdue']++;
+            }
+            if ($hasDeadline) {
+                $dl = strtotime($deadline);
+                if ($perUser[$uid]['next_deadline'] === '' ||
+                    $dl < strtotime($perUser[$uid]['next_deadline'])) {
+                    $perUser[$uid]['next_deadline'] = $deadline;
+                }
+            }
+        }
     }
 }
 
@@ -445,8 +454,14 @@ foreach ($rows as $r) {
         $summary['active_testers']++;
     }
 }
-$summary['avg_assignments'] = $summary['testers'] > 0
-    ? twRound($summary['assignments'] / $summary['testers'], 1) : 0.0;
+$assignedTesters = 0;
+foreach ($rows as $row) {
+    if ($row['assigned'] > 0) {
+        $assignedTesters++;
+    }
+}
+$summary['avg_assignments'] = $assignedTesters > 0
+    ? twRound($summary['assignments'] / $assignedTesters, 1) : 0.0;
 $summary['completion_pct'] = twPct($summary['done'], $summary['assignments']);
 
 twOut(array(

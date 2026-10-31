@@ -199,6 +199,7 @@ function stateFor(code, httpStatus, rawMessage) {
     tplan_not_found:   { cls: 'warn', title: 'twl.notFoundTitle', body: 'twl.notFoundBody' },
     project_mismatch:  { cls: 'warn', title: 'twl.notFoundTitle', body: 'twl.mismatchBody' },
     invalid_request:   { cls: 'warn', title: 'twl.badRequestTitle', body: 'twl.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'twl.badRequestTitle', body: 'twl.badRequestBody' },
     method_not_allowed:{ cls: 'warn', title: 'twl.badRequestTitle', body: 'twl.badRequestBody' }
   };
   var m = map[code];
@@ -210,6 +211,15 @@ function stateFor(code, httpStatus, rawMessage) {
   return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
        + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
        + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
 }
 
 function showState(html) {
@@ -246,6 +256,17 @@ function verdictKey(v) {
   var key = 'twl.verdictInProgress';
   $.each(VERDICTS, function (i, it) { if (it[0] === v) { key = it[1]; } });
   return key;
+}
+
+function dtLang() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t('twl.noRows')
+  };
 }
 
 function renderBanner(s) {
@@ -333,6 +354,7 @@ function renderTable(data) {
   $('#tbl tbody').html(rows);
   dt = $('#tbl').DataTable({
     paging: true, pageLength: 25, searching: true, info: true,
+    language: dtLang(),
     order: [[4, 'desc']],
     columnDefs: [{ targets: [2, 3, 4, 5, 7, 8, 9, 10, 11], className: 'num' }]
   });
@@ -363,7 +385,7 @@ function load() {
   var tplanId = q('tplan_id');
   if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
     showState('<div class="state warn"><h4>' + esc(TLi18n.t('twl.badRequestTitle')) + '</h4><div>'
-      + esc(TLi18n.t('twl.badRequestBody')) + '</div>'
+      + esc(TLi18n.t('twl.badRequestBody', { status: 400 })) + '</div>'
       + '<div class="code">missing_tplan_id</div></div>');
     return;
   }
@@ -395,7 +417,9 @@ function load() {
     .fail(function (xhr) {
       var payload = null;
       try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
-      showState(stateFor(payload && payload.code, xhr.status, payload && payload.message));
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
     });
 }
 
@@ -419,7 +443,9 @@ function loadInit() {
     .fail(function (xhr) {
       var payload = null;
       try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
-      showState(stateFor(payload && payload.code, xhr.status, payload && payload.message));
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
     });
 }
 
@@ -432,13 +458,16 @@ function csvCell(v) {
 function exportCsv() {
   if (!currentData) { return; }
   var lines = [];
-  lines.push(['Tester', 'Login', 'Assigned', 'Done', 'Remaining', 'Overdue',
-    'Completion %', 'Executions', 'Passed', 'Failed', 'Blocked', 'Pass rate %',
-    'Last activity', 'Next deadline', 'Verdict'].map(csvCell).join(','));
+  var head = ['twl.colTester', 'twl.colLogin', 'twl.colAssigned', 'twl.colDone',
+    'twl.colRemaining', 'twl.colOverdue', 'twl.colCompletion', 'twl.colExecutions',
+    'twl.colPassed', 'twl.colFailed', 'twl.colBlocked', 'twl.colPassRate',
+    'twl.colLastActivity', 'twl.colDeadline', 'twl.colVerdict'];
+  lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
   $.each(currentData.rows, function (i, r) {
     lines.push([r.display_name, r.login, r.assigned, r.done, r.remaining,
       r.overdue, r.completion_pct, r.executions, r.passed, r.failed, r.blocked,
-      r.pass_rate, r.last_ts, r.next_deadline, r.verdict].map(csvCell).join(','));
+      r.pass_rate, r.last_ts, r.next_deadline,
+      TLi18n.t(verdictKey(r.verdict))].map(csvCell).join(';'));
   });
   var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   var a = document.createElement('a');
