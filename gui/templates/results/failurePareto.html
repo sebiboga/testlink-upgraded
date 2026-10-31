@@ -359,6 +359,10 @@ function render(data) {
         emptyTable: TLi18n.t('fp.noRows')
       }
     });
+    $('#grid_wrapper .dataTables_length select')
+      .attr({ id: 'fpLength', name: 'fpLength' });
+    $('#grid_wrapper .dataTables_filter input')
+      .attr({ id: 'fpSearch', name: 'fpSearch' });
   }
   rows.forEach(function (r) {
     var cls = r.in_top80 ? 'top80' : '';
