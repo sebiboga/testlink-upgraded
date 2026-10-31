@@ -46441,3 +46441,50 @@ Environment: http://localhost:8082, admin/admin, locale EN + RO.
   documented in the BFF header.
 - The intentional `no_right` probe logs one Error in the Event Viewer, same as
   the other report BFFs (`execduration`, `attachmentinventory`).
+
+
+## Suite #1978 — Test Plan Priority Coverage report (`priorityCoverage`)
+
+Net-new read-only report: per-importance execution coverage over every test-case
+version assigned to the plan. `testplan_metrics` is checked on the owning test
+project. 3 bands (High/Medium/Low) with total/executed/passed/failed/blocked/
+not-run, coverage % and pass rate %, 9 KPI cards, verdict (`ready`/`at_risk`/
+`watch`/`empty`), build + priority filters, 10-column DataTable and CSV.
+Screen: `gui/templates/results/priorityCoverage.html`; BFF:
+`api/prioritycoverage/index.php`. Fixture: `tmp/fixtures_1978.php`.
+Environment: http://localhost:8082, admin/admin, locale EN + RO.
+
+### Setup
+1. `php tmp/fixtures_1978.php` (project `PRICOV1978`, plan `PC Plan`, empty
+   project `PRICOV1978 EMPTY`, 9 versions across priorities 3/2/1, builds
+   `PC Build 1`/`PC Build 2`; ids printed by the script).
+2. Open `/gui/templates/results/priorityCoverage.html?tproject_id=<p>&tplan_id=<plan>`.
+3. For the no-right path log in as `pcovnorights` / `pcovnorights` (role 3).
+
+| # | Check | Expected | Result |
+| --- | --- | --- | --- |
+| 1 | `GET ?action=init&tplan_id=<plan>` authenticated | 200, context plan + project, 2 builds, 3 priority options | PASS |
+| 2 | `GET ?action=report` full scope | 200, total 9, executed 6, not run 3, coverage 66.7%, pass rate 50%, High 75%/33.3%, verdict `at_risk` | PASS |
+| 3 | Bands payload | always 3 rows (High/Medium/Low) even when a band is empty | PASS |
+| 4 | Build filter `build_id=<PC Build 2>` | total 9, executed 2, coverage 22.2%, same 9 rows | PASS |
+| 5 | Priority filter `importance=3` | 4 rows (High only), band summary recalculated | PASS |
+| 6 | Empty plan | 200, large verdict `empty`, total 0, no division by zero | PASS |
+| 7 | Cross-project assertion (`tproject_id=<other>`) | 404 `project_mismatch`, no data leaked | PASS |
+| 8 | Unknown plan / bad importance | 404 `tplan_not_found`; 400 `invalid_request` | PASS |
+| 9 | POST without same-origin header / with it | 403 same-origin guard; 405 `wrong_method` with `Origin` | PASS |
+| 10 | No session | 401 `not_authenticated` | PASS |
+| 11 | User without `testplan_metrics` (`pcovnorights`) | 403 `no_right`; screen shows "Access denied" card | PASS |
+| 12 | Browser render (admin, EN) | 9 KPIs, verdict banner, 3-row bands table, 10-column DataTable, console clean | PASS |
+| 13 | Priority=High + Build=PC Build 2 | 4 versions, 1 executed, 25% coverage, 100% pass | PASS |
+| 14 | CSV export | header + one row per version, BOM + `;` separator, 4 data rows under filter | PASS |
+| 15 | i18n EN → RO switch | title/toolbar/KPIs/bands/table translated, no raw keys | PASS |
+| 16 | Reports menu + ASIDE integration | "Test Plan Priority Coverage" opens the screen with current ids | PASS |
+
+### Test execution
+- [PASS] TC-#1978-01 .. TC-#1978-16 — 16/16 PASS (checks 1–16 above).
+- [FAIL→FIX] first fixture draft skipped `testplan_tcversions` for never-executed
+  versions, so the universe was 6 instead of 9 → all 9 definitions are now
+  inserted into the plan (`total 9`).
+- [PASS] `bash ai/verify_i18n_coverage.sh` — 9/9 bundles, 0 missing.
+- [PASS] Event Viewer — no new Error/Warning beyond the intentional `no_right`
+  audit probe.
