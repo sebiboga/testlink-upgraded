@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "重要度帯ごとのカバレッジと合格率",
   "pcov.bandsTitle": "優先度別カバレッジ",
   "pcov.bannerAtRisk": "高優先度がリスクにあります: カバレッジ {coverage}%、合格率 {pass}%。",
+  "pcov.bannerAtRiskBand": "{band}優先度がリスクにあります: カバレッジ {coverage}%、合格率 {pass}%。",
   "pcov.bannerEmpty": "選択した範囲に計画へ割り当てられたテストケースバージョンはありません。",
   "pcov.bannerReady": "空でない各優先度帯はカバレッジ 80% 以上、合格率 80% 以上です。",
   "pcov.bannerWatch": "割り当て済みの {notRun} バージョンが未実行です - カバレッジが準備完了のしきい値を下回っています。",

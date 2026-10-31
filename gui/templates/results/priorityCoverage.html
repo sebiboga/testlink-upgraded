@@ -224,6 +224,7 @@ function stateFor(code, httpStatus, rawMessage) {
     tplan_not_found:   { cls: 'warn', title: 'pcov.notFoundTitle', body: 'pcov.notFoundBody' },
     project_mismatch:  { cls: 'warn', title: 'pcov.notFoundTitle', body: 'pcov.mismatchBody' },
     invalid_request:   { cls: 'warn', title: 'pcov.badRequestTitle', body: 'pcov.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'pcov.badRequestTitle', body: 'pcov.badRequestBody' },
     method_not_allowed:{ cls: 'warn', title: 'pcov.badRequestTitle', body: 'pcov.badRequestBody' }
   };
   var m = map[code];
@@ -317,7 +318,11 @@ function renderBanner(s) {
          + esc(TLi18n.t('pcov.bannerReady')) + '</span></div>';
   } else if (s.verdict === 'at_risk') {
     html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
-         + esc(TLi18n.t('pcov.bannerAtRisk', { coverage: s.high_coverage_pct, pass: s.high_pass_rate_pct })) + '</span></div>';
+         + esc(TLi18n.t('pcov.bannerAtRiskBand', {
+             band: importanceLabel(Number(s.at_risk_band) || 3),
+             coverage: s.at_risk_band_coverage,
+             pass: s.at_risk_band_pass_rate
+           })) + '</span></div>';
   } else {
     html = '<div class="banner warn"><i class="fa fa-list-check"></i><span>'
          + esc(TLi18n.t('pcov.bannerWatch', { notRun: s.not_run })) + '</span></div>';
@@ -371,12 +376,7 @@ function barCls(pct) {
 
 function renderBands(data) {
   var html = '';
-  var first = true;
   $.each(data.bands, function (i, b) {
-    if (b.total === 0 || data.filter.importance > 0) {
-      if (first) { /* still rendered; empty bands shown greyed */ }
-    }
-    first = false;
     var cov = Number(b.coverage_pct) || 0;
     var pr = Number(b.pass_rate_pct) || 0;
     var prShown = (b.executed > 0) ? pr + '%' : '\u2014';

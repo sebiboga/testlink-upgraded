@@ -272,6 +272,9 @@ $assignedRs = $db->get_recordset(
     "JOIN {$tbl['nodes_hierarchy']} vn ON vn.id = tv.id AND vn.node_type_id = 4 " .
     "JOIN {$tbl['nodes_hierarchy']} tn ON tn.id = vn.parent_id AND tn.node_type_id = 3 " .
     "WHERE tpt.testplan_id = " . intval($tplanId) .
+    ($platformId > 0
+        ? " AND (tpt.platform_id = " . intval($platformId) . " OR tpt.platform_id = 0)"
+        : "") .
     " ORDER BY tpt.tcversion_id");
 if (is_array($assignedRs)) {
     foreach ($assignedRs as $r) {
@@ -317,7 +320,7 @@ if (count($versions) > 0) {
         "FROM {$tbl['executions']} e " .
         "LEFT JOIN {$tbl['users']} u ON u.id = e.tester_id " .
         "WHERE " . $whereExec .
-        " ORDER BY e.execution_ts, e.id");
+        " ORDER BY e.id");
     if (is_array($execRs)) {
         foreach ($execRs as $r) {
             $tcv = intval($r['tcversion_id']);
@@ -444,19 +447,27 @@ foreach ($versions as $tcv => $v) {
 // Finalise band percentages / risk.
 $atRiskBands = 0;
 $allReady = true;
-foreach ($bands as $band => $b) {
+$anyAtRisk = false;
+$atRiskBand = 0;
+foreach (array(3, 2, 1) as $band) {
+    $b = $bands[$band];
     if ($b['total'] <= 0) {
         $bands[$band]['coverage_pct'] = 0.0;
         $bands[$band]['pass_rate_pct'] = 0.0;
+        $bands[$band]['at_risk'] = false;
         continue;
     }
     $bands[$band]['coverage_pct'] = pcRound(100.0 * $b['executed'] / $b['total'], 1);
     $bands[$band]['pass_rate_pct'] = ($b['executed'] > 0)
         ? pcRound(100.0 * $b['passed'] / $b['executed'], 1) : 0.0;
-    $risk = ($bands[$band]['coverage_pct'] < 80.0)
-        || ($b['executed'] > 0 && $bands[$band]['pass_rate_pct'] < 80.0);
+    $risk = ($bands[$band]['coverage_pct'] < 50.0)
+        || ($b['executed'] > 0 && $bands[$band]['pass_rate_pct'] < 50.0);
     $bands[$band]['at_risk'] = $risk;
-    if ($risk) { $atRiskBands++; }
+    if ($risk) {
+        $atRiskBands++;
+        $anyAtRisk = true;
+        if ($atRiskBand === 0) { $atRiskBand = $band; }
+    }
     if ($bands[$band]['coverage_pct'] < 80.0
         || ($b['executed'] > 0 && $bands[$band]['pass_rate_pct'] < 80.0)) {
         $allReady = false;
@@ -467,10 +478,9 @@ $high = $bands[3];
 $verdict = 'watch';
 if ($totals['total'] === 0) {
     $verdict = 'empty';
-} else if ($high['total'] > 0 && ($high['coverage_pct'] < 50.0
-           || ($high['executed'] > 0 && $high['pass_rate_pct'] < 50.0))) {
+} else if ($anyAtRisk) {
     $verdict = 'at_risk';
-} else if ($high['total'] > 0 && $allReady) {
+} else if ($allReady) {
     $verdict = 'ready';
 }
 
@@ -492,6 +502,9 @@ $summary = array(
     'high_pass_rate_pct' => $high['pass_rate_pct'],
     'untested_high' => $totals['untested_high'],
     'at_risk_bands' => $atRiskBands,
+    'at_risk_band' => $atRiskBand,
+    'at_risk_band_coverage' => ($atRiskBand > 0) ? $bands[$atRiskBand]['coverage_pct'] : 0.0,
+    'at_risk_band_pass_rate' => ($atRiskBand > 0) ? $bands[$atRiskBand]['pass_rate_pct'] : 0.0,
     'bands' => 3,
     'verdict' => $verdict,
 );

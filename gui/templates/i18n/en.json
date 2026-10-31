@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Coverage and pass rate per importance band",
   "pcov.bandsTitle": "Coverage by priority",
   "pcov.bannerAtRisk": "High priority is at risk: {coverage}% coverage, {pass}% pass rate.",
+  "pcov.bannerAtRiskBand": "The {band} priority band is at risk: {coverage}% coverage, {pass}% pass rate.",
   "pcov.bannerEmpty": "No test case version is assigned to this plan in the selected scope.",
   "pcov.bannerReady": "Every non-empty priority band has at least 80% coverage and an 80% pass rate.",
   "pcov.bannerWatch": "{notRun} assigned version(s) are not run yet - coverage is below the ready threshold.",

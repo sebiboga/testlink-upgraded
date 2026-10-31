@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Abdeckung und Erfolgsquote je Wichtigkeitsband",
   "pcov.bandsTitle": "Abdeckung nach Priorität",
   "pcov.bannerAtRisk": "Hohe Priorität ist gefährdet: {coverage}% Abdeckung, {pass}% Erfolgsquote.",
+  "pcov.bannerAtRiskBand": "Die Prioritätsstufe {band} ist gefährdet: {coverage}% Abdeckung, {pass}% Erfolgsquote.",
   "pcov.bannerEmpty": "Dem Plan ist im gewählten Bereich keine Testfallversion zugewiesen.",
   "pcov.bannerReady": "Jedes nicht leere Prioritätsband hat mindestens 80% Abdeckung und 80% Erfolgsquote.",
   "pcov.bannerWatch": "{notRun} zugewiesene Version(en) sind noch nicht ausgeführt - die Abdeckung liegt unter der Bereitschaftsschwelle.",

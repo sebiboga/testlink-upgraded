@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Copertura e tasso di successo per fascia di importanza",
   "pcov.bandsTitle": "Copertura per priorità",
   "pcov.bannerAtRisk": "La priorità Alta è a rischio: {coverage}% di copertura, {pass}% di tasso di successo.",
+  "pcov.bannerAtRiskBand": "La priorità {band} è a rischio: {coverage}% di copertura, {pass}% di tasso di successo.",
   "pcov.bannerEmpty": "Nessuna versione di caso di test è assegnata al piano nell'ambito selezionato.",
   "pcov.bannerReady": "Ogni fascia di priorità non vuota ha almeno l'80% di copertura e l'80% di tasso di successo.",
   "pcov.bannerWatch": "{notRun} versione/i assegnata/e non è/sono ancora eseguita/e - la copertura è sotto la soglia di prontezza.",

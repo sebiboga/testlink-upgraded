@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Acoperire și rată de reușită pe bandă de importanță",
   "pcov.bandsTitle": "Acoperire pe prioritate",
   "pcov.bannerAtRisk": "Prioritatea ridicată este în risc: {coverage}% acoperire, {pass}% rată de reușită.",
+  "pcov.bannerAtRiskBand": "Prioritatea {band} este în risc: {coverage}% acoperire, {pass}% rată de reușită.",
   "pcov.bannerEmpty": "Nicio versiune de caz de test nu este alocată planului în domeniul selectat.",
   "pcov.bannerReady": "Fiecare bandă de prioritate nevidă are cel puțin 80% acoperire și 80% rată de reușită.",
   "pcov.bannerWatch": "{notRun} versiune(i) alocată(e) nu sunt încă executate - acoperirea este sub pragul de pregătire.",

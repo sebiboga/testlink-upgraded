@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Cobertura y tasa de éxito por banda de importancia",
   "pcov.bandsTitle": "Cobertura por prioridad",
   "pcov.bannerAtRisk": "La prioridad Alta está en riesgo: {coverage}% de cobertura, {pass}% de tasa de éxito.",
+  "pcov.bannerAtRiskBand": "La prioridad {band} está en riesgo: {coverage}% de cobertura, {pass}% de tasa de éxito.",
   "pcov.bannerEmpty": "Ninguna versión de caso de prueba está asignada al plan en el alcance seleccionado.",
   "pcov.bannerReady": "Cada banda de prioridad no vacía tiene al menos 80% de cobertura y 80% de tasa de éxito.",
   "pcov.bannerWatch": "{notRun} versión(es) asignada(s) aún no se han ejecutado: la cobertura está por debajo del umbral de preparación.",

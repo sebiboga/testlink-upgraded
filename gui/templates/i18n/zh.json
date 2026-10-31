@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "各重要度分组的覆盖率与通过率",
   "pcov.bandsTitle": "按优先级的覆盖率",
   "pcov.bannerAtRisk": "高优先级存在风险：覆盖率 {coverage}%，通过率 {pass}%。",
+  "pcov.bannerAtRiskBand": "{band}优先级存在风险：覆盖率 {coverage}%，通过率 {pass}%。",
   "pcov.bannerEmpty": "所选范围内没有分配给该计划的测试用例版本。",
   "pcov.bannerReady": "每个非空优先级分组都至少有 80% 覆盖率和 80% 通过率。",
   "pcov.bannerWatch": "还有 {notRun} 个已分配版本未运行 - 覆盖率低于就绪阈值。",

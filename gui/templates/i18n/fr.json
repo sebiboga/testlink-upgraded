@@ -4338,6 +4338,7 @@
   "pcov.bandsCaption": "Couverture et taux de réussite par bande d'importance",
   "pcov.bandsTitle": "Couverture par priorité",
   "pcov.bannerAtRisk": "La priorité Haute est à risque : {coverage}% de couverture, {pass}% de taux de réussite.",
+  "pcov.bannerAtRiskBand": "La priorité {band} est à risque : {coverage}% de couverture, {pass}% de taux de réussite.",
   "pcov.bannerEmpty": "Aucune version de cas de test n'est affectée au plan dans le périmètre sélectionné.",
   "pcov.bannerReady": "Chaque bande de priorité non vide atteint au moins 80% de couverture et 80% de taux de réussite.",
   "pcov.bannerWatch": "{notRun} version(s) affectée(s) ne sont pas encore exécutées - la couverture est sous le seuil de préparation.",
