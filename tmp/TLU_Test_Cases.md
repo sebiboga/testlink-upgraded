@@ -46488,3 +46488,48 @@ Environment: http://localhost:8082, admin/admin, locale EN + RO.
 - [PASS] `bash ai/verify_i18n_coverage.sh` — 9/9 bundles, 0 missing.
 - [PASS] Event Viewer — no new Error/Warning beyond the intentional `no_right`
   audit probe.
+
+## Suite #1979 — Test Plan Failure Pareto report (failurePareto)
+
+Net-new read-only Reports screen ranking the test cases of a plan by number of
+failed executions and showing which few of them concentrate 80% of the failures.
+`testplan_metrics` is checked on the owning test project. 9 KPI tiles, verdict
+(`clean` / `concentrated` / `diffuse`), build + platform filters, 10-column
+DataTable with a cumulative bar, CSV export and localized state cards.
+Screen: `gui/templates/results/failurePareto.html`; BFF:
+`api/failurepareto/index.php`. Fixture: `tmp/fixtures_1979.sql` (project
+`PARETO1979`, plans `Pareto Plan` 9003 / `All Green Plan` 9008 / `Concentrated
+Plan` 9009; user `nop1979` has no rights). Environment: http://localhost:8082,
+admin/admin, locale EN + RO.
+
+### Setup
+1. `mysql ... testlink < tmp/fixtures_1979.sql` (re-runnable).
+2. Log in as `admin`; open
+   `/gui/templates/results/failurePareto.html?tplan_id=9003&tproject_id=9001`.
+
+### Cases
+
+| # | Case | Result |
+| --- | --- | --- |
+| 1 | `init` returns plan/project context and the project's 2 builds + 2 platforms | PASS |
+| 2 | `report` default scope: 6 assigned versions, 26 executions, 18 failed, 69.2% failure rate, 5 failing cases, top-case share 38.9%, 3 cases to 80%, verdict `diffuse` | PASS |
+| 3 | Rows ranked by failed executions desc (7/5/3/2/1); cumulative 38.9/66.7/83.3/94.4/100%; first 3 `in_top80` | PASS |
+| 4 | Build filter `Build A`: 9 executions, 7 failed, 4 failing units; context + KPI cards update | PASS |
+| 5 | Platform filter `Linux`: 15 executions, 11 failed, 3 failing units | PASS |
+| 6 | Build A + Linux combined filter returns 9 executions / 7 failed / 4 failing units | PASS |
+| 7 | Clean plan 9008 (both executions passed): verdict `clean`, 0 failed, empty-table message, CSV disabled | PASS |
+| 8 | Concentrated plan 9009 (20 failures on one case + 1 on each of 4): verdict `concentrated`, cases-to-80 = 1 (20%), top share 83.3% | PASS |
+| 9 | Cross-project assertion `tproject_id=1` returns 404 `project_mismatch`; screen renders "Report not found" | PASS |
+| 10 | Unknown plan `tplan_id=999999` returns 404 `tplan_not_found`; screen renders localized state card | PASS |
+| 11 | Missing / non-numeric `tplan_id` and unknown `action` return 400 `invalid_request` | PASS |
+| 12 | Unauthenticated request returns 401 `not_authenticated` (no session) | PASS |
+| 13 | User `nop1979` (role `<no rights>`) gets 403 `no_right`; screen shows the `testplan_metrics` denial card | PASS |
+| 14 | CSV export: UTF-8 BOM, `;` separator, 6 lines (header + 5 rows), localized headers, 562 bytes, formula neutralisation | PASS |
+| 15 | Locale switch EN -> RO re-renders title, toolbar, KPIs, headers, statuses and footer (no raw `fp.*` keys); RO screenshot captured | PASS |
+| 16 | Reports menu (`api/aside/?action=init`) lists "Test Plan Failure Pareto" with the contexted href; `resultsnav` + `$actions->failurePareto` wired | PASS |
+| 17 | Console: no JS errors; DataTables length/search controls have id/name (a11y issue fixed) | PASS |
+| 18 | i18n coverage gate: 58 new `fp.*` + `footers.failurePareto` keys in 10 bundles, 9 bundle comparisons PASS | PASS |
+
+**18/18 PASS.** Event Viewer: only the two expected `no_right` AUDIT/ERROR
+denial rows from case 13 and the normal LOGIN rows; no unexpected
+Error/Warning from rendering, CSV or locale switching.
