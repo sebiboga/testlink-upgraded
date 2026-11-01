@@ -4130,3 +4130,4 @@ $TLS_link_report_tester_workload = "Werkdruk van testers"; // Test Plan Tester W
 
 $TLS_link_report_priority_coverage = "Prioriteitsdekking van het testplan"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Mislukkings-pareto van het testplan"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Resultaten per build"; // Test Plan Results by Build (Refs #1980)

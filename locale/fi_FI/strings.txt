@@ -2211,3 +2211,4 @@ $TLS_link_report_tester_workload = "Testaajien työkuorma"; // Test Plan Tester 
 
 $TLS_link_report_priority_coverage = "Testisuunnitelman prioriteettikattavuus"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Testisuunnitelman virheiden Pareto"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Tulokset build-kohtaisesti"; // Test Plan Results by Build (Refs #1980)

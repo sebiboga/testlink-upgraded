@@ -241,3 +241,4 @@ $TLS_link_report_tester_workload = "Volumul de lucru al testerilor"; // Test Pla
 
 $TLS_link_report_priority_coverage = "Acoperire pe priorități a planului de testare"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto al eșecurilor planului de test"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Rezultate pe build"; // Test Plan Results by Build (Refs #1980)

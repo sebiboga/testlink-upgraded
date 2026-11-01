@@ -553,6 +553,14 @@ $tlCfg->reports_list['failure_pareto'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1980: per-build execution status breakdown of the plan.
+$tlCfg->reports_list['results_by_build'] = array(
+	'title' => 'link_report_results_by_build',
+	'url' => 'gui/templates/results/resultsByBuild.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

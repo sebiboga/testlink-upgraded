@@ -3277,3 +3277,4 @@ $TLS_link_report_tester_workload = "Carga de trabajo de los testers"; // Test Pl
 
 $TLS_link_report_priority_coverage = "Cobertura por prioridad del plan de pruebas"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto de fallos del plan de pruebas"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Resultados por build"; // Test Plan Results by Build (Refs #1980)

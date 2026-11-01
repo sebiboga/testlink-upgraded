@@ -4272,3 +4272,4 @@ $TLS_link_report_tester_workload = "Charge de travail des testeurs"; // Test Pla
 
 $TLS_link_report_priority_coverage = "Couverture par priorité du plan de test"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto des échecs du plan de test"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Résultats par build"; // Test Plan Results by Build (Refs #1980)

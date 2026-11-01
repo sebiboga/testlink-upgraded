@@ -2701,6 +2701,15 @@ function getActions(&$gui,$baseURL) {
   $actions->failurePareto =
     "/gui/templates/results/failurePareto.html?{$ctx}";
 
+  // Refs #1980: Test Plan Results by Build report (net-new screen). One row
+  // per build of the plan with the latest execution status of every assigned
+  // version (passed / failed / blocked / not run), pass rate, coverage and the
+  // execution-event count. Backed by api/resultsbybuild (init/report),
+  // reachable from the Reports menu (cfg/reports.cfg.php + api/aside mapping)
+  // and this action.
+  $actions->resultsByBuild =
+    "/gui/templates/results/resultsByBuild.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

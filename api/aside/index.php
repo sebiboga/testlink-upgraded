@@ -306,6 +306,11 @@ if ($tplan_id > 0) {
                 // concentrate most of the failed executions of the plan).
                 $hrefR = '/gui/templates/results/failurePareto.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_results_by_build') {
+                // Refs #1980: Test Plan Results by Build (execution status
+                // breakdown of every build of the plan).
+                $hrefR = '/gui/templates/results/resultsByBuild.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

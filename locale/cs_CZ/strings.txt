@@ -4008,3 +4008,4 @@ $TLS_link_report_tester_workload = "Pracovní zatížení testerů"; // Test Pla
 
 $TLS_link_report_priority_coverage = "Pokrytí podle priorit testovacího plánu"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Paretova analýza selhání testovacího plánu"; // Test Plan Failure Pareto (Refs #1979)
+$TLS_link_report_results_by_build = "Výsledky podle sestavení"; // Test Plan Results by Build (Refs #1980)
