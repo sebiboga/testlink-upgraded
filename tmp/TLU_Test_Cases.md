@@ -46533,3 +46533,49 @@ admin/admin, locale EN + RO.
 **18/18 PASS.** Event Viewer: only the two expected `no_right` AUDIT/ERROR
 denial rows from case 13 and the normal LOGIN rows; no unexpected
 Error/Warning from rendering, CSV or locale switching.
+
+## Suite #1980 — Test Plan Results by Build report (`resultsByBuild`)
+
+Net-new read-only Reports screen showing, for one plan, the latest execution
+status of every assigned test-case version inside each build, the plan-wide
+snapshot (latest wins), execution events, coverage and pass rate.
+`testplan_metrics` is checked on the owning test project. 9 KPI tiles, verdict
+(`ready` / `at_risk` / `watch` / `empty`), platform filter, 12-column DataTable,
+CSV export and localized state cards.
+Screen: `gui/templates/results/resultsByBuild.html`; BFF:
+`api/resultsbybuild/index.php`. Fixture: `tmp/fixtures_1980.php` (project
+`RB1980` id 1, plan `RB Builds Plan` id 3 with builds 1–3 + empty build 4 and
+10 executions incl. a retest in build 3, empty plan `RB Empty Plan` id 4, user
+`nop1980` without rights). Environment: http://localhost:8082, admin/admin,
+locale EN + DE.
+
+### Setup
+1. `php tmp/fixtures_1980.php` (or re-import the DB dump); log in as `admin`.
+2. Open
+   `/gui/templates/results/resultsByBuild.html?tplan_id=3&tproject_id=1`.
+
+### Cases
+
+| # | Case | Result |
+| --- | --- | --- |
+| 1 | `init` returns plan/project context (`RB Builds Plan` / `RB1980`) and the project's platform list (empty in the fixture) | PASS |
+| 2 | `report` default scope: 4 builds, 3 with activity, 5 assigned, 4 executed (80%), 3 passed, 0 failed, 1 blocked, 1 not run, 10 execution events, pass rate 75%, verdict `watch` | PASS |
+| 3 | Per-build rows newest first: build 3 `Open` 2 executed / 3 events / 40% coverage / 100% pass, build 2 `Closed` 4 / 4 / 80% / 75%, build 1 `Closed` 3 / 3 / 60% / 66.7% with 1 failure, build 4 (no executions) all zeros | PASS |
+| 4 | Latest execution per build wins: build 1 still shows the failure while the plan snapshot shows 0 failed (the same version passes later); the retest in build 3 is counted as an extra event (3 events / 2 versions) | PASS |
+| 5 | Every project build is listed even without executions (`builds_with_activity` = 3 of 4, empty build row shown with zeros) | PASS |
+| 6 | Empty plan 4: verdict `empty`, "no build yet" banner, CSV disabled | PASS |
+| 7 | Non-numeric `platform_id=abc` → 400 `invalid_request` before any lookup | PASS |
+| 8 | Foreign / unknown numeric `platform_id=999` → 400 `invalid_request` | PASS |
+| 9 | Cross-project assertion `tproject_id=2` on plan 3 → 404 `project_mismatch` | PASS |
+| 10 | Unknown plan `tplan_id=999` → 404 `tplan_not_found`; screen renders the localized 404 state card | PASS |
+| 11 | Missing `tplan_id` and unknown `action` → 400 `invalid_request` | PASS |
+| 12 | Unauthenticated request (no session) → 401 `not_authenticated` | PASS |
+| 13 | User `nop1980` (role `<no rights>`) → 403 `no_right` on `testplan_metrics` | PASS |
+| 14 | `POST` without a same-origin proof → 403 CSRF guard; `HEAD` → 200 | PASS |
+| 15 | CSV export: UTF-8 BOM, `;` separator, localized headers, one line per build incl. the state and bars-free numbers, formula neutralisation | PASS |
+| 16 | Locale switch EN -> DE re-renders title, toolbar, KPIs, headers, `Open`/`Closed` badges and footer (no raw `rbb.*` keys); DE screenshot captured | PASS |
+| 17 | DataTables search with no match shows the localized `rbb.noMatch` row; length/search controls carry id/name/aria-label; th scope=col and a screen-reader caption | PASS |
+| 18 | Reports menu (`api/aside/?action=init`) lists "Results by Build" with the contexted href; `api/resultsnav` + `$actions->resultsByBuild` wired; Close returns to `/index.php`; console clean; i18n gate 9/9 (55 `rbb.*` + `footers.resultsByBuild` keys × 10 bundles) | PASS |
+
+**18/18 PASS.** Event Viewer checked; no unexpected Error/Warning from the
+screen, the CSV export or the locale switch.
