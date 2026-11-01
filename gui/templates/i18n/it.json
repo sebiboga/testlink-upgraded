@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "I parametri del report non sono validi (HTTP {status}).",
   "rbb.serverErrorTitle": "Report non disponibile",
   "rbb.serverErrorBody": "Impossibile generare il report (HTTP {status}).",
+  "rbb.networkError": "Errore di rete. Riprova.",
+  "rbb.noMatch": "Nessuna build corrisponde al filtro attuale.",
   "footers.resultsByBuild": "TestLink 2.0.1 - Risultati per build"
 }

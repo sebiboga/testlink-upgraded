@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "Los parámetros del informe no son válidos (HTTP {status}).",
   "rbb.serverErrorTitle": "Informe no disponible",
   "rbb.serverErrorBody": "No se pudo generar el informe (HTTP {status}).",
+  "rbb.networkError": "Error de red. Inténtelo de nuevo.",
+  "rbb.noMatch": "Ningún build coincide con el filtro actual.",
   "footers.resultsByBuild": "TestLink 2.0.1 - Resultados por build"
 }

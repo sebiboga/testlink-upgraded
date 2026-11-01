@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "Parametrii raportului sunt invalizi (HTTP {status}).",
   "rbb.serverErrorTitle": "Raport indisponibil",
   "rbb.serverErrorBody": "Raportul nu a putut fi generat (HTTP {status}).",
+  "rbb.networkError": "Eroare de rețea. Încearcă din nou.",
+  "rbb.noMatch": "Niciun build nu corespunde filtrului curent.",
   "footers.resultsByBuild": "TestLink 2.0.1 - Rezultate pe build"
 }

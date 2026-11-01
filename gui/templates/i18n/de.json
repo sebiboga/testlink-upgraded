@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "Die Berichtsparameter sind ungültig (HTTP {status}).",
   "rbb.serverErrorTitle": "Bericht nicht verfügbar",
   "rbb.serverErrorBody": "Der Bericht konnte nicht erstellt werden (HTTP {status}).",
+  "rbb.networkError": "Netzwerkfehler. Bitte erneut versuchen.",
+  "rbb.noMatch": "Kein Build entspricht dem aktuellen Filter.",
   "footers.resultsByBuild": "TestLink 2.0.1 - Testergebnisse pro Build"
 }

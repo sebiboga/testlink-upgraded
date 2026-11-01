@@ -13,13 +13,15 @@
  *     (testplan_tcversions); unassigned versions are ignored.
  *   - a BUILD row is the plan snapshot taken inside that build: for every
  *     assigned version the status of its LATEST execution in that build
- *     (ordered by execution_ts then id). No execution in that build = not run.
+ *     (latest insertion id, TestLink's canonical order). No execution in that
+ *     build = not run.
  *   - the SUMMARY is the plan snapshot across every build in scope (latest
  *     execution per version anywhere), i.e. the current state of the plan.
  *   - coverage_pct  = executed versions / assigned versions
  *   - pass_rate_pct = passed versions / executed versions (p + f + b)
- *   - total_executions counts execution EVENTS on assigned versions (a version
- *     retested three times in one build counts three times).
+ *   - total_executions counts execution EVENTS on assigned versions inside a
+ *     build (a version retested three times in one build counts three times);
+ *     it therefore equals the sum of the per-build `executions` column.
  *   - verdict: `empty` when the plan has no assigned version; `ready` when the
  *     plan snapshot has coverage >= 80% and pass rate >= 80%; `at_risk` when
  *     coverage < 50% or an executed plan has pass rate < 50%; `watch`
@@ -219,7 +221,7 @@ if ($action === 'init') {
 $builds = array();
 $buildOrder = array();
 $rb2 = $db->get_recordset(
-    "SELECT id, name, active FROM {$tbl['builds']} WHERE testproject_id = " .
+    "SELECT id, name, active, is_open FROM {$tbl['builds']} WHERE testproject_id = " .
     intval($owningProjectId) . " ORDER BY id");
 if (is_array($rb2)) {
     foreach ($rb2 as $r) {
@@ -228,6 +230,7 @@ if (is_array($rb2)) {
             'id' => $bid,
             'name' => rbDecode($r['name']),
             'active' => (intval($r['active']) === 1),
+            'is_open' => (intval($r['is_open']) === 1),
         );
         $buildOrder[] = $bid;
     }
@@ -275,7 +278,7 @@ $execRs = $db->get_recordset(
     "SELECT e.tcversion_id, e.status, e.execution_ts, e.build_id " .
     "FROM {$tbl['executions']} e " .
     "WHERE " . $whereExec .
-    " ORDER BY e.execution_ts ASC, e.id ASC");
+    " ORDER BY e.id ASC");
 if (is_array($execRs)) {
     foreach ($execRs as $r) {
         $tcv = intval($r['tcversion_id']);
@@ -299,7 +302,9 @@ if (is_array($execRs)) {
             $buildLastTs[$bid] = $ts;
         }
 
-        $totalExecutions++;
+        if ($bid > 0) {
+            $totalExecutions++;
+        }
     }
 }
 
@@ -308,10 +313,11 @@ function rbSnapshot($latest)
 {
     $snap = array('executed' => 0, 'passed' => 0, 'failed' => 0, 'blocked' => 0);
     foreach ($latest as $entry) {
-        $snap['executed']++;
-        if ($entry['status'] === 'p') { $snap['passed']++; }
-        else if ($entry['status'] === 'f') { $snap['failed']++; }
-        else if ($entry['status'] === 'b') { $snap['blocked']++; }
+        // Only p/f/b count as executed; a normalized 'n' row carries a status
+        // TestLink does not consider executed (no run).
+        if ($entry['status'] === 'p') { $snap['executed']++; $snap['passed']++; }
+        else if ($entry['status'] === 'f') { $snap['executed']++; $snap['failed']++; }
+        else if ($entry['status'] === 'b') { $snap['executed']++; $snap['blocked']++; }
     }
     return $snap;
 }
@@ -347,6 +353,7 @@ foreach (array_keys($buildPresent) as $bid) {
             'id' => intval($bid),
             'name' => '#' . intval($bid),
             'active' => false,
+            'is_open' => false,
         );
         $rowIds[] = intval($bid);
     }
@@ -368,7 +375,7 @@ foreach ($rowIds as $bid) {
     $rows[] = array(
         'build_id' => $bid,
         'build_name' => $builds[$bid]['name'],
-        'is_open' => $builds[$bid]['active'] ? true : false,
+        'is_open' => !empty($builds[$bid]['is_open']),
         'assigned' => $assignedTotal,
         'executed' => $snap['executed'],
         'passed' => $snap['passed'],

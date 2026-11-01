@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "Параметры отчёта неверны (HTTP {status}).",
   "rbb.serverErrorTitle": "Отчёт недоступен",
   "rbb.serverErrorBody": "Не удалось сформировать отчёт (HTTP {status}).",
+  "rbb.networkError": "Ошибка сети. Повторите попытку.",
+  "rbb.noMatch": "Ни одна сборка не соответствует фильтру.",
   "footers.resultsByBuild": "TestLink 2.0.1 - Результаты по сборкам"
 }

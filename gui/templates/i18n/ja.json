@@ -10536,5 +10536,7 @@
   "rbb.badRequestBody": "レポートのパラメータが無効です (HTTP {status})。",
   "rbb.serverErrorTitle": "レポートを利用できません",
   "rbb.serverErrorBody": "レポートを生成できませんでした (HTTP {status})。",
+  "rbb.networkError": "ネットワークエラーです。再試行してください。",
+  "rbb.noMatch": "現在のフィルターに一致するビルドはありません。",
   "footers.resultsByBuild": "TestLink 2.0.1 - ビルド別テスト結果"
 }
