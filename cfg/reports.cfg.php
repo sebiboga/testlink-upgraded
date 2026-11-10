@@ -561,6 +561,19 @@ $tlCfg->reports_list['results_by_build'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1981: Test Plan Blocked Tests Ageing report (net-new screen). 1.9.20
+// can list the test cases whose CURRENT status is blocked (Results by
+// Status) but never shows the AGEING dimension: how long each test has been
+// stuck blocked, in which build/platform, with the blocking note and the
+// linked defects. The BFF action 'report' enforces testplan_metrics;
+// directLink is empty.
+$tlCfg->reports_list['blocked_ageing'] = array(
+	'title' => 'link_report_blocked_ageing',
+	'url' => 'gui/templates/results/blockedAgeing.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

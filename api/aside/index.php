@@ -311,6 +311,11 @@ if ($tplan_id > 0) {
                 // breakdown of every build of the plan).
                 $hrefR = '/gui/templates/results/resultsByBuild.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_blocked_ageing') {
+                // Refs #1981: Test Plan Blocked Tests Ageing (what is stuck
+                // blocked, since when, with the blocking note and defects).
+                $hrefR = '/gui/templates/results/blockedAgeing.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

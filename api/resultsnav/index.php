@@ -186,6 +186,8 @@ $bff = function ($action) use ($db, $user) {
             'failure_pareto' => 'gui/templates/results/failurePareto.html',
             // Refs #1980: Test Plan Results by Build report.
             'results_by_build' => 'gui/templates/results/resultsByBuild.html',
+            // Refs #1981: Test Plan Blocked Tests Ageing report.
+            'blocked_ageing' => 'gui/templates/results/blockedAgeing.html',
         );
 
         $reportList = config_get('reports_list');
