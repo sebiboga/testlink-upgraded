@@ -46579,3 +46579,27 @@ locale EN + DE.
 
 **18/18 PASS.** Event Viewer checked; no unexpected Error/Warning from the
 screen, the CSV export or the locale switch.
+
+## Suite #1981 — Test Plan Blocked Tests Ageing report (`blockedAgeing`)
+
+- Screen: `gui/templates/results/blockedAgeing.html` · BFF: `api/blockedageing/index.php` (`init|report`) · Fixture project BAG1981 (7 assigned links: blocked 35d/12d/12d/10d/2d, one recovered on build 2, one never run; bugs on the 35d and 12d-platform-one rows; plan with no executions) · 2026-11-10.
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | Fixture factory `tmp/fixtures_1981.php` re-imports BAG1981 + BAG1981 EMPTY plans, 2 builds, 2 platforms, 7 cases, 7 executions, no-right user | PASS |
+| 2 | Machine harness `tmp/verify_1981.php`: 32 checks (semantics, recovered/never-run exclusion, build/platform re-scoping, empty plan, error contract 400/401/403/404/405, CSRF, session) | PASS |
+| 3 | Open `blockedAgeing.html?tproject_id=55&tplan_id=57` as admin: at-risk banner (1 case > 30d), context card, 9 KPIs (blocked=5, share=71.4%, oldest=35d, avg=14.2d, older7=4, older30=1, bugs=2, testers=1, assigned=7), 5 rows oldest-first, recovered and never-run cases excluded | PASS |
+| 4 | Build filter = BAG Build 1 + Apply: TC four re-appears blocked at 40d (its recovery on build 2 is out of scope), build-2 rows gone, KPIs recompute (blocked=4, avg=24.8d, older30=2) | PASS |
+| 5 | Platform filter = BAG Platform 1 (with build 1): only TC six, verdict downgrades to watch (>7d), share=100% | PASS |
+| 6 | Locale switch EN→RO via footer selector: title, banner, toolbar, context, KPIs, table headers and no-rows text fully translated; locale persists across reload | PASS |
+| 7 | DataTables search "BG-6" filters to 1 row; length control; column sort | PASS |
+| 8 | Export CSV: button enabled after load, downloads `blocked-ageing-57.csv` (UTF-8 BOM, `;` separator, localized header, formula-injection guard), toast confirms | PASS |
+| 9 | Refresh re-fetches the report without page reload; Close returns to `/index.php` | PASS |
+| 10 | Empty plan (BAG1981 EMPTY): clear banner "Nothing is blocked in this scope." + localized empty table row | PASS |
+| 11 | tplan_id=99999: 404 state card (`tplan_not_found`), report hidden, CSV disabled | PASS |
+| 12 | User without testplan_metrics (`bage1981norights`): 403 state card (`no_right`) naming the required right; report hidden | PASS |
+| 13 | Reports menu `api/aside/?action=init` lists the report with contexted href `/gui/templates/results/blockedAgeing.html?tproject_id=55&tplan_id=57`; `cfg/reports.cfg.php` (`blocked_ageing`), `api/resultsnav` map and `$actions->blockedAgeing` wired | PASS |
+| 14 | Browser console clean on every state (normal, filtered, RO, empty, 404, 403); i18n gate 9/9 (57 `bage.*` + `footers.blockedAgeing` keys × 10 bundles); `$TLS_link_report_blocked_ageing` in all 19 server locales | PASS |
+
+**14/14 PASS.** Event Viewer checked after the run; no new Error/Warning
+entries from the screen, filters, CSV export or the locale switch.
