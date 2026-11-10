@@ -408,10 +408,14 @@ foreach ($versions as $tcv => $v) {
 }
 
 // How many executions are blocked overall (all executions in scope, not only
-// the latest) - context for the KPI strip.
-foreach ($execRs as $e2) {
-    if ((string)$e2['status'] === 'b') {
-        $summary['total_blocked_executions']++;
+// the latest) - context for the KPI strip. get_recordset() returns NULL when
+// the scope has zero executions (#1982), so the loop is guarded exactly like
+// the $latest pass at line 293.
+if (is_array($execRs)) {
+    foreach ($execRs as $e2) {
+        if ((string)$e2['status'] === 'b') {
+            $summary['total_blocked_executions']++;
+        }
     }
 }
 $summary['assigned_links'] = $universeLinks;
