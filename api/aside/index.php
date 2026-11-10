@@ -316,6 +316,12 @@ if ($tplan_id > 0) {
                 // blocked, since when, with the blocking note and defects).
                 $hrefR = '/gui/templates/results/blockedAgeing.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_plan_forecast') {
+                // Refs #1983: Test Plan Completion Forecast (execution
+                // velocity, projected completion date and milestone
+                // comparison - will the plan make its deadline?).
+                $hrefR = '/gui/templates/results/planForecast.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

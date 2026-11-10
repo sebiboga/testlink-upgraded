@@ -2719,6 +2719,16 @@ function getActions(&$gui,$baseURL) {
   $actions->blockedAgeing =
     "/gui/templates/results/blockedAgeing.html?{$ctx}";
 
+  // Refs #1983: Test Plan Completion Forecast report (net-new screen).
+  // Answers the manager question 1.9.20 never could - will this plan
+  // finish by its milestone deadline? Execution velocity over a trailing
+  // window, projected completion date (ETA) of the remaining work and a
+  // per-milestone on_track / at_risk / late / stalled verdict. Backed by
+  // the api/planforecast BFF (init/report), reachable from the Reports
+  // menu (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->planForecast =
+    "/gui/templates/results/planForecast.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

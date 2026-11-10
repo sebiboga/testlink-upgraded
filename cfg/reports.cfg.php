@@ -574,6 +574,18 @@ $tlCfg->reports_list['blocked_ageing'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1983: Test Plan Completion Forecast (net-new report; 1.9.20/2.0.1
+// ship progress history (execBurnDown) but no forward-looking answer to
+// "will this plan finish by its milestone deadline?"). Velocity over a
+// trailing window, projected completion date and per-milestone comparison.
+// Backed by the api/planforecast BFF (init/report), modern screen only.
+$tlCfg->reports_list['plan_forecast'] = array(
+	'title' => 'link_report_plan_forecast',
+	'url' => 'gui/templates/results/planForecast.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

@@ -2209,6 +2209,7 @@ $TLS_link_report_exec_duration = "Test Execution Duration & Throughput"; // Test
 $TLS_link_report_attachment_inventory = "Testisuunnitelman liitteet"; // Test Plan Attachment Inventory (Refs #1976)
 $TLS_link_report_tester_workload = "Testaajien työkuorma"; // Test Plan Tester Workload (Refs #1977)
 $TLS_link_report_blocked_ageing = "Estettyjen testien ikääntyminen testisuunnitelmassa"; // Test Plan Blocked Tests Ageing (Refs #1981)
+$TLS_link_report_plan_forecast = "Testisuunnitelman valmistumisennuste"; // Test Plan Completion Forecast (Refs #1983)
 
 $TLS_link_report_priority_coverage = "Testisuunnitelman prioriteettikattavuus"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Testisuunnitelman virheiden Pareto"; // Test Plan Failure Pareto (Refs #1979)
