@@ -46629,3 +46629,36 @@ Harness re-run: 32/32 PASS. Browser re-check: full plan 7 links / 5 blocked /
 71.4% / at_risk unchanged; platform 1 → 6 links / 1 blocked / 16.7% / watch,
 platform 2 → 6 links / 1 blocked / 16.7%; build 1 filter unchanged
 (4 blocked, avg 24.8d, older30=2, TC four 40d). Console clean.
+
+## Suite #1983 — Test Plan Completion Forecast report (`planForecast`)
+
+Fixture `tmp/fixtures_1983.php` (run of 2026-11-10): projects PF1983
+(id 1, plan 4 "PF Plan", builds 1/2, 10 TCs with first executions on days
+-3/-2/-1/0, milestones at -5d "PF Past milestone" / +10d "PF Release 1.0" /
++40d "PF Release 2.0"), PF1983 STALLED (id 2, plan 5, 4 TCs with a single
+execution 25d ago, milestone "PS Release 1.0" +7d), PF1983 EMPTY (id 3,
+plan 6, no TCs). Expected baseline for plan 4: assigned 10, executed 8,
+remaining 2, progress 80%, window velocity 8/14=0.57/d, ETA = today+4d.
+
+| # | Case | Result |
+|---|------|--------|
+| 1 | Plan 4 default load: context card (PF1983 / PF Plan / All builds / All platforms / 14 d), 9 KPIs (10 / 8 / 2 / 80% / 0.57 / 2 / 4d / ETA date / next milestone "PF Release 1.0 (10 d)"), on-track banner names ETA and milestone | PASS |
+| 2 | Milestone table: 3 rows — PF Past milestone (-5d, 90%, past due, projected completion set), PF Release 1.0 (+10d, 95%, required velocity 0.2, on track), PF Release 2.0 (+40d, on track); daily activity table: 14 rows newest first (today: newly 1, executions 1, cumulative 8, remaining 2); DataTables length/sort/search controls live | PASS |
+| 3 | Build filter = PF Build 1 + Apply: executed 3, remaining 7, progress 30%, velocity 0.21, ETA shifts far out, banner becomes LATE (bad) | PASS |
+| 4 | Velocity window = 90 d (All builds): velocity 0.09, ETA +23d, LATE; window = 50 d: velocity 0.16, ETA 2026-11-23 → AT RISK (warn); window = 1 d keeps on-track — window re-scoping recomputes everything | PASS |
+| 5 | Stalled plan 5: banner bad "3 links still to run and no new execution in the last 14 days", velocity 0, ETA —, milestone PS Release 1.0 (7 d) | PASS |
+| 6 | Empty plan 6: info banner "No test cases assigned to this plan", assigned 0, CSV button disabled | PASS |
+| 7 | no_milestone (milestones table emptied temporarily on plan 4): info banner "No upcoming milestone — at the current pace the plan completes on 2026-11-14", milestone table shows the localized empty row; milestones restored afterwards | PASS |
+| 8 | Export CSV (plan 4): `plan-forecast-4.csv`, UTF-8 BOM, `;` separator, quoted localized header (Day; New executed; Executions; Cumulative executed; Remaining after), oldest-first rows, formula-injection guard, toast confirms | PASS |
+| 9 | Locale switch EN→RO via footer selector: page title, subtitle, toolbar, context card, KPIs, table headers, banners and state cards fully translated; locale persists across reload | PASS |
+| 10 | tplan_id=99999: 404 state card `tplan_not_found`; tplan_id=4 with tproject_id=2: 404 state card `project_mismatch` (plan belongs to another project); report hidden | PASS |
+| 11 | Refresh re-fetches honoring current selects; Close navigates to `/index.php` | PASS |
+| 12 | BFF machine checks (curl, admin session): init returns 2 builds + default filter echo; report plan 4 = numbers above; days=0 / days=91 / unknown action / missing tplan_id / non-numeric build → 400; anonymous → 401; HEAD = 200 empty body | PASS |
+| 13 | Reports menu `api/aside/?action=init` lists "Test Plan Completion Forecast" with contexted href `/gui/templates/results/planForecast.html?tproject_id=..&tplan_id=..`; `cfg/reports.cfg.php` (`plan_forecast`), `api/aside` mapping and `$actions->planForecast` wired | PASS |
+| 14 | Browser console clean on every state (normal, filtered, RO, stalled, empty, 404s); i18n gate 9/9 (72 `pf.*` + `footers.planForecast` keys × 10 bundles, 10667 keys each); `$TLS_link_report_plan_forecast` in all 19 server locales | PASS |
+
+**14/14 PASS.** Two bugs found and fixed during the pass:
+report payload missing `filters` (screen JS crashed, fix `7de84b7b3`) and
+CSV enabled on empty plans (fix `1edba37a7`). Event Viewer checked after the
+run: 0 ERROR / 0 WARNING (the six level-16 rows are AUDIT entries from the
+fixture itself).
