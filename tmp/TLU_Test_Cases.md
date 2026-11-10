@@ -46603,3 +46603,29 @@ screen, the CSV export or the locale switch.
 
 **14/14 PASS.** Event Viewer checked after the run; no new Error/Warning
 entries from the screen, filters, CSV export or the locale switch.
+
+**Re-execution after code-review fixes (Refs #1981):** platform filter now
+keeps platform-less links (`platform_id=0`) in scope matching
+api/failurepareto; `assigned_links` counts (version, platform) units so
+`blocked_pct` can never exceed 100%; dead KPI `total_blocked_executions`
+removed; `json_encode` hardened with `JSON_INVALID_UTF8_SUBSTITUTE`.
+Harness re-run: 32/32 PASS. Browser re-check: full plan 7 links / 5 blocked /
+71.4% / at_risk unchanged; platform 1 → 6 links / 1 blocked / 16.7% / watch,
+platform 2 → 6 links / 1 blocked / 16.7%; build 1 filter unchanged
+(4 blocked, avg 24.8d, older30=2, TC four 40d). Console clean.
+
+**Corrections to rows 5 and 14 above (code review, Refs #1981):** row 5's
+"share=100%" predates the platform-filter fix — platform-less links now stay
+in scope (api/failurepareto convention), so platform 1 shows share=16.7%
+(1/6 links), verdict watch, only TC six blocked. Row 14's key count is 56
+`bage.*` + `footers.blockedAgeing`, not 57.
+
+**Re-execution after code-review fixes (Refs #1981):** platform filter now
+keeps platform-less links (`platform_id=0`) in scope matching
+api/failurepareto; `assigned_links` counts (version, platform) units so
+`blocked_pct` can never exceed 100%; dead KPI `total_blocked_executions`
+removed; `json_encode` hardened with `JSON_INVALID_UTF8_SUBSTITUTE`.
+Harness re-run: 32/32 PASS. Browser re-check: full plan 7 links / 5 blocked /
+71.4% / at_risk unchanged; platform 1 → 6 links / 1 blocked / 16.7% / watch,
+platform 2 → 6 links / 1 blocked / 16.7%; build 1 filter unchanged
+(4 blocked, avg 24.8d, older30=2, TC four 40d). Console clean.

@@ -56,7 +56,10 @@ function baOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    // JSON_INVALID_UTF8_SUBSTITUTE: legacy rows can carry non-UTF-8 bytes
+    // (notes pasted from old trackers) and a bare json_encode() would then
+    // return false -> empty 200 body (code review, Refs #1981).
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -249,12 +252,18 @@ $versionSql =
     "JOIN {$tbl['tcversions']} tcv ON tcv.id = tpt.tcversion_id " .
     "WHERE tpt.testplan_id = " . intval($tplanId);
 if ($platformId > 0) {
-    $versionSql .= " AND tpt.platform_id = " . intval($platformId);
+    // A platform filter narrows the universe but KEEPS the platform-less
+    // links (platform_id = 0 matches every platform) - the same convention
+    // as the sibling plan reports (api/failurepareto). Code review, Refs #1981.
+    $versionSql .= " AND (tpt.platform_id = " . intval($platformId) .
+                   " OR tpt.platform_id = 0)";
 }
 $versionRs = $db->get_recordset($versionSql);
 
 $versions = array();
 $caseNodes = array();
+$linkPlatforms = array();
+$zeroLink = array();
 if (is_array($versionRs)) {
     foreach ($versionRs as $v) {
         $tcv = intval($v['tcversion_id']);
@@ -265,6 +274,12 @@ if (is_array($versionRs)) {
             'external_id' => intval($v['tc_external_id']),
         );
         $caseNodes[intval($v['tcase_node_id'])] = true;
+        $lp = intval($v['platform_id']);
+        if ($lp > 0) {
+            $linkPlatforms[$tcv][$lp] = true;
+        } else {
+            $zeroLink[$tcv] = true;
+        }
     }
 }
 
@@ -290,6 +305,7 @@ $execSql .= " ORDER BY e.execution_ts, e.id";
 $execRs = $db->get_recordset($execSql);
 
 $latest = array();
+$execPlatByVer = array();
 if (is_array($execRs)) {
     foreach ($execRs as $e) {
         $tcv = intval($e['tcversion_id']);
@@ -297,6 +313,7 @@ if (is_array($execRs)) {
             continue;
         }
         $latest[$tcv . '|' . intval($e['platform_id'])] = $e;
+        $execPlatByVer[$tcv][intval($e['platform_id'])] = true;
     }
 }
 
@@ -396,28 +413,33 @@ $summary = array(
     'older_30' => 0,
     'with_bugs' => 0,
     'testers' => 0,
-    'total_blocked_executions' => 0,
 );
 
 // Universe size AFTER the platform narrowing (a platform filter narrows the
-// universe too, the same convention as the other plan reports).
-$universeLinks = 0;
+// universe too, the same convention as the other plan reports, while the
+// platform-less links stay in scope). The UNIT is the (version, platform)
+// link because that is the row unit of the report: a version linked without
+// a platform and executed on two platforms owns TWO units, so the blocked
+// share can never exceed 100% (code review, Refs #1981).
+$units = array();
 foreach ($versions as $tcv => $v) {
-    // Count the links (version x platform rows of the plan in scope).
-    $universeLinks++;
-}
-
-// How many executions are blocked overall (all executions in scope, not only
-// the latest) - context for the KPI strip. get_recordset() returns NULL when
-// the scope has zero executions (#1982), so the loop is guarded exactly like
-// the $latest pass at line 293.
-if (is_array($execRs)) {
-    foreach ($execRs as $e2) {
-        if ((string)$e2['status'] === 'b') {
-            $summary['total_blocked_executions']++;
+    $plats = isset($linkPlatforms[$tcv]) ? $linkPlatforms[$tcv] : array();
+    // A platform-less link matches every execution platform of the version
+    // in scope, so each executed platform owns one unit; a link with no
+    // execution in scope still counts as its own unit.
+    if (!empty($zeroLink[$tcv]) && isset($execPlatByVer[$tcv])) {
+        foreach ($execPlatByVer[$tcv] as $p => $on) {
+            $plats[$p] = true;
         }
     }
+    if (empty($plats)) {
+        $plats[0] = true;
+    }
+    foreach ($plats as $p => $on) {
+        $units[$tcv . '|' . $p] = true;
+    }
 }
+$universeLinks = count($units);
 $summary['assigned_links'] = $universeLinks;
 
 $ageSum = 0;
