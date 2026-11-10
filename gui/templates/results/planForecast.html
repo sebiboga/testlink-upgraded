@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Completion Forecast</title>
+<!--
+  Test Plan Completion Forecast (Refs #1983).
+
+  Net-new 2.0.1 report: every 1.9.20/2.0.1 report is a point-in-time snapshot
+  or a history view (execBurnDown shows what already happened, metricsTrends
+  the per-build trend). This screen answers the manager question: will this
+  test plan finish by its milestone deadline? It computes the execution
+  velocity over a trailing window, projects the completion date of the
+  remaining work and compares it with every milestone of the plan.
+  Data: api/planforecast/index.php (see that file for the exact semantics).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.toolbar input { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; width: 72px; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 122px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card .u { font-size: 11px; color: #5c6470; font-weight: 400; margin-left: 3px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.complete { background: #1e7a34; }
+.badge-v.on_track { background: #2a5fb8; }
+.badge-v.at_risk { background: #b98a1c; }
+.badge-v.late { background: #c0392b; }
+.badge-v.past_due { background: #7d3c98; }
+.badge-v.stalled { background: #8a2b28; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.info { background: #d7f0ee; color: #17756e; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-route" style="margin-right:8px;"></i>
+  <span data-i18n="pf.title">Test Plan Completion Forecast</span>
+  <span class="sub" data-i18n="pf.subtitle">will this plan finish by its milestone deadline?</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="pf.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="pf.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="pf.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="pf.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <label for="inpDays" data-i18n="pf.window">Velocity window (days)</label>
+  <input type="number" id="inpDays" min="1" max="90" value="14">
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="pf.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="pf.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="pf.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="pf.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pf.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pf.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pf.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="pf.ctxWindow">Velocity window</span><span class="v" id="ctxWindow">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="pf.summaryTitle">Forecast summary</span></h3>
+    <div class="cards">
+      <div class="card"><div class="k" data-i18n="pf.kpiAssigned">Assigned links</div><div class="v" id="sAssigned">0</div></div>
+      <div class="card good"><div class="k" data-i18n="pf.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="pf.kpiRemaining">Remaining</div><div class="v" id="sRemaining">0</div></div>
+      <div class="card info"><div class="k" data-i18n="pf.kpiProgress">Progress</div><div class="v"><span id="sProgress">0</span><span class="u">%</span></div></div>
+      <div class="card info"><div class="k" data-i18n="pf.kpiVelocityRecent">Velocity (window)</div><div class="v"><span id="sVelRecent">0</span><span class="u" data-i18n="pf.perDay">/day</span></div></div>
+      <div class="card"><div class="k" data-i18n="pf.kpiVelocityOverall">Velocity (overall)</div><div class="v"><span id="sVelOverall">0</span><span class="u" data-i18n="pf.perDay">/day</span></div></div>
+      <div class="card warn"><div class="k" data-i18n="pf.kpiEtaDays">ETA</div><div class="v"><span id="sEtaDays">&mdash;</span><span class="u" data-i18n="pf.days">d</span></div></div>
+      <div class="card"><div class="k" data-i18n="pf.kpiEtaDate">Projected completion</div><div class="v" id="sEtaDate">&mdash;</div></div>
+      <div class="card good"><div class="k" data-i18n="pf.kpiNextMilestone">Next milestone</div><div class="v" id="sMilestone">&mdash;</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblMile" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="pf.tableCaptionMile">Milestones of the plan with the projected completion of the remaining work</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="pf.colMileName">Milestone</th>
+          <th scope="col" data-i18n="pf.colMileTarget">Target date</th>
+          <th scope="col" data-i18n="pf.colMileDaysLeft">Days left</th>
+          <th scope="col" data-i18n="pf.colMileTargetPct">Target passed %</th>
+          <th scope="col" data-i18n="pf.colMileRequired">Required velocity</th>
+          <th scope="col" data-i18n="pf.colMileProjected">Projected completion</th>
+          <th scope="col" data-i18n="pf.colMileVerdict">Verdict</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblAct" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="pf.tableCaptionAct">Daily first-execution activity of the trailing window</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="pf.colDay">Day</th>
+          <th scope="col" data-i18n="pf.colNewly">Newly executed</th>
+          <th scope="col" data-i18n="pf.colExecs">Executions</th>
+          <th scope="col" data-i18n="pf.colCumulative">Cumulative executed</th>
+          <th scope="col" data-i18n="pf.colRemainingAfter">Remaining after</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.planForecast"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/planforecast/index.php';
+var currentData = null;
+var dtMile = null;
+var dtAct = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'pf.deniedTitle',  body: 'pf.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'pf.deniedTitle',  body: 'pf.expiredBody' },
+    no_right:          { cls: 'deny', title: 'pf.deniedTitle',  body: 'pf.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'pf.notFoundTitle', body: 'pf.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'pf.notFoundTitle', body: 'pf.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'pf.badRequestTitle', body: 'pf.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'pf.badRequestTitle', body: 'pf.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'pf.serverErrorTitle', body: 'pf.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('pf.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function dtLang(emptyKey) {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t(emptyKey)
+  };
+}
+
+function renderBanner(s, next) {
+  var html = '';
+  if (s.verdict === 'complete') {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+         + esc(TLi18n.t('pf.bannerComplete', { count: s.executed })) + '</span></div>';
+  } else if (s.verdict === 'no_data') {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('pf.bannerNoData')) + '</span></div>';
+  } else if (s.verdict === 'stalled') {
+    html = '<div class="banner bad"><i class="fa fa-hand-paper"></i><span>'
+         + esc(TLi18n.t('pf.bannerStalled', { count: s.remaining, days: s.window_days })) + '</span></div>';
+  } else if (s.verdict === 'no_milestone') {
+    html = '<div class="banner info"><i class="fa fa-map-signs"></i><span>'
+         + esc(TLi18n.t('pf.bannerNoMilestone', { eta: s.eta_date || '-' })) + '</span></div>';
+  } else if (s.verdict === 'at_risk') {
+    html = '<div class="banner warn"><i class="fa fa-exclamation-triangle"></i><span>'
+         + esc(TLi18n.t('pf.bannerAtRisk', { milestone: next ? next.name : '-',
+             date: next ? next.target_date : '-', eta: s.eta_date || '-' })) + '</span></div>';
+  } else if (s.verdict === 'late') {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+         + esc(TLi18n.t('pf.bannerLate', { milestone: next ? next.name : '-',
+             date: next ? next.target_date : '-', eta: s.eta_date || '-' })) + '</span></div>';
+  } else {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+         + esc(TLi18n.t('pf.bannerOnTrack', { milestone: next ? next.name : '-',
+             date: next ? next.target_date : '-', eta: s.eta_date || '-' })) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function buildLabel(id) {
+  if (!id) { return TLi18n.t('pf.allBuilds'); }
+  var found = '\u2014';
+  $.each(currentData && currentData.filters ? currentData.filters.builds : [], function (i, b) {
+    if (String(b.id) === String(id)) { found = b.name; }
+  });
+  return found;
+}
+function platformLabel(id) {
+  if (!id) { return TLi18n.t('pf.allPlatforms'); }
+  var found = '\u2014';
+  $.each(currentData && currentData.filters ? currentData.filters.platforms : [], function (i, p) {
+    if (String(p.id) === String(id)) { found = p.name; }
+  });
+  return found;
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(buildLabel(data.filter.build_id));
+  $('#ctxPlatform').text(platformLabel(data.filter.platform_id));
+  $('#ctxWindow').text((data.filter.days || 14) + ' ' + TLi18n.t('pf.days'));
+  $('#sAssigned').text(s.assigned);
+  $('#sExecuted').text(s.executed);
+  $('#sRemaining').text(s.remaining);
+  $('#sProgress').text(s.progress_pct);
+  $('#sVelRecent').text(s.recent_velocity);
+  $('#sVelOverall').text(s.overall_velocity);
+  if (s.eta_days === null || s.eta_days === undefined) {
+    $('#sEtaDays').html('&mdash;');
+    $('#sEtaDate').html('&mdash;');
+  } else {
+    $('#sEtaDays').text(s.eta_days);
+    $('#sEtaDate').text(s.eta_date || '-');
+  }
+  var nm = data.next_milestone;
+  if (nm) {
+    $('#sMilestone').html(esc(nm.name) + ' <span style="font-size:12px;color:#5c6470;">('
+      + esc(nm.days_left) + ' ' + esc(TLi18n.t('pf.days')) + ')</span>');
+  } else {
+    $('#sMilestone').text(TLi18n.t('pf.kpiNone'));
+  }
+}
+
+function mileVerdictLabel(v) {
+  var map = {
+    complete: 'pf.mileComplete', on_track: 'pf.mileOnTrack', at_risk: 'pf.mileAtRisk',
+    late: 'pf.mileLate', past_due: 'pf.milePastDue', stalled: 'pf.mileStalled'
+  };
+  return '<span class="badge-v ' + esc(v) + '">' + esc(TLi18n.t(map[v] || 'pf.mileStalled')) + '</span>';
+}
+
+function renderMileTable(data) {
+  var rows = '';
+  $.each(data.milestones, function (i, m) {
+    var dl = parseInt(m.days_left, 10);
+    var dlPill = '<span class="pill ' + (dl < 0 ? 'bad' : (dl <= 7 ? 'warn' : 'good')) + '">' + dl + '</span>';
+    var req = (m.required_velocity === null || m.required_velocity === undefined)
+      ? '&mdash;' : esc(m.required_velocity);
+    var proj = m.projected_date ? esc(m.projected_date) : '&mdash;';
+    rows += '<tr>'
+      + '<td><strong>' + esc(m.name) + '</strong></td>'
+      + '<td>' + esc(m.target_date) + '</td>'
+      + '<td class="num">' + dlPill + '</td>'
+      + '<td class="num"><span class="pill info">' + esc(m.a) + '%</span></td>'
+      + '<td class="num">' + req + '</td>'
+      + '<td>' + proj + '</td>'
+      + '<td>' + mileVerdictLabel(m.verdict) + '</td>'
+      + '</tr>';
+  });
+  if (dtMile) { dtMile.destroy(); dtMile = null; }
+  if (rows === '') {
+    $('#tblMile tbody').html('<tr><td colspan="7" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('pf.noMilestoneSet')) + '</td></tr>');
+    return;
+  }
+  $('#tblMile tbody').html(rows);
+  dtMile = $('#tblMile').DataTable({
+    paging: true, pageLength: 10, searching: false, info: false,
+    language: dtLang('pf.noMilestoneSet'),
+    order: [[1, 'asc']],
+    columnDefs: [{ targets: [2, 3, 4], className: 'num' }]
+  });
+}
+
+function renderActTable(data) {
+  var rows = '';
+  $.each(data.activity, function (i, a) {
+    var newly = parseInt(a.newly_executed, 10) || 0;
+    var newlyPill = newly > 0
+      ? '<span class="pill ' + (newly >= 3 ? 'good' : 'info') + '">' + newly + '</span>'
+      : '<span class="pill">&mdash;</span>';
+    rows += '<tr>'
+      + '<td>' + esc(a.day) + '</td>'
+      + '<td class="num">' + newlyPill + '</td>'
+      + '<td class="num">' + (parseInt(a.executions, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(a.cumulative_executed, 10) || 0) + '</td>'
+      + '<td class="num">' + (parseInt(a.remaining_after, 10) || 0) + '</td>'
+      + '</tr>';
+  });
+  if (dtAct) { dtAct.destroy(); dtAct = null; }
+  if (rows === '') {
+    $('#tblAct tbody').html('<tr><td colspan="5" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('pf.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tblAct tbody').html(rows);
+  dtAct = $('#tblAct').DataTable({
+    paging: true, pageLength: 14, searching: false, info: false,
+    language: dtLang('pf.noRows'),
+    order: [[0, 'desc']],
+    columnDefs: [{ targets: [1, 2, 3, 4], className: 'num' }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tblAct').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'planForecastTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'planForecastTableSearch'); }
+    }
+  }, 0);
+}
+
+function fillFilters(filters, filter) {
+  var build = '<option value="0">' + esc(TLi18n.t('pf.allBuilds')) + '</option>';
+  $.each(filters.builds, function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('pf.allPlatforms')) + '</option>';
+  $.each(filters.platforms, function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+  $('#inpDays').val(String(filter && filter.days ? filter.days : 14));
+}
+
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('pf.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('pf.badRequestBody', { status: 400 })) + '</div>'
+      + '<div class="code">missing_tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = { action: 'report', tplan_id: tplanId };
+  var tprojectId = q('tproject_id');
+  if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.build_id = b; }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.platform_id = p; }
+  var d = parseInt($('#inpDays').val(), 10);
+  if (!isNaN(d) && d > 0) { params.days = d; }
+
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      currentData = data;
+      $('#stateBox').html('');
+      $('#report').show();
+      fillFilters(data.filters, data.filter);
+      renderSummary(data);
+      renderBanner(data.summary, data.next_milestone);
+      renderMileTable(data);
+      renderActTable(data);
+      $('#btnCsv').prop('disabled', !data.activity || data.activity.length === 0);
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function loadInit() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) { load(); return; }
+  showLoading();
+  var params = { action: 'init', tplan_id: tplanId };
+  var tprojectId = q('tproject_id');
+  if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      fillFilters(data.filters, data.filter);
+      load();
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  if (!currentData) { return; }
+  var lines = [];
+  var head = ['pf.colDay', 'pf.colNewly', 'pf.colExecs', 'pf.colCumulative', 'pf.colRemainingAfter'];
+  lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  $.each(currentData.activity, function (i, a) {
+    lines.push([a.day, a.newly_executed, a.executions, a.cumulative_executed,
+      a.remaining_after].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plan-forecast-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('pf.csvDone'));
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('pf.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
