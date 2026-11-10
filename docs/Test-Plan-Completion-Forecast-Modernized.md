@@ -30,14 +30,17 @@ milestone of the plan. Read-only.
 - 9 KPI cards: assigned links, executed, remaining, progress %, window
   velocity, overall velocity, ETA days, projected completion date, next
   milestone.
-- Milestone-projection DataTable: milestone, target date, days left, target
-  passed %, required velocity, projected completion, per-milestone verdict.
-- Daily activity DataTable (trailing window, newest first): day, newly
-  executed (first executions), executions, cumulative executed, remaining
-  after.
+- Milestone-projection DataTable (searchable): milestone, target date, days
+  left, target passed % (low/medium/high `a`/`b`/`c` columns of the legacy
+  milestone definition), required velocity, projected completion,
+  per-milestone verdict.
+- Daily activity DataTable (trailing window, newest first, searchable): day,
+  newly executed (first executions), executions, cumulative executed,
+  remaining after.
 - Build and platform re-scoping; velocity window 1–90 days.
 - CSV export `plan-forecast-<plan>.csv` (UTF-8 BOM, `;` separator,
-  spreadsheet-formula neutralisation), disabled on error and empty plans.
+  spreadsheet-formula neutralisation), disabled on error and empty plans; three
+  sections: forecast summary, milestone projection and daily activity.
 - Localized state cards for 401 / 403 / 404 / 405, `project_mismatch`,
   unknown plan; locale switcher (EN/RO verified), all labels in `pf.*` keys.
 
@@ -83,6 +86,9 @@ Error contract: `not_authenticated` (401), `no_right` (403),
 - Milestone verdict: projected completion ≤ target date → `on_track`;
   ≤ target + 7 days → `at_risk`; later → `late`; target already past →
   `past_due`. Required velocity = remaining ÷ days left.
+- The ETA divides by the UNROUNDED window velocity; the first-execution
+  group rows are read in ascending day order so a platform-less link is
+  stamped by its EARLIEST proving execution (code review fixes).
 - `no_milestone` when the plan has no milestone with a target date ≥ today
   (banner still shows the ETA).
 

@@ -46662,3 +46662,21 @@ report payload missing `filters` (screen JS crashed, fix `7de84b7b3`) and
 CSV enabled on empty plans (fix `1edba37a7`). Event Viewer checked after the
 run: 0 ERROR / 0 WARNING (the six level-16 rows are AUDIT entries from the
 fixture itself).
+
+**Corrections after the code review (Refs #1983):** row 2's "Target passed
+%" column now renders the legacy low/medium/high target percentages
+(`a / b / c`) as "90 / 80 / 70%" with the header relabelled "Target passed %
+(L/M/H)" — showing only `a` mislabelled the data (default `a=0` read as "no
+target"). Row 8's CSV now carries three sections (forecast summary, milestone
+projection, daily activity) instead of the activity series alone. Both
+tables gained DataTables search/info (parity with blockedAgeing). BFF review
+fixes: the first-execution groups are now read in ascending day order so a
+platform-less link is stamped by its EARLIEST proving execution (was
+non-deterministic first-wins), the ETA divides by the UNROUNDED velocity
+(rounding first inflated low-velocity ETAs), the overall-velocity span starts
+at the earliest MAPPED first day (executions of since-unlinked versions no
+longer deflate it) and dead code was removed. Re-check after the fixes:
+plan 4 unchanged (10/8/2, velocity 0.57, ETA 2026-11-14, on_track; milestone
+rows "90 / 80 / 70%" / "95 / 85 / 75%"), plan 5 still stalled with ETA —,
+search inputs present on both tables and named (no a11y console issue), CSV
+head/milestone/activity sections verified, console clean.

@@ -10639,7 +10639,7 @@
  "pf.colMileName": "Контрольная точка",
  "pf.colMileTarget": "Целевая дата",
  "pf.colMileDaysLeft": "Осталось дней",
- "pf.colMileTargetPct": "Цель %",
+ "pf.colMileTargetPct": "Целевой % пройденных (Н/С/В)",
  "pf.colMileRequired": "Нужная скорость",
  "pf.colMileProjected": "Ожидаемое завершение",
  "pf.colMileVerdict": "Вердикт",

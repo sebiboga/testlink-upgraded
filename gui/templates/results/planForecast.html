@@ -4,6 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test plan completion forecast: execution velocity, projected completion date and milestone comparison (TestLink 2.0.1)">
 <title>Test Plan Completion Forecast</title>
 <!--
   Test Plan Completion Forecast (Refs #1983).
@@ -361,7 +362,7 @@ function renderMileTable(data) {
       + '<td><strong>' + esc(m.name) + '</strong></td>'
       + '<td>' + esc(m.target_date) + '</td>'
       + '<td class="num">' + dlPill + '</td>'
-      + '<td class="num"><span class="pill info">' + esc(m.a) + '%</span></td>'
+      + '<td class="num"><span class="pill info" title="L/M/H">' + esc(m.a) + ' / ' + esc(m.b) + ' / ' + esc(m.c) + '%</span></td>'
       + '<td class="num">' + req + '</td>'
       + '<td>' + proj + '</td>'
       + '<td>' + mileVerdictLabel(m.verdict) + '</td>'
@@ -375,11 +376,18 @@ function renderMileTable(data) {
   }
   $('#tblMile tbody').html(rows);
   dtMile = $('#tblMile').DataTable({
-    paging: true, pageLength: 10, searching: false, info: false,
+    paging: true, pageLength: 10, searching: true, info: true,
     language: dtLang('pf.noMilestoneSet'),
     order: [[1, 'asc']],
     columnDefs: [{ targets: [2, 3, 4], className: 'num' }]
   });
+  setTimeout(function () {
+    var $inp = $('#tblMile').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'planMileTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'planMileTableSearch'); }
+    }
+  }, 0);
 }
 
 function renderActTable(data) {
@@ -405,7 +413,7 @@ function renderActTable(data) {
   }
   $('#tblAct tbody').html(rows);
   dtAct = $('#tblAct').DataTable({
-    paging: true, pageLength: 14, searching: false, info: false,
+    paging: true, pageLength: 14, searching: true, info: true,
     language: dtLang('pf.noRows'),
     order: [[0, 'desc']],
     columnDefs: [{ targets: [1, 2, 3, 4], className: 'num' }]
@@ -515,9 +523,36 @@ function csvCell(v) {
 function exportCsv() {
   if (!currentData) { return; }
   var lines = [];
+  var d = currentData;
+  var s = d.summary || {};
+  // Section 1: forecast summary (the primary deliverable).
+  lines.push(csvCell(TLi18n.t('pf.title')));
+  lines.push(csvCell(TLi18n.t('pf.ctxPlan')) + ';' + csvCell(d.context ? d.context.tplan_name : ''));
+  lines.push(csvCell(TLi18n.t('pf.ctxBuild')) + ';' + csvCell(buildLabel(d.filter ? d.filter.build_id : 0)));
+  lines.push(csvCell(TLi18n.t('pf.kpiAssigned')) + ';' + csvCell(s.assigned));
+  lines.push(csvCell(TLi18n.t('pf.kpiExecuted')) + ';' + csvCell(s.executed));
+  lines.push(csvCell(TLi18n.t('pf.kpiRemaining')) + ';' + csvCell(s.remaining));
+  lines.push(csvCell(TLi18n.t('pf.kpiVelocityRecent')) + ';' + csvCell(s.recent_velocity));
+  lines.push(csvCell(TLi18n.t('pf.kpiEtaDays')) + ';' + csvCell(s.eta_days));
+  lines.push(csvCell(TLi18n.t('pf.kpiEtaDate')) + ';' + csvCell(s.eta_date || ''));
+  lines.push(csvCell(TLi18n.t('pf.kpiNextMilestone')) + ';'
+    + csvCell(d.next_milestone ? d.next_milestone.name : ''));
+  lines.push('');
+  // Section 2: milestone projection.
+  var mhead = ['pf.colMileName', 'pf.colMileTarget', 'pf.colMileDaysLeft',
+    'pf.colMileTargetPct', 'pf.colMileRequired', 'pf.colMileProjected', 'pf.colMileVerdict'];
+  lines.push(mhead.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  $.each(d.milestones || [], function (i, m) {
+    lines.push([m.name, m.target_date, m.days_left,
+      m.a + ' / ' + m.b + ' / ' + m.c,
+      (m.required_velocity === null || m.required_velocity === undefined) ? '' : m.required_velocity,
+      m.projected_date || '', m.verdict].map(csvCell).join(';'));
+  });
+  lines.push('');
+  // Section 3: daily first-execution activity.
   var head = ['pf.colDay', 'pf.colNewly', 'pf.colExecs', 'pf.colCumulative', 'pf.colRemainingAfter'];
   lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
-  $.each(currentData.activity, function (i, a) {
+  $.each(d.activity || [], function (i, a) {
     lines.push([a.day, a.newly_executed, a.executions, a.cumulative_executed,
       a.remaining_after].map(csvCell).join(';'));
   });

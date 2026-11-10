@@ -10639,7 +10639,7 @@
  "pf.colMileName": "里程碑",
  "pf.colMileTarget": "目标日期",
  "pf.colMileDaysLeft": "剩余天数",
- "pf.colMileTargetPct": "目标 %",
+ "pf.colMileTargetPct": "目标通过率 %（低/中/高）",
  "pf.colMileRequired": "所需速度",
  "pf.colMileProjected": "预计完成日",
  "pf.colMileVerdict": "判定",

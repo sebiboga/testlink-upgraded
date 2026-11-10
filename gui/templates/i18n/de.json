@@ -10639,7 +10639,7 @@
  "pf.colMileName": "Meilenstein",
  "pf.colMileTarget": "Zieldatum",
  "pf.colMileDaysLeft": "Verbleibende Tage",
- "pf.colMileTargetPct": "Ziel-Anteil %",
+ "pf.colMileTargetPct": "Soll-Pass-% (N/M/H)",
  "pf.colMileRequired": "Erforderliches Tempo",
  "pf.colMileProjected": "Prognostizierter Abschluss",
  "pf.colMileVerdict": "Urteil",

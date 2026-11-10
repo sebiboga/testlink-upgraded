@@ -10639,7 +10639,7 @@
  "pf.colMileName": "Jalon",
  "pf.colMileTarget": "Date cible",
  "pf.colMileDaysLeft": "Jours restants",
- "pf.colMileTargetPct": "Objectif %",
+ "pf.colMileTargetPct": "Objectif de réussite % (B/M/H)",
  "pf.colMileRequired": "Vélocité requise",
  "pf.colMileProjected": "Achèvement projeté",
  "pf.colMileVerdict": "Verdict",

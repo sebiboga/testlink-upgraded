@@ -10639,7 +10639,7 @@
  "pf.colMileName": "Milestone",
  "pf.colMileTarget": "Dată țintă",
  "pf.colMileDaysLeft": "Zile rămase",
- "pf.colMileTargetPct": "Țintă trecute %",
+ "pf.colMileTargetPct": "Procent țintă trecut % (S/M/Î)",
  "pf.colMileRequired": "Viteză necesară",
  "pf.colMileProjected": "Finalizare proiectată",
  "pf.colMileVerdict": "Verdict",

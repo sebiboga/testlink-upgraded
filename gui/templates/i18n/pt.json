@@ -10639,7 +10639,7 @@
  "pf.colMileName": "Marco",
  "pf.colMileTarget": "Data alvo",
  "pf.colMileDaysLeft": "Dias restantes",
- "pf.colMileTargetPct": "Meta %",
+ "pf.colMileTargetPct": "Alvo aprovado % (B/M/A)",
  "pf.colMileRequired": "Velocidade necessária",
  "pf.colMileProjected": "Conclusão projetada",
  "pf.colMileVerdict": "Veredito",

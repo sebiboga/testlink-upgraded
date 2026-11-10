@@ -150,8 +150,8 @@ if ($tplanId <= 0) {
 //   2. check the right on the OWNING project (getAccess = true)
 //   3. only then honour the client's tproject_id assertion
 $tbl = tlObjectWithDB::getDBTables(array(
-    'testplans', 'builds', 'platforms', 'testplan_tcversions', 'tcversions',
-    'nodes_hierarchy', 'executions', 'milestones', 'testprojects', 'users',
+    'testplans', 'builds', 'platforms', 'testplan_tcversions', 'executions',
+    'milestones',
 ));
 $planRow = $db->get_recordset(
     "SELECT id, testproject_id FROM {$tbl['testplans']} WHERE id = " . intval($tplanId));
@@ -246,8 +246,7 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 // report
 // ---------------------------------------------------------------------------
-$nowRs = $db->get_recordset("SELECT UNIX_TIMESTAMP(NOW()) AS now_ts, DATE(NOW()) AS today");
-$now = (is_array($nowRs) && count($nowRs) > 0) ? intval($nowRs[0]['now_ts']) : time();
+$nowRs = $db->get_recordset("SELECT DATE(NOW()) AS today");
 $today = (is_array($nowRs) && count($nowRs) > 0) ? (string)$nowRs[0]['today'] : date('Y-m-d');
 
 // Universe: the plan's assigned links (tcversion, platform), narrowed by the
@@ -264,7 +263,6 @@ if ($platformId > 0) {
 $versionRs = $db->get_recordset($versionSql);
 
 $linkSet = array();
-$linkNames = array();
 $zeroLink = array();
 $assigned = 0;
 if (is_array($versionRs)) {
@@ -272,9 +270,7 @@ if (is_array($versionRs)) {
         $tcv = intval($v['tcversion_id']);
         $pl = intval($v['platform_id']);
         $linkSet[$tcv . '/' . $pl] = true;
-        if ($pl > 0) {
-            $linkNames[$tcv . '/' . $pl] = true;
-        } else {
+        if ($pl === 0) {
             $zeroLink[$tcv] = true;
         }
         $assigned++;
@@ -287,8 +283,7 @@ if (is_array($versionRs)) {
 // executed by an execution on ANY platform; a link pinned to platform X is
 // only executed by an execution on platform X.
 $execSql =
-    "SELECT e.tcversion_id, e.platform_id, MIN(e.execution_ts) AS first_exec, " .
-    "       DATE(MIN(e.execution_ts)) AS first_day, COUNT(e.id) AS exec_count " .
+    "SELECT e.tcversion_id, e.platform_id, DATE(MIN(e.execution_ts)) AS first_day " .
     "FROM {$tbl['executions']} e " .
     "WHERE e.testplan_id = " . intval($tplanId);
 if ($buildId > 0) {
@@ -297,14 +292,17 @@ if ($buildId > 0) {
 if ($platformId > 0) {
     $execSql .= " AND (e.platform_id = " . intval($platformId) . " OR e.platform_id = 0)";
 }
-$execSql .= " AND e.execution_ts IS NOT NULL GROUP BY e.tcversion_id, e.platform_id";
+// ORDER BY first_day ASC: a platform-less link (0) can be proven executed by
+// an execution on ANY platform, so the earliest candidate group must stamp
+// the link first (first-wins must mean earliest-wins, code review #1983).
+$execSql .= " AND e.execution_ts IS NOT NULL GROUP BY e.tcversion_id, e.platform_id"
+          . " ORDER BY first_day ASC";
 $execRs = $db->get_recordset($execSql);
 
 // first-day counters + per-day raw execution volume (for the activity table).
 $firstDayByLink = array();      // link -> first day (Y-m-d)
 $firstDayCounters = array();    // day -> newly executed links
 $dayExecCounts = array();        // day -> raw execution rows in scope
-$earliestDay = null;
 if (is_array($execRs)) {
     foreach ($execRs as $e) {
         $tcv = intval($e['tcversion_id']);
@@ -324,7 +322,6 @@ if (is_array($execRs)) {
                 $firstDayCounters[$day] = ($firstDayCounters[$day] ?? 0) + 1;
             }
         }
-        if ($earliestDay === null || $day < $earliestDay) { $earliestDay = $day; }
     }
 }
 
@@ -350,7 +347,9 @@ if (is_array($dayRs)) {
     }
 }
 
-// Executed links = links proven above (the link must still exist in the plan).
+// Executed links = links proven above (the link must still exist in the
+// plan). The overall-velocity span starts at the earliest MAPPED first day,
+// so executions of since-unlinked versions cannot deflate it (#1983 review).
 $executedLinks = array();
 foreach ($firstDayByLink as $linkKey => $day) {
     if (isset($linkSet[$linkKey])) {
@@ -358,6 +357,7 @@ foreach ($firstDayByLink as $linkKey => $day) {
     }
 }
 $executed = count($executedLinks);
+$earliestDay = ($executed > 0) ? min($executedLinks) : null;
 $remaining = max(0, $assigned - $executed);
 $progressPct = ($assigned > 0) ? pfRound(100.0 * $executed / $assigned, 1) : 0.0;
 
@@ -382,10 +382,12 @@ if ($earliestDay !== null && $executed > 0) {
 
 // ETA on the recent velocity (the honest forward-looking figure). Calendar
 // days; a stalled recent window (velocity 0 with work left) refuses to guess.
+// The ETA divides by the UNROUNDED velocity - rounding it first inflates the
+// ETA at low velocities (code review #1983).
 $etaDays = null;
 $etaDate = null;
-if ($remaining > 0 && $recentVelocity > 0) {
-    $etaDays = (int)ceil($remaining / $recentVelocity);
+if ($remaining > 0 && $recentNew > 0) {
+    $etaDays = (int)ceil($remaining * max(1, $days) / $recentNew);
     $etaDate = date('Y-m-d', strtotime($today . ' +' . $etaDays . ' day'));
 }
 

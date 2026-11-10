@@ -10639,7 +10639,7 @@
  "pf.colMileName": "マイルストーン",
  "pf.colMileTarget": "目標日",
  "pf.colMileDaysLeft": "残り日数",
- "pf.colMileTargetPct": "目標 %",
+ "pf.colMileTargetPct": "目標合格率 % (低/中/高)",
  "pf.colMileRequired": "必要速度",
  "pf.colMileProjected": "予測完了日",
  "pf.colMileVerdict": "判定",
