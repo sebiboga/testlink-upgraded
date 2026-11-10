@@ -468,7 +468,8 @@ function load() {
       renderBanner(data.summary, data.next_milestone);
       renderMileTable(data);
       renderActTable(data);
-      $('#btnCsv').prop('disabled', !data.activity || data.activity.length === 0);
+      $('#btnCsv').prop('disabled', !data.activity || data.activity.length === 0
+        || !data.summary || data.summary.assigned === 0);
     })
     .fail(function (xhr) {
       var payload = null;
