@@ -508,6 +508,7 @@ pfOut(array(
     'status' => 'ok',
     'code' => 200,
     'context' => $context,
+    'filters' => $filters,
     'filter' => $filterEcho,
     'summary' => $summary,
     'next_milestone' => $next,
