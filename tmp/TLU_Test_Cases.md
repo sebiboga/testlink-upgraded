@@ -46680,3 +46680,35 @@ plan 4 unchanged (10/8/2, velocity 0.57, ETA 2026-11-14, on_track; milestone
 rows "90 / 80 / 70%" / "95 / 85 / 75%"), plan 5 still stalled with ETA —,
 search inputs present on both tables and named (no a11y console issue), CSV
 head/milestone/activity sections verified, console clean.
+
+## Issue #1984 — Test Plan Estimated vs Actual Execution Effort (execEffort)
+
+Screen: `gui/templates/results/execEffort.html` + BFF `api/execeffort/index.php`
+(`GET|HEAD ?action=init|report`). Fixture: `tmp/fixtures_1984.php` (project
+EFF1984 id 1 / prefix EF, plan 3, builds 1-2, platforms 1-2, 8 assigned
+versions; empty project 2 / plan 4; user `eff1984norights` role 3).
+
+| # | Case | Result |
+|---|------|--------|
+| 1 | Plan 3 default load (EN): context EFF1984 / EFF Plan / All builds / All platforms / 0%; 9 KPIs = assigned 8, executed 7, not run 1, estimated total 235, actual total 197, variance +22, variance % +12.6%, over budget 3, within budget 2; red banner "3 test case version(s) over budget; total variance 22 min (12.6%)"; report visible | PASS |
+| 2 | Per-version table (worst overrun first): TC seven +20 / +40% over, TC one +5 / +16.7%, TC eight +2 / +20%, TC six 0 / 0% within, TC two -15 / -25% within, TC five not_run, TC four untimed with 0/1 timed pill, TC three no_estimate; per-suite table Child 4/4/115/82/-33 and Root 4/3/120/115/-5; both DataTables length/sort/search controls live | PASS |
+| 3 | Over-budget tolerance 50% + Apply: over 0, within 5, green banner "No test case version over budget; total variance 22 min (12.6%)", context tolerance 50% — tolerance re-judges rows without hiding the true variance | PASS |
+| 4 | Build filter = EF Build 2 + Apply: context "EF Build 2", not run 6, over 0, within 2, green banner variance -25 min (-31.3%), 8 rows — build narrows executions only, universe stays assigned versions | PASS |
+| 5 | Empty plan 4: info banner "No timed execution with a recorded estimate yet", assigned 0, empty table row, Export CSV disabled | PASS |
+| 6 | Missing tplan_id deep link: 400 state card "Invalid request" with machine code `missing_tplan_id`, report hidden, CSV disabled | PASS |
+| 7 | Export CSV (plan 3): toast "CSV exported", file `execution-effort-3.csv`, UTF-8 BOM, `;` separator, formula-injection guard, 3 sections (summary, per-version rows, per-suite breakdown) | PASS |
+| 8 | Locale switch EN→RO via footer selector: page title, subtitle, toolbar, context card, KPIs, table headers, banner and footer fully translated; zero raw `eff.*` keys; locale persists on reload | PASS |
+| 9 | 403 no-right path (browser as `eff1984norights`): "Access denied" state card, machine code `no_right`, report hidden, CSV disabled | PASS |
+| 10 | BFF machine contract (curl): init returns context + 2 builds + 2 platforms + default filter echo; report plan 3 numbers above; `over_pct=50` → over 0 / within 5 and verdict `within` (tolerance-consistent); `build_id=2` → not run 6; anonymous 401 `not_authenticated`; plan 99999 404 `tplan_not_found`; plan 3 + tproject 2 404 `project_mismatch`; `over_pct=abc` 400; unknown action 400; POST same-origin 405; POST without Origin 403; HEAD 200 | PASS |
+| 11 | Reports menu `api/aside/?action=init&tproject_id=1&tplan_id=3` lists "Test Plan Execution Effort" with contexted href `/gui/templates/results/execEffort.html?tproject_id=1&tplan_id=3`; `cfg/reports.cfg.php` (`exec_effort`), `api/aside` mapping and `$actions->execEffort` wired | PASS |
+| 12 | Refresh re-fetches honouring current selects; Close navigates to `/index.php` | PASS |
+| 13 | Event Viewer after the full pass: 0 ERROR / 0 WARNING (only level-16 AUDIT rows, including the no-right denial now logged at AUDIT — it was ERROR and polluted the viewer, fixed in `d6c7d6a38`); browser console clean on every state | PASS |
+| 14 | i18n gate `ai/verify_i18n_coverage.sh` 9/9 (66 `eff.*` + `footers.execEffort` keys × 10 client bundles, 10733 keys each); `$TLS_link_report_exec_effort` present in all 19 server locales | PASS |
+
+**14/14 PASS.** One defect found by the mandatory Event Viewer close-out and
+fixed during the pass: the BFF logged a refused authorization at ERROR
+(three `log_level=1` rows), now AUDIT like the sibling report BFFs; the
+tolerance-consistent verdict fix (`over` is judged on row-level `over_pct`,
+not on the sign of the total variance) landed in the same commit
+`d6c7d6a38`. BFF itself was already committed by a prior run (`ffd3516b3`);
+this run added the screen, i18n, wiring, fixtures, docs and suite.
