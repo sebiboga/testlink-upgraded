@@ -2214,3 +2214,4 @@ $TLS_link_report_plan_forecast = "Testisuunnitelman valmistumisennuste"; // Test
 $TLS_link_report_priority_coverage = "Testisuunnitelman prioriteettikattavuus"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Testisuunnitelman virheiden Pareto"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Tulokset build-kohtaisesti"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "Testisuunnitelman suorituksen työmäärä"; // Test Plan Execution Effort (Refs #1984)

@@ -2508,3 +2508,4 @@ $TLS_link_report_plan_forecast = "테스트 계획 완료 예측"; // Test Plan 
 $TLS_link_report_priority_coverage = "테스트 계획 우선순위 범위"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "테스트 계획 실패 파레토"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "빌드별 테스트 결과"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "테스트 계획 실행 공수"; // Test Plan Execution Effort (Refs #1984)

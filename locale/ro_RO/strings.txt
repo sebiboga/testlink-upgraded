@@ -244,3 +244,4 @@ $TLS_link_report_plan_forecast = "Prognoza finalizării planului de testare"; //
 $TLS_link_report_priority_coverage = "Acoperire pe priorități a planului de testare"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto al eșecurilor planului de test"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Rezultate pe build"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "Efort de execuție al planului de testare"; // Test Plan Execution Effort (Refs #1984)

@@ -3775,3 +3775,4 @@ $TLS_link_report_plan_forecast = "Abschlussprognose des Testplans"; // Test Plan
 $TLS_link_report_priority_coverage = "Prioritätsabdeckung des Testplans"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Fehler-Pareto des Testplans"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Ergebnisse pro Build"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "Ausführungsaufwand des Testplans"; // Test Plan Execution Effort (Refs #1984)

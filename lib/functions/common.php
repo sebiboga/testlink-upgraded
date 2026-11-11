@@ -2729,6 +2729,15 @@ function getActions(&$gui,$baseURL) {
   $actions->planForecast =
     "/gui/templates/results/planForecast.html?{$ctx}";
 
+  // Refs #1984: Test Plan Estimated vs Actual Execution Effort report
+  // (net-new screen). TestLink stores the per-version estimate and the actual
+  // run duration but no screen ever compares them; this answers "which
+  // tests/suites run over budget, and how far off was the estimate?".
+  // Backed by the api/execeffort BFF (init/report), reachable from the
+  // Reports menu (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->execEffort =
+    "/gui/templates/results/execEffort.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

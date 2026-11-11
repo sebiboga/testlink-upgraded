@@ -586,6 +586,17 @@ $tlCfg->reports_list['plan_forecast'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1984: Test Plan Estimated vs Actual Execution Effort (net-new report).
+// TestLink stores the per-version estimate (tcversions.estimated_exec_duration)
+// and the actual run duration (executions.execution_duration) but no screen
+// ever compares them. Backed by the api/execeffort BFF (init/report).
+$tlCfg->reports_list['exec_effort'] = array(
+	'title' => 'link_report_exec_effort',
+	'url' => 'gui/templates/results/execEffort.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

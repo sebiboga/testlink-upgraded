@@ -322,6 +322,11 @@ if ($tplan_id > 0) {
                 // comparison - will the plan make its deadline?).
                 $hrefR = '/gui/templates/results/planForecast.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_effort') {
+                // Refs #1984: Test Plan Estimated vs Actual Execution Effort
+                // (which tests run over budget, and how far off the estimate).
+                $hrefR = '/gui/templates/results/execEffort.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

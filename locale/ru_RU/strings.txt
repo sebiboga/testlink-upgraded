@@ -2880,3 +2880,4 @@ $TLS_link_report_plan_forecast = "Прогноз завершения плана
 $TLS_link_report_priority_coverage = "Покрытие по приоритетам тест-плана"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Парето отказов тест-плана"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Результаты по сборкам"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "Трудозатраты выполнения тест-плана"; // Test Plan Execution Effort (Refs #1984)

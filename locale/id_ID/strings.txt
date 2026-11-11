@@ -2956,3 +2956,4 @@ $TLS_link_report_plan_forecast = "Prakiraan penyelesaian rencana uji"; // Test P
 $TLS_link_report_priority_coverage = "Cakupan prioritas rencana pengujian"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto kegagalan rencana pengujian"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Hasil per build"; // Test Plan Results by Build (Refs #1980)
+$TLS_link_report_exec_effort = "Upaya Eksekusi Rencana Uji"; // Test Plan Execution Effort (Refs #1984)
