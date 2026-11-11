@@ -169,9 +169,12 @@ if ($owningProjectId <= 0) {
 }
 
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $tplanId, true)) {
+    // A refused authorization is a normal outcome, not a system error: log it
+    // at AUDIT so the Event Viewer close-out stays free of ERROR/WARNING rows
+    // (same convention as api/tcspechealth, api/plancomparison, ...).
     tLog('BFF execeffort: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . $owningProjectId .
-         ' (tplan ' . $tplanId . ')', 'ERROR');
+         ' (tplan ' . $tplanId . ')', 'AUDIT');
     eeFail(403, 'no_right', 'testplan_metrics right required');
 }
 
@@ -509,9 +512,12 @@ $summary['variance_pct'] = ($summary['estimated_executed'] > 0)
     : null;
 
 // Verdict precedence (documented in the screen): no_data > over > within.
+// "over" is judged on the row-level tolerance, not on the sign of the total
+// variance: a positive total variance inside the tolerance (over_pct) is NOT
+// over budget - otherwise raising the tolerance could never turn a plan green.
 $verdict = 'no_data';
 if ($summary['timed_versions'] > 0 && $summary['estimated_executed'] > 0) {
-    $verdict = ($summary['over_budget'] > 0 || $summary['variance'] > 0) ? 'over' : 'within';
+    $verdict = ($summary['over_budget'] > 0) ? 'over' : 'within';
 }
 
 // Worst overrun first, then alphabetical.
