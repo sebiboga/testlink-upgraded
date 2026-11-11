@@ -112,8 +112,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="eff.close">Close</span></button>
 </div>
 
-<div id="stateBox"></div>
-<div id="bannerBox"></div>
+<div id="stateBox" role="status" aria-live="polite"></div>
+<div id="bannerBox" role="status" aria-live="polite"></div>
 
 <div id="report" style="display:none;">
   <div class="panel">
@@ -250,7 +250,7 @@ function showLoading() {
   $('#btnCsv').prop('disabled', true);
   $('#report').hide();
   $('#bannerBox').html('');
-  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+  $('#stateBox').html('<div class="state"><div class="spinner" role="status" aria-label="' + esc(TLi18n.t('eff.loading')) + '"></div>'
     + esc(TLi18n.t('eff.loading')) + '</div>');
 }
 
@@ -313,9 +313,9 @@ function verdictLabel(v) {
   return '<span class="badge-v ' + esc(v) + '">' + esc(TLi18n.t(map[v] || 'eff.vNotRun')) + '</span>';
 }
 
-function renderBanner(s) {
+function renderBanner(s, verdict) {
   var html = '';
-  if (s.timed_versions === 0) {
+  if (verdict === 'no_data' || s.estimated_executed <= 0) {
     html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
          + esc(TLi18n.t('eff.bannerNoData')) + '</span></div>';
   } else if (s.over_budget > 0) {
@@ -398,7 +398,7 @@ function renderRowsTable(data) {
   dtRows = $('#tblRows').DataTable({
     paging: true, pageLength: 10, searching: true, info: true,
     language: dtLang('eff.noRows'),
-    order: [[7, 'desc']],
+    order: [],
     columnDefs: [{ targets: [4, 5, 6, 7, 8], className: 'num' }]
   });
   setTimeout(function () {
@@ -476,7 +476,11 @@ function load() {
   var p = $('#selPlatform').val();
   if (p && p !== '0') { params.platform_id = p; }
   var o = parseInt($('#inpOver').val(), 10);
-  if (!isNaN(o) && o >= 0) { params.over_pct = o; }
+  if (!isNaN(o)) {
+    o = Math.max(0, Math.min(100, o));
+    $('#inpOver').val(String(o));
+    params.over_pct = o;
+  }
 
   $.ajax({ url: API, data: params, dataType: 'json', cache: false,
     headers: { 'X-Requested-With': 'XMLHttpRequest' } })
@@ -490,7 +494,7 @@ function load() {
       $('#report').show();
       fillFilters(data.filters, data.filter);
       renderSummary(data);
-      renderBanner(data.summary);
+      renderBanner(data.summary, data.verdict);
       renderRowsTable(data);
       renderSuitesTable(data);
       $('#btnCsv').prop('disabled', !data.rows || data.rows.length === 0);

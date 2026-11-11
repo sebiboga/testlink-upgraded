@@ -46712,3 +46712,22 @@ tolerance-consistent verdict fix (`over` is judged on row-level `over_pct`,
 not on the sign of the total variance) landed in the same commit
 `d6c7d6a38`. BFF itself was already committed by a prior run (`ffd3516b3`);
 this run added the screen, i18n, wiring, fixtures, docs and suite.
+
+**Corrections after the mandatory code review (Refs #1984):** the effort
+totals now cover the JUDGED versions only (timed + estimated), so they
+reconcile with the rows: plan 3 becomes estimated 175 / actual 187 /
+variance +12 min / +6.9% (was 235 / 197 / +22 / +12.6%, which mixed a
+no-estimate version's actual minutes into a total that had no matching
+estimate) and the per-suite table becomes Child 4/4/95/82/-13 and Root
+4/3/80/105/+25. A platform filter now keeps the `platform_id = 0` ("any
+platform") assignments and executions like the sibling report BFFs, so
+`platform_id=1` still returns 8 assigned / 7 executed on the platform-less
+fixture (was an empty report). The banner branches on the BFF `verdict`
+(`no_data`) instead of `timed_versions === 0`, the tolerance is clamped to
+0–100 client-side, the backend order is preserved (no fragile variance
+re-sort) and the state/banner/loading regions are `role="status"` live
+regions. `json_encode` now uses `JSON_INVALID_UTF8_SUBSTITUTE`. Key count is
+65 `eff.*` (the earlier "66" was a miscount). Re-verified after the fixes:
+verdict `over`, over 3 / within 2, tolerance 50% → over 0 / within 5 and
+`within`, build 2 → not run 6 / within 2 / variance -25, platform 1 and 2
+both 8/7, BFF error contract unchanged, i18n gate 9/9, Event Viewer AUDIT-only.

@@ -69,15 +69,22 @@ Error contract: `not_authenticated` (401), `no_right` (403),
 
 - The plan is resolved first; every query uses the owning `testproject_id`.
 - The universe is the `testplan_tcversions` links of the plan
-  (`platform_id = 0` = "any platform", matching every execution platform).
+  (`platform_id = 0` = "any platform": a platform filter keeps both the
+  selected platform's links and the platform-less ones, and the execution
+  scope does the same - same convention as `api/planforecast` and
+  `api/blockedageing`).
 - A version is TIMED when it has at least one execution with a recorded
   `execution_duration`; the actual effort is the sum of those durations, the
   estimate is the version's `estimated_execution_duration` (0 = no estimate).
 - Variance = actual − estimated. A version is `over` when
-  `variance % > over_pct` (estimate 0 with actual > 0 counts as over), else
-  `within`; `not_run` when the version has no execution in scope, `untimed`
-  when executions exist but none recorded a duration, `no_estimate` when a
-  duration exists but the estimate is 0.
+  `variance % > over_pct`, else `within`; `not_run` when the version has no
+  execution in scope, `untimed` when executions exist but none recorded a
+  duration, `no_estimate` when a duration exists but the estimate is 0.
+- The headline `estimated total`, `actual total` and `variance` cover the
+  JUDGED versions only (timed + estimated), so they always reconcile with the
+  per-version and per-suite rows: `variance = overrun − saved` = sum of the
+  row variances (`d6c7d6a38`). Not-run, untimed and no-estimate rows are
+  counted in their own KPI cards but never enter the effort maths.
 - The plan-wide verdict is `over` when at least one version is over the
   tolerance, never merely because the total variance is positive (code review
   fix `d6c7d6a38`).
@@ -91,7 +98,7 @@ Error contract: `not_authenticated` (401), `no_right` (403),
 - `api/aside/index.php` maps it to the modern screen with the plan context;
   `$actions->execEffort` provides the other entry point.
 - `$TLS_link_report_exec_effort` is present in all 19 server locales.
-- 66 `eff.*` keys plus `footers.execEffort` are present in all 10 client
+- 65 `eff.*` keys plus `footers.execEffort` are present in all 10 client
   bundles; `bash ai/verify_i18n_coverage.sh` passes 9/9.
 
 ## Suite

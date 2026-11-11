@@ -61,7 +61,7 @@ function eeOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -269,7 +269,10 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 $whereAssign = "tpt.testplan_id = " . intval($tplanId);
 if ($platformId > 0) {
-    $whereAssign .= " AND tpt.platform_id = " . intval($platformId);
+    // platform_id = 0 is an "any platform" assignment: it matches every
+    // platform filter (same convention as api/planforecast + api/blockedageing).
+    $whereAssign .= " AND (tpt.platform_id = " . intval($platformId) .
+        " OR tpt.platform_id = 0)";
 }
 
 $assignRs = $db->get_recordset(
@@ -343,15 +346,23 @@ if (count($assignedVersionIds) > 0) {
 // only versions still linked to the plan - an execution that survives an
 // un-assignment must not resurrect the version in this plan's report).
 // ---------------------------------------------------------------------------
+$whereLink = "tpt.testplan_id = " . intval($tplanId);
+if ($platformId > 0) {
+    $whereLink .= " AND (tpt.platform_id = " . intval($platformId) .
+        " OR tpt.platform_id = 0)";
+}
 $whereExec = "e.testplan_id = " . intval($tplanId) .
     " AND e.execution_ts IS NOT NULL" .
     " AND e.tcversion_id IN (SELECT tpt.tcversion_id FROM {$tbl['testplan_tcversions']} tpt" .
-    " WHERE tpt.testplan_id = " . intval($tplanId) . ")";
+    " WHERE " . $whereLink . ")";
 if ($buildId > 0) {
     $whereExec .= " AND e.build_id = " . intval($buildId);
 }
 if ($platformId > 0) {
-    $whereExec .= " AND e.platform_id = " . intval($platformId);
+    // A platform-less execution belongs to "any platform" and is part of the
+    // filtered scope, mirroring the sibling report BFFs.
+    $whereExec .= " AND (e.platform_id = " . intval($platformId) .
+        " OR e.platform_id = 0)";
 }
 
 $execRs = $db->get_recordset(
@@ -362,7 +373,6 @@ $execRs = $db->get_recordset(
 $perVersion = array();
 $totalExecutions = 0;
 $timedExecutions = 0;
-$actualTotal = 0.0;
 
 if (is_array($execRs)) {
     foreach ($execRs as $r) {
@@ -384,7 +394,6 @@ if (is_array($execRs)) {
 
         if ($hasDur) {
             $timedExecutions++;
-            $actualTotal += $dur;
             $perVersion[$tcv]['timed']++;
             $perVersion[$tcv]['sum'] += $dur;
         }
@@ -430,8 +439,6 @@ foreach ($assignedVersionIds as $tcv) {
     $actual = $v ? eeRound($v['sum'], 2) : 0.0;
     $estimated = eeRound($m['estimated'], 2);
 
-    $summary['estimated_total'] += $estimated;
-
     $suitePath = $m['tcase_node_id'] > 0 ? ($suitePaths[$m['tcase_node_id']] ?? '') : '';
 
     if ($executions === 0) {
@@ -456,7 +463,9 @@ foreach ($assignedVersionIds as $tcv) {
     } else {
         $summary['executed']++;
         $summary['timed_versions']++;
+        $summary['estimated_total'] += $estimated;
         $summary['estimated_executed'] += $estimated;
+        $summary['actual_total'] += $actual;
         $variance = eeRound($actual - $estimated, 2);
         $variancePct = eeRound(100.0 * ($actual - $estimated) / $estimated, 1);
         if ($variance > 0) {
@@ -503,12 +512,15 @@ foreach ($assignedVersionIds as $tcv) {
 
 $summary['estimated_total'] = eeRound($summary['estimated_total'], 2);
 $summary['estimated_executed'] = eeRound($summary['estimated_executed'], 2);
-$summary['actual_total'] = eeRound($actualTotal, 2);
-$summary['variance'] = eeRound($actualTotal - $summary['estimated_executed'], 2);
+$summary['actual_total'] = eeRound($summary['actual_total'], 2);
+// The headline variance is the sum of the JUDGED row variances, so it always
+// reconciles with the table (overrun - saved) instead of mixing in the actual
+// minutes of no-estimate versions.
+$summary['variance'] = eeRound($summary['overrun_minutes'] - $summary['saved_minutes'], 2);
 $summary['overrun_minutes'] = eeRound($summary['overrun_minutes'], 2);
 $summary['saved_minutes'] = eeRound($summary['saved_minutes'], 2);
 $summary['variance_pct'] = ($summary['estimated_executed'] > 0)
-    ? eeRound(100.0 * ($actualTotal - $summary['estimated_executed']) / $summary['estimated_executed'], 1)
+    ? eeRound(100.0 * $summary['variance'] / $summary['estimated_executed'], 1)
     : null;
 
 // Verdict precedence (documented in the screen): no_data > over > within.
@@ -541,12 +553,14 @@ foreach ($rows as $r) {
             'estimated' => 0.0, 'actual' => 0.0);
     }
     $perSuite[$sp]['assigned']++;
-    $perSuite[$sp]['estimated'] += (float)$r['estimated'];
     if ($r['executions'] > 0) {
         $perSuite[$sp]['executed']++;
-        if ($r['timed'] > 0) {
-            $perSuite[$sp]['actual'] += (float)$r['actual'];
-        }
+    }
+    // Effort columns cover the JUDGED rows only (timed + estimated), so the
+    // per-suite variance sums to the plan variance.
+    if ($r['verdict'] === 'over' || $r['verdict'] === 'within') {
+        $perSuite[$sp]['estimated'] += (float)$r['estimated'];
+        $perSuite[$sp]['actual'] += (float)$r['actual'];
     }
 }
 $suiteRows = array();
@@ -557,7 +571,7 @@ foreach ($perSuite as $sp => $s) {
         'executed' => $s['executed'],
         'estimated' => eeRound($s['estimated'], 2),
         'actual' => eeRound($s['actual'], 2),
-        'variance' => ($s['actual'] > 0) ? eeRound($s['actual'] - $s['estimated'], 2) : null,
+        'variance' => ($s['estimated'] > 0) ? eeRound($s['actual'] - $s['estimated'], 2) : null,
     );
 }
 usort($suiteRows, function ($a, $b) { return strcmp($a['suite'], $b['suite']); });
