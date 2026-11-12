@@ -46848,3 +46848,70 @@ no-rights user `vch1986norights`. Run as `admin` (English) unless stated.
 23. PASS — Event Viewer after the pass: AUDIT rows only (login, project
     creation, the expected 403 audit line); 0 Error/Warning (the one fixture
     ERROR from an early roles query was fixed in the fixture and removed).
+
+
+## Issue #1987 — Test Plan Build × Platform Coverage Matrix (buildPlatformMatrix)
+
+Fixture: project BPM1987 (1) / BPM1987 EMPTY (2), plan BPM Matrix Plan (3),
+BPM Empty Plan (4), builds BPM Build 1 (1), BPM Build 2 inactive (2), BPM Build 3 (3),
+platforms BPM Platform 1 (1), BPM Platform 2 (2), 5 tcversions assigned (21
+assignments across 3 builds × (P1+P2+no-platform)), user `bpm1987norights`.
+
+1. PASS — ASIDE Reports entry resolves: `api/aside` item `buildPlatformMatrix`
+   → `/gui/templates/results/buildPlatformMatrix.html?tproject_id=1&tplan_id=3`.
+2. PASS — `projects` lists BPM1987 and BPM1987 EMPTY; `init` returns context,
+   plans, builds, platforms; project mismatch → 404 `project_mismatch`.
+3. PASS — `report&tplan_id=3`: 3 builds, 2 platforms (+no-platform column),
+   21 assignments, 5 distinct cases, 12 executed, 8 passed / 3 failed / 1
+   blocked / 9 not run, coverage 57.1%, pass rate 66.7%, verdict in_progress.
+4. PASS — Latest execution wins per build+platform: TC1 build 1 / P1
+   failed→passed shows passed only.
+5. PASS — Per-build and per-platform totals add up to the summary; no-platform
+   column and "Not linked" platform row report their own universe.
+6. PASS — Build filter `build_id=1` narrows matrix to one row (7 assignments);
+   platform filter `platform_id=2` narrows to one column (9 assignments).
+7. PASS — Error paths: no `testplan_metrics` → 403 `no_right`; unknown plan →
+   404 `tplan_not_found`; unknown action → 400 `unknown_action`; invalid
+   platform → 400; POST without same-origin → 403.
+8. PASS — Browser: teal header, context panel, 11 KPI cards, verdict banner
+   "Coverage is 57.1% (12 of 21 assignments executed).", 3×3 matrix with
+   coverage bars and pass/fail/blocked/not-run mini counts, legend, per-build
+   and per-platform DataTables; no JS console errors.
+9. PASS — Cell click (Build 1 / Platform 1) sets both selects, narrows matrix
+   to 1×1, summary 3 assignments / 2 executed, and shows the detail toast.
+10. PASS — Apply button with Build 1 + Platform 2 → 1×1, banner 66.7% (2/3);
+    Build 3 + all platforms → 1×3, banner 28.6% (2/7).
+11. PASS — Export CSV enabled only with data; click produces no JS error and
+    the payload contains summary, per-build, per-platform and matrix sections
+    (BOM, `;`, formula guard).
+12. PASS — Empty plan 4 → banner "No test cases are assigned to this plan -
+    the matrix is empty.", 0 builds/0 platforms/0 assignments, Export CSV
+    disabled, no rows.
+13. PASS — No-rights user: API 403 `no_right`; browser shows the "No test
+    projects" card instead of a stuck spinner (bug found during the pass:
+    empty project list left "Loading report..." forever; fixed).
+14. PASS — RO locale (`?locale=ro`): title "Acoperire build × platformă plan
+    de test", banner, columns, legend and footer translated, no raw keys.
+15. PASS — Regression fixed during the pass: banner/cell titles rendered
+    `57.1%%` (percent helper fed into a template that already had `%`) and the
+    platform picker offered a dead "No platform" option; both corrected.
+16. PASS — Regression fixed during the pass: re-rendering the totals tables
+    duplicated the DataTables sort aria-label; reset before re-init, apply
+    twice → single label.
+17. PASS — i18n gate `bash ai/verify_i18n_coverage.sh` → 9/9 bundles, 10
+    bundles valid JSON, 90 `bpxm.*` keys everywhere; 19 server locales carry
+    `$TLS_link_report_build_platform_matrix`.
+18. PASS — `php -l` clean for BFF + wiring; Event Viewer AUDIT only, no new
+    Error/Warning.
+19. PASS — Code review fix: matrix CSV rows now run build/platform labels through
+    `csvCell()`; a name starting with `= + - @` or containing `;`/quotes can no
+    longer inject a spreadsheet formula or corrupt the row.
+20. PASS — Code review fix: applying a platform/build filter no longer shrinks
+    the pickers; `init` fills both lists once and the filtered report leaves
+    them intact (verified: platform 2 selected, both platforms + all builds
+    still offered, then switch back to All without a reload).
+21. PASS — Code review fix: `distinct_cases` now deduplicates by test-case id
+    (via `nodes_hierarchy.parent_id`) instead of tcversion id; 5 for the
+    fixture, and `json_encode` uses `JSON_INVALID_UTF8_SUBSTITUTE`, the
+    `action[]=` array probe returns 400 without a PHP warning, and the
+    platform KPI counts real platform columns only.
