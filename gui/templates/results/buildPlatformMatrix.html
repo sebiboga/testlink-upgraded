@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Build x Platform Coverage Matrix report of TestLink 2.0.1 (Refs #1987)">
+<title>Build x Platform Coverage Matrix</title>
+<!--
+  Test Plan Build x Platform Coverage Matrix (Refs #1987, parent #1073).
+
+  Net-new modern Reports-menu screen. 1.9.20 reports aggregate a plan for one
+  build (resultsByBuild), one platform (resultsByPlatform) or plot an aggregate
+  per-build trend (metricsTrends); none shows the build x platform cross-tab,
+  so "which build is green on which platform?" had to be stitched by eye.
+
+  Numbers come from api/buildplatformmatrix/index.php (actions projects / init /
+  report); see that file for the documented semantics (unit = test-case version
+  assigned to the plan on a platform, latest execution wins per build+platform,
+  never executed = not run).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.card { flex: 1 1 112px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.matrix-scroll { overflow-x: auto; border: 1px solid #eceef2; border-radius: 6px; }
+table.matrix { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+table.matrix th, table.matrix td { padding: 8px 10px; border-bottom: 1px solid #eceef2; vertical-align: middle; }
+table.matrix thead th { background: #22242a; color: #fff; font-weight: 700; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+table.matrix thead th.build-col, table.matrix tbody td.build-col { position: sticky; left: 0; z-index: 1; background: #fff; min-width: 190px; }
+table.matrix thead th.build-col { background: #22242a; z-index: 3; }
+table.matrix tbody tr:hover td { background: #f8fbfb; }
+table.matrix tbody tr:hover td.build-col { background: #f8fbfb; }
+.build-name { font-weight: 700; color: #22242a; display: block; }
+.build-sub { font-size: 10px; color: #6b7280; }
+.cell { border-radius: 5px; padding: 7px 9px; min-width: 132px; cursor: pointer; border: 1px solid transparent; transition: border-color .15s; }
+.cell:hover { border-color: #4ECDC4; }
+.cell.good { background: #eaf7ee; }
+.cell.warn { background: #fff6e5; }
+.cell.bad { background: #fdecea; }
+.cell.none { background: #f2f3f5; }
+.cell-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cell-cov { font-size: 16px; font-weight: 700; color: #22242a; }
+.cell-frac { font-size: 10px; color: #5c6470; }
+.bar { height: 4px; background: #dde1e6; border-radius: 2px; margin: 5px 0 4px 0; overflow: hidden; }
+.bar span { display: block; height: 4px; background: #4ECDC4; }
+.cell.good .bar span { background: #2f9e44; }
+.cell.warn .bar span { background: #e6b34d; }
+.cell.bad .bar span { background: #e05c5c; }
+.cell-mini { display: flex; gap: 7px; font-size: 10px; color: #4a505b; }
+.cell-mini b { font-weight: 700; }
+.cell-mini .mp b { color: #1e7a34; }
+.cell-mini .mf b { color: #c0392b; }
+.cell-mini .mb b { color: #2a5fb8; }
+.cell-mini .mn b { color: #6b7280; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; color: #5c6470; margin: 10px 0 0 0; }
+.legend span.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.legend .good { background: #bde5c8; }
+.legend .warn { background: #f5dfae; }
+.legend .bad { background: #f4c3bf; }
+.legend .none { background: #dfe1e5; }
+.hint { font-size: 11px; color: #6b7280; margin: 0 0 12px 0; }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge-v { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge-v.good { background: #eaf7ee; color: #1e7a33; }
+.badge-v.warn { background: #fff6e5; color: #8a6216; }
+.badge-v.bad { background: #fdecea; color: #a12f28; }
+.badge-v.none { background: #eceef2; color: #4a505b; }
+.badge-fit { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10px; font-weight: 700; background: #eceef2; color: #4a505b; }
+.badge-fit.on { background: #eaf7ee; color: #1e7a33; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-table-cells-large" style="margin-right:8px;"></i>
+  <span data-i18n="bpxm.title">Build x Platform Coverage Matrix</span>
+  <span class="sub" data-i18n="bpxm.subtitle">coverage of every build on every platform</span>
+</div>
+
+<div class="toolbar">
+  <label for="selProject" data-i18n="bpxm.project">Test project</label>
+  <select id="selProject"></select>
+  <label for="selPlan" data-i18n="bpxm.plan">Test plan</label>
+  <select id="selPlan"></select>
+  <label for="selBuild" data-i18n="bpxm.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="bpxm.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="bpxm.apply">Apply</span></button>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="bpxm.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv"><i class="fa fa-download"></i> <span data-i18n="bpxm.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="bpxm.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="bpxm.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="bpxm.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bpxm.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bpxm.ctxBuild">Build filter</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="bpxm.ctxPlatform">Platform filter</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-chart-simple"></i><span data-i18n="bpxm.summaryTitle">Coverage summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="bpxm.kpiBuilds">Builds</div><div class="v" id="kBuilds">0</div></div>
+      <div class="card info"><div class="k" data-i18n="bpxm.kpiPlatforms">Platforms</div><div class="v" id="kPlatforms">0</div></div>
+      <div class="card"><div class="k" data-i18n="bpxm.kpiAssigned">Assignments</div><div class="v" id="kAssigned">0</div></div>
+      <div class="card"><div class="k" data-i18n="bpxm.kpiDistinct">Distinct cases</div><div class="v" id="kDistinct">0</div></div>
+      <div class="card info"><div class="k" data-i18n="bpxm.kpiExecuted">Executed</div><div class="v" id="kExecuted">0</div></div>
+      <div class="card good"><div class="k" data-i18n="bpxm.kpiPassed">Passed</div><div class="v" id="kPassed">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="bpxm.kpiFailed">Failed</div><div class="v" id="kFailed">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="bpxm.kpiBlocked">Blocked</div><div class="v" id="kBlocked">0</div></div>
+      <div class="card"><div class="k" data-i18n="bpxm.kpiNotRun">Not run</div><div class="v" id="kNotRun">0</div></div>
+      <div class="card info"><div class="k" data-i18n="bpxm.kpiCoverage">Coverage</div><div class="v" id="kCoverage">0%</div></div>
+      <div class="card good"><div class="k" data-i18n="bpxm.kpiPassRate">Pass rate</div><div class="v" id="kPassRate">0%</div></div>
+    </div>
+  </div>
+
+  <div class="panel" style="padding-bottom:12px;">
+    <h3><i class="fa fa-table-cells"></i><span data-i18n="bpxm.matrixTitle">Build x platform coverage matrix</span></h3>
+    <p class="hint" data-i18n="bpxm.matrixHint">Click a cell to filter the report to that build and platform.</p>
+    <div class="matrix-scroll">
+      <table class="matrix">
+        <caption class="sr-only" data-i18n="bpxm.matrixCaption">Coverage of every build on every platform; click a cell to filter it</caption>
+        <thead><tr id="matrixHead"></tr></thead>
+        <tbody id="matrixBody"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span><span class="sw good"></span><span data-i18n="bpxm.legendGood">Fully covered, no failures</span></span>
+      <span><span class="sw warn"></span><span data-i18n="bpxm.legendWarn">Partial coverage or blocked</span></span>
+      <span><span class="sw bad"></span><span data-i18n="bpxm.legendBad">Failures recorded</span></span>
+      <span><span class="sw none"></span><span data-i18n="bpxm.legendNone">Nothing executed</span></span>
+    </div>
+  </div>
+
+  <div class="panel" style="padding-bottom:6px;">
+    <h3><i class="fa fa-layer-group"></i><span data-i18n="bpxm.buildsTitle">Per-build totals</span></h3>
+  </div>
+  <div class="table-wrap" style="margin-top:-6px;">
+    <table id="tblBuilds" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="bpxm.buildsCaption">Assignment and result totals of every build across the included platforms</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="bpxm.colBuild">Build</th>
+          <th scope="col" data-i18n="bpxm.colAssigned">Assigned</th>
+          <th scope="col" data-i18n="bpxm.colExecuted">Executed</th>
+          <th scope="col" data-i18n="bpxm.colPassed">Passed</th>
+          <th scope="col" data-i18n="bpxm.colFailed">Failed</th>
+          <th scope="col" data-i18n="bpxm.colBlocked">Blocked</th>
+          <th scope="col" data-i18n="bpxm.colNotRun">Not run</th>
+          <th scope="col" data-i18n="bpxm.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="bpxm.colPassRate">Pass rate</th>
+          <th scope="col" data-i18n="bpxm.colVerdict">Verdict</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel" style="padding-bottom:6px;">
+    <h3><i class="fa fa-server"></i><span data-i18n="bpxm.platformsTitle">Per-platform totals</span></h3>
+  </div>
+  <div class="table-wrap" style="margin-top:-6px;">
+    <table id="tblPlatforms" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="bpxm.platformsCaption">Assignment and result totals of every platform across the included builds</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="bpxm.colPlatform">Platform</th>
+          <th scope="col" data-i18n="bpxm.colAssigned">Assigned</th>
+          <th scope="col" data-i18n="bpxm.colExecuted">Executed</th>
+          <th scope="col" data-i18n="bpxm.colPassed">Passed</th>
+          <th scope="col" data-i18n="bpxm.colFailed">Failed</th>
+          <th scope="col" data-i18n="bpxm.colBlocked">Blocked</th>
+          <th scope="col" data-i18n="bpxm.colNotRun">Not run</th>
+          <th scope="col" data-i18n="bpxm.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="bpxm.colPassRate">Pass rate</th>
+          <th scope="col" data-i18n="bpxm.colVerdict">Verdict</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.buildPlatformMatrix"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/buildplatformmatrix/index.php';
+var currentData = null;
+var initData = null;
+var dtBuilds = null;
+var dtPlatforms = null;
+
+function esc(s) {
+  return String(s === null || s === undefined ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  var v = new URLSearchParams(window.location.search).get(name);
+  return (v === null) ? '' : v;
+}
+
+function isId(v) {
+  return !!v && /^[0-9]+$/.test(String(v));
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('bpxm.loading')) + '</div>');
+}
+
+function stateFor(code) {
+  var c = code || 'server_error';
+  var html = '';
+  if (c === 'not_authenticated' || c === 'session_expired') {
+    html = '<div class="state deny"><h4>' + esc(TLi18n.t('bpxm.sessionTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.sessionText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'no_right') {
+    html = '<div class="state deny"><h4>' + esc(TLi18n.t('bpxm.noRightTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.noRightText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'tplan_not_found' || c === 'tproject_not_found' || c === 'project_mismatch') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.notFoundTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.notFoundText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'invalid_request' || c === 'invalid_parameter' || c === 'unknown_action') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.badRequestText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else if (c === 'method_not_allowed') {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.methodTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.methodText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  } else {
+    html = '<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.serverErrorTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.serverErrorText')) + '</div><div class="code">' + esc(c) + '</div></div>';
+  }
+  return html;
+}
+
+function getJSON(params, onOk, onFail) {
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      onFail({ code: (data && data.code) || 'server_error' });
+      return;
+    }
+    onOk(data);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    onFail({ code: (body && body.code) || ('http_' + xhr.status) });
+  });
+}
+
+/* --------------------------------------------------------------- pickers */
+
+function fillProjects(projects, selected) {
+  var html = '';
+  $.each(projects, function (i, p) {
+    html += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selProject').html(html);
+  if (selected && isId(selected)) { $('#selProject').val(String(selected)); }
+}
+
+function fillPlans(plans, selected) {
+  var html = '';
+  $.each(plans, function (i, p) {
+    html += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  if (html === '') { html = '<option value="0">' + esc(TLi18n.t('bpxm.noPlans')) + '</option>'; }
+  $('#selPlan').html(html);
+  if (selected && isId(selected)) { $('#selPlan').val(String(selected)); }
+}
+
+function fillBuilds(builds, selected) {
+  var html = '<option value="0">' + esc(TLi18n.t('bpxm.allBuilds')) + '</option>';
+  $.each(builds, function (i, b) {
+    html += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  if (builds.length === 0) {
+    html += '<option value="0" disabled>' + esc(TLi18n.t('bpxm.noBuilds')) + '</option>';
+  }
+  $('#selBuild').html(html);
+  if (selected && isId(selected) && selected !== '0') { $('#selBuild').val(String(selected)); }
+}
+
+function fillPlatforms(platforms, selected) {
+  var html = '<option value="0">' + esc(TLi18n.t('bpxm.allPlatforms')) + '</option>';
+  $.each(platforms || [], function (i, p) {
+    if (String(p.id) === '0') { return; }
+    html += '<option value="' + p.id + '">' + esc(p.name || ('#' + p.id)) + '</option>';
+  });
+  $('#selPlatform').html(html);
+  if (selected && isId(selected) && selected !== '0') { $('#selPlatform').val(String(selected)); }
+}
+
+/* --------------------------------------------------------------- loading */
+
+function loadProjects() {
+  return new Promise(function (resolve) {
+    getJSON(new URLSearchParams({ action: 'projects' }), function (data) {
+      var list = data.projects || [];
+      fillProjects(list, q('tproject_id'));
+      if (list.length === 0) {
+        showState('<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.noProjectsTitle'))
+          + '</h4><div>' + esc(TLi18n.t('bpxm.noProjectsText')) + '</div></div>');
+        resolve(false);
+        return;
+      }
+      resolve(true);
+    }, function (err) {
+      showState(stateFor(err.code));
+      resolve(false);
+    });
+  });
+}
+
+function loadInit() {
+  var pid = $('#selProject').val();
+  if (!isId(pid)) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.noProjectText')) + '</div><div class="code">tproject_id</div></div>');
+    return Promise.resolve(false);
+  }
+  return new Promise(function (resolve) {
+    var params = new URLSearchParams({ action: 'init', tproject_id: pid });
+    getJSON(params, function (data) {
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
+      initData = data;
+      fillPlans(data.plans || [], q('tplan_id'));
+      fillBuilds((data.filters && data.filters.builds) || [], q('build_id'));
+      resolve(true);
+    }, function (err) {
+      if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
+      showState(stateFor(err.code));
+      resolve(false);
+    });
+  });
+}
+
+function loadReport() {
+  var plan = $('#selPlan').val();
+  if (!isId(plan) || plan === '0') {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('bpxm.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('bpxm.noPlanText')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: plan });
+  var asserted = $('#selProject').val();
+  if (isId(asserted)) { params.set('tproject_id', asserted); }
+  var build = $('#selBuild').val();
+  if (build && build !== '0') { params.set('build_id', build); }
+  var plat = $('#selPlatform').val();
+  if (plat && plat !== '0') { params.set('platform_id', plat); }
+
+  getJSON(params, function (data) {
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    fillPlatforms((data.filters && data.filters.platforms) || data.platforms || [], plat);
+    render(data);
+    $('#stateBox').html('');
+    $('#report').show();
+  }, function (err) {
+    showState(stateFor(err.code));
+  });
+}
+
+/* --------------------------------------------------------------- render */
+
+function pct(v) { return (parseFloat(v) || 0).toFixed(1) + '%'; }
+
+function verdictOf(row) {
+  if (!row || !row.assigned) { return 'no_data'; }
+  if (!row.executed) { return 'not_started'; }
+  if (!row.not_run) { return 'complete'; }
+  return 'in_progress';
+}
+
+function verdictClass(v) {
+  if (v === 'complete') { return 'good'; }
+  if (v === 'in_progress') { return 'warn'; }
+  if (v === 'not_started') { return 'none'; }
+  return 'none';
+}
+
+function cellClass(c) {
+  if (!c.assigned) { return 'none'; }
+  if (c.failed > 0) { return 'bad'; }
+  if (!c.executed) { return 'none'; }
+  if (c.not_run > 0 || c.blocked > 0) { return 'warn'; }
+  return 'good';
+}
+
+function platformLabel(id, list) {
+  if (String(id) === '0') { return TLi18n.t('bpxm.noPlatform'); }
+  var found = '#' + id;
+  $.each(list || [], function (i, p) {
+    if (String(p.id) === String(id)) { found = p.name || TLi18n.t('bpxm.noPlatform'); }
+  });
+  return found;
+}
+
+function buildLabel(id, list) {
+  var found = '#' + id;
+  $.each(list || [], function (i, b) {
+    if (String(b.id) === String(id)) { found = b.name; }
+  });
+  return found;
+}
+
+function cellIndex(cells) {
+  var map = {};
+  $.each(cells || [], function (i, c) {
+    map[String(c.build_id) + ':' + String(c.platform_id)] = c;
+  });
+  return map;
+}
+
+function renderTiles(s) {
+  $('#kBuilds').text(s.builds || 0);
+  $('#kPlatforms').text(s.platforms || 0);
+  $('#kAssigned').text(s.assigned || 0);
+  $('#kDistinct').text(s.distinct_cases || 0);
+  $('#kExecuted').text(s.executed || 0);
+  $('#kPassed').text(s.passed || 0);
+  $('#kFailed').text(s.failed || 0);
+  $('#kBlocked').text(s.blocked || 0);
+  $('#kNotRun').text(s.not_run || 0);
+  $('#kCoverage').text(pct(s.coverage));
+  $('#kPassRate').text(pct(s.pass_rate));
+}
+
+function renderBanner(data) {
+  var s = data.summary || {};
+  var html = '';
+  var v = s.verdict || verdictOf(s);
+  if (v === 'no_data') {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+      + esc(TLi18n.t('bpxm.bannerNoData')) + '</span></div>';
+  } else if (v === 'complete') {
+    html = '<div class="banner good"><i class="fa fa-circle-check"></i><span>'
+      + esc(TLi18n.t('bpxm.bannerComplete')) + '</span></div>';
+  } else if (v === 'not_started') {
+    html = '<div class="banner warn"><i class="fa fa-hourglass-start"></i><span>'
+      + esc(TLi18n.t('bpxm.bannerNotStarted')) + '</span></div>';
+  } else {
+    html = '<div class="banner info"><i class="fa fa-spinner"></i><span>'
+      + esc(TLi18n.t('bpxm.bannerProgress', {
+          coverage: (parseFloat(s.coverage) || 0).toFixed(1),
+          executed: s.executed || 0, assigned: s.assigned || 0
+        })) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+
+function renderMatrix(data) {
+  var builds = data.builds || [];
+  var platforms = data.platforms || [];
+  var cells = cellIndex(data.cells);
+
+  var head = '<th scope="col" class="build-col" data-i18n="bpxm.colBuild">'
+    + esc(TLi18n.t('bpxm.colBuild')) + '</th>';
+  $.each(platforms, function (i, p) {
+    var label = (String(p.id) === '0') ? TLi18n.t('bpxm.noPlatform') : (p.name || ('#' + p.id));
+    head += '<th scope="col">' + esc(label)
+      + ' <span style="font-weight:400;opacity:.7;">(' + (p.assigned || 0) + ')</span></th>';
+  });
+  $('#matrixHead').html(head);
+
+  var body = '';
+  $.each(builds, function (i, b) {
+    body += '<tr><td class="build-col"><span class="build-name">' + esc(b.name) + '</span>'
+      + '<span class="build-sub">' + esc(b.active ? TLi18n.t('bpxm.colActive')
+          : TLi18n.t('bpxm.colInactive')) + '</span></td>';
+    $.each(platforms, function (j, p) {
+      var c = cells[String(b.id) + ':' + String(p.id)] || {
+        assigned: 0, executed: 0, passed: 0, failed: 0, blocked: 0,
+        not_run: 0, pass_rate: 0, coverage: 0
+      };
+      var plabel = (String(p.id) === '0') ? TLi18n.t('bpxm.noPlatform') : (p.name || ('#' + p.id));
+      var title = TLi18n.t('bpxm.detailText', {
+        build: b.name, platform: plabel, executed: c.executed, assigned: c.assigned,
+        passRate: (parseFloat(c.pass_rate) || 0).toFixed(1)
+      });
+      body += '<td><div class="cell ' + cellClass(c) + '" data-b="' + b.id + '" data-p="' + p.id
+        + '" title="' + esc(title) + '">'
+        + '<div class="cell-top"><span class="cell-cov">' + pct(c.coverage) + '</span>'
+        + '<span class="cell-frac">' + c.executed + '/' + c.assigned + '</span></div>'
+        + '<div class="bar"><span style="width:' + Math.max(0, Math.min(100, parseFloat(c.coverage) || 0))
+        + '%;"></span></div>'
+        + '<div class="cell-mini">'
+        + '<span class="mp" title="' + esc(TLi18n.t('bpxm.colPassed')) + '"><b>' + (c.passed || 0) + '</b></span>'
+        + '<span class="mf" title="' + esc(TLi18n.t('bpxm.colFailed')) + '"><b>' + (c.failed || 0) + '</b></span>'
+        + '<span class="mb" title="' + esc(TLi18n.t('bpxm.colBlocked')) + '"><b>' + (c.blocked || 0) + '</b></span>'
+        + '<span class="mn" title="' + esc(TLi18n.t('bpxm.colNotRun')) + '"><b>' + (c.not_run || 0) + '</b></span>'
+        + '</div></div></td>';
+    });
+    body += '</tr>';
+  });
+  if (builds.length === 0) {
+    body = '<tr><td class="build-col" colspan="' + (platforms.length + 1)
+      + '" style="color:#5c6470;text-align:center;">' + esc(TLi18n.t('bpxm.noRows')) + '</td></tr>';
+  }
+  $('#matrixBody').html(body);
+}
+
+function totalsRow(row, label, badge) {
+  var v = verdictOf(row);
+  return '<tr>'
+    + '<td>' + badge + '<strong>' + esc(label) + '</strong></td>'
+    + '<td class="num">' + (row.assigned || 0) + '</td>'
+    + '<td class="num">' + (row.executed || 0) + '</td>'
+    + '<td class="num">' + (row.passed || 0) + '</td>'
+    + '<td class="num">' + (row.failed || 0) + '</td>'
+    + '<td class="num">' + (row.blocked || 0) + '</td>'
+    + '<td class="num">' + (row.not_run || 0) + '</td>'
+    + '<td class="num">' + pct(row.coverage) + '</td>'
+    + '<td class="num">' + pct(row.pass_rate) + '</td>'
+    + '<td><span class="badge-v ' + verdictClass(v) + '">' + esc(TLi18n.t('bpxm.verdict.' + v))
+    + '</span></td></tr>';
+}
+
+function renderBuilds(data) {
+  var html = '';
+  $.each(data.builds || [], function (i, b) {
+    var badge = '<span class="badge-fit' + (b.active ? ' on' : '') + '">'
+      + esc(b.active ? TLi18n.t('bpxm.colActive') : TLi18n.t('bpxm.colInactive')) + '</span> ';
+    html += totalsRow(b, b.name, badge);
+  });
+  if (dtBuilds) { dtBuilds.destroy(); dtBuilds = null; }
+  $('#tblBuilds thead th').removeAttr('aria-label');
+  if (html === '') {
+    $('#tblBuilds tbody').html('<tr><td colspan="10" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('bpxm.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tblBuilds tbody').html(html);
+  dtBuilds = $('#tblBuilds').DataTable({
+    paging: true, pageLength: 10, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
+    language: { search: TLi18n.t('common.search') }
+  });
+}
+
+function renderPlatforms(data) {
+  var html = '';
+  $.each(data.platforms || [], function (i, p) {
+    var label = (String(p.id) === '0') ? TLi18n.t('bpxm.noPlatform') : (p.name || ('#' + p.id));
+    var badge = '<span class="badge-fit' + (p.linked ? ' on' : '') + '">'
+      + esc(p.linked ? TLi18n.t('bpxm.colLinked') : TLi18n.t('bpxm.colNotLinked')) + '</span> ';
+    html += totalsRow(p, label, badge);
+  });
+  if (dtPlatforms) { dtPlatforms.destroy(); dtPlatforms = null; }
+  $('#tblPlatforms thead th').removeAttr('aria-label');
+  if (html === '') {
+    $('#tblPlatforms tbody').html('<tr><td colspan="10" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('bpxm.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tblPlatforms tbody').html(html);
+  dtPlatforms = $('#tblPlatforms').DataTable({
+    paging: true, pageLength: 10, searching: true, info: true, order: [],
+    columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
+    language: { search: TLi18n.t('common.search') }
+  });
+}
+
+function render(data) {
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(data.context.build ? data.context.build.name : TLi18n.t('bpxm.allBuilds'));
+  $('#ctxPlatform').text(data.context.platform_id
+    ? (data.context.platform || TLi18n.t('bpxm.noPlatform')) : TLi18n.t('bpxm.allPlatforms'));
+  renderTiles(data.summary || {});
+  renderBanner(data);
+  renderMatrix(data);
+  renderBuilds(data);
+  renderPlatforms(data);
+}
+
+/* --------------------------------------------------------------- CSV */
+
+function csvCell(v) {
+  var t = String(v === null || v === undefined ? '' : v);
+  if (!/^-?\d+(?:\.\d+)?$/.test(t) && /^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+  return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+
+function exportCsv() {
+  if (!currentData) { toast(TLi18n.t('bpxm.nothingToExport'), 'err'); return; }
+  var d = currentData;
+  var lines = [];
+  var metricKeys = ['assigned', 'executed', 'passed', 'failed', 'blocked', 'not_run'];
+  var metricLabel = {
+    assigned: 'bpxm.kpiAssigned', executed: 'bpxm.kpiExecuted', passed: 'bpxm.kpiPassed',
+    failed: 'bpxm.kpiFailed', blocked: 'bpxm.kpiBlocked', not_run: 'bpxm.kpiNotRun'
+  };
+  lines.push([csvCell(TLi18n.t('bpxm.csvSectionSummary')),
+    csvCell(d.context.tproject_name || ''), csvCell(d.context.tplan_name || ''),
+    csvCell(d.context.build ? d.context.build.name : TLi18n.t('bpxm.allBuilds')),
+    csvCell(d.context.platform_id ? d.context.platform : TLi18n.t('bpxm.allPlatforms'))].join(';'));
+  $.each(metricKeys, function (i, k) {
+    lines.push([csvCell(TLi18n.t(metricLabel[k])), csvCell(d.summary[k])].join(';'));
+  });
+  lines.push([csvCell(TLi18n.t('bpxm.kpiCoverage')), csvCell(d.summary.coverage)].join(';'));
+  lines.push([csvCell(TLi18n.t('bpxm.kpiPassRate')), csvCell(d.summary.pass_rate)].join(';'));
+  lines.push('');
+
+  var head = [csvCell(TLi18n.t('bpxm.colBuild'))];
+  $.each(metricKeys, function (i, k) { head.push(csvCell(TLi18n.t(metricLabel[k]))); });
+  head.push(csvCell(TLi18n.t('bpxm.colCoverage')), csvCell(TLi18n.t('bpxm.colPassRate')));
+
+  lines.push([csvCell(TLi18n.t('bpxm.csvSectionBuilds'))].concat(head).join(';'));
+  $.each(d.builds || [], function (i, b) {
+    var row = [csvCell(b.name)];
+    $.each(metricKeys, function (j, k) { row.push(csvCell(b[k])); });
+    row.push(csvCell(b.coverage), csvCell(b.pass_rate));
+    lines.push(row.join(';'));
+  });
+  lines.push('');
+
+  lines.push([csvCell(TLi18n.t('bpxm.csvSectionPlatforms'))].concat(head).join(';'));
+  $.each(d.platforms || [], function (i, p) {
+    var label = (String(p.id) === '0') ? TLi18n.t('bpxm.noPlatform') : (p.name || ('#' + p.id));
+    var row = [csvCell(label)];
+    $.each(metricKeys, function (j, k) { row.push(csvCell(p[k])); });
+    row.push(csvCell(p.coverage), csvCell(p.pass_rate));
+    lines.push(row.join(';'));
+  });
+  lines.push('');
+
+  lines.push([csvCell(TLi18n.t('bpxm.csvSectionMatrix')),
+    csvCell(TLi18n.t('bpxm.colBuild')), csvCell(TLi18n.t('bpxm.colPlatform'))]
+    .concat(head.slice(1)).join(';'));
+  $.each(d.cells || [], function (i, c) {
+    var row = [buildLabel(c.build_id, d.builds),
+      platformLabel(c.platform_id, d.platforms)];
+    $.each(metricKeys, function (j, k) { row.push(csvCell(c[k])); });
+    row.push(csvCell(c.coverage), csvCell(c.pass_rate));
+    lines.push(row.join(';'));
+  });
+
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'build-platform-matrix-' + (d.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('bpxm.csvDone'), 'ok');
+}
+
+/* --------------------------------------------------------------- wiring */
+
+function reload() {
+  showLoading();
+  loadProjects()
+    .then(function (ok) { return ok ? loadInit() : false; })
+    .then(function (ok) { if (ok) { loadReport(); } });
+}
+
+$(function () {
+  $('#btnRefresh').on('click', reload);
+  $('#btnApply').on('click', loadReport);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#selProject').on('change', function () {
+    showState('<div class="state"><div class="spinner"></div>'
+      + esc(TLi18n.t('bpxm.loading')) + '</div>');
+    loadInit().then(function (ok) { if (ok) { loadReport(); } });
+  });
+  $('#selPlan').on('change', loadReport);
+  $('#selBuild').on('change', loadReport);
+  $('#selPlatform').on('change', loadReport);
+  $(document).on('click', '.cell[data-b]', function () {
+    var b = $(this).attr('data-b');
+    var p = $(this).attr('data-p');
+    $('#selBuild').val(String(b));
+    if (String(p) !== '0') { $('#selPlatform').val(String(p)); }
+    else { $('#selPlatform').val('0'); }
+    toast(TLi18n.t('bpxm.detailText', {
+      build: buildLabel(b, currentData ? currentData.builds : []),
+      platform: platformLabel(p, currentData ? currentData.platforms : []),
+      executed: $(this).find('.cell-frac').text().split('/')[0],
+      assigned: $(this).find('.cell-frac').text().split('/')[1],
+      passRate: $(this).find('.cell-cov').text().replace('%', '')
+    }));
+    loadReport();
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('bpxm.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    reload();
+  });
+});
+</script>
+</body>
+</html>
