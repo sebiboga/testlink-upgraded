@@ -608,6 +608,17 @@ $tlCfg->reports_list['version_churn'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1987: Test Plan Build x Platform Coverage Matrix (net-new report).
+// 1.9.20 reports one build (resultsByBuild), one platform (resultsByPlatform)
+// or an aggregate per-build trend (metricsTrends); none cross-tabulates builds
+// and platforms. Backed by the api/buildplatformmatrix BFF (init/report).
+$tlCfg->reports_list['build_platform_matrix'] = array(
+	'title' => 'link_report_build_platform_matrix',
+	'url' => 'gui/templates/results/buildPlatformMatrix.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

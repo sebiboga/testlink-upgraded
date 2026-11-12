@@ -4279,3 +4279,4 @@ $TLS_link_report_failure_pareto = "Test Plan Failure Pareto"; // Test Plan Failu
 $TLS_link_report_results_by_build = "Results by Build"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Test Plan Execution Effort"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Test Case Version Churn"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "Test Plan Build × Platform Coverage"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

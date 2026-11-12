@@ -246,3 +246,4 @@ $TLS_link_report_failure_pareto = "Pareto al eșecurilor planului de test"; // T
 $TLS_link_report_results_by_build = "Rezultate pe build"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Efort de execuție al planului de testare"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Modificări de versiune ale cazurilor de test"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "Acoperire build × platformă plan de test"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

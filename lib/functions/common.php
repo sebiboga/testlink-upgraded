@@ -2747,6 +2747,16 @@ function getActions(&$gui,$baseURL) {
   $actions->versionChurn =
     "/gui/templates/results/versionChurn.html?{$ctx}";
 
+  // Refs #1987: Test Plan Build x Platform Coverage Matrix report (net-new
+  // screen). Cross-tabulates every build of a plan against every platform of
+  // the plan with assigned / executed / passed / failed / blocked / not-run,
+  // coverage and pass rate per cell, plus per-build and per-platform totals;
+  // 1.9.20 only ever reports one build or one platform at a time. Backed by
+  // the api/buildplatformmatrix BFF (init/report), reachable from the Reports
+  // menu (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->buildPlatformMatrix =
+    "/gui/templates/results/buildPlatformMatrix.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

@@ -2216,3 +2216,4 @@ $TLS_link_report_failure_pareto = "Testisuunnitelman virheiden Pareto"; // Test 
 $TLS_link_report_results_by_build = "Tulokset build-kohtaisesti"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Testisuunnitelman suorituksen työmäärä"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Testitapausten versiomuutokset"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "Testisuunnitelman buildien ja alustojen kattavuus"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

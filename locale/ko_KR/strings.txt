@@ -2510,3 +2510,4 @@ $TLS_link_report_failure_pareto = "테스트 계획 실패 파레토"; // Test P
 $TLS_link_report_results_by_build = "빌드별 테스트 결과"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "테스트 계획 실행 공수"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "테스트 케이스 버전 변경"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "테스트 계획 빌드 × 플랫폼 커버리지"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

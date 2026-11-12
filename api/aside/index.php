@@ -332,6 +332,11 @@ if ($tplan_id > 0) {
                 // rework history and outdated version pins).
                 $hrefR = '/gui/templates/results/versionChurn.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_build_platform_matrix') {
+                // Refs #1987: Test Plan Build x Platform Coverage Matrix
+                // (per build x platform coverage cross-tab).
+                $hrefR = '/gui/templates/results/buildPlatformMatrix.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

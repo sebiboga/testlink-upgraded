@@ -4013,3 +4013,4 @@ $TLS_link_report_failure_pareto = "Paretova analýza selhání testovacího plá
 $TLS_link_report_results_by_build = "Výsledky podle sestavení"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Úsilí při provádění testovacího plánu"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Změny verzí testovacích případů"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "Matice pokrytí buildů a platform testovacího plánu"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

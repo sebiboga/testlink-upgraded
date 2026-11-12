@@ -3777,3 +3777,4 @@ $TLS_link_report_failure_pareto = "Fehler-Pareto des Testplans"; // Test Plan Fa
 $TLS_link_report_results_by_build = "Ergebnisse pro Build"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Ausführungsaufwand des Testplans"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Versionsänderungen von Testfällen"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "Build- × Plattform-Abdeckung des Testplans"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)

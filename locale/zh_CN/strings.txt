@@ -4218,3 +4218,4 @@ $TLS_link_report_failure_pareto = "测试计划失败帕累托图"; // Test Plan
 $TLS_link_report_results_by_build = "按构建的测试结果"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "测试计划执行工作量"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "测试用例版本变更"; // Test Case Version Churn (Refs #1986)
+$TLS_link_report_build_platform_matrix = "测试计划构建 × 平台覆盖率"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
