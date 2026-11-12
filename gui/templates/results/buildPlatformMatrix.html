@@ -427,6 +427,7 @@ function loadInit() {
       initData = data;
       fillPlans(data.plans || [], q('tplan_id'));
       fillBuilds((data.filters && data.filters.builds) || [], q('build_id'));
+      fillPlatforms((data.filters && data.filters.platforms) || [], q('platform_id'));
       resolve(true);
     }, function (err) {
       if (String($('#selProject').val()) !== String(pid)) { resolve(false); return; }
@@ -455,7 +456,6 @@ function loadReport() {
   getJSON(params, function (data) {
     currentData = data;
     $('#btnCsv').prop('disabled', false);
-    fillPlatforms((data.filters && data.filters.platforms) || data.platforms || [], plat);
     render(data);
     $('#stateBox').html('');
     $('#report').show();
@@ -732,8 +732,8 @@ function exportCsv() {
     csvCell(TLi18n.t('bpxm.colBuild')), csvCell(TLi18n.t('bpxm.colPlatform'))]
     .concat(head.slice(1)).join(';'));
   $.each(d.cells || [], function (i, c) {
-    var row = [buildLabel(c.build_id, d.builds),
-      platformLabel(c.platform_id, d.platforms)];
+    var row = [csvCell(buildLabel(c.build_id, d.builds)),
+      csvCell(platformLabel(c.platform_id, d.platforms))];
     $.each(metricKeys, function (j, k) { row.push(csvCell(c[k])); });
     row.push(csvCell(c.coverage), csvCell(c.pass_rate));
     lines.push(row.join(';'));

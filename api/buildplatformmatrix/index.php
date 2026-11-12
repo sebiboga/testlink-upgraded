@@ -57,7 +57,7 @@ function bpxmOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -218,10 +218,10 @@ if (is_null($user)) {
     bpxmFail(401, 'not_authenticated', 'User not found');
 }
 
-$action = strtolower(trim((string)($_GET['action'] ?? 'init')));
 if (is_array($_GET['action'] ?? null)) {
     bpxmFail(400, 'invalid_parameter', 'Invalid action');
 }
+$action = strtolower(trim((string)($_GET['action'] ?? 'init')));
 if (!in_array($action, array('projects', 'init', 'report'), true)) {
     bpxmFail(400, 'unknown_action', 'Unknown action');
 }
@@ -453,12 +453,12 @@ $platformIds = array_map('intval', $platformIds);
 
 // --- the universes: versions assigned per platform -----------------------
 $universeSql =
-    "SELECT tcversion_id, platform_id FROM {$tbl['testplan_tcversions']} " .
-    "WHERE testplan_id = " . $requestedPlanId;
+    "SELECT tpt.tcversion_id, tpt.platform_id, nh.parent_id AS tcase_id " .
+    "FROM {$tbl['testplan_tcversions']} tpt " .
+    "JOIN {$tbl['nodes_hierarchy']} nh ON nh.id = tpt.tcversion_id " .
+    "WHERE tpt.testplan_id = " . $requestedPlanId;
 if ($platformFilterId > 0) {
-    $universeSql .= " AND platform_id = " . $platformFilterId;
-} elseif ($hasNoPlatform && !in_array(0, $platformIds, true)) {
-    $universeSql .= " AND platform_id <> 0";
+    $universeSql .= " AND tpt.platform_id = " . $platformFilterId;
 }
 $universes = array();
 $distinct = array();
@@ -469,7 +469,7 @@ foreach ((array)$db->get_recordset($universeSql) as $r) {
         $universes[$pid] = array();
     }
     $universes[$pid][$tid] = true;
-    $distinct[$tid] = true;
+    $distinct[intval($r['tcase_id'])] = true;
 }
 
 // --- the builds kept in the matrix --------------------------------------
@@ -541,9 +541,6 @@ $summary['builds'] = count($buildIds);
 $realPlatforms = 0;
 foreach ($platformIds as $pid) {
     if ($pid > 0) { $realPlatforms++; }
-}
-if ($realPlatforms === 0 && $summary['assigned'] > 0) {
-    $realPlatforms = 1; // the "no platform" column still carries assignments
 }
 $summary['platforms'] = $realPlatforms;
 $summary['distinct_cases'] = count($distinct);
