@@ -46731,3 +46731,48 @@ regions. `json_encode` now uses `JSON_INVALID_UTF8_SUBSTITUTE`. Key count is
 verdict `over`, over 3 / within 2, tolerance 50% → over 0 / within 5 and
 `within`, build 2 → not run 6 / within 2 / variance -25, platform 1 and 2
 both 8/7, BFF error contract unchanged, i18n gate 9/9, Event Viewer AUDIT-only.
+
+## Issue #1985 — Requirement Specification Create/Edit (reqSpecEdit)
+
+Screen: `gui/templates/requirements/reqSpecEdit.html` · BFF:
+`api/reqspecedit/index.php` · Refs #1985.
+
+Fixture: test project `RSE Test Project` (id 1, `option_reqs=1`); specifications
+created through the screen (`req_specs`: 2 root = RSE-SPEC-1, 4 root =
+RSE-SPEC-2, 6 child of 2 = RSE-SPEC-3). Run as `admin` (English).
+
+1. PASS — `GET api/reqspecedit/index.php?action=init&tproject_id=1` without a
+   session → HTTP 401 `not_authenticated` (curl).
+2. PASS — Create mode renders: teal header, locale switcher, context
+   "RSE Test Project", Document ID / Title / Type / Scope, parent picker
+   (child management enabled) and Save/Cancel. Console clean.
+3. PASS — Creating a root specification (RSE-SPEC-1 / "Main Specification")
+   → 200 `{status:ok,id:2}`; reloaded screen switches to Edit with revision
+   `#1`; `req_specs` row 2 + revision 1 written.
+4. PASS — Creating a nested child with parent `RSE-SPEC-1` (RSE-SPEC-3)
+   → id 6 with `nodes_hierarchy.parent_id = 2`; the parent picker was
+   preselected from `?parent_id=2` (legacy `createChild` forward).
+5. PASS — Edit save: title "Main Specification" → "Main Specification v2"
+   → 200; reloaded page shows the new title and the same document id.
+6. PASS — Required-field validation: title cleared → "Document ID and title are
+   required." flash, no request sent (browser `required` + client guard).
+7. PASS — Duplicate document id: editing spec 2 to `RSE-SPEC-2` (owned by
+   spec 4) → HTTP 409 `duplicate_doc_id` + localized flash "A specification
+   with this Document ID already exists in the test project."
+8. PASS — Unknown specification: `?tproject_id=1&spec_id=999` → 404 state card
+   "Not found" / `spec_not_found`.
+9. PASS — Legacy shim: `lib/requirements/reqSpecEdit.php?doAction=edit&req_spec_id=2`
+   → 302 → `reqSpecEdit.html?tproject_id=1&spec_id=2&legacy_intent=edit`.
+10. PASS — Legacy shim: `?doAction=createChild&parentID=2` → 302 →
+    `reqSpecEdit.html?tproject_id=1&parent_id=2&legacy_intent=createChild`,
+    parent preselected.
+11. PASS — Entry points: `projectReqSpecMgmt` "New requirement specification"
+    card href = `reqSpecEdit.html?tproject_id=1`; `reqSpecMgmt` toolbar
+    "Full-screen editor" visible and each row shows the full-screen action
+    (3 rows), row click opens `?tproject_id=1&spec_id=2`.
+12. PASS — i18n gate `bash ai/verify_i18n_coverage.sh` → 9/9 PASS,
+    10766 keys (all bundles); every touched bundle passes `python3 -m json.tool`.
+13. PASS — PHP lint `php -l` clean for `api/reqspecedit/index.php`,
+    `lib/requirements/reqSpecEdit.php`, `api/projectreqspecmgmt/index.php`.
+14. PASS — Event Viewer after the pass: only INFO/AUDIT rows (login,
+    test-project creation); 0 new Error/Warning. Console: 0 messages.

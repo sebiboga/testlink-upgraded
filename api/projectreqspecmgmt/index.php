@@ -192,8 +192,10 @@ try {
     // The four legacy destinations, all of them ALREADY modern screens. Built
     // here (not in the browser) so the ids in them are the proven ones.
     $actions = [
+        // Refs #1985: "New requirement specification" now opens the full-screen
+        // editor (create mode), matching the legacy reqSpecEdit.php create form.
         'create' => $canModify
-            ? ['label' => 'prsm.btnNewReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-plus']
+            ? ['label' => 'prsm.btnNewReqSpec', 'url' => $base . 'reqSpecEdit.html?' . $ctx, 'icon' => 'fa-plus']
             : null,
         'reorder' => $canModify
             ? ['label' => 'prsm.btnReorderReqSpec', 'url' => $base . 'reqSpecMgmt.html?' . $ctx, 'icon' => 'fa-sort-amount-down']

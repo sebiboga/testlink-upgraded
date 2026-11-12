@@ -3013,6 +3013,14 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // Requirement Specification Create/Edit full-screen editor - Refs #1985.
+  // Replaces the standalone renderer lib/requirements/reqSpecEdit.php
+  // (doAction=create|createChild|edit) + reqSpecEdit.tpl as the entry point for
+  // creating a specification and editing its document id, title, type, scope
+  // and (external management) requirement count. Backed by
+  // api/reqspecedit, which enforces mgt_view_req AND mgt_modify_req on the
+  // addressed test project before resolving it (no existence oracle).
+  $actions->reqSpecEdit = "/gui/templates/requirements/reqSpecEdit.html?{$ctx}";
   // PROJECT-scoped Requirement Specification launcher - Refs #1833.
   // Replaces lib/project/project_req_spec_mgmt.php (46 lines), which showed
   // "Test project > name > Requirement Specification" plus four gated buttons

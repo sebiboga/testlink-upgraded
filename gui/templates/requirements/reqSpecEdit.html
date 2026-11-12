@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #454d5c; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #c53f3d; }
+.section { padding: 18px 24px 4px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 24px; }
+.meta .k { font-size: 11px; text-transform: uppercase; color: #999; letter-spacing: .5px; }
+.meta .v { font-size: 13px; color: #22242a; font-weight: 700; word-break: break-word; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control { font-size: 13px; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+.info { font-size: 12px; color: #777; font-style: italic; margin-top: 14px; }
+.groupBtn { margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.state-wrap { padding: 24px; }
+.state-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 28px; max-width: 620px; margin: 18px auto; text-align: center; }
+.state-card .icon { font-size: 34px; margin-bottom: 10px; }
+.state-card h3 { font-size: 16px; font-weight: 700; color: #22242a; margin: 0 0 6px; }
+.state-card p { font-size: 13px; color: #666; margin: 0; }
+.state-card code { display: inline-block; margin-top: 10px; font-size: 11px; color: #a33; background: #fdf0f0; border-radius: 4px; padding: 3px 8px; }
+.state-card.err .icon { color: #e6605e; }
+.state-card.warn .icon { color: #e6a817; }
+.flash { display: none; font-size: 13px; border-radius: 5px; padding: 10px 14px; margin-bottom: 14px; }
+.flash.err { display: block; background: #fdecea; color: #a33; border: 1px solid #f3c1bd; }
+.flash.ok { display: block; background: #e7f7f3; color: #1f6f62; border: 1px solid #b7e6dc; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span id="headerTitle" data-i18n="rse.header">Requirement Specification</span>
+  <span class="sub" data-i18n="rse.headerSub">create or edit a requirement specification</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar" id="toolbar" style="display:none">
+  <span class="ctx"><span data-i18n="rs.testProject">Test project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx" id="ctxModeWrap" style="display:none"><span data-i18n="rse.mode">Mode</span>: <b id="ctxMode">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnEventHistory" style="display:none" onclick="showEventHistory()"><i class="fas fa-history"></i> <span data-i18n="rse.showEventHistory">Show event history</span></button>
+  <button class="btn-dark" id="btnRefresh"><i class="fas fa-sync"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnBack"><i class="fas fa-list"></i> <span data-i18n="rse.back">Back to specifications</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fas fa-times"></i> <span data-i18n="common.close">Close</span></button>
+</div>
+
+<div class="state-wrap" id="stateWrap" style="display:none">
+  <div class="state-card" id="stateCard">
+    <div class="icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+    <h3 id="stateTitle">-</h3>
+    <p id="stateText">-</p>
+    <code id="stateCode" style="display:none"></code>
+  </div>
+</div>
+
+<div class="section" id="formSection" style="display:none">
+  <div class="flash" id="flash"></div>
+  <div class="card">
+    <div class="meta" style="margin-bottom:18px">
+      <div><div class="k" data-i18n="rs.testProject">Test project</div><div class="v" id="ctxProject">-</div></div>
+      <div><div class="k" data-i18n="rse.mode">Mode</div><div class="v" id="ctxMode2">-</div></div>
+      <div id="ctxRevisionWrap" style="display:none"><div class="k" data-i18n="rse.revision">Revision</div><div class="v" id="ctxRevision">-</div></div>
+    </div>
+
+    <form id="specForm" onsubmit="return false;">
+      <input type="hidden" id="fId" value="">
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" for="fDocId" data-i18n="rs.docIdLabel">Document ID</label>
+        <input type="text" class="form-control" id="fDocId" maxlength="50" required>
+        <div class="hint" data-i18n="rse.docIdHint">must be unique within the test project</div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" for="fTitle" data-i18n="rs.titleLabel">Title</label>
+        <input type="text" class="form-control" id="fTitle" maxlength="100" required>
+      </div>
+
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="fType" data-i18n="rs.specTypeLabel">Type</label>
+            <select class="form-control" id="fType"></select>
+          </div>
+        </div>
+        <div class="col-sm-6" id="parentGroup" style="display:none">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" for="fParent" data-i18n="rs.parentSpecLabel">Parent specification</label>
+            <select class="form-control" id="fParent"></select>
+            <div class="hint" data-i18n="rs.parentSpecHint">nesting requires child specification management to be enabled</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group" id="totalReqGroup" style="margin-bottom:12px;display:none">
+        <label class="form-label" for="fTotalReq" data-i18n="rs.countReqLabel">Requirement count</label>
+        <input type="number" min="0" class="form-control" id="fTotalReq" value="0">
+        <div class="hint" data-i18n="rse.totalReqHint">used when requirements are managed by an external system</div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label" for="fScope" data-i18n="rs.scopeLabel">Scope</label>
+        <textarea class="form-control" id="fScope" rows="8" maxlength="65535"></textarea>
+        <div class="hint" data-i18n="rse.scopeHint">free text describing the scope of this specification</div>
+      </div>
+
+      <div class="groupBtn">
+        <button class="btn-teal" id="btnSave"><i class="fas fa-save"></i> <span data-i18n="common.save">Save</span></button>
+        <button class="btn-dark" id="btnCancel"><span data-i18n="common.cancel">Cancel</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.reqSpecEdit">TestLink 2.0.1 - Requirement Specification</span></div>
+<div class="toast" id="toast"></div>
+
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="req_specs">
+</form>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqspecedit/index.php';
+var MANAGE_URL = '/gui/templates/requirements/reqSpecMgmt.html';
+var LOGIN_URL = '/login.php?note=expired';
+var params = {};
+var ctx = null;
+var tprojectId = 0;
+var specId = 0;
+var parentInit = 0;
+var busy = false;
+
+$(function () {
+  params = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(params.get('tproject_id') || '0', 10) || 0;
+  specId = parseInt(params.get('spec_id') || params.get('req_spec_id') || '0', 10) || 0;
+  parentInit = parseInt(params.get('parent_id') || '0', 10) || 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#btnRefresh').on('click', load);
+  $('#btnBack').on('click', goBack);
+  $('#btnCancel').on('click', goBack);
+  $('#btnClose').on('click', function () { window.top !== window ? window.top.close() : window.history.back(); });
+  $('#btnSave').on('click', saveSpec);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function setBusy(on) {
+  busy = !!on;
+  $('#btnSave, #btnRefresh').prop('disabled', !!on);
+}
+
+function goBack() {
+  var tid = (ctx && ctx.context && ctx.context.tproject_id) || tprojectId;
+  window.location.href = MANAGE_URL + '?tproject_id=' + encodeURIComponent(tid || 0);
+}
+
+function showState(kind, code) {
+  $('#toolbar').toggle(kind !== 'loading' && kind !== 'session');
+  $('#formSection').hide();
+  $('#stateWrap').show();
+  var $c = $('#stateCard').removeClass('err warn');
+  var icons = {
+    loading: 'fa-circle-notch fa-spin', noRight: 'fa-lock',
+    notFound: 'fa-search', invalid: 'fa-exclamation-triangle',
+    serverError: 'fa-bug'
+  };
+  $('#stateCard .icon').html('<i class="fas ' + (icons[kind] || 'fa-info-circle') + '"></i>');
+  if (kind === 'noRight') { $c.addClass('warn'); }
+  if (kind === 'notFound' || kind === 'invalid' || kind === 'serverError') { $c.addClass('err'); }
+  $('#stateTitle').text(TLi18n.t('rse.state.' + kind));
+  $('#stateText').text(TLi18n.t('rse.stateText.' + kind));
+  if (code) { $('#stateCode').text(code).show(); } else { $('#stateCode').hide(); }
+}
+
+function load() {
+  if (tprojectId <= 0) { showState('invalid', 'invalid_parameter'); return; }
+  showState('loading', '');
+  var q = '?action=init&tproject_id=' + tprojectId + '&spec_id=' + specId;
+  $.ajax({ url: API + q, dataType: 'json' })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { handleError(r || {}, 200); return; }
+      ctx = r;
+      render();
+    })
+    .fail(function (xhr) {
+      var r = {}; try { r = JSON.parse(xhr.responseText); } catch (e) {}
+      handleError(r, xhr.status);
+    });
+}
+
+function handleError(r, http) {
+  if (http === 401 || r.code === 'session_expired' || r.code === 'not_authenticated') {
+    window.location.href = LOGIN_URL; return;
+  }
+  if (http === 403 || r.code === 'no_right') { showState('noRight', r.code); return; }
+  if (http === 404 || r.code === 'spec_not_found' || r.code === 'tproject_not_found') {
+    showState('notFound', r.code); return;
+  }
+  if (http === 400) { showState('invalid', r.code || 'invalid_parameter'); return; }
+  showState('serverError', r.code || ('http_' + http));
+}
+
+function render() {
+  var c = ctx.context || {};
+  var s = ctx.spec || null;
+  var isEdit = c.mode === 'edit';
+  tprojectId = c.tproject_id || tprojectId;
+  specId = c.spec_id || 0;
+
+  $('#tprojectName').text(c.tproject_name || ('#' + c.tproject_id));
+  $('#ctxProject').text((c.tproject_name || '#' + c.tproject_id) + ' (#' + c.tproject_id + ')');
+  var modeTxt = isEdit ? TLi18n.t('rse.modeEdit') : TLi18n.t('rse.modeCreate');
+  $('#ctxMode').text(modeTxt);
+  $('#ctxMode2').text(modeTxt);
+  $('#ctxModeWrap').show();
+  $('#headerTitle').text(modeTxt);
+
+  var $type = $('#fType').empty();
+  $.each(ctx.types || [], function (i, t) {
+    $type.append($('<option>').val(t.code).text(TLi18n.t(t.label)));
+  });
+
+  var settings = ctx.settings || {};
+  var childMgmt = !!settings.child_requirements_mgmt;
+  var $parent = $('#fParent').empty();
+  $parent.append($('<option>').val('0').text(TLi18n.t('rs.parentTopLevel')));
+  $.each(ctx.parents || [], function (i, p) {
+    if (isEdit && s && parseInt(p.id, 10) === parseInt(s.id, 10)) { return; }
+    $parent.append($('<option>').val(p.id).text((p.doc_id ? p.doc_id + ' - ' : '') + p.title));
+  });
+  // Nesting is only editable when creating; the parent of an existing node is
+  // owned by the reorder/move endpoint (legacy edit form did not re-post it).
+  $('#parentGroup').toggle(childMgmt && !isEdit);
+  $('#totalReqGroup').toggle(!!settings.external_req_management);
+
+  $('#fId').val(isEdit ? s.id : '');
+  $('#fDocId').val(isEdit ? (s.doc_id || '') : '');
+  $('#fTitle').val(isEdit ? (s.title || '') : '');
+  $('#fScope').val(isEdit ? (s.scope || '') : '');
+  $('#fType').val(isEdit ? String(s.type || '1') : '1');
+  $('#fTotalReq').val(isEdit ? (s.total_req || 0) : 0);
+  $('#fParent').val(isEdit && s ? String(s.parent_id || 0) : String(parentInit));
+
+  $('#ctxRevisionWrap').toggle(isEdit);
+  if (isEdit) { $('#ctxRevision').text('#' + (s.revision || 0)); }
+  $('#btnEventHistory').toggle(isEdit);
+
+  $('#stateWrap').hide();
+  $('#formSection').show();
+  $('#toolbar').show();
+  $('#flash').hide().removeClass('err ok');
+  setBusy(false);
+}
+
+function errText(r) {
+  var map = {
+    no_right: 'common.forbidden',
+    duplicate_doc_id: 'rse.msg.duplicateDocId',
+    missing_field: 'rse.msg.missingField',
+    invalid_request: 'rse.msg.invalid',
+    spec_not_found: 'rse.msg.notFound',
+    tproject_not_found: 'rse.msg.notFound',
+    session_expired: 'rse.msg.sessionExpired',
+    not_authenticated: 'rse.msg.sessionExpired'
+  };
+  var key = map[r.code] || null;
+  return key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error'));
+}
+
+function showError(r) {
+  var txt = errText(r);
+  $('#flash').text(txt).addClass('err').removeClass('ok').show();
+  toast(txt, true);
+}
+
+/** Legacy validateForm parity: doc_id and title required; count numeric. */
+function validate() {
+  var docId = $.trim($('#fDocId').val());
+  var title = $.trim($('#fTitle').val());
+  if (!docId) { showError({ code: 'missing_field', message: TLi18n.t('rs.msg.docIdRequired') }); return null; }
+  if (!title) { showError({ code: 'missing_field', message: TLi18n.t('rs.msg.titleRequired') }); return null; }
+  if ($('#totalReqGroup').is(':visible')) {
+    var n = String($('#fTotalReq').val() || '0').trim();
+    if (!/^\d+$/.test(n)) { showError({ code: 'invalid_request', message: TLi18n.t('rse.msg.invalidCount') }); return null; }
+  }
+  return { doc_id: docId, title: title };
+}
+
+function saveSpec() {
+  if (busy) { return; }
+  var v = validate();
+  if (v === null) { return; }
+
+  var body = {
+    tproject_id: tprojectId,
+    spec_id: specId,
+    doc_id: v.doc_id,
+    title: v.title,
+    type: $('#fType').val(),
+    scope: $('#fScope').val(),
+    total_req: parseInt($('#fTotalReq').val() || '0', 10)
+  };
+  if (!$('#parentGroup').is(':visible')) {
+    body.parent_id = 0;
+  } else {
+    body.parent_id = parseInt($('#fParent').val() || '0', 10) || 0;
+  }
+
+  setBusy(true);
+  $('#flash').hide().removeClass('err ok');
+  fetch(API + '?action=save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    body: JSON.stringify(body)
+  }).then(function (resp) {
+    return resp.json().catch(function () { return {}; }).then(function (r) {
+      return { ok: resp.ok, status: resp.status, body: r };
+    });
+  }).then(function (res) {
+    if (res.ok && res.body && res.body.status === 'ok') {
+      specId = parseInt(res.body.id || specId, 10) || 0;
+      $('#flash').text(TLi18n.t('rs.msg.saved')).addClass('ok').removeClass('err').show();
+      toast(TLi18n.t('rs.msg.saved'), false);
+      // Stay on the page in edit mode so the saved values can be re-inspected.
+      if (specId > 0) {
+        window.history.replaceState({}, '', '?tproject_id=' + tprojectId + '&spec_id=' + specId);
+        setBusy(false);
+        load();
+      }
+      return;
+    }
+    setBusy(false);
+    showError(res.body || { code: 'invalid_request' });
+    if (res.status === 401) { window.location.href = LOGIN_URL; }
+  }).catch(function () {
+    setBusy(false);
+    showError({ code: 'invalid_request' });
+  });
+}
+
+function showEventHistory() {
+  if (specId <= 0) { return; }
+  $('#eh_object_id').val(specId);
+  $('#eventhistory').trigger('submit');
+}
+</script>
+</body>
+</html>

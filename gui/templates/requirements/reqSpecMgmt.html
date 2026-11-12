@@ -134,6 +134,7 @@ td.ordact { width: 260px; white-space: nowrap; }
   <button class="btn-teal" id="btnExpandAll" onclick="expandAllSpecs()" style="display:none"><i class="fa fa-angle-double-down"></i> <span data-i18n="rs.expandAll">Expand all</span></button>
   <button class="btn-teal" id="btnCollapseAll" onclick="collapseAllSpecs()" style="display:none;background:#22242a;"><i class="fa fa-angle-double-up"></i> <span data-i18n="rs.collapseAll">Collapse all</span></button>
   <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
+  <button class="btn-teal" id="btnFullEditor" onclick="openFullSpecEditor(0)" style="display:none"><i class="fa fa-window-maximize"></i> <span data-i18n="rse.fullEditor">Full-screen editor</span></button>
   <button class="btn-teal" id="btnImportReqs" onclick="goImportReqs()" style="display:none"><i class="fa fa-upload"></i> <span data-i18n="reqimp.header">Requirement Import</span></button>
   <button class="btn-teal" id="btnExportReqs" onclick="goExportReqs()" style="display:none"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></button>
   <!-- Refs #1027: legacy requirement-spec tree drag-and-drop (dragdroprequirementnodes.php
@@ -543,6 +544,7 @@ function load() {
     $('#tprojectName').text(options.tproject_name || '-');
     document.title = (options.tproject_name || '') + ' - ' + TLi18n.t('rs.header');
     $('#btnCreateSpec').toggle(canManage);
+    $('#btnFullEditor').toggle(canManage);
     $('#btnImportReqs').toggle(canManage);
     $('#btnExportReqs').show();
     // Refs #1027 - the reorder/move gesture needs mgt_modify_req
@@ -839,6 +841,8 @@ function renderSpecs(items) {
       action +=
         (childMgmt ? '<button class="edit-btn" title="' + esc(TLi18n.t('rs.newChildSpec')) +
         '" onclick="openSpecCreate(' + s.id + ')"><i class="fas fa-sitemap"></i></button>' : '') +
+        '<button class="edit-btn" title="' + esc(TLi18n.t('rse.openFullEditor')) +
+        '" onclick="openFullSpecEditor(' + s.id + ')"><i class="fas fa-window-maximize"></i></button>' +
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editSpec')) +
         '" onclick="openSpecEdit(' + s.id + ')"><i class="fas fa-pen"></i></button>' +
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteSpec')) +
@@ -1139,6 +1143,13 @@ function openSpecCreate(parentSpecId) {
   $('#specModalError').hide();
   $('#specModalTitle').text(TLi18n.t('rs.createSpec'));
   $('#specModal').modal('show');
+}
+
+function openFullSpecEditor(specId) {
+  var url = '/gui/templates/requirements/reqSpecEdit.html?tproject_id=' +
+            encodeURIComponent(tprojectId || 0);
+  if (parseInt(specId, 10) > 0) { url += '&spec_id=' + encodeURIComponent(specId); }
+  window.location.href = url;
 }
 
 function openSpecEdit(id) {

@@ -73,6 +73,20 @@ if(is_string($doAction) && ($doAction === 'copy' || $doAction === 'doCopy'))
   // unreachable: the helper always redirects and exits.
 }
 
+// Refs #1985. The standalone create/edit renderer is modernized as the Dashio
+// page gui/templates/requirements/reqSpecEdit.html backed by
+// api/reqspecedit (same rights: mgt_view_req AND mgt_modify_req on the
+// addressed project, checked before the project is resolved). The legacy URLs
+// `?doAction=create|createChild|edit` (project launcher card, "New Req Spec"
+// from the viewer, row pencil in old bookmarks) now bounce to the modern
+// screen. The submitted POST is deliberately NOT executed here any more: the
+// write belongs to the BFF. Every OTHER action of this controller is untouched.
+if(is_string($doAction) && in_array($doAction, array('create', 'createChild', 'edit'), true))
+{
+  reqSpecEditRedirectToModernEdit($args);
+  // unreachable: the helper always redirects and exits.
+}
+
 $commandMgr = new reqSpecCommands($db,$args->tproject_id);
 $gui = initialize_gui($db,$args,$req_cfg,$commandMgr);
 
@@ -150,6 +164,46 @@ function reqSpecEditRedirectToModernSpecCopy($args)
   $ctx .= '&legacy_intent=' . rawurlencode((string)$args->doAction);
 
   header('Location: /gui/templates/requirements/reqSpecCopy.html?' . $ctx);
+  exit();
+}
+
+/**
+ * Refs #1985 - bounce the legacy create / createChild / edit renderer to the
+ * modern full-screen editor. Nothing is written here.
+ *
+ * Location is ROOT-RELATIVE on purpose (same lesson as the #1797 helper above:
+ * a $basehref-prefixed target turned a redirect into a 404). A POST is also
+ * redirected - the legacy form's write must not run in the old controller, the
+ * BFF owns it now.
+ */
+function reqSpecEditRedirectToModernEdit($args)
+{
+  $specId = intval($args->req_spec_id);
+  $tprojectId = intval($args->tproject_id);
+
+  tLog('reqSpecEdit.php: doAction=' . $args->doAction .
+       ' is modernized - redirecting to reqSpecEdit.html.' .
+       ' (tproject_id=' . $tprojectId . ', req_spec_id=' . $specId . ')',
+       'INFO');
+
+  $target = '/gui/templates/requirements/reqSpecEdit.html';
+  $ctx = array();
+  if($tprojectId > 0)
+  {
+    $ctx[] = 'tproject_id=' . $tprojectId;
+  }
+  if($specId > 0)
+  {
+    $ctx[] = 'spec_id=' . $specId;
+  }
+  $parentId = intval($args->parentID);
+  if($args->doAction === 'createChild' && $parentId > 0)
+  {
+    $ctx[] = 'parent_id=' . $parentId;
+  }
+  $ctx[] = 'legacy_intent=' . rawurlencode((string)$args->doAction);
+
+  header('Location: ' . $target . '?' . implode('&', $ctx));
   exit();
 }
 
