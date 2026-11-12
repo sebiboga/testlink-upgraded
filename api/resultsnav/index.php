@@ -188,6 +188,8 @@ $bff = function ($action) use ($db, $user) {
             'results_by_build' => 'gui/templates/results/resultsByBuild.html',
             // Refs #1981: Test Plan Blocked Tests Ageing report.
             'blocked_ageing' => 'gui/templates/results/blockedAgeing.html',
+            // Refs #1986: Test Plan Test Case Version Churn report.
+            'version_churn' => 'gui/templates/results/versionChurn.html',
         );
 
         $reportList = config_get('reports_list');

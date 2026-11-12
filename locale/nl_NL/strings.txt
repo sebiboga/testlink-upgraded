@@ -4134,3 +4134,4 @@ $TLS_link_report_priority_coverage = "Prioriteitsdekking van het testplan"; // T
 $TLS_link_report_failure_pareto = "Mislukkings-pareto van het testplan"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Resultaten per build"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Uitvoeringsinspanning van het testplan"; // Test Plan Execution Effort (Refs #1984)
+$TLS_link_report_version_churn = "Versiewijzigingen van testcases"; // Test Case Version Churn (Refs #1986)

@@ -2485,3 +2485,4 @@ $TLS_link_report_priority_coverage = "Copertura per priorità del piano di test"
 $TLS_link_report_failure_pareto = "Pareto dei fallimenti del piano di test"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Risultati per build"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Sforzo di esecuzione del piano di test"; // Test Plan Execution Effort (Refs #1984)
+$TLS_link_report_version_churn = "Modifiche di versione dei casi di test"; // Test Case Version Churn (Refs #1986)

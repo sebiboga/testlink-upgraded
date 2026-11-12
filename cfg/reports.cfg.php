@@ -597,6 +597,17 @@ $tlCfg->reports_list['exec_effort'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1986: Test Plan Test Case Version Churn / Rework (net-new report).
+// tcversions keeps every design revision and testplan_tcversions pins some of
+// them, but no 1.9.20/2.0.1 screen reports rework or outdated pins. Backed by
+// the api/versionchurn BFF (init/report).
+$tlCfg->reports_list['version_churn'] = array(
+	'title' => 'link_report_version_churn',
+	'url' => 'gui/templates/results/versionChurn.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

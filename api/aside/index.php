@@ -327,6 +327,11 @@ if ($tplan_id > 0) {
                 // (which tests run over budget, and how far off the estimate).
                 $hrefR = '/gui/templates/results/execEffort.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_version_churn') {
+                // Refs #1986: Test Plan Test Case Version Churn (design
+                // rework history and outdated version pins).
+                $hrefR = '/gui/templates/results/versionChurn.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

@@ -2738,6 +2738,15 @@ function getActions(&$gui,$baseURL) {
   $actions->execEffort =
     "/gui/templates/results/execEffort.html?{$ctx}";
 
+  // Refs #1986: Test Plan Test Case Version Churn report (net-new screen).
+  // tcversions keeps every design revision and testplan_tcversions pins some
+  // of them, but no 1.9.20/2.0.1 screen reports rework history or outdated
+  // pins; this exposes both. Backed by the api/versionchurn BFF (init/report),
+  // reachable from the Reports menu (cfg/reports.cfg.php + api/aside mapping)
+  // and this action.
+  $actions->versionChurn =
+    "/gui/templates/results/versionChurn.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

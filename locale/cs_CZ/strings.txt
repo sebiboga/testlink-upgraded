@@ -4012,3 +4012,4 @@ $TLS_link_report_priority_coverage = "Pokrytí podle priorit testovacího plánu
 $TLS_link_report_failure_pareto = "Paretova analýza selhání testovacího plánu"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "Výsledky podle sestavení"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "Úsilí při provádění testovacího plánu"; // Test Plan Execution Effort (Refs #1984)
+$TLS_link_report_version_churn = "Změny verzí testovacích případů"; // Test Case Version Churn (Refs #1986)

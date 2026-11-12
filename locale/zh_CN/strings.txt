@@ -4217,3 +4217,4 @@ $TLS_link_report_priority_coverage = "测试计划优先级覆盖率"; // Test P
 $TLS_link_report_failure_pareto = "测试计划失败帕累托图"; // Test Plan Failure Pareto (Refs #1979)
 $TLS_link_report_results_by_build = "按构建的测试结果"; // Test Plan Results by Build (Refs #1980)
 $TLS_link_report_exec_effort = "测试计划执行工作量"; // Test Plan Execution Effort (Refs #1984)
+$TLS_link_report_version_churn = "测试用例版本变更"; // Test Case Version Churn (Refs #1986)
