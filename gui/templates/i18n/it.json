@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Errore imprevisto",
   "vchurn.serverErrorBody": "Impossibile generare il report (HTTP {status}).",
   "vchurn.loading": "Caricamento...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Modifiche di versione dei casi di test"
+  "footers.versionChurn": "TestLink 2.0.1 - Modifiche di versione dei casi di test"
 }

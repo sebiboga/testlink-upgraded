@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "意外错误",
   "vchurn.serverErrorBody": "无法生成报告（HTTP {status}）。",
   "vchurn.loading": "加载中...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - 测试用例版本变更"
+  "footers.versionChurn": "TestLink 2.0.1 - 测试用例版本变更"
 }

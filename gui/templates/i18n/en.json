@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Unexpected error",
   "vchurn.serverErrorBody": "The report could not be generated (HTTP {status}).",
   "vchurn.loading": "Loading...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Test Case Version Churn"
+  "footers.versionChurn": "TestLink 2.0.1 - Test Case Version Churn"
 }

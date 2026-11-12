@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Неожиданная ошибка",
   "vchurn.serverErrorBody": "Не удалось сформировать отчёт (HTTP {status}).",
   "vchurn.loading": "Загрузка...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Изменения версий тест-кейсов"
+  "footers.versionChurn": "TestLink 2.0.1 - Изменения версий тест-кейсов"
 }

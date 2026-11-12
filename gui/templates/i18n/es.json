@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Error inesperado",
   "vchurn.serverErrorBody": "No se pudo generar el informe (HTTP {status}).",
   "vchurn.loading": "Cargando...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Cambios de versión de casos de prueba"
+  "footers.versionChurn": "TestLink 2.0.1 - Cambios de versión de casos de prueba"
 }

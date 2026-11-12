@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Unerwarteter Fehler",
   "vchurn.serverErrorBody": "Der Bericht konnte nicht erstellt werden (HTTP {status}).",
   "vchurn.loading": "Wird geladen...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Versionsänderungen von Testfällen"
+  "footers.versionChurn": "TestLink 2.0.1 - Versionsänderungen von Testfällen"
 }

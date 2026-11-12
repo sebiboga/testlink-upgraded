@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "予期しないエラー",
   "vchurn.serverErrorBody": "レポートを生成できませんでした (HTTP {status})。",
   "vchurn.loading": "読み込み中...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - テストケース版変更"
+  "footers.versionChurn": "TestLink 2.0.1 - テストケース版変更"
 }

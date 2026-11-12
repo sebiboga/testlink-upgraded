@@ -46776,3 +46776,75 @@ RSE-SPEC-2, 6 child of 2 = RSE-SPEC-3). Run as `admin` (English).
     `lib/requirements/reqSpecEdit.php`, `api/projectreqspecmgmt/index.php`.
 14. PASS — Event Viewer after the pass: only INFO/AUDIT rows (login,
     test-project creation); 0 new Error/Warning. Console: 0 messages.
+
+## Issue #1986 — Test Plan Test Case Version Churn (versionChurn)
+
+Screen: `gui/templates/results/versionChurn.html` · BFF:
+`api/versionchurn/index.php` · Refs #1986.
+
+Fixture `tmp/fixtures_1986.php`: project `VCH1986` (prefix VC, id 40) and plan
+`VCH Plan` (id 41) with five assigned test cases — stable (1 old version),
+behind pin (3 versions, plan pins v1 → behind 2), churning by rework (5
+versions, v4/v5 recent), recent redesign (2 versions, v2 12 days old), window
+churn (4 versions, v3/v4 recent). Plus `VCH Empty Plan` (id 79) and a
+no-rights user `vch1986norights`. Run as `admin` (English) unless stated.
+
+1. PASS — `GET api/versionchurn/index.php?action=report` without a session →
+   HTTP 401 `not_authenticated` (curl).
+2. PASS — Authenticated, no `tplan_id` → HTTP 400 `invalid_request`.
+3. PASS — `tplan_id=999999` → HTTP 404 `tplan_not_found`.
+4. PASS — `tplan_id=41&tproject_id=999` → HTTP 404 `project_mismatch`
+   (the client project is only an assertion, checked after the owner resolves).
+5. PASS — `window_days=abc` and `window_days=9999` → HTTP 400
+   `invalid_request` (strict 1..3650 bound).
+6. PASS — User without `testplan_metrics` → HTTP 403 `no_right`; the Event
+   Viewer row is AUDIT (level 16), never ERROR/WARNING.
+7. PASS — POST with a same-origin proof → HTTP 405 `method_not_allowed`.
+8. PASS — HEAD `action=report&tplan_id=41` → HTTP 200, no body.
+9. PASS — `action=init` → `{status:ok}`, context VCH1986 / VCH Plan and
+   `filter.window_days = 90`.
+10. PASS — `action=report` (90 days): verdict `churning`, 5 cases /
+    6 assignments / 15 design versions / avg 3 / 4 reworked / 2 churning /
+    2 watch / 1 stable / 5 created in window / 1 plan behind. Rows:
+    churning-rework (assigned v1+v5, newest v5, 5 versions, rework 4, window 2),
+    window-churn (v4, newest v4, 4 versions, rework 3, window 2),
+    behind-pin (v1, newest v3, behind 2, verdict watch),
+    recent-redesign (v2, window 1, last execution set, watch),
+    stable-single (v1, 1 version, stable). Per-suite totals add up
+    (VC Child 2 cases/7 versions; VC Root 3/8).
+11. PASS — Window re-scope to 7 days → created-in-window 3 (was 5); the
+    churning-rework case keeps its rework verdict, the recent case drops out of
+    the window but stays `watch` because the plan is not behind it, totals and
+    banner update; verdict remains `churning`.
+12. PASS — Empty plan 79 → `verdict=no_data`, all KPIs 0, 0 rows, 0 suites.
+13. PASS — Browser (Chromium): screen renders the teal header, context
+    VCH1986 / VCH Plan / 90 days, 10 KPI cards, 5-row DataTable, 2-row suite
+    table, churning banner, localized footer and locale switcher; console has
+    no JS errors.
+14. PASS — Footer key resolves (regression found during the pass: the first
+    i18n insertion produced `vchurn.footers.versionChurn`; fixed to
+    `footers.versionChurn` in all 10 bundles and re-verified by reload).
+15. PASS — Locale switch to German: title "Versionsänderungen von Testfällen
+    im Testplan", footer and column labels translated (no raw keys).
+16. PASS — CSV export: header row
+    `Test case;External ID;Suite;Assigned versions;Newest version;Versions;Rework;In window;Behind;Last design change;Last execution;Verdict`,
+    the behind-pin row keeps all 12 columns aligned, KPI block and per-suite
+    block present, BOM kept.
+17. PASS — No-rights user in the browser → 403 state card "Access denied"
+    with the `testplan_metrics` message and machine code `no_right`; report
+    stays hidden.
+18. PASS — Empty-plan browser state: banner "No test cases are linked to this
+    test plan yet.", placeholder "No test cases linked to this plan.",
+    Export CSV disabled.
+19. PASS — ASIDE link present:
+    `/gui/templates/results/versionChurn.html?tproject_id=40&tplan_id=41`
+    (API `aside` section item 45).
+20. PASS — Reports launcher (`api/resultsnav?action=init`) resolves
+    `version_churn` → `/gui/templates/results/versionChurn.html`.
+21. PASS — i18n gate `bash ai/verify_i18n_coverage.sh` → 9/9 bundles,
+    0 missing; every touched bundle valid JSON (`python3 -m json.tool`).
+22. PASS — `php -l` clean for the BFF and touched wiring files; `node --check`
+    clean for the screen script.
+23. PASS — Event Viewer after the pass: AUDIT rows only (login, project
+    creation, the expected 403 audit line); 0 Error/Warning (the one fixture
+    ERROR from an early roles query was fixed in the fixture and removed).

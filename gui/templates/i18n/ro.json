@@ -10830,5 +10830,5 @@
   "vchurn.serverErrorTitle": "Eroare neașteptată",
   "vchurn.serverErrorBody": "Raportul nu a putut fi generat (HTTP {status}).",
   "vchurn.loading": "Se încarcă...",
-  "vchurn.footers.versionChurn": "TestLink 2.0.1 - Modificări de versiune ale cazurilor de test"
+  "footers.versionChurn": "TestLink 2.0.1 - Modificări de versiune ale cazurilor de test"
 }
