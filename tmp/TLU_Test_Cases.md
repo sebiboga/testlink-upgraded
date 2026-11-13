@@ -46967,3 +46967,53 @@ rerun, TC4 high re-run x5, TC5 platform 1 x3, TC6 all platforms x2), user
 17. PASS — RO locale (`?locale=ro`): title, subtitle, banner, KPIs, columns
     and footer translated, no raw keys.
 18. PASS — Event Viewer: no new Error/Warning from the report (denials AUDIT).
+
+## Issue #1989 — Test Plan Execution Ageing report (executionAgeing)
+
+Fixture: project BAG1981 (1) / BAG1981 EMPTY (2), plan BAG Plan (3) / BAG Empty
+Plan (4), builds BAG Build 1 (1), BAG Build 2 (2), platforms BAG Platform 1 (1),
+BAG Platform 2 (2), 7 assigned links (TC1 blocked 35d, TC2 blocked 10d, TC3
+blocked 2d, TC4 passed 1d, TC5 never run, TC6 platform 1 12d, TC7 platform 2
+12d), user `bage1981norights` (role 3, no `testplan_metrics`).
+
+1. PASS — i18n: all 10 bundles carry the same 76 `eage.*` + `footers.executionAgeing`
+   keys; `python3 -m json.tool` valid; `ai/verify_i18n_coverage.sh` 9/9 PASS.
+2. PASS — Wiring: `cfg/reports.cfg.php` `execution_ageing` -> modern URL;
+   `api/resultsnav` `execution_ageing` -> modern URL; `api/aside` branch for
+   `link_report_execution_ageing` (returned in `action=init` menu); `$actions->executionAgeing`
+   present; `$TLS_link_report_execution_ageing` in all 19 `locale/*/strings.txt`.
+3. PASS — `action=init&tproject_id=1&tplan_id=3`: context BAG1981 / BAG Plan,
+   builds 1-2, platforms 1-2.
+4. PASS — `action=report&tplan_id=3`: 7 assigned links, 6 executed, 1 never run,
+   fresh 2, aging 3, stale 1, dormant 0, avg 12d, oldest 35d, 1 tester, verdict
+   `at_risk`; rows sorted by severity (never first, then age desc).
+5. PASS — Platform expansion: platform-less links counted once; TC6/TC7 surface
+   under their executed platform; age in whole days from latest `execution_ts`.
+6. PASS — Per-suite roll-up: BG Root Suite 4 links / 1 never / 1 fresh / 1 aging
+   / 1 stale / avg 16.3d / 25%; BG Child Suite 3 links / 0 never / 1 fresh / 2
+   aging / avg 7.7d / 0%.
+7. PASS — Build filter `build_id=1`: executed 4, never 3 (TC7 falls out), stale 2
+   (TC4 shows 40d blocked within that build), aging 2.
+8. PASS — Platform filter `platform_id=1`: assigned 6, never 5, aging 1.
+9. PASS — Build 2 + Platform 2: 6 never run (no executions in that scope).
+10. PASS — Empty plan 4: 0 assigned, all KPIs 0, verdict `clear`, banner
+    "Nothing is assigned to this scope.", 0 rows / 0 suites, Export disabled.
+11. PASS — Error paths: unknown plan → 404 `tplan_not_found`; foreign project →
+    404 `project_mismatch`; unknown build → 400 `invalid_request`; unknown action
+    / missing `tplan_id` → 400; no session → 401 `not_authenticated`; role-3
+    user → 403 `no_right`; POST with XHR header → 405.
+12. PASS — Browser EN: teal header, context panel, 10 KPI cards, verdict banner,
+    2-row per-suite DataTable, 7-row main DataTable (11 columns), no console
+    errors or warnings.
+13. PASS — Browser re-scope: Build 2 → context "BAG Build 2", executed 3, never
+    4, fresh 2, aging 1, avg 4.3d, oldest 10d; banner "4 never-run and 0 dormant
+    test case(s) - the plan execution is at risk.".
+14. PASS — CSV: `;` header (11 localized columns) + 7 rows, BOM (U+FEFF), formula
+    guard, toast `eage.csvDone` "CSV exported".
+15. PASS — DataTable search/sort and per-suite roll-up render correctly after
+    re-scope.
+16. PASS — No-rights browser state: "Access denied" card, localized body,
+    machine code `no_right`; filter selects empty and Export disabled.
+17. PASS — RO locale (`?locale=ro`): title, subtitle, banner, KPI labels, column
+    headers and footer translated, no raw `eage.*` keys.
+18. PASS — Event Viewer: no new Error/Warning from the report (denials AUDIT).
