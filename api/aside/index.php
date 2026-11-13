@@ -337,6 +337,11 @@ if ($tplan_id > 0) {
                 // (per build x platform coverage cross-tab).
                 $hrefR = '/gui/templates/results/buildPlatformMatrix.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_frequency') {
+                // Refs #1988: Test Plan Execution Frequency (how often each
+                // assigned test case is re-executed; over/under-tested plans).
+                $hrefR = '/gui/templates/results/execFrequency.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

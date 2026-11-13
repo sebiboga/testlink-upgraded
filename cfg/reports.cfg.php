@@ -619,6 +619,19 @@ $tlCfg->reports_list['build_platform_matrix'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1988: Test Plan Execution Frequency / re-run analysis (net-new
+// report). 1.9.20 reports the latest status of each test case
+// (resultsByStatus/resultsMatrix) but never how often an assigned test case
+// is actually re-executed, so over-tested (re-run) and under-tested (never
+// run) plans stay invisible. Backed by the api/execfrequency BFF
+// (init/report).
+$tlCfg->reports_list['exec_frequency'] = array(
+	'title' => 'link_report_exec_frequency',
+	'url' => 'gui/templates/results/execFrequency.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $report = 'report_exec_timeline';
 $tlCfg->reports_list[$report] = array( 
 	'title' => 'link_report_exec_timeline',

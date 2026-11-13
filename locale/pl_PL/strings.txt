@@ -3909,3 +3909,4 @@ $TLS_link_report_results_by_build = "Wyniki według kompilacji"; // Test Plan Re
 $TLS_link_report_exec_effort = "Nakład pracy wykonania planu testów"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Zmiany wersji przypadków testowych"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Pokrycie buildów × platform planu testów"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
+$TLS_link_report_exec_frequency = "Częstotliwość wykonywania planu testów"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)

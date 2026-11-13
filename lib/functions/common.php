@@ -2757,6 +2757,16 @@ function getActions(&$gui,$baseURL) {
   $actions->buildPlatformMatrix =
     "/gui/templates/results/buildPlatformMatrix.html?{$ctx}";
 
+  // Refs #1988: Test Plan Execution Frequency / re-run analysis report
+  // (net-new screen). Shows, per assigned test case of the plan, how often it
+  // was executed, how many re-runs that means, who ran it, on which builds and
+  // the resulting under/over-tested verdict; 1.9.20 only ever reports the
+  // latest status of a test case, never its execution frequency. Backed by the
+  // api/execfrequency BFF (init/report), reachable from the Reports menu
+  // (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->execFrequency =
+    "/gui/templates/results/execFrequency.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

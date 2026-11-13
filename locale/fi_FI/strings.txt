@@ -2217,3 +2217,4 @@ $TLS_link_report_results_by_build = "Tulokset build-kohtaisesti"; // Test Plan R
 $TLS_link_report_exec_effort = "Testisuunnitelman suorituksen työmäärä"; // Test Plan Execution Effort (Refs #1984)
 $TLS_link_report_version_churn = "Testitapausten versiomuutokset"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Testisuunnitelman buildien ja alustojen kattavuus"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
+$TLS_link_report_exec_frequency = "Testisuunnitelman suoritustiheys"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
