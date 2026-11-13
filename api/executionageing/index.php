@@ -169,7 +169,7 @@ if ($owningProjectId <= 0) {
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $tplanId, true)) {
     tLog('BFF executionageing: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . $owningProjectId .
-         ' (tplan ' . $tplanId . ')', 'ERROR');
+         ' (tplan ' . $tplanId . ')', 'AUDIT');
     eaFail(403, 'no_right', 'testplan_metrics right required');
 }
 
@@ -294,7 +294,7 @@ $execSql =
     "SELECT e.id, e.tcversion_id, e.platform_id, e.build_id, e.tester_id, " .
     "       e.status, e.execution_ts " .
     "FROM {$tbl['executions']} e WHERE e.testplan_id = " . intval($tplanId) .
-    " AND EXISTS (SELECT 1 FROM {$tbl['testplan_tcversions']} tpt" .
+    " AND e.execution_ts IS NOT NULL AND EXISTS (SELECT 1 FROM {$tbl['testplan_tcversions']} tpt" .
     "             WHERE tpt.testplan_id = " . intval($tplanId) .
     "               AND tpt.tcversion_id = e.tcversion_id" .
     "               AND (tpt.platform_id = 0 OR tpt.platform_id = e.platform_id))";
@@ -322,6 +322,7 @@ if (is_array($execRs)) {
 
 // Suite paths of the owning test cases (recursive walk, depth-guarded).
 $suitePaths = array();
+$suiteIds = array();
 if (count($caseNodes) > 0) {
     $nodeList = implode(',', array_map('intval', array_keys($caseNodes)));
     $pathSql =
@@ -337,13 +338,15 @@ if (count($caseNodes) > 0) {
         "  JOIN {$tbl['nodes_hierarchy']} pn ON pn.id = a.parent_id AND pn.node_type_id = 2" .
         "  WHERE a.depth < 32" .
         ") " .
-        "SELECT tcase_node, GROUP_CONCAT(node_name ORDER BY depth DESC SEPARATOR ' / ') AS suite_path " .
-        "FROM (SELECT DISTINCT tcase_node, node_name, depth FROM anc) d " .
+        "SELECT tcase_node, MAX(CASE WHEN depth = 0 THEN node_id END) AS suite_id, " .
+        "       GROUP_CONCAT(node_name ORDER BY depth DESC SEPARATOR ' / ') AS suite_path " .
+        "FROM (SELECT DISTINCT tcase_node, node_id, node_name, depth FROM anc) d " .
         "GROUP BY tcase_node";
     $pathRs = $db->get_recordset($pathSql);
     if (is_array($pathRs)) {
         foreach ($pathRs as $r) {
             $suitePaths[intval($r['tcase_node'])] = eaDecode($r['suite_path']);
+            $suiteIds[intval($r['tcase_node'])] = intval($r['suite_id']);
         }
     }
 }
@@ -353,8 +356,12 @@ $prefixRs = $db->get_recordset(
 $prefix = (is_array($prefixRs) && count($prefixRs) > 0) ? (string)$prefixRs[0]['prefix'] : '';
 
 $buildNames = array();
-foreach ($builds as $b) {
-    $buildNames[$b['id']] = $b['name'];
+$bRs = $db->get_recordset(
+    "SELECT id, name FROM {$tbl['builds']} WHERE testproject_id = " . intval($owningProjectId));
+if (is_array($bRs)) {
+    foreach ($bRs as $r) {
+        $buildNames[intval($r['id'])] = eaDecode($r['name']);
+    }
 }
 $platformNames = array();
 foreach ($platforms as $p) {
@@ -422,14 +429,15 @@ foreach ($units as $key => $on) {
     $v = $versions[$tcv];
     $e = isset($latest[$tcv . '|' . $p]) ? $latest[$tcv . '|' . $p] : null;
     $suite = isset($suitePaths[$v['tcase_node_id']]) ? $suitePaths[$v['tcase_node_id']] : '';
-    if (!isset($suites[$suite])) {
-        $suites[$suite] = array(
+    $suiteKey = isset($suiteIds[$v['tcase_node_id']]) ? $suiteIds[$v['tcase_node_id']] : 0;
+    if (!isset($suites[$suiteKey])) {
+        $suites[$suiteKey] = array(
             'suite_path' => $suite, 'links' => 0, 'never' => 0, 'fresh' => 0,
             'aging' => 0, 'stale' => 0, 'dormant' => 0, 'age_sum' => 0,
             'executed' => 0, 'max_age' => 0,
         );
     }
-    $suites[$suite]['links']++;
+    $suites[$suiteKey]['links']++;
 
     $never = ($e === null);
     $age = 0;
@@ -444,15 +452,15 @@ foreach ($units as $key => $on) {
             $summary['max_age'] = $age;
         }
         $distinctTesters[intval($e['tester_id'])] = true;
-        $suites[$suite]['executed']++;
-        $suites[$suite]['age_sum'] += $age;
-        if ($age > $suites[$suite]['max_age']) {
-            $suites[$suite]['max_age'] = $age;
+        $suites[$suiteKey]['executed']++;
+        $suites[$suiteKey]['age_sum'] += $age;
+        if ($age > $suites[$suiteKey]['max_age']) {
+            $suites[$suiteKey]['max_age'] = $age;
         }
     }
     $bucket = eaBucket($never, $age);
     $summary[$bucket]++;
-    $suites[$suite][$bucket]++;
+    $suites[$suiteKey][$bucket]++;
 
     $rows[] = array(
         'tcversion_id' => $tcv,
@@ -519,9 +527,10 @@ $summary['never_pct'] = eaPct($summary['never'], $summary['assigned_links']);
 
 if ($summary['assigned_links'] === 0) {
     $verdict = 'clear';
-} elseif ($summary['never'] > 0 || $summary['dormant'] > 0) {
+} elseif ($summary['never'] > 0 ||
+    eaPct($summary['stale'] + $summary['dormant'], $summary['assigned_links']) >= 20.0) {
     $verdict = 'at_risk';
-} elseif ($summary['stale'] > 0) {
+} elseif ($summary['stale'] + $summary['dormant'] > 0) {
     $verdict = 'watch';
 } else {
     $verdict = 'fresh';

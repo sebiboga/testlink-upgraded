@@ -72,8 +72,10 @@ Error contract: `not_authenticated` / `session_expired` (401), `no_right`
 
 - The unit of the report is one assigned **`testplan_tcversions`** link (version
   on a platform), not the test case.
-- A link with `platform_id = 0` means "any platform": it is reported once and
-  its latest execution on any platform is used.
+- A link with `platform_id = 0` means "any platform": it expands into one unit
+  per platform on which that version was actually executed (same convention as
+  the blocked-tests ageing report); a platform-less link with no execution is
+  one `never` unit.
 - The latest execution is the newest `execution_ts` for the (version, platform)
   inside the selected plan, optionally narrowed by `build_id` / `platform_id`.
 - Age = whole days between today and the latest `execution_ts`; a link with no
