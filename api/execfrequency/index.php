@@ -154,8 +154,9 @@ if ($tplanId <= 0) {
 //   2. check the right on the OWNING project (getAccess = true)
 //   3. only then honour the client's tproject_id assertion
 $tbl = tlObjectWithDB::getDBTables(array(
-    'testplans', 'builds', 'platforms', 'testplan_tcversions', 'tcversions',
-    'nodes_hierarchy', 'executions', 'testprojects', 'users',
+    'testplans', 'builds', 'platforms', 'testplan_platforms',
+    'testplan_tcversions', 'tcversions', 'nodes_hierarchy', 'executions',
+    'testprojects',
 ));
 $planRow = $db->get_recordset(
     "SELECT id, testproject_id FROM {$tbl['testplans']} WHERE id = " . intval($tplanId));
@@ -173,7 +174,7 @@ if ($owningProjectId <= 0) {
 if (!$user->hasRight($db, 'testplan_metrics', $owningProjectId, $tplanId, true)) {
     tLog('BFF execfrequency: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . $owningProjectId .
-         ' (tplan ' . $tplanId . ')', 'ERROR');
+         ' (tplan ' . $tplanId . ')', 'AUDIT');
     efFail(403, 'no_right', 'testplan_metrics right required');
 }
 
@@ -209,10 +210,15 @@ if ($buildId > 0) {
     }
 }
 
+// Only the platforms actually linked to this plan: a project-wide list would
+// offer a platform the plan never uses, and picking it would label every
+// assigned unit "never run" simply because the plan is platform-less.
 $platforms = array();
 $rp = $db->get_recordset(
-    "SELECT id, name FROM {$tbl['platforms']} WHERE testproject_id = " . intval($owningProjectId) .
-    " ORDER BY name");
+    "SELECT p.id, p.name FROM {$tbl['platforms']} p" .
+    " JOIN {$tbl['testplan_platforms']} tp ON tp.platform_id = p.id" .
+    " WHERE tp.testplan_id = " . intval($tplanId) .
+    " ORDER BY p.name");
 if (is_array($rp)) {
     foreach ($rp as $r) {
         $platforms[] = array('id' => intval($r['id']), 'name' => efDecode($r['name']));
@@ -224,7 +230,7 @@ if ($platformId > 0) {
         if ($p['id'] === $platformId) { $known = true; break; }
     }
     if (!$known) {
-        efFail(400, 'invalid_request', 'platform_id does not belong to this test project');
+        efFail(400, 'invalid_request', 'platform_id is not linked to this test plan');
     }
 }
 
@@ -254,9 +260,6 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 // report
 // ---------------------------------------------------------------------------
-$nowRs = $db->get_recordset("SELECT UNIX_TIMESTAMP(NOW()) AS now_ts");
-$now = (is_array($nowRs) && count($nowRs) > 0) ? intval($nowRs[0]['now_ts']) : time();
-
 // Universe: the plan's assigned links (tcversion, platform), narrowed by the
 // platform filter (the platform is part of the assignment in TestLink).
 $versionSql =
@@ -374,23 +377,6 @@ foreach ($platforms as $p) {
     $platformNames[$p['id']] = $p['name'];
 }
 
-// Tester display names of every execution in scope.
-$testerNames = array();
-if (count($distinctTesters) > 0) {
-    $inList = implode(',', array_map('intval', array_keys($distinctTesters)));
-    $uRs = $db->get_recordset(
-        "SELECT id, login, first, last FROM {$tbl['users']} WHERE id IN (" . $inList . ")");
-    if (is_array($uRs)) {
-        foreach ($uRs as $r) {
-            $display = trim(efDecode(trim((string)$r['first']) . ' ' . trim((string)$r['last'])));
-            if ($display === '') {
-                $display = efDecode($r['login']);
-            }
-            $testerNames[intval($r['id'])] = $display;
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // One row per assigned unit.
 // ---------------------------------------------------------------------------
@@ -435,7 +421,6 @@ foreach ($units as $unit) {
     $firstTs = '';
     $lastTs = '';
     $lastStatus = '';
-    $lastId = -1;
     foreach ($runs as $e) {
         if (intval($e['build_id']) > 0) { $runBuilds[intval($e['build_id'])] = true; }
         $ep = intval($e['platform_id']);
@@ -443,10 +428,7 @@ foreach ($units as $unit) {
         if (intval($e['tester_id']) > 0) { $runTesters[intval($e['tester_id'])] = true; }
         if ($firstTs === '') { $firstTs = (string)$e['execution_ts']; }
         $lastTs = (string)$e['execution_ts'];
-        if (intval($e['id']) >= $lastId) {
-            $lastId = intval($e['id']);
-            $lastStatus = (string)$e['status'];
-        }
+        $lastStatus = (string)$e['status'];
     }
 
     $daysSpan = 0;
@@ -531,12 +513,19 @@ $summary['high_rerun_pct'] = efPct($summary['high_rerun'], $summary['assigned_li
 $summary['avg_per_executed'] = ($summary['executed'] > 0)
     ? efRound($summary['total_executions'] / $summary['executed'], 1) : 0.0;
 
+// Judge the thresholds on the UNROUNDED shares, so 200/1001 (19.98%) is not
+// rounded up to 20.0 and misclassified as under/over-tested.
+$neverShare = ($summary['assigned_links'] > 0)
+    ? (100.0 * $summary['never_run'] / $summary['assigned_links']) : 0.0;
+$highShare = ($summary['assigned_links'] > 0)
+    ? (100.0 * $summary['high_rerun'] / $summary['assigned_links']) : 0.0;
+
 // Verdict precedence: no_data > under_tested > over_tested > healthy.
 if ($summary['assigned_links'] === 0) {
     $verdict = 'no_data';
-} elseif ($summary['never_run_pct'] >= 20.0) {
+} elseif ($neverShare >= 20.0) {
     $verdict = 'under_tested';
-} elseif ($summary['high_rerun_pct'] >= 20.0) {
+} elseif ($highShare >= 20.0) {
     $verdict = 'over_tested';
 } else {
     $verdict = 'healthy';

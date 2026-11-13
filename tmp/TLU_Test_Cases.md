@@ -46915,3 +46915,55 @@ assignments across 3 builds × (P1+P2+no-platform)), user `bpm1987norights`.
     fixture, and `json_encode` uses `JSON_INVALID_UTF8_SUBSTITUTE`, the
     `action[]=` array probe returns 400 without a PHP warning, and the
     platform KPI counts real platform columns only.
+
+
+## Issue #1988 — Test Plan Execution Frequency / re-run analysis (execFrequency)
+
+Fixture: project EFQ1988 (1) / EFQ1988 EMPTY (2), plan EFQ Plan (3) / EFQ Empty
+Plan (4), builds EFQ Build 1 (1), EFQ Build 2 (2), platforms EFQ Platform 1 (1),
+EFQ Platform 2 (2), 6 assigned tcversions (TC1 never run, TC2 single, TC3
+rerun, TC4 high re-run x5, TC5 platform 1 x3, TC6 all platforms x2), user
+`efq1988norights` (role 3, no `testplan_metrics`).
+
+1. PASS — i18n: all 10 bundles carry the same 71 `efq.*` + `footers.execFrequency`
+   keys; `python3 -m json.tool` valid; `ai/verify_i18n_coverage.sh` 9/9 PASS.
+2. PASS — Wiring: `cfg/reports.cfg.php` `exec_frequency` -> modern URL;
+   `api/resultsnav` `exec_frequency` -> modern URL; `api/aside` branch for
+   `link_report_exec_frequency`; `$actions->execFrequency` present;
+   `$TLS_link_report_exec_frequency` in all 19 `locale/*/strings.txt`.
+3. PASS — `action=init&tproject_id=1&tplan_id=3`: context EFQ1988 / EFQ Plan,
+   builds 1-2, platforms 1-2, default filter `rerun_threshold=4`.
+4. PASS — `action=report&tplan_id=3`: 6 assigned units, 5 executed, 1 never run
+   (16.7%), 13 total executions, 8 re-runs, avg 2.6, high re-run 1 (16.7%),
+   1 tester, 2 builds, verdict `healthy`.
+5. PASS — Verdicts per unit: TC1 `never_run` (0), TC2 `single` (1), TC3 `rerun`
+   (2), TC4 `high_rerun` (5/4 re-runs), TC5 `rerun` (3), TC6 `rerun` (2, across
+   builds and platforms); rows sorted most-executed first.
+6. PASS — Per-suite roll-up: EFQ Child Suite 3 units / 3 executed / 8 exec /
+   1 high re-run / avg 2.7; EFQ Root Suite 3 units / 2 executed / 1 never run /
+   5 exec / avg 1.7.
+7. PASS — Build filter `build_id=1`: 6 assigned units, 9 executions, 1 build.
+8. PASS — Platform filter `platform_id=1`: 4 executions counted (platform-less
+   links include their platform-1 executions).
+9. PASS — Threshold `rerun_threshold=2`: high re-run 4, verdict `over_tested`;
+   invalid `abc` falls back to default 4.
+10. PASS — Empty plan 4: `no_data`, 0 assigned units, banner "This plan has no
+    assigned test cases.", "No data" row.
+11. PASS — Error paths: unknown plan → 404 `tplan_not_found`; foreign project →
+    404 `project_mismatch`; unknown action → 400 `invalid_request`; no session
+    → 401 `not_authenticated`; role-3 user → 403 `no_right` (logged at AUDIT,
+    no Event Viewer ERROR row).
+12. PASS — Browser EN: teal header, context panel, 9 KPI cards, banner, 6-row
+    per-case DataTable (13 columns), 2-row per-suite DataTable, no console
+    errors.
+13. PASS — Browser re-scope: Build 1 + threshold 2 → context "EFQ Build 1",
+    9 executions, 2 high re-run, banner "2 assigned test case(s) (33.3%) were
+    executed at or above the high re-run threshold - over-tested plan.".
+14. PASS — CSV: header + 6 rows, `;` separator, BOM (U+FEFF), formula guard,
+    localized verdict labels.
+15. PASS — Empty-plan browser state: `no_data` banner, 0 assigned, no rows.
+16. PASS — No-rights browser state: "Access denied" card, localized body,
+    machine code `no_right`.
+17. PASS — RO locale (`?locale=ro`): title, subtitle, banner, KPIs, columns
+    and footer translated, no raw keys.
+18. PASS — Event Viewer: no new Error/Warning from the report (denials AUDIT).

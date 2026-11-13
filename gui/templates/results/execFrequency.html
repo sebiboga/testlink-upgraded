@@ -111,13 +111,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <label for="selPlatform" data-i18n="efq.platform">Platform</label>
   <select id="selPlatform"></select>
   <label for="inpThreshold" data-i18n="efq.threshold">High re-run at</label>
-  <input type="number" id="inpThreshold" min="2" max="100" step="1" value="4"
-         aria-label="High re-run threshold">
+  <input type="number" id="inpThreshold" min="2" max="100" step="1" value="4">
   <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="efq.apply">Apply</span></button>
   <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="efq.close">Close</span></button>
 </div>
 
-<div id="stateBox"></div>
+<div id="stateBox" role="status" aria-live="polite"></div>
 <div id="bannerBox"></div>
 
 <div id="report" style="display:none;">
@@ -136,7 +135,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
     <div class="cards">
       <div class="card info"><div class="k" data-i18n="efq.kpiAssigned">Assigned units</div><div class="v" id="sAssigned">0</div></div>
       <div class="card good"><div class="k" data-i18n="efq.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
-      <div class="card bad"><div class="k" data-i18n="efq.kpiNeverRun">Never run</div><div class="v"><span id="sNeverRun">0</span><span class="u">%</span><span class="u" id="sNeverPct"></span></div></div>
+      <div class="card bad"><div class="k" data-i18n="efq.kpiNeverRun">Never run</div><div class="v"><span id="sNeverRun">0</span><span class="u" id="sNeverPct"></span></div></div>
       <div class="card info"><div class="k" data-i18n="efq.kpiTotalExec">Total executions</div><div class="v" id="sTotalExec">0</div></div>
       <div class="card warn"><div class="k" data-i18n="efq.kpiReruns">Re-runs</div><div class="v" id="sReruns">0</div></div>
       <div class="card info"><div class="k" data-i18n="efq.kpiAvg">Avg per executed</div><div class="v" id="sAvg">0</div></div>
@@ -224,6 +223,8 @@ function stateFor(code, httpStatus, rawMessage) {
     tplan_not_found:   { cls: 'warn', title: 'efq.notFoundTitle', body: 'efq.notFoundBody' },
     project_mismatch:  { cls: 'warn', title: 'efq.notFoundTitle', body: 'efq.mismatchBody' },
     invalid_request:   { cls: 'warn', title: 'efq.badRequestTitle', body: 'efq.badRequestBody' },
+    invalid_parameter: { cls: 'warn', title: 'efq.badRequestTitle', body: 'efq.badRequestBody' },
+    unknown_action:    { cls: 'warn', title: 'efq.badRequestTitle', body: 'efq.badRequestBody' },
     method_not_allowed:{ cls: 'warn', title: 'efq.badRequestTitle', body: 'efq.badRequestBody' }
   };
   var m = map[code];
@@ -384,6 +385,7 @@ function renderTable(data) {
       if ($inp.length) {
         if (!$inp.attr('id')) { $inp.attr('id', 'execFrequencyTableSearch'); }
         if (!$inp.attr('name')) { $inp.attr('name', 'execFrequencyTableSearch'); }
+        if (!$inp.attr('aria-label')) { $inp.attr('aria-label', TLi18n.t('efq.tableCaption')); }
       }
     }, 0);
   }
@@ -417,6 +419,7 @@ function renderTable(data) {
       if ($inp.length) {
         if (!$inp.attr('id')) { $inp.attr('id', 'execFrequencySuitesSearch'); }
         if (!$inp.attr('name')) { $inp.attr('name', 'execFrequencySuitesSearch'); }
+        if (!$inp.attr('aria-label')) { $inp.attr('aria-label', TLi18n.t('efq.suitesCaption')); }
       }
     }, 0);
   }
@@ -505,6 +508,13 @@ function loadInit() {
         return;
       }
       fillFilters(data.filters, data.filter);
+      // Deep links may carry the filters; honour them when the option exists.
+      var ub = q('build_id');
+      if (ub && $('#selBuild option[value="' + ub + '"]').length) { $('#selBuild').val(ub); }
+      var up = q('platform_id');
+      if (up && $('#selPlatform option[value="' + up + '"]').length) { $('#selPlatform').val(up); }
+      var ut = parseInt(q('rerun_threshold'), 10);
+      if (!isNaN(ut) && ut >= 2 && ut <= 100) { $('#inpThreshold').val(ut); }
       load();
     })
     .fail(function (xhr) {
