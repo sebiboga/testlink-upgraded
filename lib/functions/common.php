@@ -2719,6 +2719,17 @@ function getActions(&$gui,$baseURL) {
   $actions->blockedAgeing =
     "/gui/templates/results/blockedAgeing.html?{$ctx}";
 
+  // Refs #1989: Test Plan Execution Ageing report (net-new screen). Answers
+  // "which test cases assigned to this plan have not been run for a long
+  // time?" - 1.9.20 has no freshness dimension. Ages every assigned
+  // (tcversion, platform) unit from its latest execution in the plan,
+  // buckets it (fresh/aging/stale/dormant/never) and rolls the buckets up
+  // per test suite. Backed by the api/executionageing BFF (init/report),
+  // reachable from the Reports menu (cfg/reports.cfg.php + api/aside
+  // mapping) and this action.
+  $actions->executionAgeing =
+    "/gui/templates/results/executionAgeing.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

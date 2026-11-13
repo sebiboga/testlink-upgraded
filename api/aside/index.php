@@ -316,6 +316,11 @@ if ($tplan_id > 0) {
                 // blocked, since when, with the blocking note and defects).
                 $hrefR = '/gui/templates/results/blockedAgeing.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_execution_ageing') {
+                // Refs #1989: Test Plan Execution Ageing (which assigned test
+                // cases have gone stale, bucketed fresh/aging/stale/dormant).
+                $hrefR = '/gui/templates/results/executionAgeing.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone

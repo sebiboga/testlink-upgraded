@@ -574,6 +574,19 @@ $tlCfg->reports_list['blocked_ageing'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1989: Test Plan Execution Ageing (net-new report). 1.9.20 shows the
+// result of each test case but never answers "which assigned test cases have
+// not been executed for a long time?" - no freshness dimension exists for a
+// plan. Ages each assigned (tcversion, platform) unit from its latest
+// execution, buckets it (fresh/aging/stale/dormant/never) and rolls the
+// buckets up per test suite. The BFF action 'report' enforces testplan_metrics.
+$tlCfg->reports_list['execution_ageing'] = array(
+	'title' => 'link_report_execution_ageing',
+	'url' => 'gui/templates/results/executionAgeing.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1983: Test Plan Completion Forecast (net-new report; 1.9.20/2.0.1
 // ship progress history (execBurnDown) but no forward-looking answer to
 // "will this plan finish by its milestone deadline?"). Velocity over a
