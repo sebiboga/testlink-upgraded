@@ -4622,3 +4622,4 @@ $TLS_link_report_exec_effort = "テストプラン実行工数"; // Test Plan Ex
 $TLS_link_report_version_churn = "テストケース版変更"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "テストプランのビルド × プラットフォーム カバレッジ"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "テストプランの実行頻度"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "テストプラン実行経年劣化"; // Test Plan Execution Ageing report (Refs #1989)

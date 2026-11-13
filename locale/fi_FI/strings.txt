@@ -2218,3 +2218,4 @@ $TLS_link_report_exec_effort = "Testisuunnitelman suorituksen työmäärä"; // 
 $TLS_link_report_version_churn = "Testitapausten versiomuutokset"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Testisuunnitelman buildien ja alustojen kattavuus"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Testisuunnitelman suoritustiheys"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "Testisuunnitelman suorituksen ikääntyminen"; // Test Plan Execution Ageing report (Refs #1989)

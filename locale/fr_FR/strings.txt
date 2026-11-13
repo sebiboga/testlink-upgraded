@@ -4279,3 +4279,4 @@ $TLS_link_report_exec_effort = "Effort d'exécution du plan de test"; // Test Pl
 $TLS_link_report_version_churn = "Modifications de version des cas de test"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Couverture builds × plateformes du plan de test"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Fréquence d'exécution du plan de test"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "Vieillissement d'exécution du plan de test"; // Test Plan Execution Ageing report (Refs #1989)

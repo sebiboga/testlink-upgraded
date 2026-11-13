@@ -4015,3 +4015,4 @@ $TLS_link_report_exec_effort = "Úsilí při provádění testovacího plánu"; 
 $TLS_link_report_version_churn = "Změny verzí testovacích případů"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Matice pokrytí buildů a platform testovacího plánu"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Frekvence provádění testovacího plánu"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "Stárnutí provádění testovacího plánu"; // Test Plan Execution Ageing report (Refs #1989)

@@ -2512,3 +2512,4 @@ $TLS_link_report_exec_effort = "테스트 계획 실행 공수"; // Test Plan Ex
 $TLS_link_report_version_churn = "테스트 케이스 버전 변경"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "테스트 계획 빌드 × 플랫폼 커버리지"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "테스트 계획 실행 빈도"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "테스트 계획 실행 노화"; // Test Plan Execution Ageing report (Refs #1989)

@@ -2960,3 +2960,4 @@ $TLS_link_report_exec_effort = "Upaya Eksekusi Rencana Uji"; // Test Plan Execut
 $TLS_link_report_version_churn = "Perubahan Versi Kasus Uji"; // Test Case Version Churn (Refs #1986)
 $TLS_link_report_build_platform_matrix = "Cakupan build × platform rencana pengujian"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Frekuensi eksekusi rencana pengujian"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
+$TLS_link_report_execution_ageing = "Penuaan Eksekusi Rencana Tes"; // Test Plan Execution Ageing report (Refs #1989)
