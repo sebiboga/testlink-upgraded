@@ -47072,3 +47072,10 @@ no `testplan_metrics`).
 16. PASS — Close button navigates to `/index.php`.
 17. PASS — Event Viewer: right-denial logged as AUDIT (level 16), no
     Error/Warning rows from the report.
+18. PASS — Code-review fixes: platform-specific links no longer inherit another
+    platform's latest execution (platform-less links still use the newest run
+    on any platform); project build count is computed even when a project has
+    no plans; coverage/pass-rate columns carry numeric `data-order` for correct
+    sorting; the plan-state filter uses a literal (non-regex) search; CSV
+    export follows the active plan-state filter (all -> 2 lines, closed ->
+    header only).

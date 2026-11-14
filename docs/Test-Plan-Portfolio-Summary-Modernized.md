@@ -94,6 +94,10 @@ Error contract: `not_authenticated` (401), `no_right` (403, logged at
 - Browser EN/RO: default report, plan-state filter, CSV export, empty project,
   no-right state; console clean; Event Viewer 0 new Error/Warning (the
   right-denial is AUDIT).
+- Code review applied: a platform-specific link only sees its own platform's
+  runs; project builds are counted even with zero plans; percentage columns
+  sort numerically; the plan-state filter is a literal search; CSV follows the
+  active plan-state filter.
 - Suite `Issue #1990` appended to `tmp/TLU_Test_Cases.md`.
 
 ## Screenshots
