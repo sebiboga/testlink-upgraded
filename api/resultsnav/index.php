@@ -194,6 +194,8 @@ $bff = function ($action) use ($db, $user) {
             'version_churn' => 'gui/templates/results/versionChurn.html',
             // Refs #1988: Test Plan Execution Frequency / re-run analysis.
             'exec_frequency' => 'gui/templates/results/execFrequency.html',
+            // Refs #1990: Test Plan Portfolio Summary (cross-plan health).
+            'plan_portfolio' => 'gui/templates/results/planPortfolio.html',
         );
 
         $reportList = config_get('reports_list');

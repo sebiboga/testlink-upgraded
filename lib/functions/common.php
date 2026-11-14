@@ -2778,6 +2778,12 @@ function getActions(&$gui,$baseURL) {
   $actions->execFrequency =
     "/gui/templates/results/execFrequency.html?{$ctx}";
 
+  // Refs #1990: Test Plan Portfolio Summary (net-new cross-plan report).
+  // 1.9.20 lists plans only as management records and every metrics report
+  // reads ONE plan, so the execution health of the whole project has no view.
+  $actions->planPortfolio =
+    "/gui/templates/results/planPortfolio.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only
