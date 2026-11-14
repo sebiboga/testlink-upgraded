@@ -198,6 +198,8 @@ $bff = function ($action) use ($db, $user) {
             'plan_portfolio' => 'gui/templates/results/planPortfolio.html',
             // Refs #1991: Test Plan Build Quality Trend (chronological).
             'build_trend' => 'gui/templates/results/buildTrend.html',
+            // Refs #1992: Test Plan Platform Coverage Matrix.
+            'platform_matrix' => 'gui/templates/results/platformMatrix.html',
         );
 
         $reportList = config_get('reports_list');
