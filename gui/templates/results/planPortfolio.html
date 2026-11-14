@@ -275,7 +275,14 @@ function dtLang() {
       + TLi18n.t('common.entries', 'entries'),
     info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
     paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
-    emptyTable: TLi18n.t('ppf.noRows')
+    emptyTable: TLi18n.t('ppf.noRows'),
+    zeroRecords: TLi18n.t('ppf.noRows'),
+    infoEmpty: TLi18n.t('ppf.pageInfoEmpty'),
+    infoFiltered: TLi18n.t('ppf.pageInfoFiltered'),
+    aria: {
+      sortAscending: TLi18n.t('ppf.ariaSortAsc'),
+      sortDescending: TLi18n.t('ppf.ariaSortDesc')
+    }
   };
 }
 
@@ -284,6 +291,9 @@ function renderBanner(s) {
   if (s.plans_total === 0) {
     html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
          + esc(TLi18n.t('ppf.bannerNoPlans')) + '</span></div>';
+  } else if ((Number(s.plans_empty) || 0) === s.plans_total) {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>'
+         + esc(TLi18n.t('ppf.bannerNoData')) + '</span></div>';
   } else if (s.plans_not_started > 0) {
     html = '<div class="banner warn"><i class="fa fa-hourglass-start"></i><span>'
          + esc(TLi18n.t('ppf.bannerNotStarted', { count: s.plans_not_started })) + '</span></div>';
