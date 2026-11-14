@@ -122,6 +122,9 @@ if ($action !== 'init' && $action !== 'report') {
 $tplanId = pmPositiveInt($_GET['tplan_id'] ?? null);
 $assertedProjectId = pmPositiveInt($_GET['tproject_id'] ?? null);
 $platformId = pmPositiveInt($_GET['platform_id'] ?? null);
+// An explicit build_id=0 means "All builds"; a missing one defaults to the
+// first open build. Keep the distinction for the filter resolution below.
+$buildParamPresent = array_key_exists('build_id', $_GET);
 $buildId = pmPositiveInt($_GET['build_id'] ?? null);
 
 foreach (array('platform_id', 'build_id') as $strictKey) {
@@ -215,7 +218,7 @@ if (is_array($rp)) {
 $planPlatformIds = array();
 $rpp = $db->get_recordset(
     "SELECT platform_id FROM {$tbl['testplan_platforms']} WHERE testplan_id = " .
-    intval($tplanId));
+    intval($tplanId) . " AND active = 1");
 if (is_array($rpp)) {
     foreach ($rpp as $r) {
         $pid = intval($r['platform_id']);
@@ -265,6 +268,13 @@ if (is_array($execRs)) {
 $platformIds = array_keys($planPlatformIds);
 sort($platformIds, SORT_NUMERIC);
 
+// The filter vocabulary always offers every plan platform; a platform_id
+// filter only narrows the report columns, never the dropdown itself.
+$allPlatforms = array();
+foreach ($platformIds as $pid) {
+    $allPlatforms[] = array('id' => intval($pid), 'name' => $platformName[$pid]);
+}
+
 if ($platformId > 0) {
     if (!isset($platformName[$platformId])) {
         pmFail(400, 'invalid_request', 'platform_id does not belong to this test project');
@@ -289,11 +299,11 @@ foreach ($builds as $b) {
 }
 $filters = array(
     'builds' => $buildList,
-    'platforms' => $platforms,
+    'platforms' => $allPlatforms,
     'default_build_id' => $openBuildId,
 );
 $filterState = array(
-    'build_id' => ($buildId > 0) ? $buildId : $openBuildId,
+    'build_id' => $buildParamPresent ? $buildId : $openBuildId,
     'platform_id' => $platformId,
 );
 
@@ -311,7 +321,7 @@ if ($action === 'init') {
 // The report itself. `build_id` 0 (no open build and none supplied) means
 // "every build": the latest execution per (version, platform) still wins.
 // ---------------------------------------------------------------------------
-$effectiveBuildId = ($buildId > 0) ? $buildId : $openBuildId;
+$effectiveBuildId = $buildParamPresent ? $buildId : $openBuildId;
 $filterState['build_id'] = $effectiveBuildId;
 
 $whereExec = "e.testplan_id = " . intval($tplanId);
