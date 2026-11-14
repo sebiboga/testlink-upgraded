@@ -47130,3 +47130,49 @@ b3 3p/1b, b4 4p + 1 Windows pass; 3 execution_bugs links.
     `btr.*` keys.
 14. PASS — Event Viewer: only AUDIT login rows (level 16) after the whole run;
     no Error/Warning from the report.
+
+## Issue #1992 — Test Plan Platform Coverage Matrix (platformMatrix)
+
+Fixture: `tmp/fixtures_1992.php` (project PMX1992, plan "PMX Plan", builds
+PMX Build 1/2, platforms PMX Platform 1/2, 7 test cases, user
+`pmx1992norights`). Executed 2026-11-14 against `http://localhost:8082`.
+
+1. PASS — BFF `init` (admin): project/plan context, build list with open
+   build 2 default, platform vocabulary `PMX Platform 1/2`.
+2. PASS — BFF `report&build_id=1`: 2 platforms / 7 rows / 12 assigned cells /
+   9 executed / 6 passed / 2 failed / 1 blocked / 3 not run, coverage 75%,
+   pass rate 66.7%, 3 fully green, verdict `at_risk`, worst platform 2 (50%).
+3. PASS — Per-platform totals: Platform 1 6/5/4/0/1/1 (83.3% / 80%),
+   Platform 2 6/4/2/2/0/2 (66.7% / 50%); platform_id=0 assignments expand to
+   both columns.
+4. PASS — Missing `build_id` defaults to the open build (2): 7 rows, only the
+   build-2 executions count; explicit `build_id=0` = all builds and the screen
+   context shows "All builds" (code-review regression fixed).
+5. PASS — Platform filter (`platform_id=2`) narrows columns and KPIs to
+   Platform 2 while the dropdown still offers both platforms (code-review
+   regression fixed); Platform-1-only TC 4 disappears.
+6. PASS — Rights: anonymous 401 `not_authenticated`; `pmx1992norights` 403
+   `no_right` and the screen renders the localized Access denied card with the
+   report body hidden and CSV disabled.
+7. PASS — Validation/contract: POST 403 same-origin/CSRF; non-numeric
+   `build_id`/`platform_id` 400; build/platform outside the project 400;
+   `tplan_id=999` 404 `tplan_not_found`; `tproject_id=2` 404
+   `project_mismatch`; HEAD 200.
+8. PASS — Empty plan (tplan 4, project 2): "No platforms are linked to this
+   test plan." banner/table state, no JS error.
+9. PASS — Browser EN: teal header, verdict banner (At risk / 3 fully green /
+   2 with failures / worst platform), context card, 11 KPI cards, per-platform
+   totals, matrix DataTable with platform columns, legend, Refresh / Export
+   CSV / Build / Platform / Apply / Close; console clean.
+10. PASS — Browser `build_id=0`: build selector `All builds`, context BUILD
+    "All builds", matrix rendered.
+11. PASS — RO locale: title, banner, KPIs, columns, verdicts and DataTable
+    strings translated; zero raw `pmx.*` keys; footer localized.
+12. PASS — ASIDE + Reports launcher: `api/aside/index.php?action=init` lists
+    "Test Plan Platform Coverage Matrix" with
+    `/gui/templates/results/platformMatrix.html?tproject_id=1&tplan_id=3`;
+    `platform_matrix` registered in `api/resultsnav`.
+13. PASS — CSV export keeps `;`, BOM and the formula guard (leading
+    whitespace + `= + - @` neutralised); localized headers.
+14. PASS — Event Viewer: no new Error/Warning rows attributable to the screen
+    (AUDIT logins only).
