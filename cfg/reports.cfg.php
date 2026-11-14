@@ -673,6 +673,15 @@ $tlCfg->reports_list['plan_portfolio'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1991 - Test Plan Build Quality Trend: chronological per-build quality
+// trend (snapshot per build + delta vs the previous active build).
+$tlCfg->reports_list['build_trend'] = array(
+	'title' => 'link_report_build_trend',
+	'url' => 'gui/templates/results/buildTrend.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 
 // Add custom configuration
 clearstatcache();

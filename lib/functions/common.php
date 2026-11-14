@@ -2784,6 +2784,12 @@ function getActions(&$gui,$baseURL) {
   $actions->planPortfolio =
     "/gui/templates/results/planPortfolio.html?{$ctx}";
 
+  // Refs #1991: Test Plan Build Quality Trend (net-new chronological report).
+  // resultsByBuild shows a per-build snapshot and buildComparison diffs exactly
+  // two builds; neither answers "is the plan getting better or worse?".
+  $actions->buildTrend =
+    "/gui/templates/results/buildTrend.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

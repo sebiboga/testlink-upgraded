@@ -2490,3 +2490,4 @@ $TLS_link_report_version_churn = "Modifiche di versione dei casi di test"; // Te
 $TLS_link_report_build_platform_matrix = "Copertura build × piattaforme del piano di test"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Frequenza di esecuzione del piano di test"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
 $TLS_link_report_execution_ageing = "Invecchiamento dell'esecuzione del piano di test"; // Test Plan Execution Ageing report (Refs #1989)
+$TLS_link_report_build_trend = "Tendenza qualità build del piano di test"; // Test Plan Build Quality Trend report (Refs #1991)

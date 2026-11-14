@@ -352,6 +352,11 @@ if ($tplan_id > 0) {
                 // health). Project-scoped; the plan id is forwarded for context.
                 $hrefR = '/gui/templates/results/planPortfolio.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_build_trend') {
+                // Refs #1991: Test Plan Build Quality Trend (chronological
+                // per-build snapshot + delta against the previous active build).
+                $hrefR = '/gui/templates/results/buildTrend.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

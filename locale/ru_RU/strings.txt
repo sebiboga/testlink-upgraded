@@ -2886,3 +2886,4 @@ $TLS_link_report_version_churn = "Изменения версий тест-ке�
 $TLS_link_report_build_platform_matrix = "Покрытие сборок × платформ тест-плана"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Частота выполнения тест-плана"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
 $TLS_link_report_execution_ageing = "Старение выполнения тест-плана"; // Test Plan Execution Ageing report (Refs #1989)
+$TLS_link_report_build_trend = "Тренд качества сборок тест-плана"; // Test Plan Build Quality Trend report (Refs #1991)

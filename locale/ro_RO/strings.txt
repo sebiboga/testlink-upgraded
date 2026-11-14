@@ -250,3 +250,4 @@ $TLS_link_report_version_churn = "Modificări de versiune ale cazurilor de test"
 $TLS_link_report_build_platform_matrix = "Acoperire build × platformă plan de test"; // Test Plan Build x Platform Coverage Matrix report (Refs #1987)
 $TLS_link_report_exec_frequency = "Frecvența de execuție a planului de test"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
 $TLS_link_report_execution_ageing = "Îmbătrânirea execuției planului de test"; // Test Plan Execution Ageing report (Refs #1989)
+$TLS_link_report_build_trend = "Tendință calitate build-uri plan de test"; // Test Plan Build Quality Trend report (Refs #1991)

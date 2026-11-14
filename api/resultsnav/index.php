@@ -196,6 +196,8 @@ $bff = function ($action) use ($db, $user) {
             'exec_frequency' => 'gui/templates/results/execFrequency.html',
             // Refs #1990: Test Plan Portfolio Summary (cross-plan health).
             'plan_portfolio' => 'gui/templates/results/planPortfolio.html',
+            // Refs #1991: Test Plan Build Quality Trend (chronological).
+            'build_trend' => 'gui/templates/results/buildTrend.html',
         );
 
         $reportList = config_get('reports_list');
