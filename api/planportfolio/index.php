@@ -292,16 +292,16 @@ $summary = array(
     'last_exec_ts' => '',
 );
 
+// Project-level build count (builds belong to the project, not the plan).
+$bRs = $db->get_recordset(
+    "SELECT COUNT(*) AS c FROM {$tbl['builds']}" .
+    " WHERE testproject_id = " . intval($projectId) . " AND active = 1");
+if (is_array($bRs) && count($bRs) > 0) {
+    $summary['builds'] = intval($bRs[0]['c']);
+}
+
 if (count($planIds) > 0) {
     $inIds = implode(',', array_map('intval', $planIds));
-
-    // Project-level build count (builds belong to the project, not the plan).
-    $bRs = $db->get_recordset(
-        "SELECT COUNT(*) AS c FROM {$tbl['builds']}" .
-        " WHERE testproject_id = " . intval($projectId) . " AND active = 1");
-    if (is_array($bRs) && count($bRs) > 0) {
-        $summary['builds'] = intval($bRs[0]['c']);
-    }
 
     // Assigned test-case versions per plan.
     $aRs = $db->get_recordset(
@@ -369,11 +369,13 @@ if (count($planIds) > 0) {
             $tcv = intval($t['tcversion_id']);
             $plat = intval($t['platform_id']);
             $key = $pid . '|' . $tcv . '|' . $plat;
-            $exec = null;
-            if ($plat > 0 && isset($latest[$key])) {
-                $exec = $latest[$key];
-            } elseif (isset($latestAny[$pid . '|' . $tcv])) {
-                $exec = $latestAny[$pid . '|' . $tcv];
+            if ($plat > 0) {
+                // A platform-specific link only sees that platform's runs.
+                $exec = isset($latest[$key]) ? $latest[$key] : null;
+            } else {
+                // A platform-less link uses its newest run on any platform.
+                $exec = isset($latestAny[$pid . '|' . $tcv])
+                    ? $latestAny[$pid . '|' . $tcv] : null;
             }
             if ($exec === null) {
                 $plans[$pid]['not_run']++;

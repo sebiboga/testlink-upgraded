@@ -349,9 +349,11 @@ function renderTable(data) {
       + '<td class="num">' + (parseInt(r.assigned, 10) || 0) + '</td>'
       + '<td class="num">' + (parseInt(r.executed, 10) || 0) + '</td>'
       + '<td class="num">' + (parseInt(r.not_run, 10) || 0) + '</td>'
-      + '<td><span class="pill ' + hcls + '">' + esc(r.coverage_pct) + '%</span>'
+      + '<td data-order="' + (Number(r.coverage_pct) || 0) + '"><span class="pill ' + hcls + '">'
+      + esc(r.coverage_pct) + '%</span>'
       + '<div class="bar"><span class="' + hcls + '" style="width:' + cov + '%"></span></div></td>'
-      + '<td><span class="pill ' + hcls + '">' + esc(r.pass_rate_pct) + '%</span></td>'
+      + '<td data-order="' + (Number(r.pass_rate_pct) || 0) + '"><span class="pill ' + hcls + '">'
+      + esc(r.pass_rate_pct) + '%</span></td>'
       + '<td class="num">' + (parseInt(r.passed, 10) || 0) + '</td>'
       + '<td class="num">' + (parseInt(r.failed, 10) || 0) + '</td>'
       + '<td class="num">' + (parseInt(r.blocked, 10) || 0) + '</td>'
@@ -456,9 +458,9 @@ function applyStateFilter() {
   if (!dt) { return; }
   var v = $('#selState').val();
   if (v === 'active') {
-    dt.column(1).search(TLi18n.t('ppf.statusActive'), true, false).draw();
+    dt.column(1).search(TLi18n.t('ppf.statusActive'), false, false).draw();
   } else if (v === 'closed') {
-    dt.column(1).search(TLi18n.t('ppf.statusClosed'), true, false).draw();
+    dt.column(1).search(TLi18n.t('ppf.statusClosed'), false, false).draw();
   } else {
     dt.column(1).search('').draw();
   }
@@ -470,6 +472,18 @@ function csvCell(v) {
   return '"' + s.replace(/"/g, '""') + '"';
 }
 
+function filteredRows() {
+  if (!currentData) { return []; }
+  var v = $('#selState').val();
+  if (v === 'active') {
+    return currentData.rows.filter(function (r) { return Number(r.active) > 0; });
+  }
+  if (v === 'closed') {
+    return currentData.rows.filter(function (r) { return !(Number(r.active) > 0); });
+  }
+  return currentData.rows;
+}
+
 function exportCsv() {
   if (!currentData) { return; }
   var lines = [];
@@ -478,7 +492,7 @@ function exportCsv() {
     'ppf.colFailed', 'ppf.colBlocked', 'ppf.colTesters', 'ppf.colAssignedTesters',
     'ppf.colBuilds', 'ppf.colDefects', 'ppf.colLastExec', 'ppf.colState'];
   lines.push(head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
-  $.each(currentData.rows, function (i, r) {
+  $.each(filteredRows(), function (i, r) {
     lines.push([r.tplan_name, (r.active > 0 ? TLi18n.t('ppf.statusActive')
         : TLi18n.t('ppf.statusClosed')), r.assigned, r.executed, r.not_run,
       r.coverage_pct, r.pass_rate_pct, r.passed, r.failed, r.blocked, r.testers,
