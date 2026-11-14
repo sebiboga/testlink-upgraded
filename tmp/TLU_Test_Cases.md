@@ -47017,3 +47017,58 @@ blocked 2d, TC4 passed 1d, TC5 never run, TC6 platform 1 12d, TC7 platform 2
 17. PASS — RO locale (`?locale=ro`): title, subtitle, banner, KPI labels, column
     headers and footer translated, no raw `eage.*` keys.
 18. PASS — Event Viewer: no new Error/Warning from the report (denials AUDIT).
+
+## Issue #1990 — Test Plan Portfolio Summary report (planPortfolio)
+
+Fixture: project BAG1981 (1) / BAG1981 EMPTY (2), plan BAG Plan (3) in BAG1981 /
+BAG Empty Plan (4) in BAG1981 EMPTY, builds BAG Build 1 (1), BAG Build 2 (2),
+platforms BAG Platform 1 (1), BAG Platform 2 (2), 7 assigned links (6 executed:
+1 passed, 5 blocked; 1 never run, 2 defects), user `bage1981norights` (role 3,
+no `testplan_metrics`).
+
+1. PASS — i18n: all 10 bundles carry the same 75 `ppf.*` keys +
+   `footers.planPortfolio`; `python3 -m json.tool` valid;
+   `ai/verify_i18n_coverage.sh` 9/9 PASS (11145 keys).
+2. PASS — Wiring: `cfg/reports.cfg.php` `plan_portfolio` -> modern URL;
+   `api/resultsnav` `plan_portfolio` -> modern URL; `api/aside` branch for
+   `link_report_plan_portfolio` (returned in `action=init` menu);
+   `$actions->planPortfolio` present; `$TLS_link_report_plan_portfolio` in all
+   19 `locale/*/strings.txt`.
+3. PASS — `action=projects`: both active projects with prefix (BG, BZ), only
+   those where the caller holds `testplan_metrics`.
+4. PASS — `action=init&tproject_id=1`: context BAG1981; no id -> session project
+   (1); `tproject_id=2` -> BAG1981 EMPTY.
+5. PASS — `action=report&tproject_id=1`: 1 plan (active), assigned 7, executed 6,
+   passed 1, failed 0, blocked 5, not run 1, coverage 85.7%, pass rate 16.7%,
+   1 in progress, 1 tester, 2 defects, 2 builds, last exec 2026-11-13 06:15:35.
+6. PASS — Plan row: BAG Plan, Active, assigned 7 / executed 6 / not run 1 /
+   coverage 85.7 / pass 16.7 / passed 1 / blocked 5, testers 1, assigned testers
+   0, builds used 2, defects 2, progress `in_progress`, health `bad`.
+7. PASS — Empty project 2: 1 plan, 0 assigned/executed, all rates 0,
+   `plans_empty` 1, row progress `empty`, health `na`, "No test cases" cell.
+8. PASS — Error paths (admin cookie): `tproject_id=99999` -> 404
+   `project_not_found`; unknown action -> 400 `invalid_request`; no session ->
+   401 `not_authenticated`; role-3 user -> 403 `no_right`; POST with
+   `X-Requested-With` -> 405 `method_not_allowed`; HEAD report -> 200.
+9. PASS — Browser EN: teal header, context panel, 12 KPI cards, info banner
+   "1 plan(s) in progress, overall coverage 85.7%.", 16-column DataTable,
+   Refresh / Export CSV / Close buttons, no console errors.
+10. PASS — Plan-state filter: "Active only" keeps BAG Plan; "Closed only" shows
+    the localized empty row (0 rows, "Showing 0 to 0 of 0 entries").
+11. PASS — CSV export: 16 localized headers + 1 row, `;` separator, UTF-8 BOM
+    (EF BB BF), values 7/6/1/85.7/16.7/1/0/5/1/0/2/2 and last exec timestamp.
+12. PASS — RO locale (`?locale=ro`): title, subtitle, context, KPI labels,
+    columns, state options, banners and DataTable strings translated; no raw
+    `ppf.*` keys.
+13. PASS — DataTables i18n: `zeroRecords` / `infoFiltered` / `infoEmpty` and
+    sort `aria` labels localized (RO "Niciun plan de test nu corespunde acestui
+    filtru.", "Se afișează 0 din 0 înregistrări (filtrate din 1 înregistrări
+    totale)", "activează pentru a sorta coloana crescător").
+14. PASS — Empty-plan banner: when every plan has no assigned cases, neutral
+    info banner (`ppf.bannerNoData`), not the "failed or blocked" attention
+    banner.
+15. PASS — No-rights browser: project switcher empty, "Test project not found"
+    card, Export disabled; direct `action=report` returns 403.
+16. PASS — Close button navigates to `/index.php`.
+17. PASS — Event Viewer: right-denial logged as AUDIT (level 16), no
+    Error/Warning rows from the report.
