@@ -4129,6 +4129,7 @@ $TLS_link_report_attachment_inventory = "Bijlagenoverzicht van het testplan"; //
 $TLS_link_report_tester_workload = "Werkdruk van testers"; // Test Plan Tester Workload (Refs #1977)
 $TLS_link_report_blocked_ageing = "Veroudering van geblokkeerde tests van het plan"; // Test Plan Blocked Tests Ageing (Refs #1981)
 $TLS_link_report_plan_forecast = "Voltooiingsvoorspelling van het testplan"; // Test Plan Completion Forecast (Refs #1983)
+$TLS_link_report_plan_portfolio = "Testplan-portfolio-overzicht"; // Test Plan Portfolio Summary (Refs #1990)
 
 $TLS_link_report_priority_coverage = "Prioriteitsdekking van het testplan"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Mislukkings-pareto van het testplan"; // Test Plan Failure Pareto (Refs #1979)

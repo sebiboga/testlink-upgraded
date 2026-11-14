@@ -240,6 +240,7 @@ $TLS_link_report_attachment_inventory = "Inventarul atașamentelor planului"; //
 $TLS_link_report_tester_workload = "Volumul de lucru al testerilor"; // Test Plan Tester Workload (Refs #1977)
 $TLS_link_report_blocked_ageing = "Vechimea testelor blocate din plan"; // Test Plan Blocked Tests Ageing (Refs #1981)
 $TLS_link_report_plan_forecast = "Prognoza finalizării planului de testare"; // Test Plan Completion Forecast (Refs #1983)
+$TLS_link_report_plan_portfolio = "Rezumat portofoliu planuri de test"; // Test Plan Portfolio Summary (Refs #1990)
 
 $TLS_link_report_priority_coverage = "Acoperire pe priorități a planului de testare"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto al eșecurilor planului de test"; // Test Plan Failure Pareto (Refs #1979)

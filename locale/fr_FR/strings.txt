@@ -4271,6 +4271,7 @@ $TLS_link_report_attachment_inventory = "Inventaire des pièces jointes"; // Tes
 $TLS_link_report_tester_workload = "Charge de travail des testeurs"; // Test Plan Tester Workload (Refs #1977)
 $TLS_link_report_blocked_ageing = "Ancienneté des tests bloqués du plan"; // Test Plan Blocked Tests Ageing (Refs #1981)
 $TLS_link_report_plan_forecast = "Prévision d’achèvement du plan de test"; // Test Plan Completion Forecast (Refs #1983)
+$TLS_link_report_plan_portfolio = "Synthèse du portefeuille de plans de test"; // Test Plan Portfolio Summary (Refs #1990)
 
 $TLS_link_report_priority_coverage = "Couverture par priorité du plan de test"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto des échecs du plan de test"; // Test Plan Failure Pareto (Refs #1979)

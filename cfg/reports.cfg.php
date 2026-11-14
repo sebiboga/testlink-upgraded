@@ -659,6 +659,21 @@ $tlCfg->reports_list[$report] = array(
 
 
 
+
+// Refs #1990: Test Plan Portfolio Summary (net-new). 1.9.20 lists plans only
+// as management records (planView) and every metrics report reads ONE plan
+// (Plan Comparison reads exactly two), so there is no single view of the
+// execution health of every plan of a test project. Backed by the
+// api/planportfolio BFF (projects/init/report); directLink is empty because
+// the modern screen is HTML only.
+$tlCfg->reports_list['plan_portfolio'] = array(
+	'title' => 'link_report_plan_portfolio',
+	'url' => 'gui/templates/results/planPortfolio.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

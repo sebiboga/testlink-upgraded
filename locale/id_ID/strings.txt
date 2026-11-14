@@ -2952,6 +2952,7 @@ $TLS_link_report_attachment_inventory = "Inventaris Lampiran Rencana Uji"; // Te
 $TLS_link_report_tester_workload = "Beban kerja penguji"; // Test Plan Tester Workload (Refs #1977)
 $TLS_link_report_blocked_ageing = "Usia tes terblokir pada rencana uji"; // Test Plan Blocked Tests Ageing (Refs #1981)
 $TLS_link_report_plan_forecast = "Prakiraan penyelesaian rencana uji"; // Test Plan Completion Forecast (Refs #1983)
+$TLS_link_report_plan_portfolio = "Ringkasan Portofolio Rencana Tes"; // Test Plan Portfolio Summary (Refs #1990)
 
 $TLS_link_report_priority_coverage = "Cakupan prioritas rencana pengujian"; // Test Plan Priority Coverage (Refs #1978)
 $TLS_link_report_failure_pareto = "Pareto kegagalan rencana pengujian"; // Test Plan Failure Pareto (Refs #1979)
