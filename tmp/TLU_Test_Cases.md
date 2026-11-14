@@ -47079,3 +47079,54 @@ no `testplan_metrics`).
     sorting; the plan-state filter uses a literal (non-regex) search; CSV
     export follows the active plan-state filter (all -> 2 lines, closed ->
     header only).
+
+## Issue #1991 — Test Plan Build Quality Trend report (buildTrend)
+
+Fixture: project "Build trend demo" (1), plan "Build trend plan" (100) with 4
+assigned versions in suite Login, plan "Empty plan" (101, no assignments);
+builds Build 1.0/1.1/1.2/2.0 (1-4, project-scoped, 2026-09-01/08/15/22),
+platforms Linux (1) / Windows (2); executions: b1 1p/1f/1b, b2 2p/1f,
+b3 3p/1b, b4 4p + 1 Windows pass; 3 execution_bugs links.
+
+1. PASS — i18n: all 10 bundles carry the same 70 `btr.*` keys +
+   `footers.buildTrend`; `python3 -m json.tool` valid;
+   `ai/verify_i18n_coverage.sh` 9/9 PASS (11216 keys).
+2. PASS — Wiring: `cfg/reports.cfg.php` `build_trend` -> modern URL;
+   `api/resultsnav` `build_trend` -> modern URL; `api/aside` branch for
+   `link_report_build_trend` (returned in `action=init` menu);
+   `$actions->buildTrend` present; `$TLS_link_report_build_trend` in all 19
+   `locale/*/strings.txt`.
+3. PASS — `action=init&tplan_id=100`: context "Build trend plan" / project
+   "Build trend demo"; platforms Linux + Windows; filter platform_id 0.
+4. PASS — `action=report&tplan_id=100`: 4 builds chronological, builds with
+   activity 4, assigned 4, executed 4, passed 4, failed 0, blocked 0, coverage
+   100%, pass rate 100%, 15 executions, 3 defects, trend `improving`
+   (+66.7 pp), verdict `ready`.
+5. PASS — Per-build rows: 1.0 3 exec / 1p / 1f / 1b / 75% / 33.3% /
+   verdict baseline; 1.1 2p / 66.7% / +33.4 pp / improved; 1.2 4 exec /
+   3p / 1b / 100% / 75% / +8.3 pp / improved; 2.0 4p / 100% / +25 pp /
+   improved, 5 executions, 0 defects.
+6. PASS — Defects column: 1 / 1 / 1 / 0 from `execution_bugs` per build.
+7. PASS — Platform filter `platform_id=2`: only Build 2.0 has activity
+   (1 passed, 25% coverage), trend `not_enough_data`, verdict `at_risk`;
+   `platform_id=999` -> 400 `invalid_request`.
+8. PASS — Empty plan 101: 4 project builds with no activity, all counts 0,
+   trend `not_enough_data`, verdict `empty`, localized neutral banner.
+9. PASS — Error paths (admin cookie): `tplan_id=999` -> 404 `tplan_not_found`;
+   `tproject_id=2` -> 400 `project_mismatch`; unknown action -> 400
+   `invalid_request`; no session -> 401 `not_authenticated`; POST without
+   same-origin header -> 403 CSRF guard.
+10. PASS — Browser EN: teal header, context panel, 11 KPI cards, plan banner
+    "Plan is ready: coverage 100% and pass rate 100%.", trend pill
+    "Improving +66.7 pp", 16-column DataTable, Refresh / Export CSV / Platform
+    / Apply / Close, no console errors.
+11. PASS — Browser platform filter: selecting Windows + Apply re-scopes KPI
+    cards and rows (Build 1.0-1.2 "No activity", Build 2.0 25% coverage) and
+    banner "Plan is at risk: coverage 25% / pass rate 100%.".
+12. PASS — CSV export: 16 localized headers + 4 rows, `;` separator, UTF-8
+    BOM, delta blank on baseline, toast "CSV exported.".
+13. PASS — RO locale (`?locale=ro`): title, subtitle, context, KPI labels,
+    columns, states, verdicts, banners and DataTable strings translated; no raw
+    `btr.*` keys.
+14. PASS — Event Viewer: only AUDIT login rows (level 16) after the whole run;
+    no Error/Warning from the report.
