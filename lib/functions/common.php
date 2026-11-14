@@ -2790,6 +2790,13 @@ function getActions(&$gui,$baseURL) {
   $actions->buildTrend =
     "/gui/templates/results/buildTrend.html?{$ctx}";
 
+  // Refs #1992: Test Plan Platform Coverage Matrix (net-new cross-platform
+  // report). platformComparison diffs two platforms and resultsByBuild shows
+  // per-build snapshots; neither answers "which assigned test cases pass on
+  // EVERY platform?". Platforms are columns, assigned versions are rows.
+  $actions->platformMatrix =
+    "/gui/templates/results/platformMatrix.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

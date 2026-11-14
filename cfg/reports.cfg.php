@@ -682,6 +682,15 @@ $tlCfg->reports_list['build_trend'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1992 - Test Plan Platform Coverage Matrix: platforms in columns, the
+// plan's assigned test-case versions in rows, latest result per cell.
+$tlCfg->reports_list['platform_matrix'] = array(
+	'title' => 'link_report_platform_matrix',
+	'url' => 'gui/templates/results/platformMatrix.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 
 // Add custom configuration
 clearstatcache();

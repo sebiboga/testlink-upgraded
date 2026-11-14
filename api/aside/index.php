@@ -357,6 +357,11 @@ if ($tplan_id > 0) {
                 // per-build snapshot + delta against the previous active build).
                 $hrefR = '/gui/templates/results/buildTrend.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_platform_matrix') {
+                // Refs #1992: Test Plan Platform Coverage Matrix (platforms as
+                // columns, assigned test cases as rows, latest result per cell).
+                $hrefR = '/gui/templates/results/platformMatrix.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .

@@ -3782,3 +3782,4 @@ $TLS_link_report_build_platform_matrix = "Build- × Plattform-Abdeckung des Test
 $TLS_link_report_exec_frequency = "Ausführungshäufigkeit des Testplans"; // Test Plan Execution Frequency / re-run analysis report (Refs #1988)
 $TLS_link_report_execution_ageing = "Ausführungsalterung des Testplans"; // Test Plan Execution Ageing report (Refs #1989)
 $TLS_link_report_build_trend = "Qualitätstrend der Builds eines Testplans"; // Test Plan Build Quality Trend report (Refs #1991)
+$TLS_link_report_platform_matrix = "Testplan-Plattform-Abdeckungsmatrix"; // Test Plan Platform Coverage Matrix report (Refs #1992)
