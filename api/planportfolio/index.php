@@ -211,7 +211,7 @@ $projectName = ppDecode($project['name']);
 
 if (!$user->hasRight($db, 'testplan_metrics', $projectId, null, true)) {
     tLog('BFF planportfolio: user ' . intval($userId) .
-         ' has no testplan_metrics right on tproject ' . intval($projectId), 'ERROR');
+         ' has no testplan_metrics right on tproject ' . intval($projectId), 'AUDIT');
     ppFail(403, 'no_right', 'testplan_metrics right required');
 }
 
