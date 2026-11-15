@@ -47274,3 +47274,35 @@ Logged in as admin at `http://localhost:8082`, screen
 - After the above, open Event Viewer
 - Pass/Fail: no new ERROR/WARNING rows attributable to this screen (AUDIT
   login rows only).
+
+## Issue #1987 — close-out re-verification (2026-11-15)
+
+The original suite above was written before the DB reset; the fixture is now
+recreated by `tmp/fixtures_1987.php` (BPM1987 project 1 / BPM1987 EMPTY 2,
+plans 3/4, builds 1-3 with build 2 closed, platforms 1-2, 6 assigned versions
+across no-platform + P1 + P2 = 54 build×platform assignments, 17 executions).
+
+1. PASS — `php tmp/fixtures_1987.php` creates the fixture; `projects` lists
+   BPM1987 / BPM1987 EMPTY, `init` returns plan 3, builds 1-3, platforms 1-2.
+2. PASS — `report&tplan_id=3&tproject_id=1`: 3 builds, 2 platforms (+ no
+   platform), 54 assignments, 6 distinct cases, 17 executed, 11 passed / 4
+   failed / 2 blocked / 37 not run, coverage 31.5%, pass rate 64.7%, verdict
+   `in_progress`; per-build and per-platform totals add up to the summary.
+3. PASS — Cell click (build 1 / platform 1) sets both filters and narrows the
+   matrix to 1×1 with banner `Coverage is 50.0% (3 of 6 assignments executed)`;
+   the pickers still offer every build/platform.
+4. PASS — Empty plan 4: no-assignments banner, 0 builds / 0 platforms / 0
+   assignments, Export CSV disabled, both totals tables show the no-rows row.
+5. PASS — Rights/error contract: no-right user 403, anonymous 401, unknown
+   plan 404, cross-project plan 404, POST 403; console clean.
+6. PASS — EN browser pass: teal header, context panel, 11 KPI cards, verdict
+   banner, 3×3 matrix, legend, per-build and per-platform DataTables.
+7. PASS — RO browser pass (`?locale=ro`): title, banner, KPI labels, matrix,
+   legend and footer translated; **regression fixed during this pass**: the
+   DataTables chrome (`Afiseaza … inregistrari`, `Filtru:`, `Se afiseaza 1
+   pana la 3 din 3 inregistrari`) was English and now uses `dtLang()`.
+8. PASS — Screenshots captured: `issue-1987-buildplatformmatrix-{normal,
+   filtered,empty,ro}.png`.
+9. PASS — `bash ai/verify_i18n_coverage.sh` exit 0 after the DataTables fix.
+10. PASS — Event Viewer: AUDIT rows only (login, project create, no-right
+    denial), no new Error/Warning.
