@@ -287,9 +287,12 @@ foreach ($plans as $plan) {
 
                 $tcaseId = intval($info[0]['tcase_id'] ?? 0);
                 if ($tcaseId > 0) {
+                    // getPathLayered() returns a re-indexed list, not a map
+                    // keyed by the test-case id (the legacy report uses end()).
                     $path = $tcaseMgr->getPathLayered(array($tcaseId));
-                    if (is_array($path) && isset($path[$tcaseId]['value'])) {
-                        $suite = tpccDecode($path[$tcaseId]['value']);
+                    $pathItem = is_array($path) && count($path) > 0 ? end($path) : null;
+                    if (is_array($pathItem) && isset($pathItem['value'])) {
+                        $suite = tpccDecode($pathItem['value']);
                         $planSuites[$suite] = true;
                         $suiteUnion[$suite] = true;
                     }
