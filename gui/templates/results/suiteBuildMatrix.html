@@ -349,13 +349,20 @@ function getJSON(params, onOk, onFail) {
 
 /* --------------------------------------------------------------- pickers */
 
+function selectIfPresent($sel, selected) {
+  if (!selected || !isId(selected)) { return; }
+  if ($sel.find('option[value="' + String(selected) + '"]').length > 0) {
+    $sel.val(String(selected));
+  }
+}
+
 function fillProjects(projects, selected) {
   var html = '';
   $.each(projects, function (i, p) {
     html += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
   });
   $('#selProject').html(html);
-  if (selected && isId(selected)) { $('#selProject').val(String(selected)); }
+  selectIfPresent($('#selProject'), selected);
 }
 
 function fillPlans(plans, selected) {
@@ -365,7 +372,7 @@ function fillPlans(plans, selected) {
   });
   if (html === '') { html = '<option value="0">' + esc(TLi18n.t('sbm.noPlans')) + '</option>'; }
   $('#selPlan').html(html);
-  if (selected && isId(selected)) { $('#selPlan').val(String(selected)); }
+  selectIfPresent($('#selPlan'), selected);
 }
 
 function fillBuilds(builds, selected) {
@@ -377,7 +384,7 @@ function fillBuilds(builds, selected) {
     html += '<option value="0" disabled>' + esc(TLi18n.t('sbm.noBuilds')) + '</option>';
   }
   $('#selBuild').html(html);
-  if (selected && isId(selected) && selected !== '0') { $('#selBuild').val(String(selected)); }
+  if (selected !== '0') { selectIfPresent($('#selBuild'), selected); }
 }
 
 /* --------------------------------------------------------------- loading */
