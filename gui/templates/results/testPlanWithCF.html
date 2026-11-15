@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan with Custom Fields</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 280px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 150px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.teal .v { color: #259b93; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.notebox { margin: 12px 24px 0; background: #fff8e1; border: 1px solid #ffe08a; color: #7a5b00; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.suitecell { color: #667; font-size: 11px; max-width: 220px; word-break: break-word; }
+td.tccell { white-space: nowrap; }
+td.cfcell { max-width: 260px; word-break: break-word; white-space: pre-wrap; }
+td.cfcell.empty { color: #bbb; }
+.tcid { font-weight: 600; color: #33363f; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table-list" style="margin-right:8px;"></i>
+  <span data-i18n="tpcf.header">Test Plan with Custom Fields</span>
+  <span class="sub"><span data-i18n="tpcf.subForPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tpcf.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <label for="planSelect" data-i18n="tpcf.testPlan">Test Plan</label>
+  <select id="planSelect"></select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="tpcf.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="tpcf.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="tpcf.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="tpcf.kpiAssigned">Assigned test cases</div></div>
+  <div class="kpi teal"><div class="v" id="kpiRows">0</div><div class="l" data-i18n="tpcf.kpiRows">Rows with values</div></div>
+  <div class="kpi"><div class="v" id="kpiCfields">0</div><div class="l" data-i18n="tpcf.kpiCfields">Custom fields</div></div>
+  <div class="kpi"><div class="v" id="kpiSuites">0</div><div class="l" data-i18n="tpcf.kpiSuites">Test suites</div></div>
+  <div class="kpi"><div class="v" id="kpiValues">0</div><div class="l" data-i18n="tpcf.kpiValues">Filled values</div></div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="notebox" id="noteBox"></div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.testPlanWithCF">TestLink 2.0.1 - Test Plan with Custom Fields</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var STATE = { columns: [], rows: [], context: {} };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  if (isErr) { $t.addClass('err'); } else { $t.removeClass('err'); }
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function showState(code, titleKey, hintKey, defTitle, defHint) {
+  var title = t(titleKey, defTitle);
+  var hint = t(hintKey, defHint);
+  $('#stateBox').html(
+    '<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(title) + '</h4>' +
+    '<p>' + esc(hint) + '</p>' +
+    '<p><span data-i18n="tpcf.stateCode">Code</span>: <code>' + esc(code) + '</code></p></div>'
+  ).show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function clearState() { $('#stateBox').empty().hide(); }
+function resetView() {
+  clearState();
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#warnBox').hide().empty();
+  $('#noteBox').hide().empty();
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+}
+
+function loadInit() {
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/testplanwithcf/index.php',
+    data: { action: 'init', tproject_id: tproject_id, tplan_id: tplan_id },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { handleError(d); return; }
+      STATE.context = d.context || {};
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      var $sel = $('#planSelect').empty();
+      if (!d.plans || d.plans.length === 0) {
+        $sel.append('<option value="0">' + esc(t('tpcf.noPlansOption', 'No test plans')) + '</option>');
+      } else {
+        d.plans.forEach(function(p) {
+          $sel.append($('<option>').attr('value', p.tplan_id)
+            .text(p.tplan_name).prop('selected', p.tplan_id === tplan_id));
+        });
+      }
+      loadReport();
+    },
+    error: function() {
+      $('#loadingBox').hide();
+      showState('http', 'tpcf.errGeneric', 'tpcf.errGenericHint', 'Could not load the report', 'Unexpected server error.');
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+
+function handleError(d) {
+  var code = d.code || 'error';
+  if (code === 'no_right') {
+    showState(code, 'tpcf.errNoRight', 'tpcf.errNoRightHint', 'No permission', 'You need the testplan_metrics right on this test project.');
+  } else if (code === 'project_not_found' || code === 'tplan_not_found') {
+    showState(code, 'tpcf.errNotFound', 'tpcf.errNotFoundHint', 'Not found', 'The requested test project or plan does not exist.');
+  } else if (code === 'not_authenticated' || code === 'session_expired') {
+    showState(code, 'tpcf.errSession', 'tpcf.errSessionHint', 'Session expired', 'Please sign in again.');
+  } else {
+    showState(code, 'tpcf.errGeneric', 'tpcf.errGenericHint', 'Could not load the report', 'Unexpected server error.');
+  }
+}
+
+function loadReport() {
+  var planId = parseInt($('#planSelect').val()) || tplan_id || 0;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/testplanwithcf/index.php',
+    data: { action: 'report', tproject_id: tproject_id, tplan_id: planId },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { handleError(d); return; }
+      STATE.context = d.context || {};
+      STATE.columns = d.columns || [];
+      STATE.rows = d.rows || [];
+      tplan_id = STATE.context.tplan_id || planId;
+      var plans = $('#planSelect option');
+      plans.prop('selected', false);
+      $('#planSelect option[value="' + tplan_id + '"]').prop('selected', true);
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+
+      var s = d.summary || {};
+      $('#kpiAssigned').text(s.assigned || 0);
+      $('#kpiRows').text(s.rows_shown || 0);
+      $('#kpiCfields').text(s.cfields || 0);
+      $('#kpiSuites').text(s.suites || 0);
+      $('#kpiValues').text(s.total_values || 0);
+      $('#kpis').show();
+
+      renderWarnings(d.warnings || []);
+
+      if (STATE.columns.length === 0) {
+        renderEmpty('tpcf.noLinked', 'No custom fields are enabled on test plan design for this project.');
+        return;
+      }
+      if (STATE.rows.length === 0) {
+        renderEmpty('tpcf.noValues', 'No test case in this plan has a custom field value.');
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      var body = xhr.responseJSON || {};
+      handleError(body);
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+
+function renderWarnings(list) {
+  var notes = [];
+  list.forEach(function(w) {
+    if (w === 'no_linked_cfields') notes.push(t('tpcf.noLinked', 'No custom fields are enabled on test plan design for this project.'));
+    else if (w === 'no_values') notes.push(t('tpcf.noValues', 'No test case in this plan has a custom field value.'));
+    else if (w === 'no_assigned_testcases') notes.push(t('tpcf.noAssigned', 'No test cases are assigned to this test plan.'));
+    else if (w === 'no_plans') notes.push(t('tpcf.noPlans', 'This test project has no test plans.'));
+  });
+  if (notes.length) {
+    $('#noteBox').html('<i class="fa fa-circle-info"></i> ' + notes.map(esc).join('<br>')).show();
+  }
+}
+
+function renderEmpty(key, fallback) {
+  $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t(key, fallback))).show();
+}
+
+function renderTable() {
+  var cols = [
+    { title: t('tpcf.colSuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
+    { title: t('tpcf.colTestCase', 'Test Case'), data: null, className: 'tccell', orderable: true,
+      render: function(data, type, row) {
+        var label = '<span class="tcid">' + esc(row.tc_external_id) + '</span>';
+        var link = '/gui/templates/testcases/tcEdit.html?tcase_id=' + encodeURIComponent(row.tcase_id) +
+                   '&tproject_id=' + encodeURIComponent(tproject_id);
+        return '<a href="' + link + '" target="_blank" rel="noopener">' + label + '</a>: ' + esc(row.tcase_name);
+      }
+    }
+  ];
+  STATE.columns.forEach(function(c) {
+    cols.push({
+      title: c.label, data: null, className: 'cfcell', orderable: true,
+      render: function(data, type, row) {
+        var v = (row.cfields && row.cfields[c.name] !== undefined) ? row.cfields[c.name] : '';
+        if (v === '') return '<span style="color:#bbb">\u2014</span>';
+        return esc(v);
+      }
+    });
+  });
+
+  var html = '<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table"></i> ' + esc(t('tpcf.header', 'Test Plan with Custom Fields')) +
+    '<span class="bmeta">' + esc(t('tpcf.rowCount', 'Rows')) + ': ' + STATE.rows.length +
+    ' &middot; ' + esc(t('tpcf.onlyRowsWithValues', 'rows with at least one value')) + '</span>' +
+    '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+  $('#reportArea').html(html);
+
+  $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: cols,
+    order: [[0, 'asc'], [1, 'asc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('common.infoEmpty', 'No entries'),
+      zeroRecords: t('common.noMatching', 'No matching records'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('tpcf.noValues', 'No test case in this plan has a custom field value.')
+    }
+  });
+}
+
+function csvGuard(v) {
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  if (!STATE.rows.length) return;
+  var header = [t('tpcf.colSuite', 'Test Suite'), t('tpcf.colTestCase', 'Test Case')]
+    .concat(STATE.columns.map(function(c){ return c.label; }));
+  var lines = [header.map(csvGuard).join(';')];
+  STATE.rows.forEach(function(r) {
+    var line = [r.suite_path, r.tc_external_id + ': ' + r.tcase_name];
+    STATE.columns.forEach(function(c) {
+      line.push((r.cfields && r.cfields[c.name]) || '');
+    });
+    lines.push(line.map(csvGuard).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tplan-with-cf-' + (STATE.context.tplan_id || tplan_id) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(t('tpcf.toastExported', 'CSV exported'));
+}
+
+$(function() {
+  $('#btnRefresh').on('click', function() { loadInit(); });
+  $('#btnExport').on('click', exportCsv);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    window.close();
+  });
+  $('#planSelect').on('change', function() { loadReport(); });
+
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
