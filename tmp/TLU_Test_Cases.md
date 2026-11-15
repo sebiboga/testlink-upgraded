@@ -47176,3 +47176,101 @@ PMX Build 1/2, platforms PMX Platform 1/2, 7 test cases, user
     whitespace + `= + - @` neutralised); localized headers.
 14. PASS — Event Viewer: no new Error/Warning rows attributable to the screen
     (AUDIT logins only).
+
+## Issue #1993 — Test Plan Suite x Build Coverage Matrix (suiteBuildMatrix)
+
+**Precondition** (fresh DB): `php tmp/fixtures_1993.php` creates test project
+`SBM1993` (id 1, prefix `SB`; platforms disabled) with plan `SBM Plan` (id 3),
+suites `SBM Root Suite` (3 cases) + child `SBM Child Suite` (3 cases) and
+builds 1-3; build 1 = 2 passed + 1 failed (root), 1 blocked + 2 passed (child),
+TC6 never run; build 2 = all 6 executed and passed except TC6; build 3 =
+root 2 passed + 1 failed (TC4 latest execution failed), child TC4 passed then
+failed (latest wins), TC3/TC5/TC6 not run. Also `SBM1993 EMPTY` (id 2) with
+empty plan (id 4) and user `sbm1993norights` (role 3, no `testplan_metrics`).
+Logged in as admin at `http://localhost:8082`, screen
+`gui/templates/results/suiteBuildMatrix.html?tproject_id=1&tplan_id=3`.
+
+### Test Case 1993.1: Default report renders the full matrix
+- Given the fixture and a valid session
+- When opening the screen with `tproject_id=1&tplan_id=3`
+- Then the teal header shows "Suite x Build Coverage Matrix", the verdict
+  banner reports "Coverage is 72.2% (13 of 18 assignments executed).", context
+  shows SBM1993 / SBM Plan / All builds, 11 KPI cards show 2 suites, 3 builds,
+  18 assignments, 6 distinct cases, 13 executed, 10 passed, 2 failed,
+  1 blocked, 5 not run, coverage 72.2%, pass rate 76.9%
+- Pass/Fail: all values match; two matrix rows (Child 66.7/66.7/33.3, Root
+  100/100/66.7) and 3 build columns; per-suite and per-build totals tables
+  render; console clean.
+
+### Test Case 1993.2: Latest execution wins
+- Given TC1/build1 has failed then passed, TC4/build3 has passed then failed
+- Then build 1 counts TC1 as passed (root 2 passed, 1 failed) and build 3
+  counts TC4 as failed (child cell 0 passed, 1 failed)
+- Pass/Fail: cells match; no duplicate counting.
+
+### Test Case 1993.3: Cell click filters to that build
+- When clicking the Root Suite / Build 2 cell
+- Then the build picker switches to `SBM Build 2`, context BUILD updates,
+  matrix has a single column, banner shows 83.3% (5 of 6), toast describes the
+  cell
+- Pass/Fail: all four effects observed.
+
+### Test Case 1993.4: Build filter deep link
+- When opening with `&build_id=2`
+- Then only the Build 2 column is shown, KPIs rebuild for that build, CSV
+  exports the filtered context
+- Pass/Fail: one build column; context BUILD "SBM Build 2".
+
+### Test Case 1993.5: Empty plan -> no_data
+- Given project 2 (`SBM1993 EMPTY`) plan 4, which has no test-case versions
+- Then report renders the info banner "No test-case versions are assigned to
+  this test plan yet, so there is nothing to cover.", zero KPIs, and the
+  "Nothing to show" rows; no JS error
+- Pass/Fail: banner + empty tables; blast radius limited to project 2.
+
+### Test Case 1993.6: Pickers survive absent deep-link ids
+- Given a URL carrying `tplan_id=3` then switching to project 2 (plan 3 absent)
+- Then the plan picker settles on the project's own first plan (no blank
+  value) and the report loads; switching back to project 1 restores plan 3
+- Pass/Fail: no `%s`/blank plan; report loads both ways.
+
+### Test Case 1993.7: Rights and session guards
+- When requesting anonymously
+- Then 401 `not_authenticated`
+- When logging in as `sbm1993norights` (role 3) and requesting the report
+- Then 403 `no_right`, screen shows the localized Access denied card, report
+  body hidden, CSV disabled
+- Pass/Fail: status codes and UI match.
+
+### Test Case 1993.8: Validation and contract
+- When POSTing with / without same-origin headers
+- Then 403 (same-origin guard) without headers, 405 `method_not_allowed` with
+  `X-Requested-With` or matching `Origin`
+- When `tplan_id=999` -> 404 `tplan_not_found`; `tplan_id=3&tproject_id=2` ->
+  404 `project_mismatch`; missing/invalid `tplan_id` -> 400 `invalid_request`;
+  unknown action -> 400 `unknown_action`; HEAD -> 200
+- Pass/Fail: every code matches.
+
+### Test Case 1993.9: CSV export
+- When clicking "Export CSV"
+- Then a BOM+`;` CSV downloads with Summary / Per-suite totals / Per-build
+  totals / Matrix sections, localized headers, no `%%`, and text fields are
+  formula-guarded (`'` before leading whitespace + `= + - @`)
+- Pass/Fail: captured content matches.
+
+### Test Case 1993.10: i18n coverage
+- When switching the footer locale to RO
+- Then header, banner, KPIs, columns, verdicts, DataTable strings and footer
+  are translated and no raw `sbm.*` key is visible
+- Pass/Fail: translated labels; `bash ai/verify_i18n_coverage.sh` PASS.
+
+### Test Case 1993.11: ASIDE + Reports menu wiring
+- When calling `api/aside/index.php?action=init&tproject_id=1&tplan_id=3`
+- Then a Reports item "Test Plan Suite × Build Coverage" links to
+  `/gui/templates/results/suiteBuildMatrix.html?tproject_id=1&tplan_id=3`
+- Pass/Fail: entry present once with the expected href.
+
+### Test Case 1993.12: Event Viewer clean
+- After the above, open Event Viewer
+- Pass/Fail: no new ERROR/WARNING rows attributable to this screen (AUDIT
+  login rows only).
