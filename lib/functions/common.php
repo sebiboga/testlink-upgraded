@@ -2797,6 +2797,15 @@ function getActions(&$gui,$baseURL) {
   $actions->platformMatrix =
     "/gui/templates/results/platformMatrix.html?{$ctx}";
 
+  // Refs #1993: Test Plan Suite x Build Coverage Matrix (net-new report).
+  // resultsByBuild reports a whole plan on one build and resultsByTSuite one
+  // suite on one build; neither answers "which suite is green in which build?".
+  // Suites are rows, builds are columns, each cell carries coverage/results.
+  // Backed by the api/suitebuildmatrix BFF (init/report), reachable from the
+  // Reports menu (cfg/reports.cfg.php + api/aside mapping) and this action.
+  $actions->suiteBuildMatrix =
+    "/gui/templates/results/suiteBuildMatrix.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

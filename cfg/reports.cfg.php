@@ -632,6 +632,18 @@ $tlCfg->reports_list['build_platform_matrix'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1993: Test Plan Suite x Build Coverage Matrix (net-new report).
+// 1.9.20 reports a whole plan on one build (resultsByBuild), one suite on one
+// build (resultsByTSuite) or builds x platforms (buildPlatformMatrix); none
+// cross-tabulates every suite against every build. Backed by the
+// api/suitebuildmatrix BFF (init/report).
+$tlCfg->reports_list['suite_build_matrix'] = array(
+	'title' => 'link_report_suite_build_matrix',
+	'url' => 'gui/templates/results/suiteBuildMatrix.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1988: Test Plan Execution Frequency / re-run analysis (net-new
 // report). 1.9.20 reports the latest status of each test case
 // (resultsByStatus/resultsMatrix) but never how often an assigned test case
