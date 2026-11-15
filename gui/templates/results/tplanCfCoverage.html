@@ -224,14 +224,21 @@ function coverageCell(pct) {
   pct = Number(pct) || 0;
   return '<div class="covwrap"><div class="covbar ' + covClass(pct) + '"><span style="width:' + Math.min(100, pct) + '%"></span></div><b>' + pct + '%</b></div>';
 }
-function statusBadge(st) {
+function statusMap(st) {
   var map = {
     complete: ['st-complete', 'tpcc.stComplete', 'Complete'],
     partial: ['st-partial', 'tpcc.stPartial', 'Partial'],
     not_filled: ['st-not_filled', 'tpcc.stNotFilled', 'Not filled'],
     empty: ['st-empty', 'tpcc.stEmpty', 'No assignments']
   };
-  var m = map[st] || map.empty;
+  return map[st] || map.empty;
+}
+function statusText(st) {
+  var m = statusMap(st);
+  return t(m[1], m[2]);
+}
+function statusBadge(st) {
+  var m = statusMap(st);
   return '<span class="badge ' + m[0] + '">' + esc(t(m[1], m[2])) + '</span>';
 }
 
@@ -317,7 +324,7 @@ function exportCsv() {
       r.tplan_name,
       r.active ? t('tpcc.active', 'Active') : t('tpcc.inactive', 'Inactive'),
       r.is_open ? t('tpcc.open', 'Open') : t('tpcc.closed', 'Closed'),
-      r.assigned, r.rows_with_values, r.coverage_pct, r.status, r.filled_values, r.suites
+      r.assigned, r.rows_with_values, r.coverage_pct, statusText(r.status), r.filled_values, r.suites
     ].map(csvGuard).join(';'));
   });
   var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
