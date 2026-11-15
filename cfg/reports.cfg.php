@@ -54,14 +54,14 @@ $tlCfg->reports_file_extension =
  * 	2. bts (if bug tracker is connected only), 
  * 	3. req (if project has available requirements only)
  */
-$tlCfg->reports_list['test_plan'] = array( 
+$tlCfg->reports_list['test_plan'] = array(
 	'title' => 'link_report_test_plan',
 	'url' => 'lib/results/printDocOptions.php?type=' . DOC_TEST_PLAN_DESIGN,
 	'enabled' => 'all',
 	'directLink' => '%1$sgui/templates/results/reportPrint.html?type=test_plan&level=testproject&id=%3$s&tproject_id=%3$s&tplan_id=%4$s&apikey=%2$s',
 	'format' => 'format_html,format_pseudo_msword'
 );
-$tlCfg->reports_list['test_report'] = array( 
+$tlCfg->reports_list['test_report'] = array(
 	'title' => 'link_report_test_report',
 	'url' => 'lib/results/printDocOptions.php?type=' . DOC_TEST_PLAN_EXECUTION,
 	'enabled' => 'all',
@@ -69,14 +69,14 @@ $tlCfg->reports_list['test_report'] = array(
 	'format' => 'format_html,format_pseudo_msword'
 );
 
-$tlCfg->reports_list['test_report_on_build'] = array( 
+$tlCfg->reports_list['test_report_on_build'] = array(
 	'title' => 'link_report_test_report_on_build',
 	'url' => 'lib/results/printDocOptions.php?type=' . DOC_TEST_PLAN_EXECUTION_ON_BUILD,
 	'enabled' => 'all',
 	'format' => 'format_html,format_pseudo_msword'
 );
 
-$tlCfg->reports_list['metrics_tp_general'] = array( 
+$tlCfg->reports_list['metrics_tp_general'] = array(
 	'title' => 'link_report_general_tp_metrics',
 	'url' => 'lib/results/resultsGeneral.php',
 	'enabled' => 'all', 
@@ -104,7 +104,7 @@ $tlCfg->reports_list['baseline_l1l2'] =
 );
 
 
-$tlCfg->reports_list['results_by_tester_per_build'] = array( 
+$tlCfg->reports_list['results_by_tester_per_build'] = array(
 	'title' => 'link_report_by_tester_per_build',
 	'url' => 'lib/results/resultsByTesterPerBuild.php',
 	'enabled' => 'all', 
@@ -112,7 +112,7 @@ $tlCfg->reports_list['results_by_tester_per_build'] = array(
 	'format' => 'format_html'
 );
 
-$tlCfg->reports_list['assigned_tc_overview'] = array( 
+$tlCfg->reports_list['assigned_tc_overview'] = array(
 	'title' => 'link_assigned_tc_overview',
 	'url' => 'lib/testcases/tcAssignedToUser.php?show_all_users=1&show_inactive_and_closed=1',
 	'enabled' => 'all', 'directLink' => '',
@@ -124,13 +124,13 @@ $tlCfg->reports_list['assigned_tc_overview'] = array(
 // The legacy resultsMoreBuildsGUI.php used 'url' => 'lib/results/...' with
 // XLS/ODS/email formats, but its report-query (resultsMoreBuilds.php) is dead
 // code, so only the HTML format is offered (served by the BFF matrix).
-$tlCfg->reports_list['results_custom_query'] = array( 
+$tlCfg->reports_list['results_custom_query'] = array(
 	'title' => 'link_report_metrics_more_builds',
 	'url' => 'gui/templates/results/resultsMoreBuilds.html',
 	'enabled' => 'all', 'directLink' => '',
 	'format' => 'format_html'
 );
-$tlCfg->reports_list['results_matrix'] = array( 
+$tlCfg->reports_list['results_matrix'] = array(
 	'title' => 'link_report_test',
 	'url' => 'lib/results/resultsTC.php',
 	'enabled' => 'all', 
@@ -138,7 +138,7 @@ $tlCfg->reports_list['results_matrix'] = array(
 	'format' => 'format_html,format_pseudo_ods'
 );
 
-$tlCfg->reports_list['results_flat'] = array( 
+$tlCfg->reports_list['results_flat'] = array(
 	'title' => 'link_report_test_flat',
 	'url' => 'lib/results/resultsTCFlat.php',
 	'enabled' => 'all', 
@@ -147,7 +147,7 @@ $tlCfg->reports_list['results_flat'] = array(
 );
 
 /* 20191210 */
-$tlCfg->reports_list['abslatest_results_matrix'] = array( 
+$tlCfg->reports_list['abslatest_results_matrix'] = array(
 	'title' => 'link_report_test_absolute_latest_exec',
 	'url' => 'lib/results/resultsTCAbsoluteLatest.php',
 	'enabled' => 'all', 
@@ -156,14 +156,14 @@ $tlCfg->reports_list['abslatest_results_matrix'] = array(
 );
 
 
-$tlCfg->reports_list['list_tc_failed'] = array( 
+$tlCfg->reports_list['list_tc_failed'] = array(
 	'title' => 'link_report_failed',
 	'url' => 'lib/results/resultsByStatus.php?type=' . $tlCfg->results['status_code']['failed'],
 	'enabled' => 'all', 
 	'directLink' => '%slnl.php?apikey=%s&tproject_id=%s&tplan_id=%s&type=list_tc_failed',
 	'format' => 'format_html,format_pseudo_ods'
 );
-$tlCfg->reports_list['list_tc_blocked'] = array( 
+$tlCfg->reports_list['list_tc_blocked'] = array(
 	'title' => 'link_report_blocked_tcs',
 	'url' => 'lib/results/resultsByStatus.php?type=' . $tlCfg->results['status_code']['blocked'],
 	'enabled' => 'all', 
@@ -171,7 +171,7 @@ $tlCfg->reports_list['list_tc_blocked'] = array(
 	'format' => 'format_html,format_pseudo_ods'
 );
 
-$tlCfg->reports_list['list_tc_not_run'] = array( 
+$tlCfg->reports_list['list_tc_not_run'] = array(
 	'title' => 'link_report_not_run',
 	'url' => 'lib/results/resultsByStatus.php?type=' . $tlCfg->results['status_code']['not_run'],
 	'enabled' => 'all', 
@@ -180,7 +180,7 @@ $tlCfg->reports_list['list_tc_not_run'] = array(
 	'misc' => array('bugs_not_linked' => false)
 );
 
-$tlCfg->reports_list['never_run'] = array( 
+$tlCfg->reports_list['never_run'] = array(
 	'title' => 'link_report_never_run',
 	'url' => 'lib/results/neverRunByPP.php',
 	'enabled' => 'all', 
@@ -196,14 +196,14 @@ $tlCfg->reports_list['tcases_without_tester'] = array(
 	'enabled' => 'all', 'directLink' => '',
 	'format' => 'format_html'
 );
-$tlCfg->reports_list['charts_basic'] = array( 
+$tlCfg->reports_list['charts_basic'] = array(
 	'title' => 'link_charts',
 	'url' => 'lib/results/charts.php',
 	'enabled' => 'all', 
 	'directLink' => '%slnl.php?apikey=%s&tproject_id=%s&tplan_id=%s&type=charts_basic',
 	'format' => 'format_html'
 );
-$tlCfg->reports_list['results_requirements'] = array( 
+$tlCfg->reports_list['results_requirements'] = array(
 	'title' => 'link_report_reqs_coverage',
 	'url' => 'lib/results/resultsReqs.php',
 	'enabled' => 'req',
@@ -240,7 +240,7 @@ $tlCfg->reports_list['req_spec_coverage'] = array(
 
 // Refs #843 - Uncovered Test Cases report modernized
 // (gui/templates/results/uncoveredTestCases.html + api/reports uncovered_testcases action).
-$tlCfg->reports_list['uncovered_testcases'] = array( 
+$tlCfg->reports_list['uncovered_testcases'] = array(
 	'title' => 'link_report_uncovered_testcases',
 	'url' => 'gui/templates/results/uncoveredTestCases.html',
 	'enabled' => 'req',
@@ -249,7 +249,7 @@ $tlCfg->reports_list['uncovered_testcases'] = array(
 
 // Refs #1277 - Risk-Based Testing (likelihood x impact + risk-coverage view),
 // modernized: gui/templates/results/riskCoverage.html + api/riskcoverage.
-$tlCfg->reports_list['risk_coverage'] = array( 
+$tlCfg->reports_list['risk_coverage'] = array(
 	'title' => 'link_report_risk_coverage',
 	'url' => 'gui/templates/results/riskCoverage.html',
 	'enabled' => 'all',
@@ -264,7 +264,7 @@ $tlCfg->reports_list['risk_coverage'] = array(
 // verdict, enforcing testplan_metrics on the owning project. Available for
 // every plan ('all'): the requirement-coverage gate degrades to N/A when the
 // project has requirements disabled.
-$tlCfg->reports_list['release_quality_gates'] = array( 
+$tlCfg->reports_list['release_quality_gates'] = array(
 	'title' => 'link_report_quality_gates',
 	'url' => 'gui/templates/results/qualityGate.html',
 	'enabled' => 'all',
@@ -279,7 +279,7 @@ $tlCfg->reports_list['release_quality_gates'] = array(
 // project is mandatory (testplan_metrics on the owning project), so the entry
 // is available for every plan ('all') but hidden while no test project is
 // selected, exactly like the quality-gates report.
-$tlCfg->reports_list['performance_reports'] = array( 
+$tlCfg->reports_list['performance_reports'] = array(
 	'title' => 'link_report_performance_reports',
 	'url' => 'gui/templates/results/perfReports.html',
 	'enabled' => 'all',
@@ -295,7 +295,7 @@ $tlCfg->reports_list['performance_reports'] = array(
 // latest execution status, a per-build trend and a failed/blocked worklist,
 // enforcing testplan_metrics on the owning project. Available for every plan
 // ('all'): a plan with no executions degrades to an empty report.
-$tlCfg->reports_list['automation_reports'] = array( 
+$tlCfg->reports_list['automation_reports'] = array(
 	'title' => 'link_report_automation_reports',
 	'url' => 'gui/templates/results/automationReports.html',
 	'enabled' => 'all',
@@ -327,7 +327,7 @@ $tlCfg->reports_list['cicd_publish'] = array(
 // (evidence gate), defect density per top-level suite, recurring failures
 // across builds and distinct defect references, enforcing testplan_metrics on
 // the owning project. Available for every plan ('all').
-$tlCfg->reports_list['defect_intelligence'] = array( 
+$tlCfg->reports_list['defect_intelligence'] = array(
 	'title' => 'link_report_defect_intelligence',
 	'url' => 'gui/templates/results/defectIntelligence.html',
 	'enabled' => 'all',
@@ -341,7 +341,7 @@ $tlCfg->reports_list['defect_intelligence'] = array(
 // document from the project's artifacts (scope, test types & levels,
 // environments, tooling, team, related plans, computed readiness) and enforces
 // testplan_metrics on the owning project. Available for every project ('all').
-$tlCfg->reports_list['strategy_report'] = array( 
+$tlCfg->reports_list['strategy_report'] = array(
 	'title' => 'link_report_strategy_report',
 	'url' => 'gui/templates/results/strategyReport.html',
 	'enabled' => 'all',
@@ -349,7 +349,7 @@ $tlCfg->reports_list['strategy_report'] = array(
 	'format' => 'format_html'
 );
 
-$tlCfg->reports_list['list_problems'] = array( 
+$tlCfg->reports_list['list_problems'] = array(
 	'title' => 'link_report_total_bugs',
 	'url' => 'lib/results/resultsBugs.php?type=0',
 	'enabled' => 'bts',
@@ -357,7 +357,7 @@ $tlCfg->reports_list['list_problems'] = array(
 	'format' => 'format_html'
 );
 
-$tlCfg->reports_list['issues_all_exec'] = array( 
+$tlCfg->reports_list['issues_all_exec'] = array(
 	'title' => 'link_report_total_bugs_all_exec',
 	'url' => 'lib/results/resultsBugs.php?type=1',
 	'enabled' => 'bts',
@@ -365,13 +365,13 @@ $tlCfg->reports_list['issues_all_exec'] = array(
 	'format' => 'format_html'
 );
 
-$tlCfg->reports_list['tcases_with_cf'] = array( 
+$tlCfg->reports_list['tcases_with_cf'] = array(
 	'title' => 'link_report_tcases_with_cf',
 	'url' => 'gui/templates/results/tcasesWithCF.html',
 	'enabled' => 'all', 'directLink' => '',
 	'format' => 'format_html'
 );
-$tlCfg->reports_list['tplan_with_cf'] = array( 
+$tlCfg->reports_list['tplan_with_cf'] = array(
 	'title' => 'link_report_tplans_with_cf',
 	'url' => 'lib/results/testPlanWithCF.php',
 	'enabled' => 'all', 'directLink' => '',
@@ -383,14 +383,14 @@ $tlCfg->reports_list['tplan_with_cf'] = array(
 // shows whether the plan-design custom fields are being filled across every
 // plan of the test project. Backed by api/tplancfcoverage, right
 // testplan_metrics on the addressed project. HTML only (directLink empty).
-$tlCfg->reports_list['tplan_cf_coverage'] = array( 
+$tlCfg->reports_list['tplan_cf_coverage'] = array(
 	'title' => 'link_report_tplans_cf_coverage',
 	'url' => 'gui/templates/results/tplanCfCoverage.html',
 	'enabled' => 'all', 'directLink' => '',
 	'format' => 'format_html'
 );
 
-$tlCfg->reports_list['free_tcases'] = array( 
+$tlCfg->reports_list['free_tcases'] = array(
 'title' => 'link_report_free_testcases_on_testproject',
 'url' => 'lib/results/freeTestCases.php',
 'enabled' => 'all', 'directLink' => '',
@@ -670,7 +670,7 @@ $tlCfg->reports_list['exec_frequency'] = array(
 );
 
 $report = 'report_exec_timeline';
-$tlCfg->reports_list[$report] = array( 
+$tlCfg->reports_list[$report] = array(
 	'title' => 'link_report_exec_timeline',
 	'url' => 'lib/results/execTimelineStats.php',
 	'enabled' => 'all', 

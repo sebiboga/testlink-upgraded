@@ -47306,3 +47306,63 @@ across no-platform + P1 + P2 = 54 build×platform assignments, 17 executions).
 9. PASS — `bash ai/verify_i18n_coverage.sh` exit 0 after the DataTables fix.
 10. PASS — Event Viewer: AUDIT rows only (login, project create, no-right
     denial), no new Error/Warning.
+
+## Issue #1994 — Test Plan Custom Fields Coverage (tplanCfCoverage)
+
+Fixture: `tmp/fixtures_1994.php` (project TPCC1994 with plan-design testcase
+custom fields `tpcc_deploy_target` + `tpcc_risk_level`, plans "TPCC Plan
+Partial"/"TPCC Plan Complete"/"TPCC Plan Empty", project "TPCC1994 EMPTY" with
+one unfilled plan, user `tpcc1994norights`). Executed 2026-11-15 against
+`http://localhost:8082`.
+
+1. PASS — Fixture: 2 custom fields linked to project 1 with
+   `enable_on_testplan_design=1` + `testcase` node type; plan 6 has 4 assigned
+   versions (links 1-4) with 3 values on 2 rows, plan 7 has 2 assigned versions
+   with 2 values, plan 8 has none.
+2. PASS — BFF `init` (admin): context project TPCC1994, 3 plans
+   (6,7,8), `cfields=2`, columns Deployment target + Risk level.
+3. PASS — BFF `report`: 3 plans (1 complete / 1 partial / 1 empty),
+   assigned 6, rows with values 4, coverage 66.7%, filled values 5,
+   suites 2; rows sorted worst-first (Empty, Partial, Complete).
+4. PASS — Per-plan row semantics: Plan Partial 4 assigned / 2 with values /
+   50% / `partial` / 3 filled / 1 suite; Plan Complete 2/2/100% / `complete`;
+   Plan Empty 0/0/0% / `empty`.
+5. PASS — Suite path regression (found + fixed in `9992a4c21`):
+   `testcase::getPathLayered()` returns a re-indexed list, not a map keyed by
+   tcase id; `end($path)` now yields 2 suites instead of 0.
+6. PASS — Project with no plan-design custom fields (project 2):
+   `warnings:["no_linked_cfields"]`, `cfields=0`, one `not_filled` row, the
+   localized info banner is rendered.
+7. PASS — Status filter: All 3 / Incomplete 2 / Complete 1 / Not filled 0
+   (DataTables `search('applied')` counts).
+8. PASS — CSV export: `;` separator, UTF-8 BOM, formula guard, localized
+   headers + Active/Open + status labels (regression fixed: status column used
+   to export the raw `empty`/`partial` codes), applied filter respected.
+9. PASS — Romanian locale: title, subtitle, toolbar, KPIs, table headers,
+   statuses, DataTables strings and footer translated; zero raw `tpcc.*` keys.
+10. PASS — Rights: `tpcc1994norights` gets HTTP 403 `no_right` and the
+    localized "No permission / needs testplan_metrics" state card; denied
+    request logged as AUDIT (events row 14).
+11. PASS — Contract: unknown action 400 `invalid_request`; project 99999 404
+    `project_not_found`; POST 403 CSRF/same-origin; HEAD 200; missing
+    `tproject_id` falls back to the active session project.
+12. PASS — ASIDE menu: 179 links, new "Test Plan Custom Fields Coverage" entry
+    with `/gui/templates/results/tplanCfCoverage.html?tproject_id=1`; clicking
+    it loads the screen in the main frame; `tplan_cf_coverage` also mapped in
+    `api/resultsnav` + `$actions->tplanCfCoverage`.
+13. PASS — `bash ai/verify_i18n_coverage.sh` 9/9 (11436 keys) after the
+    `tpcc.*` + `footers.tplanCfCoverage` keys; `$TLS_link_report_tplans_cf_coverage`
+    present in all 19 `locale/*/strings.txt`.
+14. PASS — Event Viewer: 14 entries, all AUDIT (login/logout + the #1994
+    denial), no new Error/Warning. Screenshots
+    `docs/screenshots/1994-tplancfcoverage-{main,no-cfields,norights}.png`.
+15. PASS — Code review (BLOCKER/SHOULD-FIX) applied: custom-field labels are
+    escaped before the `html()` header build (stored-XSS proof: injected
+    `<img onerror>` renders as text), the status filter now matches raw codes
+    `^(partial|not_filled|empty)$` / `^complete$` / `^not_filled$` (works in
+    RO too, re-checked 3/2/1/0), plan/status columns sort and filter on plain
+    values, malformed `tproject_id=12abc` now 400 `invalid_request`,
+    `json_encode` uses `JSON_INVALID_UTF8_SUBSTITUTE`, `document.title` is
+    localized, the CSV guard also catches leading whitespace, and the suite
+    vocabulary is a single grouped query (nodes_hierarchy walk replaces the
+    per-row `getPathLayered()` N+1; 2 suites preserved).

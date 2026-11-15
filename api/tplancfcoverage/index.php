@@ -53,7 +53,7 @@ function tpccOut($payload, $code = null)
     if ($code !== null) {
         http_response_code($code);
     }
-    echo json_encode($payload);
+    echo json_encode($payload, JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
 }
 
@@ -117,13 +117,18 @@ if ($action !== 'init' && $action !== 'report') {
 
 $tbl = tlObjectWithDB::getDBTables(array(
     'testprojects', 'testplans', 'nodes_hierarchy', 'testplan_tcversions',
+    'tcversions',
 ));
 
 // ---------------------------------------------------------------------------
 // Resolve the addressed project: explicit GET id, else the session project,
 // else the first project the caller may read metrics on.
 // ---------------------------------------------------------------------------
-$assertedProject = tpccPositiveInt($_GET['tproject_id'] ?? null);
+$rawAsserted = trim((string)($_GET['tproject_id'] ?? ''));
+$assertedProject = tpccPositiveInt($rawAsserted);
+if ($rawAsserted !== '' && $assertedProject <= 0) {
+    tpccFail(400, 'invalid_request', 'Invalid tproject_id');
+}
 $projectId = $assertedProject;
 if ($projectId <= 0) {
     $projectId = intval($_SESSION['testprojectID'] ?? 0);
@@ -231,7 +236,6 @@ if (count($plans) === 0) {
     $warnings[] = 'no_plans';
 }
 
-$tcaseMgr = new testcase($db);
 $rows = array();
 $summary = array(
     'plans_total' => count($plans),
@@ -247,7 +251,31 @@ $summary = array(
     'suites' => 0,
 );
 
+// One grouped query for the suite vocabulary of every plan: the legacy
+// getPathLayered() API returns the suites of a test-case SET keyed by suite,
+// so asking it per row would cost one tree walk per row (N+1).
+$suiteMap = array();
 $suiteUnion = array();
+if (count($plans) > 0) {
+    $planIds = array();
+    foreach ($plans as $p) { $planIds[] = intval($p['tplan_id']); }
+    $sRs = $db->get_recordset(
+        "SELECT DISTINCT tptv.testplan_id, tcsu.parent_id AS suite_id" .
+        " FROM {$tbl['testplan_tcversions']} tptv" .
+        " JOIN {$tbl['tcversions']} tv ON tv.id = tptv.tcversion_id" .
+        " JOIN {$tbl['nodes_hierarchy']} tvnh ON tvnh.id = tv.id" .
+        " JOIN {$tbl['nodes_hierarchy']} tcsu ON tcsu.id = tvnh.parent_id" .
+        " WHERE tptv.testplan_id IN (" . implode(',', $planIds) . ")");
+    if (is_array($sRs)) {
+        foreach ($sRs as $sr) {
+            $spid = intval($sr['testplan_id']);
+            $sid = intval($sr['suite_id']);
+            if ($sid <= 0) { continue; }
+            $suiteMap[$spid][$sid] = true;
+            $suiteUnion[$sid] = true;
+        }
+    }
+}
 
 foreach ($plans as $plan) {
     $planId = $plan['tplan_id'];
@@ -262,7 +290,7 @@ foreach ($plans as $plan) {
 
     $withValues = 0;
     $filledValues = 0;
-    $planSuites = array();
+    $planSuites = isset($suiteMap[$planId]) ? $suiteMap[$planId] : array();
 
     if ($assigned > 0 && count($columns) > 0) {
         $cfMap = $cfieldMgr->get_linked_cfields_at_testplan_design(
@@ -284,19 +312,6 @@ foreach ($plans as $plan) {
                 }
                 $withValues++;
                 $filledValues += $nonEmpty;
-
-                $tcaseId = intval($info[0]['tcase_id'] ?? 0);
-                if ($tcaseId > 0) {
-                    // getPathLayered() returns a re-indexed list, not a map
-                    // keyed by the test-case id (the legacy report uses end()).
-                    $path = $tcaseMgr->getPathLayered(array($tcaseId));
-                    $pathItem = is_array($path) && count($path) > 0 ? end($path) : null;
-                    if (is_array($pathItem) && isset($pathItem['value'])) {
-                        $suite = tpccDecode($pathItem['value']);
-                        $planSuites[$suite] = true;
-                        $suiteUnion[$suite] = true;
-                    }
-                }
             }
         }
     }

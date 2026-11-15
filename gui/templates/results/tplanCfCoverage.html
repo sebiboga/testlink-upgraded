@@ -246,13 +246,14 @@ function renderTable() {
   var html = '<div class="section"><div class="section-head">' +
     '<i class="fa fa-table"></i> ' + esc(t('tpcc.header', 'Test Plan Custom Fields Coverage')) +
     '<span class="bmeta">' + esc(t('tpcc.rowCount', 'Plans')) + ': ' + STATE.rows.length +
-    ' &middot; ' + esc(t('tpcc.cfHelper', 'cf')) + ': ' + STATE.columns.map(function(c){return c.label;}).join(', ') +
+    ' &middot; ' + esc(t('tpcc.cfHelper', 'cf')) + ': ' + STATE.columns.map(function(c){return esc(c.label);}).join(', ') +
     '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
   $('#reportArea').html(html);
 
   var cols = [
     { title: t('tpcc.colPlan', 'Test Plan'), data: null, className: 'planlink',
       render: function(data, type, row) {
+        if (type === 'sort' || type === 'filter') { return row.tplan_name; }
         var url = '/gui/templates/results/tplanWithCF.html?tproject_id=' + encodeURIComponent(tproject_id) +
                   '&tplan_id=' + encodeURIComponent(row.tplan_id);
         return '<a href="' + url + '" target="_blank" rel="noopener">' + esc(row.tplan_name) + '</a>' +
@@ -266,7 +267,10 @@ function renderTable() {
     { title: t('tpcc.colCoverage', 'Coverage'), data: 'coverage_pct',
       render: function(data) { return coverageCell(data); } },
     { title: t('tpcc.colStatus', 'Status'), data: 'status',
-      render: function(data) { return statusBadge(data); } },
+      render: function(data, type) {
+        if (type === 'sort' || type === 'filter') { return data; }
+        return statusBadge(data);
+      } },
     { title: t('tpcc.colFilled', 'Filled values'), data: 'filled_values' },
     { title: t('tpcc.colSuites', 'Suites'), data: 'suites' }
   ];
@@ -294,18 +298,18 @@ function applyFilter() {
   var f = $('#statusFilter').val();
   STATE.dt.column(4).search('', true, false);
   if (f === 'incomplete') {
-    STATE.dt.column(4).search('Partial|Not filled|No assignments', true, false, true);
+    STATE.dt.column(4).search('^(partial|not_filled|empty)$', true, false, true);
   } else if (f === 'complete') {
-    STATE.dt.column(4).search('^' + $.fn.dataTable.util.escapeRegex(t('tpcc.stComplete', 'Complete')) + '$', true, false, true);
+    STATE.dt.column(4).search('^complete$', true, false, true);
   } else if (f === 'not_filled') {
-    STATE.dt.column(4).search('^' + $.fn.dataTable.util.escapeRegex(t('tpcc.stNotFilled', 'Not filled')) + '$', true, false, true);
+    STATE.dt.column(4).search('^not_filled$', true, false, true);
   }
   STATE.dt.draw();
 }
 
 function csvGuard(v) {
   var s = (v === null || v === undefined) ? '' : String(v);
-  if (/^[=+\-@\t\r]/.test(s)) { s = "'" + s; }
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
   return '"' + s.replace(/"/g, '""') + '"';
 }
 
@@ -348,6 +352,7 @@ $(function() {
 
   TLi18n.load(function() {
     TLi18n.apply();
+    document.title = 'TestLink 2.0.1 - ' + t('tpcc.header', 'Test Plan Custom Fields Coverage');
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadReport();
   });
