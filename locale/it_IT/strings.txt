@@ -2493,3 +2493,4 @@ $TLS_link_report_exec_frequency = "Frequenza di esecuzione del piano di test"; /
 $TLS_link_report_execution_ageing = "Invecchiamento dell'esecuzione del piano di test"; // Test Plan Execution Ageing report (Refs #1989)
 $TLS_link_report_build_trend = "Tendenza qualità build del piano di test"; // Test Plan Build Quality Trend report (Refs #1991)
 $TLS_link_report_platform_matrix = "Matrice di copertura per piattaforma del piano di test"; // Test Plan Platform Coverage Matrix report (Refs #1992)
+$TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage"; // Test Plan Custom Fields Coverage report (Refs #1994)

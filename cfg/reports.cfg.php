@@ -378,6 +378,18 @@ $tlCfg->reports_list['tplan_with_cf'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1994 - Test Plan Custom Fields Coverage (net-new cross-plan report).
+// The single-plan view (tplan_with_cf) shows the values of ONE plan; this one
+// shows whether the plan-design custom fields are being filled across every
+// plan of the test project. Backed by api/tplancfcoverage, right
+// testplan_metrics on the addressed project. HTML only (directLink empty).
+$tlCfg->reports_list['tplan_cf_coverage'] = array( 
+	'title' => 'link_report_tplans_cf_coverage',
+	'url' => 'gui/templates/results/tplanCfCoverage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['free_tcases'] = array( 
 'title' => 'link_report_free_testcases_on_testproject',
 'url' => 'lib/results/freeTestCases.php',

@@ -2259,6 +2259,7 @@ $TLS_list_of_not_run = "Список незапускавшихся тестов
 // ----- lib/results/testPlanWithCF----
 $TLS_link_report_tplans_with_cf = "Test Plan with Custom Field info";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
+$TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
 
 // ----- lib/results/resultsTC.php -----
 $TLS_result_on_last_build = '[Last Build]';

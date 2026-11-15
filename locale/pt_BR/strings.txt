@@ -2908,6 +2908,7 @@ $TLS_not_run_any_platform_no_platforms = "Não há plataformas associadas a este
 // ----- lib/results/testPlanWithCF----
 $TLS_link_report_tplans_with_cf = "Plano de Teste com informações de Campos Personalizados";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
+$TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
 $TLS_no_linked_tplan_cf = "Não existem casos de teste onde um campo personalizado foi " .
 $TLS_info_testPlanWithCF = "Este relatório mostra todos os casos de teste com qualquer campo personalizado " .
                            "definido enquanto adicionando casos de teste ao plano de teste.";

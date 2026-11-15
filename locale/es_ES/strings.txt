@@ -2933,6 +2933,7 @@ $TLS_not_run_any_platform_no_platforms = "No hay plataformas incluidas en este p
 // ----- lib/results/testPlanWithCF----
 $TLS_link_report_tplans_with_cf = "Información de Campos Personalizados del Plan de Pruebas";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
+$TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
 $TLS_no_linked_tplan_cf = "No hay casos de prueba en este plan de pruebas, con campos personalizados HABILITADOS en el Diseño del Plan de Pruebas";
 $TLS_info_testPlanWithCF = "Este informe muestra todos los casos de prueba con campos personalizados " .
                            "establecidos durante la asignación de los casos de prueba al plan de pruebas.";

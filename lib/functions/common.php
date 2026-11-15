@@ -2784,6 +2784,12 @@ function getActions(&$gui,$baseURL) {
   $actions->planPortfolio =
     "/gui/templates/results/planPortfolio.html?{$ctx}";
 
+  // Refs #1994: Test Plan Custom Fields Coverage (net-new cross-plan report).
+  // tplanWithCF shows the design custom-field values of ONE plan; this screen
+  // answers whether those fields are being filled across every plan.
+  $actions->tplanCfCoverage =
+    "/gui/templates/results/tplanCfCoverage.html?{$ctx}";
+
   // Refs #1991: Test Plan Build Quality Trend (net-new chronological report).
   // resultsByBuild shows a per-build snapshot and buildComparison diffs exactly
   // two builds; neither answers "is the plan getting better or worse?".

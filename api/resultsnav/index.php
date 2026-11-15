@@ -168,6 +168,7 @@ $bff = function ($action) use ($db, $user) {
             'issues_all_exec' => 'gui/templates/results/resultsBugs.html',
             'tcases_with_cf' => 'gui/templates/results/tcasesWithCF.html',
             'tplan_with_cf' => 'gui/templates/results/tplanWithCF.html',
+            'tplan_cf_coverage' => 'gui/templates/results/tplanCfCoverage.html',
             'free_tcases' => 'gui/templates/results/freeTestCases.html',
             'report_exec_timeline' => 'gui/templates/results/execTimelineStats.html',
             // Refs #1954: Flaky / Unstable Test Cases report.

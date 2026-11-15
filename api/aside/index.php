@@ -192,6 +192,10 @@ if ($tplan_id > 0) {
             } else if ($rptItem['title'] == 'link_report_tplans_with_cf') {
                 $hrefR = '/gui/templates/results/tplanWithCF.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_tplans_cf_coverage') {
+                // Refs #1994: cross-plan coverage of the plan-design custom fields.
+                $hrefR = '/gui/templates/results/tplanCfCoverage.html' .
+                         "?tproject_id={$tproject_id}";
             } else if ($rptItem['title'] == 'link_report_free_testcases_on_testproject') {
                 $hrefR = '/gui/templates/results/freeTestCases.html' .
                          "?tproject_id={$tproject_id}";
