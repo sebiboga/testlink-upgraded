@@ -619,6 +619,18 @@ function totalsRow(row, label, badge) {
     + '</span></td></tr>';
 }
 
+function dtLang() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t('bpxm.noRows'),
+    zeroRecords: TLi18n.t('bpxm.noRows')
+  };
+}
+
 function renderBuilds(data) {
   var html = '';
   $.each(data.builds || [], function (i, b) {
@@ -637,7 +649,7 @@ function renderBuilds(data) {
   dtBuilds = $('#tblBuilds').DataTable({
     paging: true, pageLength: 10, searching: true, info: true, order: [],
     columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
-    language: { search: TLi18n.t('common.search') }
+    language: dtLang()
   });
 }
 
@@ -660,7 +672,7 @@ function renderPlatforms(data) {
   dtPlatforms = $('#tblPlatforms').DataTable({
     paging: true, pageLength: 10, searching: true, info: true, order: [],
     columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
-    language: { search: TLi18n.t('common.search') }
+    language: dtLang()
   });
 }
 

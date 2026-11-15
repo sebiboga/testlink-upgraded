@@ -106,7 +106,7 @@ invalid platform), `unknown_action` / `method_not_allowed` (400/405).
 
 ## i18n
 
-- 90 `bpxm.*` keys in all 10 client bundles
+- 91 `bpxm.*` keys in all 10 client bundles
   (`gui/templates/i18n/*.json`), including `footers.buildPlatformMatrix`.
 - `$TLS_link_report_build_platform_matrix` in all 19 server locales
   (`locale/*/strings.txt`).
@@ -118,7 +118,10 @@ invalid platform), `unknown_action` / `method_not_allowed` (400/405).
 
 - Suite `Issue #1987` in `tmp/TLU_Test_Cases.md`: 18/18 PASS (API semantics,
   rights and error paths, browser, filters, cell click, CSV, empty plan,
-  no-rights user, RO locale, regressions).
+  no-rights user, RO locale, regressions), plus the 2026-11-15 close-out
+  re-verification (10/10) against fixture `tmp/fixtures_1987.php`. The
+  DataTables chrome (`Show … entries`, `Filter`, `Showing … entries`) is now
+  localized through `dtLang()`.
 - `bash ai/verify_i18n_coverage.sh` → 9/9 bundles, no missing key.
 - `php -l` clean on the BFF and every touched wiring file.
 - Event Viewer: AUDIT rows only, no new Error/Warning.
