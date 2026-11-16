@@ -11504,7 +11504,5 @@
   "kwc.colVersion": "バージョン ID",
   "kwc.colLatest": "最新結果",
   "kwc.toastExported": "CSV をエクスポートしました",
-  "footers": {
-    "keywordCoverage": "TestLink 2.0.1 - テストプラン別キーワードカバレッジ"
-  }
+  "footers.keywordCoverage": "TestLink 2.0.1 - テストプラン別キーワードカバレッジ"
 }

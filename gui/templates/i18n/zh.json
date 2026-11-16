@@ -11504,7 +11504,5 @@
   "kwc.colVersion": "版本 ID",
   "kwc.colLatest": "最新结果",
   "kwc.toastExported": "CSV 已导出",
-  "footers": {
-    "keywordCoverage": "TestLink 2.0.1 - 测试计划关键字覆盖率"
-  }
+  "footers.keywordCoverage": "TestLink 2.0.1 - 测试计划关键字覆盖率"
 }

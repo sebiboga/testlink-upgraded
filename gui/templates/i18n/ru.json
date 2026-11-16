@@ -11504,7 +11504,5 @@
   "kwc.colVersion": "ID версии",
   "kwc.colLatest": "Последний результат",
   "kwc.toastExported": "CSV экспортирован",
-  "footers": {
-    "keywordCoverage": "TestLink 2.0.1 - Покрытие ключевых слов по тест-плану"
-  }
+  "footers.keywordCoverage": "TestLink 2.0.1 - Покрытие ключевых слов по тест-плану"
 }

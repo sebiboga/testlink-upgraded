@@ -11504,7 +11504,5 @@
   "kwc.colVersion": "Id versiune",
   "kwc.colLatest": "Ultimul rezultat",
   "kwc.toastExported": "CSV exportat",
-  "footers": {
-    "keywordCoverage": "TestLink 2.0.1 - Acoperirea cuvintelor-cheie pe plan de test"
-  }
+  "footers.keywordCoverage": "TestLink 2.0.1 - Acoperirea cuvintelor-cheie pe plan de test"
 }
