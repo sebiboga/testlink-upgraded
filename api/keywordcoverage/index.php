@@ -164,7 +164,7 @@ $owningProject = intval($planRow[0]['testproject_id']);
 $planName = kwcDecode($planRow[0]['name']);
 
 // Rights on the OWNING project, before honouring the client assertion.
-if (!$user->hasRight($db, 'testplan_metrics', $owningProject, null, true)) {
+if (!$user->hasRight($db, 'testplan_metrics', $owningProject, $tplanId, true)) {
     tLog('BFF keywordcoverage: user ' . intval($userId) .
          ' has no testplan_metrics right on tproject ' . intval($owningProject), 'AUDIT');
     kwcFail(403, 'no_right', 'testplan_metrics right required');
@@ -220,6 +220,19 @@ if (is_array($pRs)) {
     }
 }
 
+// Minor 7: reject filters that do not belong to this project instead of
+// silently treating them as "all".
+$buildIds = array();
+foreach ($builds as $b) { $buildIds[$b['build_id']] = true; }
+if ($buildId > 0 && !isset($buildIds[$buildId])) {
+    kwcFail(400, 'invalid_request', 'Unknown build_id');
+}
+$platformIds = array();
+foreach ($platforms as $p) { $platformIds[$p['platform_id']] = true; }
+if ($platformId > 0 && !isset($platformIds[$platformId])) {
+    kwcFail(400, 'invalid_request', 'Unknown platform_id');
+}
+
 // Project keywords.
 $keywordList = array();
 $kRs = $db->get_recordset(
@@ -229,6 +242,10 @@ if (is_array($kRs)) {
     foreach ($kRs as $k) {
         $keywordList[intval($k['id'])] = kwcDecode($k['keyword']);
     }
+}
+
+if ($keywordFilter > 0 && !isset($keywordList[$keywordFilter])) {
+    kwcFail(400, 'invalid_request', 'Unknown keyword_id');
 }
 
 // Plan-assigned versions (deduplicated across platform pins when no platform
@@ -290,28 +307,50 @@ if ($assignedVersions > 0) {
     }
 }
 
-// Keywords per plan-assigned test case.
+// Keywords per plan-assigned VERSION. TestLink stores keyword links on
+// `testcase_keywords.tcversion_id`; a plan pinned to an older version must not
+// inherit the keywords of a newer version. Rows with tcversion_id = 0 are
+// test-case-level links and apply to every assigned version of that case.
 $versionKeywords = array(); // tcversion_id => [keyword_id, ...]
 $taggedVersions = array();
 if ($assignedVersions > 0 && count($keywordList) > 0) {
-    $tcIds = array_unique(array_values($versions));
-    $tcIds = array_filter($tcIds, function ($v) { return $v > 0; });
+    $tcvIds = array_keys($versions);
+    $tcIds = array_values(array_unique(array_filter(array_values($versions))));
+    $where = array();
+    if (count($tcvIds) > 0) {
+        $where[] = 'tk.tcversion_id IN (' . implode(',', array_map('intval', $tcvIds)) . ')';
+    }
     if (count($tcIds) > 0) {
+        $where[] = '(tk.tcversion_id = 0 AND tk.testcase_id IN (' .
+                   implode(',', array_map('intval', $tcIds)) . '))';
+    }
+    if (count($where) > 0) {
         $tkRs = $db->get_recordset(
-            "SELECT DISTINCT tk.testcase_id, tk.keyword_id" .
+            "SELECT DISTINCT tk.testcase_id, tk.tcversion_id, tk.keyword_id" .
             " FROM {$tbl['testcase_keywords']} tk" .
             " JOIN {$tbl['keywords']} k ON k.id = tk.keyword_id" .
             " WHERE k.testproject_id = " . intval($owningProject) .
-            " AND tk.testcase_id IN (" . implode(',', array_map('intval', $tcIds)) . ")");
-        $tcKeywordMap = array();
+            " AND (" . implode(' OR ', $where) . ")");
+        $byVersion = array();
+        $byTestcase = array();
         if (is_array($tkRs)) {
             foreach ($tkRs as $tk) {
-                $tcKeywordMap[intval($tk['testcase_id'])][] = intval($tk['keyword_id']);
+                $kid = intval($tk['keyword_id']);
+                $tcv = intval($tk['tcversion_id']);
+                $tc = intval($tk['testcase_id']);
+                if ($tcv > 0) {
+                    $byVersion[$tcv][] = $kid;
+                } else {
+                    $byTestcase[$tc][] = $kid;
+                }
             }
         }
         foreach ($versions as $tcv => $tcId) {
-            if (!empty($tcKeywordMap[$tcId])) {
-                $versionKeywords[$tcv] = array_values(array_unique($tcKeywordMap[$tcId]));
+            $kids = array();
+            if (!empty($byVersion[$tcv])) { $kids = $byVersion[$tcv]; }
+            if (!empty($byTestcase[$tcId])) { $kids = array_merge($kids, $byTestcase[$tcId]); }
+            if (count($kids) > 0) {
+                $versionKeywords[$tcv] = array_values(array_unique($kids));
                 $taggedVersions[$tcv] = true;
             }
         }
@@ -467,6 +506,8 @@ kwcOut(array(
     'summary' => $summary,
     'rows' => $rows,
     'untagged' => $untagged,
+    'untagged_total' => $untaggedCount,
+    'untagged_truncated' => ($untaggedCount > count($untagged)),
     'builds' => $builds,
     'platforms' => $platforms,
     'warnings' => $warnings,

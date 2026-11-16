@@ -11504,5 +11504,6 @@
   "kwc.colVersion": "Id de version",
   "kwc.colLatest": "Dernier résultat",
   "kwc.toastExported": "CSV exporté",
-  "footers.keywordCoverage": "TestLink 2.0.1 - Couverture des mots-clés par plan de test"
+  "footers.keywordCoverage": "TestLink 2.0.1 - Couverture des mots-clés par plan de test",
+  "kwc.showingFirst": "affichage des premiers"
 }

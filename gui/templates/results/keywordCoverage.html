@@ -179,7 +179,7 @@ function resetView() {
   if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
 }
 
-function fillSelects(builds, platforms) {
+function fillSelects(builds, platforms, keepBuild, keepPlatform) {
   var $b = $('#buildFilter');
   $b.find('option:gt(0)').remove();
   (builds || []).forEach(function(x) {
@@ -190,6 +190,8 @@ function fillSelects(builds, platforms) {
   (platforms || []).forEach(function(x) {
     $p.append('<option value="' + x.platform_id + '">' + esc(x.name) + '</option>');
   });
+  if (keepBuild > 0) { $b.val(String(keepBuild)); }
+  if (keepPlatform > 0) { $p.val(String(keepPlatform)); }
 }
 
 function loadReport() {
@@ -215,7 +217,7 @@ function loadReport() {
       tproject_id = STATE.context.tproject_id || tproject_id;
       $('#tplanName').text(STATE.context.tplan_name || '-');
       $('#tprojectName').text(STATE.context.tproject_name || '-');
-      fillSelects(d.builds, d.platforms);
+      fillSelects(d.builds, d.platforms, b, p);
 
       var s = STATE.summary;
       $('#kpiKeywords').text(s.keywords_total || 0);
@@ -307,7 +309,11 @@ function renderTable() {
   $('#reportArea').html(html);
 
   var cols = [
-    { title: t('kwc.colKeyword', 'Keyword'), data: 'name', className: 'kwlink' },
+    { title: t('kwc.colKeyword', 'Keyword'), data: 'name', className: 'kwlink',
+      render: function(data, type) {
+        if (type === 'sort' || type === 'filter') { return data; }
+        return esc(data);
+      } },
     { title: t('kwc.colCases', 'Cases'), data: 'cases', className: 'num' },
     { title: t('kwc.colExecuted', 'Executed'), data: 'executed', className: 'num' },
     { title: t('kwc.colNotRun', 'Not run'), data: 'not_run', className: 'num' },
@@ -315,9 +321,16 @@ function renderTable() {
     { title: t('kwc.colFailed', 'Failed'), data: 'failed', className: 'num' },
     { title: t('kwc.colBlocked', 'Blocked'), data: 'blocked', className: 'num' },
     { title: t('kwc.colCoverage', 'Coverage'), data: 'coverage_pct',
-      render: function(data) { return coverageCell(data); } },
+      render: function(data, type) {
+        if (type === 'sort' || type === 'filter') { return Number(data) || 0; }
+        return coverageCell(data);
+      } },
     { title: t('kwc.colPassRate', 'Pass rate'), data: 'pass_pct',
-      render: function(data) { return (Number(data) || 0) + '%'; } },
+      render: function(data, type) {
+        var n = Number(data) || 0;
+        if (type === 'sort' || type === 'filter') { return n; }
+        return n + '%';
+      } },
     { title: t('kwc.colStatus', 'Status'), data: 'is_gap',
       render: function(data, type) {
         if (type === 'sort' || type === 'filter') { return data ? '0' : '1'; }
@@ -328,7 +341,7 @@ function renderTable() {
   STATE.dt = $('#dtResults').DataTable({
     data: STATE.rows,
     columns: cols,
-    order: [[0, 'asc']],
+    order: [[9, 'asc'], [7, 'asc'], [0, 'asc']],
     pageLength: 25,
     language: {
       search: t('common.filter', 'Filter') + ':',
@@ -348,7 +361,11 @@ function renderUntagged() {
   var html = '<div class="section"><div class="section-head toggle-head" id="untaggedHead">' +
     '<i class="fa fa-toggle-off" id="untaggedIcon"></i> ' +
     esc(t('kwc.sectionUntagged', 'Untagged test cases')) +
-    '<span class="bmeta">' + esc(t('kwc.untaggedCount', 'Versions without keyword')) + ': ' + STATE.untagged.length + '</span>' +
+    '<span class="bmeta">' + esc(t('kwc.untaggedCount', 'Versions without keyword')) + ': ' +
+      esc((STATE.summary && STATE.summary.untagged_versions) || STATE.untagged.length) +
+      (STATE.untagged.length < ((STATE.summary && STATE.summary.untagged_versions) || 0)
+        ? ' (' + esc(t('kwc.showingFirst', 'showing first')) + ' ' + STATE.untagged.length + ')'
+        : '') + '</span>' +
     '</div><div class="section-body" id="untaggedBody" style="display:none;">' +
     '<table class="flat"><thead><tr>' +
     '<th>' + esc(t('kwc.colTestcase', 'Test case')) + '</th>' +
