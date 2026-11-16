@@ -2022,6 +2022,7 @@ $TLS_list_of_not_run = "실행 안 한 테스트 케이스들";
 $TLS_link_report_tplans_with_cf = "사용자 필드가 있는 테스트 계획";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
+$TLS_link_report_keyword_coverage = "키워드 범위"; // Test Plan Keyword Coverage report (Refs #1995)
 
 // ----- lib/results/resultsTC.php -----
 

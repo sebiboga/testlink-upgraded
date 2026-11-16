@@ -2967,6 +2967,7 @@ $TLS_not_run_any_platform_no_platforms = "There are no platforms linked to this 
 $TLS_link_report_tplans_with_cf = "Pola niestandardowe użyte w planie testów";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
+$TLS_link_report_keyword_coverage = "Pokrycie słów kluczowych"; // Test Plan Keyword Coverage report (Refs #1995)
 $TLS_no_linked_tplan_cf = "There are no test cases where a custom field " .
                           "was set while adding to the test plan";
 $TLS_info_testPlanWithCF = "This Report shows all test cases with any custom field " .

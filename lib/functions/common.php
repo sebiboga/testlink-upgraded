@@ -2790,6 +2790,12 @@ function getActions(&$gui,$baseURL) {
   $actions->tplanCfCoverage =
     "/gui/templates/results/tplanCfCoverage.html?{$ctx}";
 
+  // Refs #1995: Test Plan Keyword Coverage (net-new per-keyword report).
+  // keywordBarChart charts status counts only; this screen adds coverage,
+  // pass rate, keyword gaps and untagged assigned versions.
+  $actions->keywordCoverage =
+    "/gui/templates/results/keywordCoverage.html?{$ctx}";
+
   // Refs #1991: Test Plan Build Quality Trend (net-new chronological report).
   // resultsByBuild shows a per-build snapshot and buildComparison diffs exactly
   // two builds; neither answers "is the plan getting better or worse?".

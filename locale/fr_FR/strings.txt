@@ -2888,6 +2888,7 @@ $TLS_not_run_any_platform_no_platforms = "Il n’y a pas de Plateforme associée
 $TLS_link_report_tplans_with_cf = "Matrice des tests avec champs personnalisés définis lors de l'ajout à la campagne de test";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
+$TLS_link_report_keyword_coverage = "Couverture des mots-clés"; // Test Plan Keyword Coverage report (Refs #1995)
 $TLS_no_linked_tplan_cf = "Aucune fiche de test avec champ personnalisé définie lors de l’ajout à la campagne de test";
 $TLS_info_testPlanWithCF = "Le rapport affiche toutes les fiches de test avec champ personnalisé " .
                            "défini lors de l’ajout à la campagne de test.";

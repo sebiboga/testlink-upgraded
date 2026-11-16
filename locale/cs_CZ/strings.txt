@@ -3030,6 +3030,7 @@ $TLS_not_run_any_platform_no_platforms = "Neexistuj� platformy pripojen� do 
 $TLS_link_report_tplans_with_cf = "Testovac� pl�n s informac� u�ivatelsk�ho pole";
 $TLS_caption_testPlanWithCF = $TLS_link_report_tplans_with_cf;
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage";
+$TLS_link_report_keyword_coverage = "Pokrytí klíčových slov"; // Test Plan Keyword Coverage report (Refs #1995)
 $TLS_no_linked_tplan_cf = "V tomto testovac�m pl�nu nejsou testovac� pr�pady s aktivn�mi u�ivatelsk�mi poli v projektu testovac�ho pl�nu";
 $TLS_info_testPlanWithCF = "Tato zpr�va ukazuje v�echny testovac� pr�pady s jak�mkoliv vlastn�m polem " .
                            "nastaven�m pri prid�v�n� testovac�ch pr�padu do testovac�ho pl�nu.";

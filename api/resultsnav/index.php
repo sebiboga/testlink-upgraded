@@ -169,6 +169,8 @@ $bff = function ($action) use ($db, $user) {
             'tcases_with_cf' => 'gui/templates/results/tcasesWithCF.html',
             'tplan_with_cf' => 'gui/templates/results/tplanWithCF.html',
             'tplan_cf_coverage' => 'gui/templates/results/tplanCfCoverage.html',
+            // Refs #1995: Test Plan Keyword Coverage report.
+            'keyword_coverage' => 'gui/templates/results/keywordCoverage.html',
             'free_tcases' => 'gui/templates/results/freeTestCases.html',
             'report_exec_timeline' => 'gui/templates/results/execTimelineStats.html',
             // Refs #1954: Flaky / Unstable Test Cases report.

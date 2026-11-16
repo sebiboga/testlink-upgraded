@@ -390,6 +390,18 @@ $tlCfg->reports_list['tplan_cf_coverage'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1995 - Test Plan Keyword Coverage (net-new per-keyword report).
+// keywordBarChart only charts execution-status counts; this one shows per
+// keyword the plan coverage, pass rate and the project keywords with no test
+// case in the plan (gaps), plus the untagged assigned versions. Backed by
+// api/keywordcoverage, right testplan_metrics on the owning project.
+$tlCfg->reports_list['keyword_coverage'] = array(
+	'title' => 'link_report_keyword_coverage',
+	'url' => 'gui/templates/results/keywordCoverage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['free_tcases'] = array(
 'title' => 'link_report_free_testcases_on_testproject',
 'url' => 'lib/results/freeTestCases.php',
