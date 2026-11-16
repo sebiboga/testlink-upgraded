@@ -271,12 +271,12 @@ if ($action === 'init') {
 // ---------------------------------------------------------------------------
 $latest = array(); // tcversion_id => status
 if ($assignedVersions > 0) {
-    $execWhere = ' WHERE e.testplan_id = ' . intval($tplanId);
+    $execWhere = ' WHERE e2.testplan_id = ' . intval($tplanId);
     if ($buildId > 0) {
-        $execWhere .= ' AND e.build_id = ' . intval($buildId);
+        $execWhere .= ' AND e2.build_id = ' . intval($buildId);
     }
     if ($platformId > 0) {
-        $execWhere .= ' AND e.platform_id IN (0,' . intval($platformId) . ')';
+        $execWhere .= ' AND e2.platform_id IN (0,' . intval($platformId) . ')';
     }
     $execSql =
         "SELECT e.tcversion_id, e.status FROM {$tbl['executions']} e" .
@@ -345,10 +345,16 @@ foreach ($versionKeywords as $tcv => $kids) {
         if ($isBlocked) { $agg[$kid]['blocked']++; }
         if (!$hasExec) { $agg[$kid]['not_run']++; }
     }
+}
+// Plan-wide counters must cover EVERY assigned version, including the
+// untagged ones that never enter $versionKeywords.
+foreach ($versions as $tcv => $tcId) {
+    $hasExec = array_key_exists($tcv, $latest);
+    $st = $hasExec ? $latest[$tcv] : '';
     if ($hasExec) { $totExecuted++; }
-    if ($isPass) { $totPassed++; }
-    if ($isFail) { $totFailed++; }
-    if ($isBlocked) { $totBlocked++; }
+    if ($st === 'p') { $totPassed++; }
+    if ($st === 'f') { $totFailed++; }
+    if ($st === 'b') { $totBlocked++; }
     if (!$hasExec) { $totNotRun++; }
 }
 
