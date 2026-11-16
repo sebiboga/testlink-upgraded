@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Keyword Coverage</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 240px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 140px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.teal .v { color: #259b93; }
+.kpi.warn .v { color: #e6605e; }
+.verdict { margin: 16px 24px 0; border-radius: 8px; padding: 13px 18px; font-size: 14px; display: none; }
+.verdict.ready { background: #d4edda; color: #155724; }
+.verdict.watch { background: #fff3cd; color: #856404; }
+.verdict.at_risk { background: #f8d7da; color: #721c24; }
+.verdict.no_data, .verdict.no_keywords { background: #e9ecef; color: #444; }
+.warnbox { margin: 12px 24px 0; background: #fff8e1; border: 1px solid #ffe08a; color: #7a5b00; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.st-gap { background: #f5c6cb; color: #b94a48; }
+.st-used { background: #d1ecf1; color: #0c5460; }
+.st-ready { background: #d4edda; color: #155724; }
+.st-watch { background: #fff3cd; color: #856404; }
+.st-at_risk { background: #f8d7da; color: #721c24; }
+.st-not_run { background: #e9ecef; color: #555; }
+.st-p { background: #d4edda; color: #155724; }
+.st-f { background: #f8d7da; color: #721c24; }
+.st-b { background: #fff3cd; color: #856404; }
+.covwrap { display: flex; align-items: center; gap: 8px; min-width: 130px; }
+.covbar { flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; min-width: 70px; }
+.covbar span { display: block; height: 100%; background: #4ECDC4; }
+.covbar.low span { background: #e6605e; }
+.covbar.mid span { background: #f0ad4e; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.toggle-head { cursor: pointer; user-select: none; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-tags" style="margin-right:8px;"></i>
+  <span data-i18n="kwc.header">Test Plan Keyword Coverage</span>
+  <span class="sub"><span data-i18n="kwc.subtitle">coverage, pass rate and gaps per keyword</span></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="kwc.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span class="ctx"><span data-i18n="kwc.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <label for="buildFilter" data-i18n="kwc.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="kwc.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="kwc.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="kwc.allPlatforms">All platforms</option></select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnGaps"><i class="fa fa-filter"></i> <span data-i18n="kwc.gapsOnly">Gaps only</span></button>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="kwc.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="kwc.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="kwc.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiKeywords">0</div><div class="l" data-i18n="kwc.kpiKeywords">Keywords</div></div>
+  <div class="kpi teal"><div class="v" id="kpiUsed">0</div><div class="l" data-i18n="kwc.kpiUsed">Keywords in use</div></div>
+  <div class="kpi warn"><div class="v" id="kpiGaps">0</div><div class="l" data-i18n="kwc.kpiGaps">Gaps (no cases)</div></div>
+  <div class="kpi"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="kwc.kpiAssigned">Assigned versions</div></div>
+  <div class="kpi"><div class="v" id="kpiUntagged">0</div><div class="l" data-i18n="kwc.kpiUntagged">Untagged versions</div></div>
+  <div class="kpi teal"><div class="v" id="kpiCoverage">0%</div><div class="l" data-i18n="kwc.kpiCoverage">Coverage</div></div>
+  <div class="kpi teal"><div class="v" id="kpiPass">0%</div><div class="l" data-i18n="kwc.kpiPass">Pass rate</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div class="warnbox" id="warnBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div id="untaggedArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.keywordCoverage">TestLink 2.0.1 - Test Plan Keyword Coverage</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], summary: {}, untagged: [], dt: null, gapsOnly: false };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  if (isErr) { $t.addClass('err'); } else { $t.removeClass('err'); }
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function showState(code, titleKey, hintKey, defTitle, defHint) {
+  $('#stateBox').html(
+    '<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(titleKey, defTitle)) + '</h4>' +
+    '<p>' + esc(t(hintKey, defHint)) + '</p>' +
+    '<p><span data-i18n="kwc.stateCode">Code</span>: <code>' + esc(code) + '</code></p></div>'
+  ).show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function handleError(d) {
+  d = d || {};
+  var code = d.code || 'error';
+  if (code === 'no_right') {
+    showState(code, 'kwc.errNoRight', 'kwc.errNoRightHint', 'No permission', 'You need the testplan_metrics right on this test project.');
+  } else if (code === 'tplan_not_found' || code === 'project_mismatch') {
+    showState(code, 'kwc.errNotFound', 'kwc.errNotFoundHint', 'Not found', 'The requested test plan does not exist for this test project.');
+  } else if (code === 'not_authenticated' || code === 'session_expired') {
+    showState(code, 'kwc.errSession', 'kwc.errSessionHint', 'Session expired', 'Please sign in again.');
+  } else {
+    showState(code, 'kwc.errGeneric', 'kwc.errGenericHint', 'Could not load the report', 'Unexpected server error.');
+  }
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#untaggedArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#warnBox').hide().empty();
+  $('#verdictBox').hide().removeClass('ready watch at_risk no_data no_keywords').empty();
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+}
+
+function fillSelects(builds, platforms) {
+  var $b = $('#buildFilter');
+  $b.find('option:gt(0)').remove();
+  (builds || []).forEach(function(x) {
+    $b.append('<option value="' + x.build_id + '">' + esc(x.name) + '</option>');
+  });
+  var $p = $('#platformFilter');
+  $p.find('option:gt(0)').remove();
+  (platforms || []).forEach(function(x) {
+    $p.append('<option value="' + x.platform_id + '">' + esc(x.name) + '</option>');
+  });
+}
+
+function loadReport() {
+  $('#loadingBox').show();
+  resetView();
+  var data = { action: 'report', tplan_id: tplan_id, tproject_id: tproject_id };
+  var b = parseInt($('#buildFilter').val()) || 0;
+  var p = parseInt($('#platformFilter').val()) || 0;
+  if (b > 0) { data.build_id = b; }
+  if (p > 0) { data.platform_id = p; }
+  $.ajax({
+    url: '/api/keywordcoverage/index.php',
+    data: data,
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { handleError(d); return; }
+      STATE.context = d.context || {};
+      STATE.summary = d.summary || {};
+      STATE.rows = d.rows || [];
+      STATE.untagged = d.untagged || [];
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      fillSelects(d.builds, d.platforms);
+
+      var s = STATE.summary;
+      $('#kpiKeywords').text(s.keywords_total || 0);
+      $('#kpiUsed').text(s.keywords_used || 0);
+      $('#kpiGaps').text(s.keywords_gap || 0);
+      $('#kpiAssigned').text(s.assigned_versions || 0);
+      $('#kpiUntagged').text(s.untagged_versions || 0);
+      $('#kpiCoverage').text((s.coverage_pct || 0) + '%');
+      $('#kpiPass').text((s.pass_pct || 0) + '%');
+      $('#kpis').show();
+      renderVerdict(s.verdict);
+
+      var notes = [];
+      (d.warnings || []).forEach(function(w) {
+        if (w === 'no_assigned') notes.push(t('kwc.warnNoAssigned', 'This test plan has no assigned test cases.'));
+        else if (w === 'no_keywords') notes.push(t('kwc.warnNoKeywords', 'This test project has no keywords defined.'));
+        else if (w === 'untagged') notes.push(t('kwc.warnUntagged', 'Some assigned test cases carry no keyword.'));
+        else if (w === 'gaps') notes.push(t('kwc.warnGaps', 'Some project keywords have no test case in this plan.'));
+      });
+      if (notes.length) $('#warnBox').html('<i class="fa fa-circle-info"></i> ' + notes.map(esc).join('<br>')).show();
+
+      if (!STATE.rows.length && !STATE.untagged.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t('kwc.empty', 'Nothing to report for this test plan.'))).show();
+        return;
+      }
+      renderTable();
+      renderUntagged();
+      $('#btnExport').prop('disabled', STATE.rows.length === 0);
+      $('#footerInfo').text(t('kwc.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      handleError(xhr.responseJSON || {});
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+
+function verdictText(v) {
+  var map = {
+    ready: ['kwc.vReady', 'Ready - keywords are covered and green'],
+    watch: ['kwc.vWatch', 'Watch - some keywords are under-covered or unstable'],
+    at_risk: ['kwc.vAtRisk', 'At risk - keyword coverage or pass rate is low'],
+    no_data: ['kwc.vNoData', 'No data - no test cases are assigned to this plan'],
+    no_keywords: ['kwc.vNoKeywords', 'No keywords - this project defines no keywords']
+  };
+  var m = map[v] || map.no_data;
+  return t(m[0], m[1]);
+}
+function renderVerdict(v) {
+  v = v || 'no_data';
+  var icon = (v === 'ready') ? 'fa-circle-check' : (v === 'at_risk' ? 'fa-triangle-exclamation' : 'fa-circle-info');
+  $('#verdictBox').removeClass('ready watch at_risk no_data no_keywords').addClass(v)
+    .html('<i class="fa ' + icon + '"></i> ' + esc(verdictText(v))).show();
+}
+
+function covClass(pct) {
+  if (pct >= 80) return '';
+  if (pct >= 50) return 'mid';
+  return 'low';
+}
+function coverageCell(pct) {
+  pct = Number(pct) || 0;
+  return '<div class="covwrap"><div class="covbar ' + covClass(pct) + '"><span style="width:' + Math.min(100, pct) + '%"></span></div><b>' + pct + '%</b></div>';
+}
+function gapBadge(isGap) {
+  return isGap
+    ? '<span class="badge st-gap">' + esc(t('kwc.badgeGap', 'Gap')) + '</span>'
+    : '<span class="badge st-used">' + esc(t('kwc.badgeUsed', 'In use')) + '</span>';
+}
+function statusBadge(st) {
+  var map = {
+    p: ['st-p', 'kwc.statusPassed', 'Passed'],
+    f: ['st-f', 'kwc.statusFailed', 'Failed'],
+    b: ['st-b', 'kwc.statusBlocked', 'Blocked'],
+    not_run: ['st-not_run', 'kwc.statusNotRun', 'Not run']
+  };
+  var m = map[st] || map.not_run;
+  return '<span class="badge ' + m[0] + '">' + esc(t(m[1], m[2])) + '</span>';
+}
+
+function renderTable() {
+  var s = STATE.summary;
+  var html = '<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table"></i> ' + esc(t('kwc.sectionKeywords', 'Keyword coverage')) +
+    '<span class="bmeta">' + esc(t('kwc.rowCount', 'Keywords')) + ': ' + STATE.rows.length +
+    ' &middot; ' + esc(t('kwc.executedShort', 'Executed')) + ': ' + (s.executed || 0) + '/' + (s.assigned_versions || 0) +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+  $('#reportArea').html(html);
+
+  var cols = [
+    { title: t('kwc.colKeyword', 'Keyword'), data: 'name', className: 'kwlink' },
+    { title: t('kwc.colCases', 'Cases'), data: 'cases', className: 'num' },
+    { title: t('kwc.colExecuted', 'Executed'), data: 'executed', className: 'num' },
+    { title: t('kwc.colNotRun', 'Not run'), data: 'not_run', className: 'num' },
+    { title: t('kwc.colPassed', 'Passed'), data: 'passed', className: 'num' },
+    { title: t('kwc.colFailed', 'Failed'), data: 'failed', className: 'num' },
+    { title: t('kwc.colBlocked', 'Blocked'), data: 'blocked', className: 'num' },
+    { title: t('kwc.colCoverage', 'Coverage'), data: 'coverage_pct',
+      render: function(data) { return coverageCell(data); } },
+    { title: t('kwc.colPassRate', 'Pass rate'), data: 'pass_pct',
+      render: function(data) { return (Number(data) || 0) + '%'; } },
+    { title: t('kwc.colStatus', 'Status'), data: 'is_gap',
+      render: function(data, type) {
+        if (type === 'sort' || type === 'filter') { return data ? '0' : '1'; }
+        return gapBadge(!!data);
+      } }
+  ];
+
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: cols,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('kwc.infoEmpty', 'No entries'),
+      zeroRecords: t('kwc.zeroRecords', 'No matching keywords'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('kwc.empty', 'Nothing to report for this test plan.')
+    }
+  });
+  applyGapsOnly();
+}
+
+function renderUntagged() {
+  if (!STATE.untagged.length) { $('#untaggedArea').empty(); return; }
+  var html = '<div class="section"><div class="section-head toggle-head" id="untaggedHead">' +
+    '<i class="fa fa-toggle-off" id="untaggedIcon"></i> ' +
+    esc(t('kwc.sectionUntagged', 'Untagged test cases')) +
+    '<span class="bmeta">' + esc(t('kwc.untaggedCount', 'Versions without keyword')) + ': ' + STATE.untagged.length + '</span>' +
+    '</div><div class="section-body" id="untaggedBody" style="display:none;">' +
+    '<table class="flat"><thead><tr>' +
+    '<th>' + esc(t('kwc.colTestcase', 'Test case')) + '</th>' +
+    '<th>' + esc(t('kwc.colVersion', 'Version id')) + '</th>' +
+    '<th>' + esc(t('kwc.colLatest', 'Latest result')) + '</th>' +
+    '</tr></thead><tbody>';
+  STATE.untagged.forEach(function(u) {
+    html += '<tr><td>' + esc(u.name || ('#' + u.testcase_id)) + '</td>' +
+            '<td class="num">' + esc(u.tcversion_id) + '</td>' +
+            '<td>' + statusBadge(u.status || 'not_run') + '</td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+  $('#untaggedArea').html(html);
+  $('#untaggedHead').on('click', function() {
+    var $b = $('#untaggedBody');
+    var shown = $b.is(':visible');
+    $b.slideToggle(150);
+    $('#untaggedIcon').toggleClass('fa-toggle-on', !shown).toggleClass('fa-toggle-off', shown);
+  });
+}
+
+function applyGapsOnly() {
+  if (!STATE.dt) return;
+  STATE.dt.column(9).search('');
+  if (STATE.gapsOnly) {
+    STATE.dt.column(9).search('^0$', true, false, true);
+  }
+  STATE.dt.draw();
+}
+
+function csvGuard(v) {
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
+  if (!rows.length) return;
+  var header = [
+    t('kwc.colKeyword', 'Keyword'), t('kwc.colCases', 'Cases'), t('kwc.colExecuted', 'Executed'),
+    t('kwc.colNotRun', 'Not run'), t('kwc.colPassed', 'Passed'), t('kwc.colFailed', 'Failed'),
+    t('kwc.colBlocked', 'Blocked'), t('kwc.colCoverage', 'Coverage %'),
+    t('kwc.colPassRate', 'Pass rate %'), t('kwc.colStatus', 'Status')
+  ];
+  var lines = [header.map(csvGuard).join(';')];
+  rows.forEach(function(r) {
+    lines.push([
+      r.name, r.cases, r.executed, r.not_run, r.passed, r.failed, r.blocked,
+      r.coverage_pct, r.pass_pct, r.is_gap ? t('kwc.badgeGap', 'Gap') : t('kwc.badgeUsed', 'In use')
+    ].map(csvGuard).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'keyword-coverage-' + (tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(t('kwc.toastExported', 'CSV exported'));
+}
+
+$(function() {
+  $('#btnRefresh').on('click', loadReport);
+  $('#btnExport').on('click', exportCsv);
+  $('#buildFilter, #platformFilter').on('change', loadReport);
+  $('#btnGaps').on('click', function() {
+    STATE.gapsOnly = !STATE.gapsOnly;
+    $(this).css('border-color', STATE.gapsOnly ? '#4ECDC4' : '#555')
+           .css('color', STATE.gapsOnly ? '#4ECDC4' : '#ccc');
+    applyGapsOnly();
+  });
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    window.close();
+  });
+
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = 'TestLink 2.0.1 - ' + t('kwc.header', 'Test Plan Keyword Coverage');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!tplan_id) {
+      $('#loadingBox').hide();
+      showState('invalid_request', 'kwc.errNotFound', 'kwc.errNotFoundHint', 'Not found', 'No test plan was selected.');
+      return;
+    }
+    loadReport();
+  });
+});
+</script>
+</body>
+</html>
