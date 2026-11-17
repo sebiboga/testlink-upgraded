@@ -617,6 +617,18 @@ function totalsRow(row, label, badge) {
     + '</span></td></tr>';
 }
 
+function dtLang() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t('tbm.noRows'),
+    zeroRecords: TLi18n.t('tbm.noRows')
+  };
+}
+
 function renderTesters(data) {
   var html = '';
   $.each(data.testers || [], function (i, s) {
@@ -633,8 +645,10 @@ function renderTesters(data) {
   dtTesters = $('#tblTesters').DataTable({
     paging: true, pageLength: 10, searching: true, info: true, order: [],
     columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
-    language: { search: TLi18n.t('common.search') }
+    language: dtLang()
   });
+  $('#tblTesters_filter input').attr('id', 'tblTestersSearch')
+    .attr('name', 'tblTestersSearch');
 }
 
 function renderBuilds(data) {
@@ -655,8 +669,10 @@ function renderBuilds(data) {
   dtBuilds = $('#tblBuilds').DataTable({
     paging: true, pageLength: 10, searching: true, info: true, order: [],
     columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8], className: 'num' }],
-    language: { search: TLi18n.t('common.search') }
+    language: dtLang()
   });
+  $('#tblBuilds_filter input').attr('id', 'tblBuildsSearch')
+    .attr('name', 'tblBuildsSearch');
 }
 
 function render(data) {
@@ -704,14 +720,15 @@ function exportCsv() {
 
   lines.push([csvCell(TLi18n.t('tbm.csvSectionTesters'))].concat(head).join(';'));
   $.each(d.testers || [], function (i, s) {
-    var row = [csvCell(s.name)];
+    var row = [csvCell(s.unassigned ? TLi18n.t('tbm.unassigned') : s.name)];
     $.each(metricKeys, function (j, k) { row.push(csvCell(s[k])); });
     row.push(csvCell(s.coverage), csvCell(s.pass_rate));
     lines.push(row.join(';'));
   });
   lines.push('');
 
-  lines.push([csvCell(TLi18n.t('tbm.csvSectionBuilds'))].concat(head).join(';'));
+  var buildHead = [csvCell(TLi18n.t('tbm.colBuild'))].concat(head.slice(1));
+  lines.push([csvCell(TLi18n.t('tbm.csvSectionBuilds'))].concat(buildHead).join(';'));
   $.each(d.builds || [], function (i, b) {
     var row = [csvCell(b.name)];
     $.each(metricKeys, function (j, k) { row.push(csvCell(b[k])); });
@@ -726,7 +743,9 @@ function exportCsv() {
   $.each(d.cells || [], function (i, c) {
     var tester = '';
     $.each(d.testers || [], function (j, s) {
-      if (String(s.id) === String(c.user_id)) { tester = s.name; }
+      if (String(s.id) === String(c.user_id)) {
+        tester = s.unassigned ? TLi18n.t('tbm.unassigned') : s.name;
+      }
     });
     var row = [csvCell(tester), csvCell(buildLabel(c.build_id, d.builds))];
     $.each(metricKeys, function (j, k) { row.push(csvCell(c[k])); });
