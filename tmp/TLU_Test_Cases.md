@@ -47366,3 +47366,111 @@ one unfilled plan, user `tpcc1994norights`). Executed 2026-11-15 against
     localized, the CSV guard also catches leading whitespace, and the suite
     vocabulary is a single grouped query (nodes_hierarchy walk replaces the
     per-row `getPathLayered()` N+1; 2 suites preserved).
+
+## Issue #1996 — Test Plan Suite × Platform Coverage Matrix (suitePlatformMatrix)
+
+**Precondition** (fresh DB): `php tmp/fixtures_1996.php` creates test project
+`SPM1996` (id 1, prefix `SP`; platforms enabled) with plan `SPM Plan` (id 3),
+builds 1-2, platforms `SPM Platform One` (1) and `SPM Platform Two` (2), suites
+`Alpha` (5), `Beta` (6), `Gamma` (7) and cases `A1` (global), `A2` (platform 1
+only), `B1` (platform 2 only), `B2` (global), `C1` (global, never run): Alpha
+platform 1 = 2 passed, platform 2 = 1 failed; Beta platform 1 = 1 failed,
+platform 2 = 2 passed; Gamma both platforms = 1 not run. Also `SPM1996 EMPTY`
+(id 2) with `SPM Empty Plan` (id 4), and user `spm1996norights` /
+`spmnorights` (role 3, no `testplan_metrics`). Logged in as admin at
+`http://localhost:8082`, screen
+`gui/templates/results/suitePlatformMatrix.html?tproject_id=1&tplan_id=3`.
+
+### Test Case 1996.1: Default report renders the suite × platform matrix
+- Given the fixture and an admin session
+- When opening the screen with `tproject_id=1&tplan_id=3`
+- Then the header shows "Suite x Platform Coverage Matrix", the verdict banner
+  reports `in_progress`, the context strip shows SPM1996 / SPM Plan / both
+  platforms, and the 11 KPI cards show 3 suites, 2 platforms, 5 distinct cases,
+  8 assignments, 6 executed, 4 passed, 2 failed, 0 blocked, 2 not run, coverage
+  75.0% and pass rate 66.7%
+- Pass/Fail: PASS — all values match; three matrix rows (Alpha, Beta, Gamma)
+  and two platform columns render; per-suite and per-platform totals render;
+  console clean.
+
+### Test Case 1996.2: Platform applicability is honoured per assignment
+- Given `A2` is pinned to platform 1, `B1` to platform 2, `A1`/`B2`/`C1` to all
+  platforms (`testplan_tcversions.platform_id = 0`)
+- Then the Alpha/platform-2 cell counts only the global `A1`, and no
+  non-applicable pair is fabricated as an extra "not run" row
+- Pass/Fail: PASS — Alpha platform 1 = 2/2 passed, Alpha platform 2 = 1 failed;
+  Beta platform 1 = 1 failed, Beta platform 2 = 2 passed; no phantom rows.
+
+### Test Case 1996.3: Not-run suites are reported, not hidden
+- Given `Gamma` has one global case never executed on either platform
+- Then both Gamma cells show 1 not run and the plan totals count 2 not run
+- Pass/Fail: PASS — Gamma rows show 0 executed / 1 not run per platform and the
+  "not run" KPI is 2.
+
+### Test Case 1996.4: Platform filter re-scopes the whole report
+- Given the default report
+- When selecting `SPM Platform One`
+- Then the KPIs become 1 platform, 4 assignments, 3 executed, 2 passed,
+  1 failed, 1 not run, 4 distinct cases, coverage 75.0% and pass rate 66.7%,
+  and the matrix keeps only the platform-1 column
+- Pass/Fail: PASS — every counter matches; re-selecting "All platforms"
+  restores the 8-assignment view.
+
+### Test Case 1996.5: Cell click filters to the selected suite × platform
+- Given the default matrix
+- When clicking the Alpha × Platform 1 cell
+- Then the active filter is shown and the KPIs/table narrow to that cell
+  (2 assignments, 2 executed, 2 passed, 100% coverage)
+- Pass/Fail: PASS — filter chip/banner reflects the selection and the clear
+  action restores the full report.
+
+### Test Case 1996.6: Empty plan renders the no-data state
+- Given `SPM Empty Plan` (id 4) in the same project
+- When opening the screen with `tplan_id=4`
+- Then the verdict is `no_data`, all counters are 0, platforms/suites are 0,
+  the banner reads "No test-case versions are assigned…" and the matrix body
+  reads "Nothing to show for this selection."
+- Pass/Fail: PASS — no raw keys and no JS error; CSV disabled/empty.
+
+### Test Case 1996.7: Empty project renders the empty-project card
+- Given `SPM1996 EMPTY` (id 2) has no plans
+- When opening the screen with `tproject_id=2`
+- Then the plan selector is disabled and the empty-state card explains that the
+  project has no test plans
+- Pass/Fail: PASS — card renders, console clean.
+
+### Test Case 1996.8: User without `testplan_metrics` is refused
+- Given `spm1996norights` / `spmnorights` (role 3)
+- When opening the screen or calling `?action=report`
+- Then the 403 state card is shown (no matrix, no project/plan data leaked)
+- Pass/Fail: PASS — localized 403 card; API answers 403 `no_right`; AUDIT row.
+
+### Test Case 1996.9: Anonymous and write requests are refused
+- Given no session / a plain POST to the BFF
+- Then `GET ?action=report` answers 401 and `POST ?action=report` answers 403
+  (same-origin CSRF guard runs before the method check)
+- Pass/Fail: PASS — 401 `not_authenticated`, 403, no data returned.
+
+### Test Case 1996.10: API validation codes
+- Given a valid session
+- When calling `report` with `tproject_id=2` against plan 3
+- Then 404 `project_mismatch`; with an unknown `platform_id` → 400
+  `invalid_request`; with an unknown `action` → 400
+- Pass/Fail: PASS — all three codes and machine messages match.
+
+### Test Case 1996.11: CSV export matches the matrix
+- Given the default report
+- When clicking Export CSV
+- Then the file contains the summary, per-suite, per-platform and matrix
+  sections with the same 8 assignments / 4 passed / 2 failed / 2 not run, uses
+  `;` + UTF-8 BOM and guards formula-leading values
+- Pass/Fail: PASS — values align with the screen; localized headers.
+
+### Test Case 1996.12: Locale switch and Reports/ASIDE entry points
+- Given the modern shell
+- When switching to `?locale=ro` and opening the screen from the Reports hub and
+  from the ASIDE "Suite x Platform Coverage Matrix" item
+- Then the title, KPI labels, table headers, legend and buttons are Romanian,
+  the report loads from both entry points with the correct project/plan, and no
+  raw `spm.*` keys appear
+- Pass/Fail: PASS — RO rendering verified; deep link from both entry points.
