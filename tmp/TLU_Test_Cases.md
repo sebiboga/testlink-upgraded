@@ -47474,3 +47474,119 @@ platform 2 = 2 passed; Gamma both platforms = 1 not run. Also `SPM1996 EMPTY`
   the report loads from both entry points with the correct project/plan, and no
   raw `spm.*` keys appear
 - Pass/Fail: PASS — RO rendering verified; deep link from both entry points.
+
+## Issue #1997: Test Plan Tester × Build Execution Matrix (testerBuildMatrix)
+- Fixture: `tmp/fixtures_1997.php` — project TBM1997 (id 1, platforms on) with
+  plan TBM Plan (id 3), 3 builds, 2 platforms, 6 linked versions and 5 active
+  `user_assignments` (including build-scoped and any-build links); one link is
+  deliberately unassigned. Also creates TBM1997 EMPTY / TBM Empty Plan and
+  users `tbma1997`, `tpmb1997`, `tbmn1997` (role 3, no metrics right).
+
+### Test Case 1997.1: Default matrix and plan-wide counters
+- Given the TBM Plan fixture opened from the Reports ASIDE entry
+- Then the header/KPIs show 2 testers, 3 builds, 14 assignments, 6 plan links,
+  1 unassigned link, 8 executed, 5 passed, 2 failed, 1 blocked, 6 not run,
+  57.1% coverage and 62.5% pass rate; the matrix has one row per tester plus
+  the unassigned row and one column per build
+- Pass/Fail: PASS — all counters match the fixture; no raw `tbm.*` keys.
+
+### Test Case 1997.2: Assignment scope and latest execution win
+- Given link 1 is assigned to Tester User with `build_id=0` (any build), link 2
+  only on build 2, link 3 any build for Second User, link 4 only on build 3,
+  and link 1 has two build-2 executions (fail then pass)
+- Then link 1 counts in all three build columns, link 2 only in build 2, link 4
+  only in build 3, and the build-2 cell reports the PASSED re-run
+- Pass/Fail: PASS — build 2 shows 2 passed / 1 failed for the two testers;
+  build 3 shows the link-4 pass for Second User.
+
+### Test Case 1997.3: Unassigned bucket is explicit and localized
+- Given link 6 has no active tester assignment
+- Then the matrix has an `(unassigned)` row, the KPI `unassigned links` is 1,
+  and its build-3 cell reports the recorded pass without inventing a tester
+- Pass/Fail: PASS — UI row and KPI agree; CSV uses `tbm.unassigned`
+  (`(neatribuit)` in RO), never the internal `__UNASSIGNED__` placeholder.
+
+### Test Case 1997.4: Platform applicability (platform_id = 0)
+- Given links 1–4 use `platform_id=0`, link 5 uses platform 1 and link 6 uses
+  platform 2
+- Then with "All platforms" all 6 links / 14 assignments are counted; selecting
+  TBM Platform 1 drops link 6 and the unassigned bucket becomes empty
+- Pass/Fail: PASS — global links still apply; no phantom not-run rows for
+  non-applicable pairs.
+
+### Test Case 1997.5: Build filter re-scopes the report and context
+- Given the default report
+- When selecting `TBM Build 2` and pressing Apply
+- Then context shows `TBM Build 2`, KPIs become 5 assignments, 3 executed,
+  2 passed, 1 failed, 0 blocked, 2 not run, 60.0% coverage and 66.7% pass rate,
+  and the matrix/per-build table keep only the build-2 column/row
+- Pass/Fail: PASS — build context fix verified (previously always "All builds").
+
+### Test Case 1997.6: Combined build × platform filter
+- Given `TBM Build 2` and `TBM Platform 1`
+- Then the context shows both filters, assignments drop to 4, executed to 3,
+  passed to 2, failed to 1, coverage to 75.0% and pass rate to 66.7%; the
+  unassigned row has zero data for this scope
+- Pass/Fail: PASS — every counter and both context chips match.
+
+### Test Case 1997.7: Matrix cell click re-scopes to that build
+- Given the default matrix with all builds
+- When clicking the build-3 cell of any tester row
+- Then `#selBuild` becomes 3, the report reloads for build 3, the context shows
+  `TBM Build 3` and the banner reports 2 of 5 assignments executed (40.0%)
+- Pass/Fail: PASS — delegated `.cell[data-b]` handler works after re-render.
+
+### Test Case 1997.8: Empty plan renders the no-data state
+- Given TBM Empty Plan (id 4) with no linked versions
+- When selecting that plan
+- Then the banner reads "No test-case versions are assigned…", the plan link
+  and all execution counters are 0 and the matrix body shows only the empty
+  unassigned row
+- Pass/Fail: PASS — no JS error and no raw keys.
+
+### Test Case 1997.9: User without `testplan_metrics` is refused
+- Given `tbmn1997` (role 3) logged in
+- When opening the screen or calling `?action=report&tplan_id=3`
+- Then the screen shows the "No test projects available" state card and the API
+  answers 403 `no_right` with no data leaked; the denial is written to AUDIT
+- Pass/Fail: PASS — both UI and API verified.
+
+### Test Case 1997.10: Anonymous, validation and method errors
+- Given no session / malformed requests
+- Then anonymous init → 401 `not_authenticated`; `action=bogus` → 400
+  `unknown_action`; `tplan_id=abc` → 400 `invalid_request`; unknown plan 99999 →
+  404 `tplan_not_found`; POST `action=init` → 405 `method_not_allowed`
+- Pass/Fail: PASS — all five responses inspected.
+
+### Test Case 1997.11: CSV export
+- Given the default report (RO locale)
+- When clicking Export CSV
+- Then the 1095-byte UTF-8 BOM / `;`-delimited file contains summary,
+  per-tester, per-build and matrix sections; headers are localized
+  (`Totaluri pe tester`, `Totaluri pe build`), the unassigned row is
+  `(neatribuit)`, and no `__UNASSIGNED__` placeholder or raw key leaks
+- Pass/Fail: PASS — blob captured and inspected in-browser; values match the UI.
+
+### Test Case 1997.12: i18n, Reports entry point and a11y
+- Given EN and RO bundles
+- When switching locale and opening the screen from the Reports ASIDE item
+- Then all labels/legends/toasts are localized, no `tbm.*` keys render, the deep
+  link carries `tproject_id`/`tplan_id`, and both DataTables search inputs have
+  unique `id`/`name` attributes with a clean console
+- Pass/Fail: PASS — EN/RO verified, `bash ai/verify_i18n_coverage.sh` 9/9.
+
+### Test Case 1997.13: Screenshots
+- Captured `docs/screenshots/issue-1997-testerbuildmatrix-en.png` (default EN),
+  `...-build2.png` (build 2 + platform 1 filter), `...-empty.png` (empty plan),
+  `...-ro.png` (RO locale) and `...-norights.png` (no-right user), mirrored into
+  the wiki repo.
+- Pass/Fail: PASS (documentation).
+
+### Test Case 1997.14: DataTables controls are localized
+- Given the RO locale
+- When the two totals tables render
+- Then `Show/entries`, `Search`, `Showing … to … of … entries` and
+  `Previous/Next` render as `Afiseaza`, `inregistrari`, `Filtru:`,
+  `Se afiseaza … pana la … din … inregistrari`, `Anterior`/`Urmatorul`
+- Pass/Fail: PASS — fixed by adding the shared `dtLang()` helper to the screen;
+  verified in-browser after reload.
