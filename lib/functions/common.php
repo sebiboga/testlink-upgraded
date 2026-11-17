@@ -2818,6 +2818,14 @@ function getActions(&$gui,$baseURL) {
   $actions->suiteBuildMatrix =
     "/gui/templates/results/suiteBuildMatrix.html?{$ctx}";
 
+  // Refs #1996: Test Plan Suite x Platform Coverage Matrix (net-new report).
+  // suiteBuildMatrix answers "which suite is green in which build?" and
+  // platformMatrix "which test case is green on which platform?"; this report
+  // completes the triangle with suites as rows and platforms as columns.
+  // Backed by the api/suiteplatformmatrix BFF (init/report).
+  $actions->suitePlatformMatrix =
+    "/gui/templates/results/suitePlatformMatrix.html?{$ctx}";
+
   // Refs #1956: Test Specification Health report (net-new screen). Shows, per
   // TEST CASE of a test project, the health checks it fails (duplicate name,
   // empty summary, no linked requirement, never executed, stale); 1.9.20 only

@@ -375,6 +375,11 @@ if ($tplan_id > 0) {
                 // as rows, builds as columns, per-cell coverage and results).
                 $hrefR = '/gui/templates/results/suiteBuildMatrix.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_suite_platform_matrix') {
+                // Refs #1996: Test Plan Suite x Platform Coverage Matrix (suites
+                // as rows, platforms as columns, per-cell coverage and results).
+                $hrefR = '/gui/templates/results/suitePlatformMatrix.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else {
                 $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
                 $hrefR = $baseHrefR . $rptItem['url'] .
