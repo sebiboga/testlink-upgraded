@@ -668,6 +668,17 @@ $tlCfg->reports_list['suite_build_matrix'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1997: Test Plan Tester x Build Execution Matrix (net-new report).
+// 1.9.20 reports a whole plan on one build and one tester's workload across
+// builds, but never cross-tabulates every tester against every build. Backed
+// by the api/testerbuildmatrix BFF (init/report).
+$tlCfg->reports_list['tester_build_matrix'] = array(
+	'title' => 'link_report_tester_build_matrix',
+	'url' => 'gui/templates/results/testerBuildMatrix.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1996: Test Plan Suite x Platform Coverage Matrix (net-new report).
 // 1.9.20 shows one suite on one build, one plan on one build or a build x
 // platform cross-tab; the pairwise suite x platform question is still missing.

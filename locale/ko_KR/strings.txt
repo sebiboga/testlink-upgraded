@@ -2520,3 +2520,4 @@ $TLS_link_report_exec_frequency = "테스트 계획 실행 빈도"; // Test Plan
 $TLS_link_report_execution_ageing = "테스트 계획 실행 노화"; // Test Plan Execution Ageing report (Refs #1989)
 $TLS_link_report_build_trend = "테스트 계획 빌드 품질 추세"; // Test Plan Build Quality Trend report (Refs #1991)
 $TLS_link_report_platform_matrix = "테스트 계획 플랫폼 커버리지 매트릭스"; // Test Plan Platform Coverage Matrix report (Refs #1992)
+$TLS_link_report_tester_build_matrix = "테스트 계획 테스터 × 빌드 실행 매트릭스"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)

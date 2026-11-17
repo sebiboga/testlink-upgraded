@@ -4228,3 +4228,4 @@ $TLS_link_report_exec_frequency = "测试计划执行频率"; // Test Plan Execu
 $TLS_link_report_execution_ageing = "测试计划执行老化"; // Test Plan Execution Ageing report (Refs #1989)
 $TLS_link_report_build_trend = "测试计划构建质量趋势"; // Test Plan Build Quality Trend report (Refs #1991)
 $TLS_link_report_platform_matrix = "测试计划平台覆盖矩阵"; // Test Plan Platform Coverage Matrix report (Refs #1992)
+$TLS_link_report_tester_build_matrix = "测试计划测试人员 × 构建执行矩阵"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)

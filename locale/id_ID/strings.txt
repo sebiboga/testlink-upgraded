@@ -2968,3 +2968,4 @@ $TLS_link_report_build_trend = "Tren Kualitas Build Rencana Tes"; // Test Plan B
 $TLS_link_report_platform_matrix = "Matriks Cakupan Platform Rencana Pengujian"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage"; // Test Plan Custom Fields Coverage report (Refs #1994)
 $TLS_link_report_keyword_coverage = "Cakupan kata kunci"; // Test Plan Keyword Coverage report (Refs #1995)
+$TLS_link_report_tester_build_matrix = "Matriks eksekusi tester × build rencana uji"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)

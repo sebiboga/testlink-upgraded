@@ -2818,6 +2818,13 @@ function getActions(&$gui,$baseURL) {
   $actions->suiteBuildMatrix =
     "/gui/templates/results/suiteBuildMatrix.html?{$ctx}";
 
+  // Refs #1997: Test Plan Tester x Build Execution Matrix (net-new report).
+  // testerWorkload answers "who is overloaded?" and suiteBuildMatrix "which
+  // suite is green in which build?"; this adds the tester/build cross-tab.
+  // Backed by the api/testerbuildmatrix BFF (init/report).
+  $actions->testerBuildMatrix =
+    "/gui/templates/results/testerBuildMatrix.html?{$ctx}";
+
   // Refs #1996: Test Plan Suite x Platform Coverage Matrix (net-new report).
   // suiteBuildMatrix answers "which suite is green in which build?" and
   // platformMatrix "which test case is green on which platform?"; this report

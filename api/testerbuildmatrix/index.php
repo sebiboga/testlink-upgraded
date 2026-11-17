@@ -476,6 +476,7 @@ tbmOut(array(
                        'tplan_id' => $requestedPlanId,
                        'tplan_name' => tbmDecode($planName),
                        'build_id' => $buildFilterId,
+                       'build' => $buildFilterId > 0 ? $buildMeta[$buildFilterId] : null,
                        'platform_id' => $platformFilterId,
                        'platform_name' => $platformFilterId > 0
                            ? $platformNames[$platformFilterId] : null),
