@@ -47765,3 +47765,139 @@ builds 3/4, platforms 3/4; no-right user `kwc1995norights` / `kwcnorights`.
 - Then the review is clean and `docs/screenshots/issue-1995-keywordcoverage-
   {main,nodata,ro,norights}.png` exist and are mirrored into the wiki page
 - Pass/Fail: PASS.
+
+## Issue #1999 — Test Plan Test Case x Build Result Matrix (tcBuildMatrix)
+
+Fixture `tmp/fixtures_1999.php`: project TCBM1999, plan TCBM Plan with 5
+assigned versions over 2 suites and 3 builds (Stable Pass = pass/pass, Regressed
+= pass/fail, Broken = fail/fail, Blocked One = blocked in build 2, Never Run =
+no execution), plus an empty plan and a role-3 user without testplan_metrics.
+
+### Test Case 1999.1: Default matrix renders
+- Given an authenticated admin and `tplan_id=2&tproject_id=1`
+- When the screen loads
+- Then one row per assigned test-case version (5) and one column per build (3)
+  are rendered, each with its suite path and external id (`TB-n`), and no row
+  is duplicated
+- Pass/Fail: PASS.
+
+### Test Case 1999.2: Latest result wins per cell
+- Given executions in build 1 and build 2 only
+- When the matrix is inspected
+- Then Stable Pass shows Passed/Passed/Not run, Regressed Passed/Failed/Not
+  run, Broken Failed/Failed/Not run, Blocked One Not run/Blocked/Not run and
+  Never Run Not run/Not run/Not run
+- Pass/Fail: PASS.
+
+### Test Case 1999.3: KPIs and verdict banner
+- Given the default matrix
+- When the summary is read
+- Then test cases 5, builds 3, cells 15, executed 7, passed 3, failed 3,
+  blocked 1, not run 8, coverage 46.7%, pass rate 42.9%, flaky cases 1, and the
+  banner says "Coverage is 46.7% (7 of 15 cells executed)."
+- Pass/Fail: PASS.
+
+### Test Case 1999.4: Row verdicts
+- Given the per-test-case totals table
+- When each verdict badge is read
+- Then Regressed = Mixed, Stable Pass = Stable pass, Broken = Stable fail,
+  Blocked One = Blocked only and Never Run = Not run
+- Pass/Fail: PASS.
+
+### Test Case 1999.5: Cell click re-scopes to that build
+- Given the default matrix
+- When the Passed cell of Stable Pass in build 1 is clicked
+- Then the build picker switches to TCBM Build 1, a toast names the case and
+  build, the matrix collapses to one column, cells become 5 and the row verdict
+  follows the filtered build
+- Pass/Fail: PASS.
+
+### Test Case 1999.6: Build dropdown filter and deep link
+- Given the build picker
+- When TCBM Build 2 is selected, and the page is opened with `build_id=2`
+- Then only build 2 is shown (coverage 80%, pass rate 25%) and the context card
+  names the build filter
+- Pass/Fail: PASS.
+
+### Test Case 1999.7: Empty plan and no-data state
+- Given the plan TCBM Empty Plan (no assigned versions)
+- When the report is requested
+- Then the banner reports no assigned versions, KPIs are zero and the tables
+  show the localized "Nothing to show" row instead of an error
+- Pass/Fail: PASS.
+
+### Test Case 1999.8: Pickers and absent deep-link ids
+- Given the screen opened with no query string, then with unknown ids
+- When the pickers are inspected
+- Then project, plan and build lists are populated from the BFF, unknown ids do
+  not throw, and changing project reloads plans and builds
+- Pass/Fail: PASS.
+
+### Test Case 1999.9: CSV export
+- Given a loaded report
+- When Export CSV is clicked
+- Then a `test-case-build-matrix-2.csv` file is produced with summary, matrix
+  and per-build sections, `;` separators, a BOM and localized status labels,
+  and the toast confirms the export
+- Pass/Fail: PASS.
+
+### Test Case 1999.10: Localization
+- Given the Romanian locale
+- When the screen is reloaded with `locale=ro`
+- Then the title, KPI labels, cell statuses and row verdicts are translated
+  (`Matricea rezultatelor caz de test x build`, `Cazuri de test`, `Reușit`,
+  `Mixt`) with no raw keys
+- Pass/Fail: PASS.
+
+### Test Case 1999.11: Permission denied
+- Given user `tcbm1999norights` (role 3, no testplan_metrics)
+- When the report is requested
+- Then the BFF returns 403 `no_right` and the screen renders the localized
+  Permission denied card
+- Pass/Fail: PASS.
+
+### Test Case 1999.12: Not found and project mismatch
+- Given an authenticated admin
+- When `tplan_id=999999` or `tplan_id=2&tproject_id=999` is sent
+- Then HTTP 404 `tplan_not_found` / `project_mismatch` is returned and the
+  browser renders the Not found card
+- Pass/Fail: PASS.
+
+### Test Case 1999.13: Method and transport
+- Given an authenticated admin
+- When HEAD is sent, then POST with a valid same-origin Origin/Referer
+- Then HEAD returns 200, POST returns 405 `method_not_allowed`, and responses
+  carry `application/json`, `X-Content-Type-Options: nosniff` and
+  `Cache-Control: no-store`
+- Pass/Fail: PASS.
+
+### Test Case 1999.14: Authentication and invalid action
+- Given no session, and an authenticated admin with `action=nope`
+- When each request is sent
+- Then the anonymous call returns 401 `not_authenticated` and the unknown
+  action returns 400 `unknown_action`
+- Pass/Fail: PASS.
+
+### Test Case 1999.15: ASIDE / Reports launcher
+- Given the Dashio shell
+- When `api/aside/index.php?action=init` is called
+- Then the Reports submenu contains "Test Plan Test Case x Build Result Matrix"
+  pointing at `/gui/templates/results/tcBuildMatrix.html?tproject_id=1&tplan_id=3`
+- Pass/Fail: PASS.
+
+### Test Case 1999.16: i18n and syntax gates
+- Given all 10 client bundles, the 19 server locales and the BFF
+- When `bash ai/verify_i18n_coverage.sh`, `python3 -m json.tool` on every
+  touched bundle, `php -l` on the BFF/wiring files and
+  `bash ai/verify_test_suites.sh` are run
+- Then the i18n gate is 9/9 PASS with 0 missing keys, every JSON/PHP file is
+  clean and no pre-existing suite was lost
+- Pass/Fail: PASS.
+
+### Test Case 1999.17: Console, Event Viewer and screenshots
+- Given the browser runs of the default, filtered, empty, RO and no-right
+  states
+- When the console and the Event Viewer are checked
+- Then there are no JS errors and 0 new Error/Warning events, and
+  `docs/screenshots/issue-1999-tcbuildmatrix-{normal,build-filter}.png` exist
+- Pass/Fail: PASS.
