@@ -185,7 +185,7 @@ $uRs = $db->get_recordset(
 if (is_array($uRs)) {
     foreach ($uRs as $u) {
         $login = tcpcuDecode($u['login']);
-        $label = trim(tpcuDecode($u['first'] ?? '') . ' ' . tcpcuDecode($u['last'] ?? ''));
+        $label = trim(tcpcuDecode($u['first'] ?? '') . ' ' . tcpcuDecode($u['last'] ?? ''));
         $users[] = array(
             'user_id' => intval($u['id']),
             'login' => $login,
@@ -274,8 +274,9 @@ if (count($targets) > 0) {
             foreach ($rs as $r) {
                 $caseIds[] = intval($r['tcase_id']);
             }
+            $pathIds = array_values(array_unique($caseIds));
             $paths = $projectMgr->tree_manager->get_full_path_verbose(
-                array_unique($caseIds), array('output_format' => 'path_as_string'));
+                $pathIds, array('output_format' => 'path_as_string'));
         }
         if (is_array($rs)) {
             foreach ($rs as $r) {
