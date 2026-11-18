@@ -47590,3 +47590,178 @@ platform 2 = 2 passed; Gamma both platforms = 1 not run. Also `SPM1996 EMPTY`
   `Se afiseaza … pana la … din … inregistrari`, `Anterior`/`Urmatorul`
 - Pass/Fail: PASS — fixed by adding the shared `dtLang()` helper to the screen;
   verified in-browser after reload.
+
+## Issue #1995 — Test Plan Keyword Coverage report (keywordCoverage)
+
+Fixture: `tmp/fixtures_1995.php` (fresh DB each run). Latest run ids:
+project KWC1995 = 26, main plan = 28, empty plan = 29, no-keyword plan = 30,
+builds 3/4, platforms 3/4; no-right user `kwc1995norights` / `kwcnorights`.
+
+### Test Case 1995.1: Fixture and BFF init
+- Given the rebuilt fixture and an authenticated admin session
+- When `GET /api/keywordcoverage/index.php?action=init&tplan_id=28`
+- Then status ok, context points at KWC1995 / KWC Plan, 4 keywords, 5 assigned
+  versions and the two builds/two platforms vocabularies are returned
+- Pass/Fail: PASS.
+
+### Test Case 1995.2: Default report counters
+- Given the main plan with no filters
+- When the screen loads (or `action=report&tplan_id=28` is fetched)
+- Then assigned 5, executed 5, passed 3, failed 1, blocked 1, coverage 100%,
+  pass rate 60% and verdict `at_risk`; KPI tiles match the payload
+- Pass/Fail: PASS (browser + API).
+
+### Test Case 1995.3: Per-keyword aggregation
+- Given keyword links on the exact assigned `tcversion_id`
+- When the report is read
+- Then `smoke` = 2 cases / 2 executed / 1 passed / 1 failed / 50% pass,
+  `regression` = 1/1/0 passed/1 failed, `performance` = 1/1/1 blocked,
+  and each version with several keywords is counted under each one
+- Pass/Fail: PASS.
+
+### Test Case 1995.4: Gap keyword
+- Given project keyword `security` with no plan-assigned cases
+- When the report is read
+- Then it is the first row (gap-first ordering), badge `Gap`, all counters 0,
+  `keywords_gap` = 1 and the warning banner lists the gap
+- Pass/Fail: PASS.
+
+### Test Case 1995.5: Untagged versions
+- Given two assigned versions with no keyword link
+- When the report is read and the collapsible untagged section is expanded
+- Then `untagged_versions` = 2 and the rows show `KW Untagged One` (v45,
+  Passed) and `KW Untagged Two` (v49, Passed); the warning banner mentions them
+- Pass/Fail: PASS (browser verified).
+
+### Test Case 1995.6: Build filter
+- Given the main plan
+- When build 4 is selected
+- Then executed drops to 2, passed 0, failed 1, blocked 1, not run 3,
+  coverage 40%, pass rate 0%, verdict `at_risk`, and the build picker keeps
+  its selection after the re-scope
+- Pass/Fail: PASS.
+
+### Test Case 1995.7: Platform filter
+- Given the main plan with all-platform (`platform_id=0`) links plus one pinned
+  platform link
+- When platform 4 is selected
+- Then the report re-fetches with `platform_id=4`, returns a valid payload and
+  restores the picker; all-platform assignments remain in scope by design
+- Pass/Fail: PASS.
+
+### Test Case 1995.8: Keyword filter (BFF contract)
+- Given `keyword_id` for `smoke`
+- When `action=report&tplan_id=28&keyword_id=<smoke>` is fetched
+- Then only the smoke row is returned while the plan-wide summary and the
+  untagged list stay unchanged
+- Pass/Fail: PASS.
+
+### Test Case 1995.9: Empty plan
+- Given the empty plan 29 in a project that has keywords
+- When the report is read
+- Then verdict `no_data`, 0 assigned, four gap rows, warnings
+  `no_assigned` + `gaps`, no untagged list and no JS error
+- Pass/Fail: PASS (browser + API).
+
+### Test Case 1995.10: Project with no keywords
+- Given plan 30 of KWC1995 NOKEY with one assigned and executed version
+- When the report is read
+- Then verdict `no_keywords`, `keywords_total` = 0 and the untagged warning is
+  intentionally suppressed
+- Pass/Fail: PASS.
+
+### Test Case 1995.11: Gaps-only toggle
+- Given the default 4-row table
+- When the `Gaps only` button is clicked, then clicked again
+- Then DataTables shows 1 of 4 entries (`security`) and the toggle restores
+  all 4 rows
+- Pass/Fail: PASS.
+
+### Test Case 1995.12: CSV export
+- Given a loaded report
+- When `Export CSV` is clicked and the generated Blob is inspected
+- Then the first bytes are `EF BB BF` (UTF-8 BOM), fields are quoted and `;`-
+  separated, headers/data are localized, and `csvGuard('=SUM(A1)')` returns
+  `"'=SUM(A1)"` (formula-injection guard)
+- Pass/Fail: PASS (Blob byte inspection in-browser).
+
+### Test Case 1995.13: Refresh and Close
+- Given a loaded report
+- When `Refresh` is clicked and then `Close`
+- Then the report is re-fetched without stale rows, and Close posts the
+  `close` message to the parent frame / calls `window.close()`
+- Pass/Fail: PASS.
+
+### Test Case 1995.14: Romanian locale
+- Given `?locale=ro` on the screen URL
+- When the screen renders
+- Then header, KPI labels, verdict, DataTables strings (`Se afiseaza … pana
+  la … din … inregistrari`) and footer use the RO bundle; no raw `kwc.*`
+  key leaks
+- Pass/Fail: PASS.
+
+### Test Case 1995.15: ASIDE and deep-link wiring
+- Given the logged-in shell with a test project selected
+- When Reports is expanded
+- Then `gui/templates/results/keywordCoverage.html?tproject_id=…&tplan_id=…`
+  is present and opens the screen with the correct context names
+- Pass/Fail: PASS.
+
+### Test Case 1995.16: Validation errors (400)
+- Given an authenticated admin
+- When unknown build/platform/keyword ids, a missing `tplan_id`, a bad action
+  or a non-numeric id are sent
+- Then each returns HTTP 400 `invalid_request` with a JSON error body
+- Pass/Fail: PASS (6 variants).
+
+### Test Case 1995.17: Anonymous and session expiry (401)
+- Given a request without a login session
+- When `action=report&tplan_id=28` is fetched
+- Then HTTP 401 `not_authenticated`; the screen maps it to the session state card
+- Pass/Fail: PASS.
+
+### Test Case 1995.18: No-right user (403)
+- Given the role-3 user `kwc1995norights`
+- When the BFF is called and the screen is opened in the browser
+- Then HTTP 403 `no_right`, the denial is logged at AUDIT, and the screen shows
+  the localized `No permission` state card with no KPIs/table rendered
+- Pass/Fail: PASS.
+
+### Test Case 1995.19: Unknown / mismatched plan (404)
+- Given an authenticated admin
+- When `tplan_id=999999` or `tplan_id=28&tproject_id=27` is sent
+- Then HTTP 404 `tplan_not_found` / `project_mismatch`; the browser renders the
+  `Not found` state card rather than an empty report
+- Pass/Fail: PASS.
+
+### Test Case 1995.20: Wrong verb and transport headers
+- Given an authenticated admin
+- When POST is sent with a valid same-origin `Origin`, and HEAD is sent
+- Then POST returns 405 `method_not_allowed` with `Allow: GET, HEAD`, HEAD
+  returns 200, and responses carry `application/json`, `nosniff` and
+  `Cache-Control: no-store`
+- Pass/Fail: PASS.
+
+### Test Case 1995.21: Client-side safety
+- Given EN and RO runs, filters, modals-free report and the no-right run
+- When the console is inspected
+- Then there are no JS errors (the no-right run logs only the expected 403
+  network response) and all dynamic strings are escaped/localized
+- Pass/Fail: PASS.
+
+### Test Case 1995.22: i18n and gates
+- Given all 10 client bundles
+- When `bash ai/verify_i18n_coverage.sh`, `python3 -m json.tool` on touched
+  bundles, `php -l api/keywordcoverage/index.php` and
+  `bash ai/verify_test_suites.sh` are run
+- Then i18n gate is 9/9 PASS with 0 missing keys, PHP syntax is clean and no
+  pre-existing suite was lost
+- Pass/Fail: PASS.
+
+### Test Case 1995.23: Code review and screenshots
+- Given a subagent review of the BFF, screen, wiring and fixture
+- When its only finding (fixture header claimed 6 assignments/4 executions)
+  is fixed and screenshots are captured
+- Then the review is clean and `docs/screenshots/issue-1995-keywordcoverage-
+  {main,nodata,ro,norights}.png` exist and are mirrored into the wiki page
+- Pass/Fail: PASS.
