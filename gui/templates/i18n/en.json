@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "No data in this date range.",
   "tcpcu.warnTruncated": "Showing the first 5000 rows.",
   "tcpcu.zeroRecords": "No matching test cases",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Test Cases Created per User"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Test Cases Created per User",
+  "tcpcu.csvEndTime": "End time",
+  "tcpcu.csvStartTime": "Start time",
+  "tcpcu.endHourAria": "End hour",
+  "tcpcu.startHourAria": "Start hour"
 }

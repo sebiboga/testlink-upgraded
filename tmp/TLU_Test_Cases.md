@@ -47901,3 +47901,162 @@ no execution), plus an empty plan and a role-3 user without testplan_metrics.
 - Then there are no JS errors and 0 new Error/Warning events, and
   `docs/screenshots/issue-1999-tcbuildmatrix-{normal,build-filter}.png` exist
 - Pass/Fail: PASS.
+
+
+## Issue #2000 — Test Cases Created per User on Test Project (tcCreatedPerUser)
+
+### Test Case 2000.1: Default report and legacy row semantics
+- Given fixture project TCPU2000 with 4 test cases / 5 versions by 2 authors
+- When the modern report is opened with only `tproject_id`
+- Then 5 version rows, 4 distinct cases, 2 authors and the correct first/last
+  creation timestamps are shown, matching the legacy one-row-per-version report
+- Pass/Fail: PASS.
+
+### Test Case 2000.2: Author filter
+- Given the loaded report
+- When `tpcu2000alice (Alice Designer)` is selected and Search is clicked
+- Then only Alice's 2 versions are returned and the KPI/author summary is
+  recalculated; the parameter is sent as `user_id=2`
+- Pass/Fail: PASS.
+
+### Test Case 2000.3: Date-range filter
+- Given the loaded report
+- When From=2026-11-17 and To=2026-11-18 are submitted
+- Then exactly the 2 versions created in that range are shown with ISO dates
+- Pass/Fail: PASS.
+
+### Test Case 2000.4: Hour boundary filter
+- Given the loaded report and legacy boundary semantics
+- When From=2026-11-12 09, To=2026-11-18 23 are submitted
+- Then the 08:15 version on the start date is excluded and 4 rows remain,
+  proving the zero-padded hour reaches the BFF query
+- Pass/Fail: PASS.
+
+### Test Case 2000.5: Reset
+- Given any active user/date/hour filter
+- When Reset is clicked
+- Then all filters return to the 30-day default and all 5 fixture rows return
+- Pass/Fail: PASS.
+
+### Test Case 2000.6: CSV export
+- Given a loaded report
+- When Export CSV is clicked
+- Then a localized semicolon-delimited CSV with BOM, headers and one line per
+  version is produced, and the `CSV exportat` toast is shown in RO
+- Pass/Fail: PASS.
+
+### Test Case 2000.7: Romanian localization
+- Given the `locale=ro` switch
+- When the screen is reloaded
+- Then title, toolbar, KPI labels, verdict, table and generated-on footer are
+  Romanian with no raw `tcpcu.*` keys in the DOM
+- Pass/Fail: PASS.
+
+### Test Case 2000.8: Empty project / no data
+- Given `TCPU2000 EMPTY` with no versions
+- When the report is opened
+- Then KPIs are zero, Export CSV is disabled and the localized no-data cards
+  are rendered instead of an empty table or error
+- Pass/Fail: PASS.
+
+### Test Case 2000.9: Permission denied
+- Given user `tpcu2000norights` (role 3, no `testplan_metrics`)
+- When the BFF is called and the screen is opened in the browser
+- Then HTTP 403 `no_right` is returned, an AUDIT event is logged, and the
+  localized `No permission` card is rendered
+- Pass/Fail: PASS.
+
+### Test Case 2000.10: Invalid input and authentication
+- Given anonymous and authenticated admin sessions
+- When report is called with no session, `tproject_id=999999`,
+  `action=nope`, `start_hour=99` or an invalid date
+- Then the BFF returns 401 `not_authenticated`, 404 `tproject_not_found`,
+  400 `invalid_request` for the unsupported action/hour/date respectively
+- Pass/Fail: PASS.
+
+### Test Case 2000.11: Method and transport
+- Given an authenticated admin
+- When HEAD is sent and POST is sent with `X-Requested-With: XMLHttpRequest`
+- Then HEAD returns 200, POST returns 405 `method_not_allowed` with
+  `Allow: GET, HEAD`, and responses carry JSON, `nosniff` and `no-store`
+- Pass/Fail: PASS.
+
+### Test Case 2000.12: ASIDE and editor launchers
+- Given the Dashio shell with project TCPU2000 selected
+- When Test Case Design > Test Cases created per User is clicked, then an
+  editor icon in the report is clicked
+- Then the modern screen loads in the main frame and the editor opens
+  `tcEdit.html` with the correct `tcase_id` / `tcversion_id`
+- Pass/Fail: PASS.
+
+### Test Case 2000.13: Close button
+- Given the report in a standalone tab and in the shell
+- When Close is clicked
+- Then it posts the `close` message to the shell parent and calls
+  `window.close()` without a console exception
+- Pass/Fail: PASS.
+
+### Test Case 2000.14: Console and Event Viewer
+- Given default, filtered, empty, RO and no-right browser runs
+- When browser console and `events` table are inspected
+- Then there are no JS errors (the no-right run only logs the expected 403)
+  and 0 new Error/Warning rows; only AUDIT rows were created
+- Pass/Fail: PASS.
+
+### Test Case 2000.15: i18n, syntax and suite gates
+- Given all 10 client bundles, the BFF and the shared suite file
+- When `bash ai/verify_i18n_coverage.sh`, `python3 -m json.tool` on touched
+  bundles, `php -l` on changed PHP files and
+  `TLU_REQUIRE_SUITE="Issue #2000" bash ai/verify_test_suites.sh` are run
+- Then i18n coverage is 9/9 PASS, all files parse, and no pre-existing suite
+  was lost
+- Pass/Fail: PASS.
+
+### Test Case 2000.16: Screenshots
+- Given the browser verification runs
+- When `docs/screenshots/issue-2000-tccreatedperuser-{normal,date-filter,ro,empty,norights,aside}.png` are checked
+- Then all six current-state screenshots exist and show the verified states
+- Pass/Fail: PASS.
+
+### Test Case 2000.17: Legacy grid toolbar parity
+- Given the default report with 5 rows grouped as alice(2) and bob(3)
+- When Expand/Collapse Groups, Show all Columns, Reset Filters and MultiSort
+  are clicked
+- Then groups collapse/expand with all 5 detail rows hidden/restored, the User
+  column toggles, the filter state resets, and the MultiSort hint is shown
+- Pass/Fail: PASS.
+
+### Test Case 2000.18: Per-column footer filters
+- Given the grouped report and its tfoot inputs/select
+- When a text filter or the Importance select is used, then Reset Filters is clicked
+- Then the table filters on canonical values (e.g. `low` selects 0 rows) and
+  Reset Filters restores all 5 rows plus the default User asc / Test Suite desc order
+- Pass/Fail: PASS.
+
+### Test Case 2000.19: Group ordering after header sort
+- Given the report with User asc and Test Suite desc defaults
+- When the Created header is clicked
+- Then the order becomes User asc / Created asc and the User group remains first
+- Pass/Fail: PASS.
+
+### Test Case 2000.20: CSV legacy parity
+- Given the default report and the Export CSV button
+- When the exported blob is inspected
+- Then headers include Start time and End time, importance is `(2) Medium`,
+  both filter boundaries are emitted (`2026-11-11 00:00:00` / `2026-11-18 23:59:59`),
+  and a legitimate `end_hour=00` is exported as `00:59:59` (not coerced to 23)
+- Pass/Fail: PASS.
+
+### Test Case 2000.21: Rewritten-screen status correction
+- Given the legacy/old-modern sources and the new screen
+- When `lib/functions/common.php` and `docs/MODERNIZATION-STATUS.md` are reviewed
+- Then the old `tcCreatedPerUserOnTestProject.html` is documented as superseded,
+  not dead, and the new screen is recorded as the Issue #2000 rewrite
+- Pass/Fail: PASS.
+
+### Test Case 2000.22: Updated interaction screenshots
+- Given the parity changes and the shell launch path
+- When `docs/screenshots/issue-2000-tccreatedperuser-{normal,grid-tools,date-filter,ro,empty,norights,aside}.png` are checked
+- Then all seven current-state screenshots exist and show the grouped grid,
+  toolbar interactions, filters, RO, empty and no-right states
+- Pass/Fail: PASS.

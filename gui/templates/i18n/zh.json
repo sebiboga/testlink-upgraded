@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "此日期范围内无数据。",
   "tcpcu.warnTruncated": "仅显示前 5000 行。",
   "tcpcu.zeroRecords": "没有匹配的测试用例",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - 按用户创建的测试用例"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - 按用户创建的测试用例",
+  "tcpcu.csvEndTime": "结束时间",
+  "tcpcu.csvStartTime": "开始时间",
+  "tcpcu.endHourAria": "结束时间",
+  "tcpcu.startHourAria": "开始时间"
 }

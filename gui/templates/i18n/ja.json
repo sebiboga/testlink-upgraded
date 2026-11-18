@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "この期間にデータがありません。",
   "tcpcu.warnTruncated": "最初の 5000 行を表示しています。",
   "tcpcu.zeroRecords": "一致するテストケースがありません",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - ユーザー別に作成されたテストケース"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - ユーザー別に作成されたテストケース",
+  "tcpcu.csvEndTime": "終了時刻",
+  "tcpcu.csvStartTime": "開始時刻",
+  "tcpcu.endHourAria": "終了時刻",
+  "tcpcu.startHourAria": "開始時刻"
 }

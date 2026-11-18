@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "Fără date în acest interval.",
   "tcpcu.warnTruncated": "Se afișează primele 5000 de rânduri.",
   "tcpcu.zeroRecords": "Niciun caz de test corespunzător",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Cazuri de test create per utilizator"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Cazuri de test create per utilizator",
+  "tcpcu.csvEndTime": "Ora de sfârșit",
+  "tcpcu.csvStartTime": "Ora de început",
+  "tcpcu.endHourAria": "Ora de sfârșit",
+  "tcpcu.startHourAria": "Ora de început"
 }

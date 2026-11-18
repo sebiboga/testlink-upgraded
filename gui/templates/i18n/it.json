@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "Nessun dato in questo intervallo.",
   "tcpcu.warnTruncated": "Vengono mostrate le prime 5000 righe.",
   "tcpcu.zeroRecords": "Nessun caso di test corrispondente",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Casi di test creati per utente"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Casi di test creati per utente",
+  "tcpcu.csvEndTime": "Ora di fine",
+  "tcpcu.csvStartTime": "Ora di inizio",
+  "tcpcu.endHourAria": "Ora di fine",
+  "tcpcu.startHourAria": "Ora di inizio"
 }

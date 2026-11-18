@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; }
@@ -40,6 +41,16 @@ table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
 table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
 table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
 table.flat tr:hover td { background: #f4fbfa; }
+table.flat tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 12px; }
+table.flat tbody tr.dtrg-group td i { margin-right: 6px; color: #259b93; }
+table.flat tbody tr.dtrg-group td .gcount { font-weight: 400; color: #678; font-size: 11px; margin-left: 6px; }
+table.flat tfoot td { padding: 4px 6px; background: #f7f8fa; border-bottom: 1px solid #ddd; }
+table.flat tfoot input.col-filter, table.flat tfoot select.col-filter { width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; background: #fff; }
+.grid-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 0 24px 8px; }
+.grid-toolbar .btn-ghost { border-color: #ccc; color: #444; font-size: 12px; padding: 5px 10px; }
+.grid-toolbar .btn-ghost.active { border-color: #259b93; color: #259b93; }
+.grid-toolbar .hint { font-size: 12px; color: #667; }
+.grid-toolbar .info { font-size: 12px; color: #259b93; margin-left: auto; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .imp-1 { background: #e9ecef; color: #555; }
@@ -82,10 +93,10 @@ table.flat tr:hover td { background: #f4fbfa; }
   <select id="userFilter"></select>
   <label for="startDate" data-i18n="tcpcu.from">From</label>
   <input type="date" id="startDate">
-  <select id="startHour" aria-label="start hour"></select>
+  <select id="startHour"></select>
   <label for="endDate" data-i18n="tcpcu.to">To</label>
   <input type="date" id="endDate">
-  <select id="endHour" aria-label="end hour"></select>
+  <select id="endHour"></select>
   <button class="btn-ghost btn-primary" id="btnApply"><i class="fa fa-magnifying-glass"></i> <span data-i18n="tcpcu.apply">Search</span></button>
   <button class="btn-ghost" id="btnReset"><i class="fa fa-rotate-left"></i> <span data-i18n="tcpcu.reset">Reset</span></button>
   <span style="flex:1"></span>
@@ -103,6 +114,14 @@ table.flat tr:hover td { background: #f4fbfa; }
 </div>
 
 <div class="verdict" id="verdictBox"></div>
+<div class="grid-toolbar" id="gridToolbar" style="display:none;">
+  <button class="btn-ghost" id="btnGroupToggle" type="button"><i class="fa fa-chevron-down"></i> <span data-i18n="tcPerUser.grid.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <button class="btn-ghost" id="btnUserCol" type="button"><i class="fa fa-columns"></i> <span data-i18n="tcPerUser.grid.showAllColumns">Show all Columns</span></button>
+  <button class="btn-ghost" id="btnResetFilters" type="button"><i class="fa fa-filter-circle-xmark"></i> <span data-i18n="tcPerUser.grid.resetFilters">Reset Filters</span></button>
+  <button class="btn-ghost" id="btnMultiSort" type="button"><i class="fa fa-arrow-down-up-across-line"></i> <span data-i18n="tcPerUser.grid.multiSort">MultiSort</span></button>
+  <span id="msHint" class="hint" style="display:none;" data-i18n="tcPerUser.grid.multiSortHint">Shift+click column headers to sort by multiple columns.</span>
+  <span id="gridToolbarInfo" class="info"></span>
+</div>
 <div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
 <div id="stateBox"></div>
 <div id="reportArea"></div>
@@ -117,10 +136,16 @@ table.flat tr:hover td { background: #f4fbfa; }
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script>
 var params = new URLSearchParams(window.location.search);
 var tproject_id = parseInt(params.get('tproject_id')) || 0;
 var STATE = { context: {}, rows: [], summary: {}, users: [], labels: {}, dt: null, defaults: {} };
+var USER_COL = 0;
+var collapsedGroups = Object.create(null);
+var showUserCol = false;
+var reordering = false;
+var COL_TITLES = [];
 
 function esc(s) {
   if (s === null || s === undefined) return '';
@@ -165,9 +190,15 @@ function resetView() {
   $('#summaryArea').empty();
   $('#emptyBox').hide().empty();
   $('#verdictBox').hide().removeClass('data no_data').empty();
+  $('#gridToolbar').hide();
+  $('#gridToolbarInfo').empty();
+  $('#msHint').hide();
+  $('#btnMultiSort, #btnUserCol, #btnGroupToggle, #btnResetFilters').removeClass('active');
   $('#kpis').hide();
   $('#footerInfo').empty();
   $('#btnExport').prop('disabled', true);
+  collapsedGroups = Object.create(null);
+  showUserCol = false;
   if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
 }
 function fillHours() {
@@ -196,6 +227,8 @@ function initDone(d) {
     sh: STATE.context.start_hour, eh: STATE.context.end_hour, user: STATE.context.user_id
   };
   fillHours();
+  $('#startHour').attr('aria-label', t('tcpcu.startHourAria', 'Start hour'));
+  $('#endHour').attr('aria-label', t('tcpcu.endHourAria', 'End hour'));
   fillUsers(STATE.users, STATE.defaults.user);
   $('#projectName').text(STATE.context.tproject_name || '-');
   $('#startDate').val(STATE.defaults.start);
@@ -267,14 +300,29 @@ function importanceBadge(code) {
   var label = STATE.labels[code] || t('tcpcu.importance', 'Importance') + ' ' + code;
   return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
 }
+function importanceKey(code) {
+  var n = Number(code);
+  return n === 1 ? 'low' : (n === 2 ? 'medium' : 'high');
+}
+function groupCountText(n) {
+  return TLi18n.t(n === 1 ? 'tcPerUser.grid.groupItem' : 'tcPerUser.grid.groupItems', { count: n });
+}
+function visibleColumnCount() {
+  return $('#dtResults thead th').filter(function () { return $(this).css('display') !== 'none'; }).length;
+}
 function renderTable() {
   var html = '<div class="section"><div class="section-head">' +
     '<i class="fa fa-table"></i> ' + esc(t('tcpcu.sectionRows', 'Created test case versions')) +
     '<span class="bmeta">' + esc(t('tcpcu.rowCount', 'Rows')) + ': ' + STATE.rows.length +
-    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"><tfoot><tr></tr></tfoot></table></div></div>';
   $('#reportArea').html(html);
+  COL_TITLES = [
+    t('tcpcu.colUser', 'User'), t('tcpcu.colSuite', 'Test suite'),
+    t('tcpcu.colTestcase', 'Test case'), t('tcpcu.colImportance', 'Importance'),
+    t('tcpcu.colCreated', 'Created'), t('tcpcu.colModified', 'Modified')
+  ];
   var cols = [
-    { title: t('tcpcu.colUser', 'User'), data: 'user' },
+    { title: COL_TITLES[0], data: 'user', visible: showUserCol },
     { title: t('tcpcu.colSuite', 'Test suite'), data: 'suite_path' },
     { title: t('tcpcu.colTestcase', 'Test case'), data: 'name', className: 'tcname',
       render: function(data, type, row) {
@@ -287,7 +335,8 @@ function renderTable() {
       } },
     { title: t('tcpcu.colImportance', 'Importance'), data: 'importance_label',
       render: function(data, type, row) {
-        return (type === 'sort' || type === 'filter') ? data : importanceBadge(row.importance);
+        if (type === 'sort' || type === 'filter') { return importanceKey(row.importance); }
+        return importanceBadge(row.importance);
       } },
     { title: t('tcpcu.colCreated', 'Created'), data: 'creation_ts' },
     { title: t('tcpcu.colModified', 'Modified'), data: 'modification_ts' }
@@ -295,8 +344,21 @@ function renderTable() {
   STATE.dt = $('#dtResults').DataTable({
     data: STATE.rows,
     columns: cols,
-    order: [[4, 'desc']],
+    order: [[USER_COL, 'asc'], [1, 'desc']],
+    orderMulti: true,
     pageLength: 25,
+    rowGroup: {
+      dataSrc: 'user',
+      startRender: function(rowsInGroup, group) {
+        var collapsed = isGroupCollapsed(group);
+        rowsInGroup.nodes().each(function (n) { n.style.display = collapsed ? 'none' : ''; });
+        return $('<tr/>').addClass('dtrg-group').attr('data-key', encodeURIComponent(group))
+          .append($('<td/>').attr('colspan', visibleColumnCount()).append(
+            $('<i/>').addClass('fa ' + (collapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            ' ' + esc(group) + '<span class="gcount">' + esc(groupCountText(rowsInGroup.count())) + '</span>'
+          ));
+      }
+    },
     language: {
       search: t('common.filter', 'Filter') + ':',
       lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
@@ -307,6 +369,123 @@ function renderTable() {
       emptyTable: t('tcpcu.empty', 'No test case versions created in this date range.')
     }
   });
+  attachColumnFilters();
+  applyUserColState();
+  updateGroupToggleBtn();
+  $('#gridToolbar').show();
+  $('#btnExport').prop('disabled', false);
+}
+function isGroupCollapsed(key) {
+  return Object.prototype.hasOwnProperty.call(collapsedGroups, key);
+}
+function allGroupKeys() {
+  var keys = Object.create(null);
+  $('#dtResults tbody tr.dtrg-group').each(function () {
+    keys[decodeURIComponent($(this).attr('data-key') || '')] = true;
+  });
+  return keys;
+}
+function anyGroupCollapsed() {
+  var keys = Object.keys(allGroupKeys());
+  for (var i = 0; i < keys.length; i++) {
+    if (isGroupCollapsed(keys[i])) { return true; }
+  }
+  return false;
+}
+function updateGroupToggleBtn() {
+  $('#btnGroupToggle').toggleClass('active', anyGroupCollapsed());
+}
+function expandAllGroups() {
+  collapsedGroups = Object.create(null);
+  if (STATE.dt) { STATE.dt.draw(false); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(t('tcPerUser.grid.groupsExpanded', 'Groups expanded'));
+}
+function collapseAllGroups() {
+  collapsedGroups = allGroupKeys();
+  if (STATE.dt) { STATE.dt.draw(false); }
+  updateGroupToggleBtn();
+  $('#gridToolbarInfo').text(t('tcPerUser.grid.groupsCollapsed', 'Groups collapsed'));
+}
+function toggleGroups() {
+  if (anyGroupCollapsed()) { expandAllGroups(); } else { collapseAllGroups(); }
+}
+function pinGroupOrder(settings) {
+  if (!STATE.dt || reordering) { return; }
+  var current = STATE.dt.settings()[0];
+  if (settings && current && settings !== current) { return; }
+  var order = STATE.dt.order();
+  if (order.length && order[0][0] === USER_COL) { return; }
+  reordering = true;
+  setTimeout(function () {
+    if (!STATE.dt) { reordering = false; return; }
+    STATE.dt.order([[USER_COL, 'asc']].concat(order)).draw(false);
+    reordering = false;
+  }, 0);
+}
+function applyUserColState() {
+  if (STATE.dt) { STATE.dt.column(USER_COL).visible(showUserCol); }
+  $('#btnUserCol').toggleClass('active', showUserCol).find('span')
+    .text(t(showUserCol ? 'tcPerUser.grid.hideUserColumn' : 'tcPerUser.grid.showAllColumns',
+            showUserCol ? 'Hide User column' : 'Show all Columns'));
+}
+function anyColumnFilterActive() {
+  var any = false;
+  if (STATE.dt) {
+    STATE.dt.columns().every(function () { if (this.search() !== '') { any = true; } });
+  }
+  $('#dtResults tfoot .col-filter').each(function () {
+    if ($(this).val()) { any = true; return false; }
+  });
+  return any;
+}
+function clearAllColumnFilters() {
+  if (STATE.dt) { STATE.dt.columns().every(function () { this.search(''); }); }
+  $('#dtResults tfoot .col-filter').val('');
+}
+function attachColumnFilters() {
+  if (!STATE.dt) { return; }
+  var $row = $('#dtResults tfoot tr');
+  $row.empty();
+  STATE.dt.columns().every(function (idx) {
+    var col = this;
+    var $td = $('<td/>').appendTo($row);
+    var label = COL_TITLES[idx] || (idx + 1);
+    var $ctl;
+    if (idx === 3) {
+      $ctl = $('<select class="col-filter" data-col="' + idx + '"></select>')
+        .append($('<option value=""></option>').text(t('tcPerUser.filterAll', 'All')))
+        .append($('<option value="low"></option>').text(t('tcPerUser.impLow', 'low')))
+        .append($('<option value="medium"></option>').text(t('tcPerUser.impMedium', 'medium')))
+        .append($('<option value="high"></option>').text(t('tcPerUser.impHigh', 'high')));
+      $ctl.on('change', function () {
+        col.search(this.value ? '^' + this.value + '$' : '', true, false).draw();
+        $('#btnResetFilters').toggleClass('active', anyColumnFilterActive());
+      });
+    } else {
+      $ctl = $('<input type="text" class="col-filter" data-col="' + idx + '" placeholder="' +
+        esc(TLi18n.t('tcPerUser.filterCol', { col: label })) + '" />');
+      $ctl.on('keyup change', function () {
+        col.search(this.value).draw();
+        $('#btnResetFilters').toggleClass('active', anyColumnFilterActive());
+      });
+    }
+    $td.append($ctl);
+    if (!col.visible()) { $td.hide(); }
+  });
+  $('#btnResetFilters').toggleClass('active', anyColumnFilterActive());
+}
+function resetGridFilters() {
+  clearAllColumnFilters();
+  if (STATE.dt) {
+    STATE.dt.search('');
+    STATE.dt.order([[USER_COL, 'asc'], [1, 'desc']]).draw();
+  }
+  collapsedGroups = Object.create(null);
+  updateGroupToggleBtn();
+  $('#btnResetFilters').removeClass('active');
+  $('#gridToolbarInfo').text(t('tcPerUser.grid.filtersCleared', 'Filters cleared'));
+  toast(t('tcPerUser.grid.filtersCleared', 'Filters cleared'));
 }
 function renderSummary() {
   var byUser = STATE.summary.by_user || [];
@@ -334,17 +513,25 @@ function csvGuard(v) {
 function exportCsv() {
   var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
   if (!rows.length) { return; }
+  var shVal = STATE.context.start_hour;
+  var ehVal = STATE.context.end_hour;
+  var sh = ('0' + (shVal === null || shVal === undefined ? 0 : Number(shVal))).slice(-2);
+  var eh = ('0' + (ehVal === null || ehVal === undefined ? 23 : Number(ehVal))).slice(-2);
+  var startTime = (STATE.context.start_date || '') + ' ' + sh + ':00:00';
+  var endTime = (STATE.context.end_date || '') + ' ' + eh + ':59:59';
   var header = [
     t('tcpcu.colUser', 'User'), t('tcpcu.colSuite', 'Test suite'),
     t('tcpcu.colTestcase', 'Test case'), t('tcpcu.colVersion', 'Version'),
     t('tcpcu.colImportance', 'Importance'), t('tcpcu.colCreated', 'Created'),
-    t('tcpcu.colModified', 'Modified')
+    t('tcpcu.colModified', 'Modified'),
+    t('tcpcu.csvStartTime', 'Start time'), t('tcpcu.csvEndTime', 'End time')
   ];
   var lines = [header.map(csvGuard).join(';')];
   rows.forEach(function(r) {
     lines.push([
       r.user, r.suite_path, r.external_id + ' : ' + r.name, r.version,
-      r.importance_label, r.creation_ts, r.modification_ts
+      '(' + r.importance + ') ' + r.importance_label, r.creation_ts, r.modification_ts,
+      startTime, endTime
     ].map(csvGuard).join(';'));
   });
   var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -359,6 +546,27 @@ function exportCsv() {
 $(function() {
   $('#btnApply').on('click', function() { loadReport(false); });
   $('#btnReset').on('click', function() { loadReport(true); });
+  $('#btnGroupToggle').on('click', toggleGroups);
+  $('#btnUserCol').on('click', function () {
+    showUserCol = !showUserCol;
+    applyUserColState();
+    attachColumnFilters();
+    if (STATE.dt) { STATE.dt.draw(false); }
+  });
+  $('#btnResetFilters').on('click', resetGridFilters);
+  $('#btnMultiSort').on('click', function () {
+    $('#msHint').toggle();
+    $(this).toggleClass('active', $('#msHint').is(':visible'));
+    $('#gridToolbarInfo').text($('#msHint').is(':visible')
+      ? t('tcPerUser.grid.multiSortOn', 'MultiSort: shift+click headers') : '');
+  });
+  $(document).on('click', '#dtResults tbody tr.dtrg-group', function () {
+    var key = decodeURIComponent($(this).attr('data-key') || '');
+    if (isGroupCollapsed(key)) { delete collapsedGroups[key]; } else { collapsedGroups[key] = true; }
+    updateGroupToggleBtn();
+    if (STATE.dt) { STATE.dt.draw(false); }
+  });
+  $(document).on('order.dt', function (e, settings) { pinGroupOrder(settings); });
   $('#btnExport').on('click', exportCsv);
   $('#btnClose').on('click', function() {
     if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }

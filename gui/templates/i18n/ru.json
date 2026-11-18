@@ -11832,5 +11832,9 @@
   "tcpcu.vNoData": "За этот период данных нет.",
   "tcpcu.warnTruncated": "Показаны первые 5000 строк.",
   "tcpcu.zeroRecords": "Нет подходящих тестовых случаев",
-  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Тестовые случаи, созданные пользователями"
+  "footers.tcCreatedPerUser": "TestLink 2.0.1 - Тестовые случаи, созданные пользователями",
+  "tcpcu.csvEndTime": "Время окончания",
+  "tcpcu.csvStartTime": "Время начала",
+  "tcpcu.endHourAria": "Время окончания",
+  "tcpcu.startHourAria": "Время начала"
 }
