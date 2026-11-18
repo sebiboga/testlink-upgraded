@@ -2394,7 +2394,10 @@ function getActions(&$gui,$baseURL) {
   }
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
-  $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";
+  // Refs #2000: Test Cases Created per User report. The legacy action pointed
+  // at a never-created tcCreatedPerUserOnTestProject.html (dead link); the
+  // modern screen is tcCreatedPerUser.html backed by api/tccreatedperuser.
+  $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUser.html?{$ctx}";
   $actions->testAutomationSpec = "/gui/templates/results/testAutomationSpec.html?{$ctx}";
   $actions->assignReq = "/gui/templates/requirements/assignReqs.html?{$ctx}";
   $actions->inventoryView = "/gui/templates/inventory/inventoryView.html?{$ctx}";

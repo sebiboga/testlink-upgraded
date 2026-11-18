@@ -90,7 +90,7 @@
 {$reqOverView="lib/requirements/reqOverview.php"}
 {$reqMonOverView="lib/requirements/reqMonitorOverview.php?tproject_id="}
 {$tcSearch="lib/testcases/tcSearch.php?doAction=userInput&tproject_id="}
-{$tcCreatedUser="lib/results/tcCreatedPerUserOnTestProject.php?do_action=uinput&tproject_id="}
+{$tcCreatedUser="gui/templates/results/tcCreatedPerUser.html?tproject_id="}
 {$assignReq="lib/general/frmWorkArea.php?feature=assignReqs"}
 {$inventoryView="lib/inventory/inventoryView.php"}
 
