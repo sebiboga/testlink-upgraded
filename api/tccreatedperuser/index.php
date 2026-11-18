@@ -100,7 +100,7 @@ function tcpcuHour($raw, $default)
     if ($raw === null || trim((string)$raw) === '') {
         return $default;
     }
-    if (!preg_match('/^([0-9]|1[0-9]|2[0-3])$/', trim((string)$raw))) {
+    if (!preg_match('/^(0?[0-9]|1[0-9]|2[0-3])$/', trim((string)$raw))) {
         return null;
     }
     return intval(trim((string)$raw));
