@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Cases Created per User</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar input[type=date], .toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; color-scheme: dark; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: #4ECDC4; color: #0d3f3c; border: 1px solid #4ECDC4; font-weight: 700; }
+.btn-primary:hover { background: #45b7af; color: #0d3f3c; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 140px; flex: 1; }
+.kpi .v { font-size: 22px; font-weight: 700; color: #22242a; line-height: 1.2; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 16px 24px 0; border-radius: 8px; padding: 13px 18px; font-size: 14px; display: none; }
+.verdict.data { background: #d4edda; color: #155724; }
+.verdict.no_data { background: #e9ecef; color: #444; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.imp-1 { background: #e9ecef; color: #555; }
+.imp-2 { background: #fff3cd; color: #856404; }
+.imp-3 { background: #f8d7da; color: #721c24; }
+.extid { font-family: monospace; color: #259b93; }
+.tcname a { color: #22242a; text-decoration: none; }
+.tcname a:hover { color: #259b93; }
+.sharebar { display: flex; align-items: center; gap: 8px; min-width: 110px; }
+.sharebar .bar { width: 70px; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; }
+.sharebar .bar span { display: block; height: 100%; background: #4ECDC4; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <i class="fa fa-user-pen" style="margin-right:8px;"></i>
+  <span data-i18n="tcpcu.header">Test Cases Created per User</span>
+  <span class="sub" data-i18n="tcpcu.subtitle">design history of one test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcpcu.testProject">Test project</span>: <b id="projectName">-</b></span>
+  <label for="userFilter" data-i18n="tcpcu.user">User</label>
+  <select id="userFilter"></select>
+  <label for="startDate" data-i18n="tcpcu.from">From</label>
+  <input type="date" id="startDate">
+  <select id="startHour" aria-label="start hour"></select>
+  <label for="endDate" data-i18n="tcpcu.to">To</label>
+  <input type="date" id="endDate">
+  <select id="endHour" aria-label="end hour"></select>
+  <button class="btn-ghost btn-primary" id="btnApply"><i class="fa fa-magnifying-glass"></i> <span data-i18n="tcpcu.apply">Search</span></button>
+  <button class="btn-ghost" id="btnReset"><i class="fa fa-rotate-left"></i> <span data-i18n="tcpcu.reset">Reset</span></button>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="tcpcu.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="tcpcu.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi teal"><div class="v" id="kpiVersions">0</div><div class="l" data-i18n="tcpcu.kpiVersions">Versions created</div></div>
+  <div class="kpi"><div class="v" id="kpiCases">0</div><div class="l" data-i18n="tcpcu.kpiCases">Distinct test cases</div></div>
+  <div class="kpi"><div class="v" id="kpiAuthors">0</div><div class="l" data-i18n="tcpcu.kpiAuthors">Authors</div></div>
+  <div class="kpi"><div class="v" id="kpiFirst">-</div><div class="l" data-i18n="tcpcu.kpiFirst">First creation</div></div>
+  <div class="kpi"><div class="v" id="kpiLast">-</div><div class="l" data-i18n="tcpcu.kpiLast">Last creation</div></div>
+  <div class="kpi teal"><div class="v" id="kpiTopAuthor">-</div><div class="l" data-i18n="tcpcu.kpiTopAuthor">Most active author</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div id="summaryArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.tcCreatedPerUser">TestLink 2.0.1 - Test Cases Created per User</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { context: {}, rows: [], summary: {}, users: [], labels: {}, dt: null, defaults: {} };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  if (isErr) { $el.addClass('err'); } else { $el.removeClass('err'); }
+  setTimeout(function(){ $el.fadeOut(300); }, 3000);
+}
+function showState(code, titleKey, hintKey, defTitle, defHint) {
+  $('#stateBox').html(
+    '<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(titleKey, defTitle)) + '</h4>' +
+    '<p>' + esc(t(hintKey, defHint)) + '</p>' +
+    '<p><span data-i18n="tcpcu.stateCode">Code</span>: <code>' + esc(code) + '</code></p></div>'
+  ).show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function handleError(d) {
+  d = d || {};
+  var code = d.code || 'error';
+  if (code === 'no_right') {
+    showState(code, 'tcpcu.errNoRight', 'tcpcu.errNoRightHint', 'No permission', 'You need the testplan_metrics right on this test project.');
+  } else if (code === 'tproject_not_found') {
+    showState(code, 'tcpcu.errNotFound', 'tcpcu.errNotFoundHint', 'Not found', 'The requested test project does not exist.');
+  } else if (code === 'not_authenticated' || code === 'session_expired') {
+    showState(code, 'tcpcu.errSession', 'tcpcu.errSessionHint', 'Session expired', 'Please sign in again.');
+  } else if (code === 'invalid_request') {
+    showState(code, 'tcpcu.errInvalid', 'tcpcu.errInvalidHint', 'Invalid request', 'Check the selected filters.');
+  } else {
+    showState(code, 'tcpcu.errGeneric', 'tcpcu.errGenericHint', 'Could not load the report', 'Unexpected server error.');
+  }
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#summaryArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().removeClass('data no_data').empty();
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+}
+function fillHours() {
+  var $s = $('#startHour'), $e = $('#endHour');
+  if ($s.find('option').length) { return; }
+  for (var h = 0; h < 24; h++) {
+    var v = ('0' + h).slice(-2);
+    $s.append('<option value="' + v + '">' + v + '</option>');
+    $e.append('<option value="' + v + '">' + v + '</option>');
+  }
+}
+function fillUsers(users, selected) {
+  var $u = $('#userFilter');
+  $u.empty().append('<option value="0">' + esc(t('tcpcu.anyUser', 'Any user')) + '</option>');
+  (users || []).forEach(function(u) {
+    $u.append('<option value="' + u.user_id + '">' + esc(u.display_name) + '</option>');
+  });
+  $u.val(String(selected || 0));
+}
+function initDone(d) {
+  STATE.context = d.context || {};
+  STATE.users = d.users || [];
+  STATE.labels = d.importance_labels || {};
+  STATE.defaults = {
+    start: STATE.context.start_date, end: STATE.context.end_date,
+    sh: STATE.context.start_hour, eh: STATE.context.end_hour, user: STATE.context.user_id
+  };
+  fillHours();
+  fillUsers(STATE.users, STATE.defaults.user);
+  $('#projectName').text(STATE.context.tproject_name || '-');
+  $('#startDate').val(STATE.defaults.start);
+  $('#endDate').val(STATE.defaults.end);
+  $('#startHour').val(('0' + STATE.defaults.sh).slice(-2));
+  $('#endHour').val(('0' + STATE.defaults.eh).slice(-2));
+}
+function loadReport(isReset) {
+  $('#loadingBox').show();
+  resetView();
+  if (isReset && STATE.defaults.start) {
+    fillUsers(STATE.users, STATE.defaults.user);
+    $('#startDate').val(STATE.defaults.start);
+    $('#endDate').val(STATE.defaults.end);
+    $('#startHour').val(('0' + STATE.defaults.sh).slice(-2));
+    $('#endHour').val(('0' + STATE.defaults.eh).slice(-2));
+  }
+  $.ajax({
+    url: '/api/tccreatedperuser/index.php',
+    data: {
+      action: 'report', tproject_id: tproject_id,
+      user_id: parseInt($('#userFilter').val()) || 0,
+      start_date: $('#startDate').val(), end_date: $('#endDate').val(),
+      start_hour: $('#startHour').val(), end_hour: $('#endHour').val()
+    },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { handleError(d); return; }
+      STATE.context = d.context || {};
+      STATE.rows = d.rows || [];
+      STATE.summary = d.summary || {};
+      $('#projectName').text(STATE.context.tproject_name || '-');
+      var s = STATE.summary;
+      $('#kpiVersions').text(s.versions || 0);
+      $('#kpiCases').text(s.test_cases || 0);
+      $('#kpiAuthors').text(s.authors || 0);
+      $('#kpiFirst').text((s.first_creation || '-').substring(0, 10));
+      $('#kpiLast').text((s.last_creation || '-').substring(0, 10));
+      var top = (s.by_user || [])[0];
+      $('#kpiTopAuthor').text(top ? (top.login + ' (' + top.versions + ')') : '-');
+      $('#kpis').show();
+      var verdict = s.verdict === 'no_data' ? 'no_data' : 'data';
+      var vk = verdict === 'no_data' ? 'tcpcu.vNoData' : 'tcpcu.vData';
+      var vd = verdict === 'no_data' ? 'No data in this date range.' : 'Design activity found in this date range.';
+      $('#verdictBox').removeClass('data no_data').addClass(verdict)
+        .html('<i class="fa ' + (verdict === 'data' ? 'fa-circle-check' : 'fa-circle-info') + '"></i> ' + esc(t(vk, vd))).show();
+      if (s.truncated) {
+        toast(t('tcpcu.warnTruncated', 'Showing the first 5000 rows.'), true);
+      }
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t('tcpcu.empty', 'No test case versions created in this date range.'))).show();
+        return;
+      }
+      renderSummary();
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('tcpcu.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      handleError(xhr.responseJSON || {});
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+function importanceBadge(code) {
+  var cls = 'imp-' + (Number(code) === 1 ? 1 : (Number(code) === 2 ? 2 : 3));
+  var label = STATE.labels[code] || t('tcpcu.importance', 'Importance') + ' ' + code;
+  return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
+}
+function renderTable() {
+  var html = '<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table"></i> ' + esc(t('tcpcu.sectionRows', 'Created test case versions')) +
+    '<span class="bmeta">' + esc(t('tcpcu.rowCount', 'Rows')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+  $('#reportArea').html(html);
+  var cols = [
+    { title: t('tcpcu.colUser', 'User'), data: 'user' },
+    { title: t('tcpcu.colSuite', 'Test suite'), data: 'suite_path' },
+    { title: t('tcpcu.colTestcase', 'Test case'), data: 'name', className: 'tcname',
+      render: function(data, type, row) {
+        if (type === 'sort' || type === 'filter') { return row.external_id + ' ' + data; }
+        var href = '/gui/templates/testcases/tcEdit.html?tproject_id=' + STATE.context.tproject_id +
+          '&tcase_id=' + row.tcase_id + '&tcversion_id=' + row.tcversion_id;
+        return '<a href="' + href + '" target="_blank" title="' + esc(t('tcpcu.openEditor', 'Open in editor')) + '">' +
+          '<i class="fa fa-pen-to-square"></i></a> <span class="extid">' + esc(row.external_id) + '</span> : ' +
+          esc(data) + ' <b>v' + esc(row.version) + '</b>';
+      } },
+    { title: t('tcpcu.colImportance', 'Importance'), data: 'importance_label',
+      render: function(data, type, row) {
+        return (type === 'sort' || type === 'filter') ? data : importanceBadge(row.importance);
+      } },
+    { title: t('tcpcu.colCreated', 'Created'), data: 'creation_ts' },
+    { title: t('tcpcu.colModified', 'Modified'), data: 'modification_ts' }
+  ];
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: cols,
+    order: [[4, 'desc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('tcpcu.infoEmpty', 'No entries'),
+      zeroRecords: t('tcpcu.zeroRecords', 'No matching test cases'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('tcpcu.empty', 'No test case versions created in this date range.')
+    }
+  });
+}
+function renderSummary() {
+  var byUser = STATE.summary.by_user || [];
+  if (!byUser.length) { return; }
+  var total = STATE.summary.versions || 0;
+  var html = '<div class="section"><div class="section-head">' +
+    '<i class="fa fa-users"></i> ' + esc(t('tcpcu.sectionAuthors', 'Versions by author')) +
+    '</div><div class="section-body"><table class="flat"><thead><tr><th>' +
+    esc(t('tcpcu.colUser', 'User')) + '</th><th class="num">' +
+    esc(t('tcpcu.colVersions', 'Versions')) + '</th><th>' +
+    esc(t('tcpcu.colShare', 'Share')) + '</th></tr></thead><tbody>';
+  byUser.forEach(function(u) {
+    var pct = total > 0 ? Math.round(1000 * u.versions / total) / 10 : 0;
+    html += '<tr><td>' + esc(u.login) + '</td><td class="num">' + u.versions +
+      '</td><td><div class="sharebar"><div class="bar"><span style="width:' + pct + '%"></span></div><b>' + pct + '%</b></div></td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+  $('#summaryArea').html(html);
+}
+function csvGuard(v) {
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
+  if (!rows.length) { return; }
+  var header = [
+    t('tcpcu.colUser', 'User'), t('tcpcu.colSuite', 'Test suite'),
+    t('tcpcu.colTestcase', 'Test case'), t('tcpcu.colVersion', 'Version'),
+    t('tcpcu.colImportance', 'Importance'), t('tcpcu.colCreated', 'Created'),
+    t('tcpcu.colModified', 'Modified')
+  ];
+  var lines = [header.map(csvGuard).join(';')];
+  rows.forEach(function(r) {
+    lines.push([
+      r.user, r.suite_path, r.external_id + ' : ' + r.name, r.version,
+      r.importance_label, r.creation_ts, r.modification_ts
+    ].map(csvGuard).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'test-cases-created-per-user-' + tproject_id + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(t('tcpcu.toastExported', 'CSV exported'));
+}
+$(function() {
+  $('#btnApply').on('click', function() { loadReport(false); });
+  $('#btnReset').on('click', function() { loadReport(true); });
+  $('#btnExport').on('click', exportCsv);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = 'TestLink 2.0.1 - ' + t('tcpcu.header', 'Test Cases Created per User');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!tproject_id) {
+      $('#loadingBox').hide();
+      showState('invalid_request', 'tcpcu.errInvalid', 'tcpcu.errInvalidHint', 'Invalid request', 'No test project was selected.');
+      return;
+    }
+    $.ajax({
+      url: '/api/tccreatedperuser/index.php',
+      data: { action: 'init', tproject_id: tproject_id },
+      dataType: 'json',
+      success: function(d) {
+        $('#loadingBox').hide();
+        if (d.status === 'error') { handleError(d); return; }
+        initDone(d);
+        loadReport(false);
+      },
+      error: function(xhr) {
+        $('#loadingBox').hide();
+        handleError(xhr.responseJSON || {});
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
