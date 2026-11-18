@@ -257,3 +257,4 @@ $TLS_link_report_platform_matrix = "Matricea de acoperire pe platforme a planulu
 $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage"; // Test Plan Custom Fields Coverage report (Refs #1994)
 $TLS_link_report_keyword_coverage = "Acoperirea cuvintelor-cheie"; // Test Plan Keyword Coverage report (Refs #1995)
 $TLS_link_report_tester_build_matrix = "Matrice de execuție tester × build a planului de test"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
+$TLS_link_report_tc_build_matrix = "Matricea rezultatelor caz de test × build a planului de test"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)

@@ -4288,3 +4288,4 @@ $TLS_link_report_execution_ageing = "Vieillissement d'exécution du plan de test
 $TLS_link_report_build_trend = "Tendance qualité des builds du plan de test"; // Test Plan Build Quality Trend report (Refs #1991)
 $TLS_link_report_platform_matrix = "Matrice de couverture par plateforme du plan de test"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tester_build_matrix = "Matrice d’exécution testeur × build du plan de test"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
+$TLS_link_report_tc_build_matrix = "Matrice des résultats cas de test × build du plan de test"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)

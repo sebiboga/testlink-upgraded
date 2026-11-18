@@ -668,6 +668,17 @@ $tlCfg->reports_list['suite_build_matrix'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #1999: Test Plan Test Case x Build Result Matrix (net-new report).
+// 1.9.20 reports a whole plan on one build, one suite on one build or a
+// suite/build/platform cross-tab; none cross-tabulates every individual test
+// case against every build. Backed by the api/tcbuildmatrix BFF (init/report).
+$tlCfg->reports_list['tc_build_matrix'] = array(
+	'title' => 'link_report_tc_build_matrix',
+	'url' => 'gui/templates/results/tcBuildMatrix.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1997: Test Plan Tester x Build Execution Matrix (net-new report).
 // 1.9.20 reports a whole plan on one build and one tester's workload across
 // builds, but never cross-tabulates every tester against every build. Backed

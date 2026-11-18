@@ -2818,6 +2818,14 @@ function getActions(&$gui,$baseURL) {
   $actions->suiteBuildMatrix =
     "/gui/templates/results/suiteBuildMatrix.html?{$ctx}";
 
+  // Refs #1999: Test Plan Test Case x Build Result Matrix (net-new report).
+  // resultsByBuild reports a whole plan on one build and suiteBuildMatrix
+  // groups by suite; neither shows each individual test case against every
+  // build. Test-case versions are rows, builds are columns, each cell carries
+  // the latest execution result. Backed by the api/tcbuildmatrix BFF.
+  $actions->tcBuildMatrix =
+    "/gui/templates/results/tcBuildMatrix.html?{$ctx}";
+
   // Refs #1997: Test Plan Tester x Build Execution Matrix (net-new report).
   // testerWorkload answers "who is overloaded?" and suiteBuildMatrix "which
   // suite is green in which build?"; this adds the tester/build cross-tab.
