@@ -56,7 +56,7 @@ which assigned tests carry no keyword at all (untagged).
 
 | Case | HTTP | Code |
 |---|---|---|
-| `GET|HEAD` success | 200 | `ok` |
+| `GET\|HEAD` success | 200 | `ok` |
 | Unknown action / malformed or foreign id / missing plan | 400 | `invalid_request` |
 | Anonymous | 401 | `not_authenticated` |
 | Missing `testplan_metrics` | 403 | `no_right` (AUDIT) |
