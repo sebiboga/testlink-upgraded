@@ -2971,3 +2971,4 @@ $TLS_link_report_tplans_cf_coverage = "Test Plan Custom Fields Coverage"; // Tes
 $TLS_link_report_keyword_coverage = "Cakupan kata kunci"; // Test Plan Keyword Coverage report (Refs #1995)
 $TLS_link_report_tester_build_matrix = "Matriks eksekusi tester × build rencana uji"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Matriks hasil kasus uji × build rencana uji"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
+$TLS_link_report_unassigned_tests = "Tes tanpa penanggung jawab"; // Test Plan Unassigned Tests report (Refs #2007)

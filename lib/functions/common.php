@@ -2739,6 +2739,12 @@ function getActions(&$gui,$baseURL) {
   $actions->executionTimeline =
     "/gui/templates/results/executionTimeline.html?{$ctx}";
 
+  // Refs #2007: Test Plan Unassigned Tests report (net-new screen).
+  // Assigned test-case versions with no active tester, with build/platform
+  // re-scoping and CSV. Backed by the api/unassignedtests BFF (init/report).
+  $actions->unassignedTests =
+    "/gui/templates/results/unassignedTests.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

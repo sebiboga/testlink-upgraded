@@ -334,6 +334,11 @@ if ($tplan_id > 0) {
                 // result split and cumulative coverage of the whole plan).
                 $hrefR = '/gui/templates/results/executionTimeline.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_unassigned_tests') {
+                // Refs #2007: Test Plan Unassigned Tests (assigned versions
+                // with no active tester, build/platform filterable).
+                $hrefR = '/gui/templates/results/unassignedTests.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone

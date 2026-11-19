@@ -4026,3 +4026,4 @@ $TLS_link_report_build_trend = "Trend kvality sestavení testovacího plánu"; /
 $TLS_link_report_platform_matrix = "Matice pokrytí platforem plánu testů"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tester_build_matrix = "Matrice provedení tester × build testovacího plánu"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Matice výsledků testovací případ × sestavení testovacího plánu"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
+$TLS_link_report_unassigned_tests = "Nepřiřazené testy"; // Test Plan Unassigned Tests report (Refs #2007)

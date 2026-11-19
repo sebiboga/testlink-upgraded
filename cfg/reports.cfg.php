@@ -772,6 +772,17 @@ $tlCfg->reports_list['platform_matrix'] = array(
 );
 
 
+// Refs #2007: Test Plan Unassigned Tests (net-new). The 1.9.20 assignment
+// editor showed WHO owns each test but never listed the assigned versions
+// with no active tester; this read-only report answers that question with
+// build/platform filters, KPIs and CSV. Backed by api/unassignedtests.
+$tlCfg->reports_list['unassigned_tests'] = array(
+	'title' => 'link_report_unassigned_tests',
+	'url' => 'gui/templates/results/unassignedTests.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

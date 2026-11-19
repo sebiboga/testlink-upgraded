@@ -4231,3 +4231,4 @@ $TLS_link_report_build_trend = "测试计划构建质量趋势"; // Test Plan Bu
 $TLS_link_report_platform_matrix = "测试计划平台覆盖矩阵"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tester_build_matrix = "测试计划测试人员 × 构建执行矩阵"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "测试计划测试用例 × 构建结果矩阵"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
+$TLS_link_report_unassigned_tests = "未分配的测试"; // Test Plan Unassigned Tests report (Refs #2007)

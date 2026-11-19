@@ -4148,3 +4148,4 @@ $TLS_link_report_build_trend = "Kwaliteitstrend van builds van het testplan"; //
 $TLS_link_report_platform_matrix = "Testplan-platformdekkingsmatrix"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tester_build_matrix = "Uitvoingsmatrix tester × build van testplan"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Resultaatmatrix testcase × build van testplan"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
+$TLS_link_report_unassigned_tests = "Niet-toegewezen tests"; // Test Plan Unassigned Tests report (Refs #2007)

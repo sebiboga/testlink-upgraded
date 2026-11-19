@@ -3295,3 +3295,4 @@ $TLS_link_report_build_trend = "Tendencia de calidad de builds del plan de prueb
 $TLS_link_report_platform_matrix = "Matriz de cobertura por plataforma del plan de pruebas"; // Test Plan Platform Coverage Matrix report (Refs #1992)
 $TLS_link_report_tester_build_matrix = "Matriz de ejecución probador × build del plan de prueba"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Matriz de resultados caso de prueba × build del plan de prueba"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
+$TLS_link_report_unassigned_tests = "Pruebas no asignadas"; // Test Plan Unassigned Tests report (Refs #2007)
