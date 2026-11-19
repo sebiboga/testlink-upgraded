@@ -279,6 +279,7 @@ if ($action === 'init') {
 $nowRs = $db->get_recordset("SELECT DATE(NOW()) AS today");
 $today = (is_array($nowRs) && count($nowRs) > 0) ? (string)$nowRs[0]['today'] : date('Y-m-d');
 $windowStart = date('Y-m-d', strtotime($today . ' -' . ($days - 1) . ' day'));
+$windowEndExclusive = date('Y-m-d', strtotime($today . ' +1 day'));
 
 // Coverage universe: plan links, narrowed by platform (0 = any platform).
 $linkRs = $db->get_recordset(
@@ -313,7 +314,7 @@ if ($platformId > 0) {
 // First execution day per (tcversion, platform) - earliest wins, so a
 // platform-less link can be proven by an execution on any platform.
 $firstSql = "SELECT e.tcversion_id, e.platform_id, DATE(MIN(e.execution_ts)) AS first_day" .
-            $scopeSql . " AND e.execution_ts IS NOT NULL" .
+            $scopeSql . " AND e.execution_ts IS NOT NULL AND e.execution_ts < '" . $windowEndExclusive . "'" .
             " GROUP BY e.tcversion_id, e.platform_id ORDER BY first_day ASC";
 $firstRs = $db->get_recordset($firstSql);
 $firstDayByLink = array();
@@ -349,18 +350,24 @@ $remaining = max(0, $assigned - $executed);
 // Daily raw activity with the optional status/tester narrowing. Group by
 // status as well so configured codes (n/x/u or custom ones) are never silently
 // dropped; every code below comes from the whitelist built above.
-$activitySql = "SELECT DATE(e.execution_ts) AS day, e.status AS status," .
-               " COUNT(*) AS total, COUNT(DISTINCT e.tcversion_id) AS versions," .
-               " COUNT(DISTINCT e.tester_id) AS testers" . $scopeSql .
-               " AND e.execution_ts IS NOT NULL AND e.execution_ts >= '" . $windowStart . "'";
+$narrowSql = '';
 if ($statusFilter !== '') {
-    $activitySql .= " AND e.status = '" . $statusVerbose[$statusFilter] . "'";
+    $narrowSql .= " AND e.status = '" . $statusVerbose[$statusFilter] . "'";
 }
 if ($testerId > 0) {
-    $activitySql .= " AND e.tester_id = " . intval($testerId);
+    $narrowSql .= " AND e.tester_id = " . intval($testerId);
 }
-$activitySql .= " GROUP BY DATE(e.execution_ts), e.status";
+$windowSql = $scopeSql . " AND e.execution_ts IS NOT NULL AND e.execution_ts >= '" .
+             $windowStart . "' AND e.execution_ts < '" . $windowEndExclusive . "'" . $narrowSql;
+$activitySql = "SELECT DATE(e.execution_ts) AS day, e.status AS status," .
+               " COUNT(*) AS total" . $windowSql .
+               " GROUP BY DATE(e.execution_ts), e.status";
+$distinctSql = "SELECT DATE(e.execution_ts) AS day," .
+               " COUNT(DISTINCT e.tcversion_id) AS versions," .
+               " COUNT(DISTINCT e.tester_id) AS testers" . $windowSql .
+               " GROUP BY DATE(e.execution_ts)";
 $activityRs = $db->get_recordset($activitySql);
+$distinctRs = $db->get_recordset($distinctSql);
 $byDay = array();
 $statusTotals = array();
 $matchedTotal = 0;
@@ -386,8 +393,20 @@ if (is_array($activityRs)) {
         }
         $byDay[$day]['total'] += $qty;
         $byDay[$day]['statuses'][$verbose] = ($byDay[$day]['statuses'][$verbose] ?? 0) + $qty;
-        $byDay[$day]['versions'] = max($byDay[$day]['versions'], intval($r['versions']));
-        $byDay[$day]['testers'] = max($byDay[$day]['testers'], intval($r['testers']));
+    }
+}
+if (is_array($distinctRs)) {
+    foreach ($distinctRs as $r) {
+        $day = (string)$r['day'];
+        if ($day === '' || $day === '0000-00-00') {
+            continue;
+        }
+        if (!isset($byDay[$day])) {
+            $byDay[$day] = array('total' => 0, 'statuses' => array(),
+                                 'versions' => 0, 'testers' => 0);
+        }
+        $byDay[$day]['versions'] = intval($r['versions']);
+        $byDay[$day]['testers'] = intval($r['testers']);
     }
 }
 

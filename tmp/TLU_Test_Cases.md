@@ -48213,3 +48213,20 @@ no execution), plus an empty plan and a role-3 user without testplan_metrics.
 - When `docs/screenshots/issue-2005-executiontimeline-{normal,filters,csv,empty,norights,aside}.png` are checked
 - Then all six current-state screenshots exist and show the verified states
 - Pass/Fail: PASS.
+
+### Test Case 2005.22: Future-dated executions do not inflate coverage
+- Given the fixture plan 80001 and an execution dated in the future for an
+  otherwise unexecuted assigned link
+- When the BFF report is requested for the current 30-day window
+- Then the future execution is excluded from executions, status totals, first/
+  last activity, cumulative coverage and the timeline rows; assigned remains 5,
+  executed remains 4 and coverage remains 80%
+- Pass/Fail: PASS.
+
+### Test Case 2005.23: Distinct versions and testers on mixed-status days
+- Given two executions on the same day with different statuses, test-case
+  versions and testers
+- When the BFF report is requested
+- Then that day reports `versions=2` and `testers=2` (not the per-status maximum
+  of 1) while executions and per-status totals remain correct
+- Pass/Fail: PASS.
