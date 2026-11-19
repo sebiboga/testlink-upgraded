@@ -48352,3 +48352,139 @@ no execution), plus an empty plan and a role-3 user without testplan_metrics.
 - When `docs/screenshots/issue-2007-unassigned-tests-{normal,filters,empty,no-right}.png` are inspected
 - Then all four current-state screenshots exist and show the default, filtered, empty and permission-denied states
 - Pass/Fail: PASS.
+
+## Issue #2011 — Test Plan Linked Defects report (linkedDefects)
+
+Scope: net-new read-only report over a test plan's execution bug links. Fixture `tmp/fixtures_2011.php` (project LDF2011, plans LDF Plan / LDF Empty Plan, 2 builds, 2 platforms, 4 cases, 6 execution bug links across BUG-100/200/300, role-3 user `ldf2011norights`).
+
+### Test Case 2011.1: Fixture and plan context
+- Given the freshly imported DB and `php tmp/fixtures_2011.php`
+- When the report screen is opened with `tproject_id=1&tplan_id=2`
+- Then the context shows LDF2011 / LDF Plan and the build/platform selectors carry both fixture builds and platforms
+- Pass/Fail: PASS.
+
+### Test Case 2011.2: Default report aggregation
+- Given the 6 fixture links
+- When the report loads with no filters
+- Then 3 defects are listed (BUG-100:3 links, BUG-200:2, BUG-300:1), 8 KPIs read 3/6/5/3/2/2/1/16.7% and the verdict is at_risk
+- Pass/Fail: PASS.
+
+### Test Case 2011.3: DataTable rendering
+- Given the default report
+- When the 10-column DataTable renders
+- Then badges show localized statuses and verdicts, rows are sorted by links desc, and the live region reports 3 entries
+- Pass/Fail: PASS.
+
+### Test Case 2011.4: Detail modal
+- Given the loaded report
+- When BUG-100 is clicked
+- Then the modal shows 3 linked executions with case, build, platform, status and run time, and closes cleanly
+- Pass/Fail: PASS.
+
+### Test Case 2011.5: Result filter
+- Given the loaded report
+- When Result is set to Failed
+- Then 2 defects / 4 links remain, pass rate is 0% and the at_risk verdict persists
+- Pass/Fail: PASS.
+
+### Test Case 2011.6: Platform filter
+- Given the loaded report with Result reset to All
+- When Platform A is selected
+- Then the BFF applies `(platform_id=0 OR platform_id=A)` and returns 2 defects / 5 links
+- Pass/Fail: PASS.
+
+### Test Case 2011.7: Build filter
+- Given the loaded report
+- When Build 1 is selected
+- Then 2 defects / 3 links are returned and the build filter is echoed in the response
+- Pass/Fail: PASS.
+
+### Test Case 2011.8: Empty plan
+- Given LDF Empty Plan (no executions)
+- When the report loads
+- Then all KPIs are 0, the no_data verdict and the empty card render, and Export CSV is disabled
+- Pass/Fail: PASS.
+
+### Test Case 2011.9: BFF init contract
+- Given an authenticated admin session
+- When `GET ?action=init&tplan_id=2&tproject_id=1`
+- Then HTTP 200 returns context, filters and the default filter echo
+- Pass/Fail: PASS.
+
+### Test Case 2011.10: BFF report contract
+- Given an authenticated admin session
+- When `GET ?action=report&tplan_id=2`
+- Then HTTP 200 returns summary, rows, verdict, filters and filter echo with the exact fixture aggregation
+- Pass/Fail: PASS.
+
+### Test Case 2011.11: BFF detail contract
+- Given an authenticated admin session
+- When `GET ?action=detail&tplan_id=2&bug_id=BUG-100`
+- Then HTTP 200 returns the 3 matching link rows and no report rows
+- Pass/Fail: PASS.
+
+### Test Case 2011.12: BFF CSV contract
+- Given an authenticated admin session
+- When `GET ?action=csv&tplan_id=2`
+- Then a UTF-8 BOM `;`-separated CSV is returned with a header row and one line per defect
+- Pass/Fail: PASS.
+
+### Test Case 2011.13: Unknown plan
+- Given an authenticated admin session
+- When `tplan_id=999` is requested
+- Then HTTP 404 `tplan_not_found` is returned
+- Pass/Fail: PASS.
+
+### Test Case 2011.14: Unknown action and invalid filter
+- Given an authenticated admin session
+- When `action=bogus` or `build_id=999` is submitted
+- Then HTTP 400 `invalid_request` is returned
+- Pass/Fail: PASS.
+
+### Test Case 2011.15: Project mismatch
+- Given an authenticated admin session
+- When `tplan_id=2&tproject_id=999` is submitted
+- Then HTTP 404 `project_mismatch` is returned
+- Pass/Fail: PASS.
+
+### Test Case 2011.16: Wrong verb
+- Given an authenticated admin session
+- When POST is sent to the report action
+- Then HTTP 405 `method_not_allowed` with `Allow: GET, HEAD` is returned
+- Pass/Fail: PASS.
+
+### Test Case 2011.17: Anonymous session
+- Given an isolated unauthenticated browser context
+- When the BFF is called and the screen is opened
+- Then HTTP 401 `not_authenticated` is returned and the localized session-expired state card is rendered
+- Pass/Fail: PASS.
+
+### Test Case 2011.18: Permission denied
+- Given the role-3 user `ldf2011norights`
+- When the BFF and screen are opened for plan 2
+- Then HTTP 403 `no_right` is returned, the localized no-permission card renders, Export CSV stays disabled and the denial is AUDIT-logged
+- Pass/Fail: PASS.
+
+### Test Case 2011.19: Locale switch and localization gates
+- Given the admin session on plan 2
+- When the in-screen locale selector is switched to Română and back
+- Then the report reloads with no raw `ldf.*` keys, 76 new keys exist in all 10 client bundles, the i18n coverage gate passes 9/9 and `$TLS_link_report_linked_defects` exists in all 19 server locales
+- Pass/Fail: PASS.
+
+### Test Case 2011.20: Reports menu entry
+- Given the admin shell
+- When the Reports ASIDE section is expanded
+- Then "Test Plan Linked Defects" links to `gui/templates/results/linkedDefects.html` with the current project/plan context and loads the report in mainframe
+- Pass/Fail: PASS.
+
+### Test Case 2011.21: CSV export and formula guard
+- Given filtered rows in the DataTable
+- When Export CSV is clicked
+- Then a BOM `;`-separated file with only the filtered rows is generated and formula-leading values are prefixed with an apostrophe
+- Pass/Fail: PASS.
+
+### Test Case 2011.22: Console, Event Viewer and screenshots
+- Given all browser cases above
+- When the console, `events` table and the four captured screenshots are inspected
+- Then there are no console Error/Warning messages, no new Error/Warning Event Viewer rows, and the normal/filters/detail/empty/no-right screenshots exist
+- Pass/Fail: PASS.
