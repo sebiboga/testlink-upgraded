@@ -48230,3 +48230,125 @@ no execution), plus an empty plan and a role-3 user without testplan_metrics.
 - Then that day reports `versions=2` and `testers=2` (not the per-status maximum
   of 1) while executions and per-status totals remain correct
 - Pass/Fail: PASS.
+
+## Issue #2007 — Test Plan Unassigned Tests report (unassignedTests)
+
+### Test Case 2007.1: Init and default report
+- Given fixture project UAT2007 (id 1), plan UAT Plan (id 3), 6 assigned versions, 3 with an active tester
+- When `action=init` and `action=report&tplan_id=3` are called
+- Then both return HTTP 200 `status=ok`; summary is `assigned=6`, `covered=3`, `unassigned=3`, `unassigned_pct=50`, `suites=1`; verdict is `at_risk`; the unassigned-only DataTable shows UAT Delta, UAT Epsilon and UAT Zeta
+- Pass/Fail: PASS.
+
+### Test Case 2007.2: Active assignment semantics
+- Given UAT Epsilon has only a closed assignment (status 3) in the fixture
+- When the report is loaded
+- Then Epsilon is counted as unassigned, proving closed assignments are excluded while `build_id=0` all-build assignments remain active
+- Pass/Fail: PASS.
+
+### Test Case 2007.3: Build filter
+- Given UAT Beta is assigned to Build 1 only
+- When the UI build filter is set to UAT Build 2
+- Then the KPI changes to `covered=2`, `unassigned=4`, `unassigned_pct=66.7%` and Beta appears as unassigned; all other in-scope rows remain present
+- Pass/Fail: PASS.
+
+### Test Case 2007.4: Platform filter and platform allowlist
+- Given platforms UAT Platform A/B exist in plan 3
+- When `platform_id=1` is used for both unassigned-only and all-tests reports
+- Then only in-scope rows are returned and the platform selector contains exactly All platforms, A and B
+- Pass/Fail: PASS.
+
+### Test Case 2007.5: Scope filter
+- Given 6 assigned versions in plan 3
+- When the Scope selector is changed from Unassigned only to All assigned tests
+- Then the DataTable changes from 3 to 6 rows while the global KPIs remain `assigned=6`, `unassigned=3`
+- Pass/Fail: PASS.
+
+### Test Case 2007.6: Platform-agnostic executions (#2008)
+- Given UAT Zeta is assigned with `platform_id=0` but executed on UAT Platform A
+- When the report is requested
+- Then Zeta shows `last_status=passed`, `executions=1`, `last_build=UAT Build 1`, and `summary.never_executed=0` instead of the pre-fix "Not run"/0
+- Pass/Fail: PASS.
+
+### Test Case 2007.7: Priority labels (#2009)
+- Given fixture versions with LOW/MEDIUM/HIGH priority levels
+- When rows and CSV are rendered
+- Then the Priority column shows Low/Medium/High and the CSV contains the same labels, never raw 1/2/3
+- Pass/Fail: PASS.
+
+### Test Case 2007.8: Scoped KPI wording (#2010)
+- Given build UAT Build 2 selected and UAT Delta executed in UAT Build 1
+- When the KPI banner is rendered
+- Then its label reads "Unassigned, no run in scope" (ro: "Neatribuite, fără rulări în contextul filtrului"), making the filtered computation explicit
+- Pass/Fail: PASS.
+
+### Test Case 2007.9: Empty plan and no_data state
+- Given UAT Empty Plan (id 4) with no assigned links
+- When the screen is opened
+- Then all KPIs are zero, the banner says "No assigned test cases in this plan", the empty table state is shown and Export CSV is disabled
+- Pass/Fail: PASS.
+
+### Test Case 2007.10: Fully covered plan and clear verdict
+- Given three temporary active assignments for the previously unassigned features in plan 3
+- When the report is requested
+- Then `covered=6`, `unassigned=0`, `unassigned_pct=0` and verdict is `clear`; temporary rows are removed afterwards
+- Pass/Fail: PASS.
+
+### Test Case 2007.11: Unknown plan and project mismatch
+- Given `tplan_id=999` and `tplan_id=3&tproject_id=2`
+- When the BFF is called
+- Then HTTP 404 with codes `tplan_not_found` and `project_mismatch` is returned and no rows leak
+- Pass/Fail: PASS.
+
+### Test Case 2007.12: Invalid requests and wrong method
+- Given `action=bogus`, `tplan_id=abc` and a POST to the report endpoint
+- When the BFF is called
+- Then HTTP 400 `invalid_request` is returned for the first two and HTTP 405 `method_not_allowed` for POST
+- Pass/Fail: PASS.
+
+### Test Case 2007.13: Permission denied
+- Given user `uat2007norights` with role 3 and no `testplan_metrics`
+- When the screen and BFF are opened for plan 3
+- Then the localized "No permission" card and code `no_right` are rendered, Export CSV is disabled and the denial is AUDIT-logged
+- Pass/Fail: PASS.
+
+### Test Case 2007.14: Anonymous session
+- Given an isolated browser context without login
+- When the screen is opened
+- Then the "Session expired" card with `not_authenticated` is rendered and Export CSV is disabled
+- Pass/Fail: PASS.
+
+### Test Case 2007.15: Locale switch
+- Given the admin session on plan 3
+- When the locale selector is switched to Română and back to English
+- Then the header, filters, KPI labels, column headers, badges and DataTable pagination are fully localized and the URL carries `locale=ro` / `locale=en`
+- Pass/Fail: PASS.
+
+### Test Case 2007.16: CSV export and formula guard
+- Given filtered rows in the DataTable
+- When Export CSV is clicked and the generated Blob is inspected
+- Then it starts with a UTF-8 BOM, uses semicolon delimiters, contains only the filtered rows and `csvGuard()` prefixes `=`, `+`, `-`, `@` values with an apostrophe
+- Pass/Fail: PASS.
+
+### Test Case 2007.17: DataTable interactions and Refresh/Close
+- Given the loaded report
+- When sorting headers, paging, typing in the filter, changing entries to 10 and clicking Refresh/Close
+- Then the table re-renders without stale rows, the live region updates, Refresh reloads the report and Close posts the parent close message without a JS error
+- Pass/Fail: PASS.
+
+### Test Case 2007.18: Console and Event Viewer
+- Given all successful, filtered, error, empty, no-right and anonymous browser runs
+- When the browser console and `events` table are inspected
+- Then there are no Error/Warning console messages and 0 Error/Warning Event Viewer rows
+- Pass/Fail: PASS.
+
+### Test Case 2007.19: Syntax and gates
+- Given the touched PHP/JSON files and i18n bundles
+- When `php -l`, `python3 -m json.tool`, `bash ai/verify_i18n_coverage.sh` and `TLU_REQUIRE_SUITE="Issue #2007" bash ai/verify_test_suites.sh` are run
+- Then PHP/JSON parse cleanly, i18n coverage is 9/9 with 11977 keys and the shared suite gate reports no lost suite
+- Pass/Fail: PASS.
+
+### Test Case 2007.20: Screenshots
+- Given the browser verification runs
+- When `docs/screenshots/issue-2007-unassigned-tests-{normal,filters,empty,no-right}.png` are inspected
+- Then all four current-state screenshots exist and show the default, filtered, empty and permission-denied states
+- Pass/Fail: PASS.
