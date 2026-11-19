@@ -265,7 +265,10 @@ function renderBanner(s) {
   var cls = 'info', icon = 'fa-info-circle', key = 'exlt.bannerNoData';
   if (s.verdict === 'complete') { cls = 'good'; icon = 'fa-check-circle'; key = 'exlt.bannerComplete'; }
   else if (s.verdict === 'idle') { cls = 'warn'; icon = 'fa-clock'; key = 'exlt.bannerIdle'; }
-  else if (s.verdict === 'active') { cls = 'good'; icon = 'fa-chart-line'; key = 'exlt.bannerActive'; }
+  else if (s.verdict === 'active') {
+    cls = 'good'; icon = 'fa-chart-line';
+    key = s.executions === 1 ? 'exlt.bannerActiveOne' : 'exlt.bannerActive';
+  }
   $('#bannerBox').html('<div class="banner ' + cls + '"><i class="fa ' + icon + '"></i><span>'
     + esc(TLi18n.t(key, { count: s.executions, days: s.window_days })) + '</span></div>');
 }

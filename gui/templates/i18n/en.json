@@ -11881,6 +11881,7 @@
   "exlt.bannerNoData": "No test-case versions are assigned to this plan.",
   "exlt.bannerIdle": "No executions in the selected window.",
   "exlt.bannerActive": "{count} executions in the last {days} days.",
+  "exlt.bannerActiveOne": "{count} execution in the last {days} days.",
   "exlt.tableCaption": "Daily execution activity and cumulative coverage of the test plan",
   "exlt.colDay": "Day",
   "exlt.colExecutions": "Executions",
