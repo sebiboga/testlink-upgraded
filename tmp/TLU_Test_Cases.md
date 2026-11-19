@@ -48060,3 +48060,156 @@ no execution), plus an empty plan and a role-3 user without testplan_metrics.
 - Then all seven current-state screenshots exist and show the grouped grid,
   toolbar interactions, filters, RO, empty and no-right states
 - Pass/Fail: PASS.
+
+## Issue #2005 — Test Plan Execution Timeline report (executionTimeline)
+
+### Test Case 2005.1: Default report and plan-wide KPIs
+- Given fixture plan 80001 with 5 assigned links and 5 executions across 5 days
+- When the modern report is opened with `tproject_id=80000&tplan_id=80001`
+- Then the 30-day banner reads `5 executions in the last 30 days.`, KPIs show
+  5 assigned / 4 executed / 1 remaining / 80% coverage / 3 passed / 1 failed /
+  1 blocked / 60% pass rate / 5 active days, and the 30-row daily table appears
+- Pass/Fail: PASS.
+
+### Test Case 2005.2: ASIDE and report launcher wiring
+- Given the Dashio shell with project 80000 and plan 80001 selected
+- When Reports is expanded and `Test Plan Execution Timeline` is clicked
+- Then the modern screen loads in `mainframe` with the correct context and the
+  inactive build is absent from the Build filter
+- Pass/Fail: PASS.
+
+### Test Case 2005.3: Build filter
+- Given the loaded report
+- When Build = `Sprint 1` is selected and Apply is clicked
+- Then 3 executions are returned (2 passed / 1 failed), context Build is
+  `Sprint 1`, coverage is 60% and the CSV button stays enabled
+- Pass/Fail: PASS.
+
+### Test Case 2005.4: Platform filter
+- Given the loaded report with all filters reset
+- When Platform = `Firefox` is selected and Apply is clicked
+- Then 2 executions are returned (1 passed / 1 blocked), 3 links are assigned
+  on that platform and 2 are executed
+- Pass/Fail: PASS.
+
+### Test Case 2005.5: Tester filter and singular banner (bug #2006)
+- Given the loaded report with all filters reset
+- When Tester = `No Rights` is selected and Apply is clicked
+- Then exactly 1 blocked execution is returned and the banner reads
+  `1 execution in the last 30 days.` (not `1 executions`)
+- Pass/Fail: PASS.
+
+### Test Case 2005.6: Result filter
+- Given the loaded report with all filters reset
+- When Result = `Passed` is selected and Apply is clicked
+- Then 3 passed executions are returned; failed and blocked KPIs are zero
+- Pass/Fail: PASS.
+
+### Test Case 2005.7: Window filter
+- Given the loaded report with all filters reset
+- When Window (days) is changed from 30 to 7 and Apply is clicked
+- Then 4 executions are shown, the window starts 7 days earlier, the 10-day-old
+  execution is excluded from activity but still included in cumulative coverage,
+  and 7 daily rows are rendered
+- Pass/Fail: PASS.
+
+### Test Case 2005.8: Invalid window and Refresh
+- Given a loaded report
+- When Window is set to 366 and Apply is clicked, then set back to 30 and Refresh
+  is clicked
+- Then a localized HTTP 400 error card with code `invalid_request` is shown,
+  Export CSV is unavailable in the error state, and Refresh restores the 30-day
+  report with the error card removed
+- Pass/Fail: PASS.
+
+### Test Case 2005.9: CSV export
+- Given a loaded report
+- When Export CSV is clicked and the generated blob is inspected
+- Then a UTF-8 BOM CSV with semicolon separators, localized title/header and one
+  row per timeline day is produced, the file is named
+  `execution-timeline-80001.csv`, and the toast reads `CSV exported.`
+- Pass/Fail: PASS.
+
+### Test Case 2005.10: Close button
+- Given the report opened standalone
+- When Close is clicked
+- Then the browser navigates to `/index.php` with no console exception
+- Pass/Fail: PASS.
+
+### Test Case 2005.11: Missing test plan
+- Given an authenticated admin session
+- When the screen is opened with only `tproject_id`
+- Then a localized HTTP 400 card with `missing_tplan_id` is shown and the report
+  body stays hidden
+- Pass/Fail: PASS.
+
+### Test Case 2005.12: Unknown test plan
+- Given an authenticated admin session
+- When the screen is opened with `tplan_id=999999`
+- Then the BFF returns HTTP 404 `tplan_not_found` and the localized
+  `Report unavailable` card is rendered
+- Pass/Fail: PASS.
+
+### Test Case 2005.13: Project mismatch
+- Given an authenticated admin session
+- When `tplan_id=80001` is opened with `tproject_id=80009`
+- Then the BFF returns HTTP 404 `project_mismatch` before any data is disclosed
+- Pass/Fail: PASS.
+
+### Test Case 2005.14: Invalid scoped filters
+- Given an authenticated admin session and plan 80001
+- When the BFF receives unknown build/platform/tester ids or an unknown status
+- Then HTTP 400 `invalid_request` is returned with messages stating the id does
+  not belong to the project/plan or that the status is invalid
+- Pass/Fail: PASS.
+
+### Test Case 2005.15: Unknown action and method
+- Given an authenticated admin session
+- When `action=bogus` is requested and POST is sent with the AJAX header
+- Then the BFF returns 400 `invalid_request` and 405 `method_not_allowed`
+  respectively, with `Allow: GET, HEAD`
+- Pass/Fail: PASS.
+
+### Test Case 2005.16: Unauthenticated access
+- Given an isolated browser context with no session
+- When the BFF is called and the screen is opened
+- Then the BFF returns 401 `not_authenticated` and the screen redirects to
+  `login.php?note=expired` with the report URL as destination
+- Pass/Fail: PASS.
+
+### Test Case 2005.17: Permission denied
+- Given user `tlviewer` with role 3 (no `testplan_metrics`)
+- When init/report are called and the screen is opened for plan 80001
+- Then both actions return HTTP 403 `no_right`, an AUDIT event is logged, and the
+  localized `Access denied` card is rendered
+- Pass/Fail: PASS.
+
+### Test Case 2005.18: Plan with no assigned links
+- Given fixture plan 80003 with no test-case links
+- When the report is opened
+- Then the `no_data` banner is shown, all KPIs are zero, Export CSV is disabled
+  and no exception is raised
+- Pass/Fail: PASS.
+
+### Test Case 2005.19: Console and Event Viewer
+- Given all default, filtered, error, empty and no-right browser runs
+- When the browser console and `events` table are inspected
+- Then the only console error is the expected HTTP 400 from the deliberate
+  invalid-window test, and all 11 event rows are AUDIT level with 0 Error/Warning
+  entries
+- Pass/Fail: PASS.
+
+### Test Case 2005.20: i18n, syntax and ledger gates
+- Given all 10 client bundles, 19 server locale bundles and the touched PHP files
+- When `python3 -m json.tool`, `bash ai/verify_i18n_coverage.sh`, `php -l`,
+  `bash ai/verify_changelog_coverage.sh` and
+  `TLU_REQUIRE_SUITE="Issue #2005" bash ai/verify_test_suites.sh` are run
+- Then all files parse, i18n coverage is 9/9, the CHANGELOG ledger loses no refs,
+  and the shared suite gate passes with no pre-existing suite missing
+- Pass/Fail: PASS.
+
+### Test Case 2005.21: Screenshots
+- Given the browser verification runs
+- When `docs/screenshots/issue-2005-executiontimeline-{normal,filters,csv,empty,norights,aside}.png` are checked
+- Then all six current-state screenshots exist and show the verified states
+- Pass/Fail: PASS.
