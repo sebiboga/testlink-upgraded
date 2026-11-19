@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test plan execution timeline: daily activity, results and cumulative coverage (TestLink 2.0.1)">
+<title>Test Plan Execution Timeline</title>
+<!--
+  Test Plan Execution Timeline (Refs #2005).
+  Net-new 2.0.1 report: 1.9.20 shows a single test case's execution history but
+  no chronological plan-wide view. Data: api/executiontimeline/index.php.
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select, .toolbar input { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.toolbar input { width: 70px; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 140px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 118px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 21px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card .u { font-size: 11px; color: #5c6470; font-weight: 400; margin-left: 3px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.info { background: #d7f0ee; color: #17756e; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.weekend { background: #fafafa; color: #6b7280; }
+.bar { display: inline-block; height: 8px; background: #4ECDC4; border-radius: 4px; vertical-align: middle; margin-right: 6px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-chart-line" style="margin-right:8px;"></i>
+  <span data-i18n="exlt.title">Test Plan Execution Timeline</span>
+  <span class="sub" data-i18n="exlt.subtitle">daily activity and cumulative coverage of one test plan</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="exlt.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="exlt.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="exlt.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="exlt.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <label for="selTester" data-i18n="exlt.tester">Tester</label>
+  <select id="selTester"></select>
+  <label for="selStatus" data-i18n="exlt.status">Result</label>
+  <select id="selStatus"></select>
+  <label for="inpDays" data-i18n="exlt.window">Window (days)</label>
+  <input type="number" id="inpDays" min="1" max="365" value="30">
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="exlt.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="exlt.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="exlt.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxStatus">Result</span><span class="v" id="ctxStatus">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxTester">Tester</span><span class="v" id="ctxTester">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="exlt.ctxWindow">Window</span><span class="v" id="ctxWindow">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="exlt.summaryTitle">Timeline summary</span></h3>
+    <div class="cards">
+      <div class="card"><div class="k" data-i18n="exlt.kpiAssigned">Assigned links</div><div class="v" id="sAssigned">0</div></div>
+      <div class="card good"><div class="k" data-i18n="exlt.kpiExecuted">Executed links</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="exlt.kpiRemaining">Remaining</div><div class="v" id="sRemaining">0</div></div>
+      <div class="card info"><div class="k" data-i18n="exlt.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card info"><div class="k" data-i18n="exlt.kpiExecutions">Executions</div><div class="v" id="sExecutions">0</div></div>
+      <div class="card good"><div class="k" data-i18n="exlt.kpiPassed">Passed</div><div class="v" id="sPassed">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="exlt.kpiFailed">Failed</div><div class="v" id="sFailed">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="exlt.kpiBlocked">Blocked</div><div class="v" id="sBlocked">0</div></div>
+      <div class="card info"><div class="k" data-i18n="exlt.kpiPassRate">Pass rate</div><div class="v"><span id="sPassRate">0</span><span class="u">%</span></div></div>
+      <div class="card"><div class="k" data-i18n="exlt.kpiActiveDays">Active days</div><div class="v" id="sActiveDays">0</div></div>
+      <div class="card"><div class="k" data-i18n="exlt.kpiAvgPerDay">Avg / active day</div><div class="v" id="sAvgPerDay">0</div></div>
+      <div class="card"><div class="k" data-i18n="exlt.kpiFirstExecution">First execution</div><div class="v" id="sFirst">&mdash;</div></div>
+      <div class="card"><div class="k" data-i18n="exlt.kpiLastExecution">Last execution</div><div class="v" id="sLast">&mdash;</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblTimeline" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="exlt.tableCaption">Daily execution activity and cumulative coverage of the test plan</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="exlt.colDay">Day</th>
+          <th scope="col" data-i18n="exlt.colExecutions">Executions</th>
+          <th scope="col" data-i18n="exlt.colPassed">Passed</th>
+          <th scope="col" data-i18n="exlt.colFailed">Failed</th>
+          <th scope="col" data-i18n="exlt.colBlocked">Blocked</th>
+          <th scope="col" data-i18n="exlt.colOther">Other</th>
+          <th scope="col" data-i18n="exlt.colVersions">Versions</th>
+          <th scope="col" data-i18n="exlt.colTesters">Testers</th>
+          <th scope="col" data-i18n="exlt.colNewly">First runs</th>
+          <th scope="col" data-i18n="exlt.colCoverage">Cumulative coverage</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="footer"><span data-i18n="footers.executionTimeline"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/executiontimeline/index.php';
+var currentData = null;
+var dtTimeline = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'exlt.deniedTitle', body: 'exlt.deniedBody' },
+    session_expired:   { cls: 'deny', title: 'exlt.deniedTitle', body: 'exlt.expiredBody' },
+    no_right:          { cls: 'deny', title: 'exlt.deniedTitle', body: 'exlt.noRightBody' },
+    tplan_not_found:   { cls: 'warn', title: 'exlt.notFoundTitle', body: 'exlt.notFoundBody' },
+    project_mismatch:  { cls: 'warn', title: 'exlt.notFoundTitle', body: 'exlt.mismatchBody' },
+    invalid_request:   { cls: 'warn', title: 'exlt.badRequestTitle', body: 'exlt.badRequestBody' },
+    method_not_allowed:{ cls: 'warn', title: 'exlt.badRequestTitle', body: 'exlt.badRequestBody' }
+  };
+  var m = map[code] || { cls: 'warn', title: 'exlt.serverErrorTitle', body: 'exlt.serverErrorBody' };
+  var detail = (!map[code] && rawMessage) ? '<div class="code">' + esc(rawMessage) + '</div>' : '';
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('exlt.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+
+function dtLang(emptyKey) {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t(emptyKey)
+  };
+}
+
+function filterLabel(group, id) {
+  if (!id || id === '0') { return TLi18n.t('exlt.all'); }
+  var found = '\u2014';
+  $.each(currentData && currentData.filters ? (currentData.filters[group] || []) : [], function (i, item) {
+    if (String(item.id) === String(id)) { found = item.name; }
+  });
+  return found;
+}
+
+function statusLabel(key) {
+  var map = {
+    passed: 'bcmp.status.passed', failed: 'bcmp.status.failed',
+    blocked: 'bcmp.status.blocked', not_run: 'exlt.statusNotRun',
+    not_available: 'exlt.statusNotAvailable', unknown: 'exlt.statusUnknown'
+  };
+  return TLi18n.t(map[key] || 'exlt.statusOther');
+}
+
+function renderBanner(s) {
+  var cls = 'info', icon = 'fa-info-circle', key = 'exlt.bannerNoData';
+  if (s.verdict === 'complete') { cls = 'good'; icon = 'fa-check-circle'; key = 'exlt.bannerComplete'; }
+  else if (s.verdict === 'idle') { cls = 'warn'; icon = 'fa-clock'; key = 'exlt.bannerIdle'; }
+  else if (s.verdict === 'active') { cls = 'good'; icon = 'fa-chart-line'; key = 'exlt.bannerActive'; }
+  $('#bannerBox').html('<div class="banner ' + cls + '"><i class="fa ' + icon + '"></i><span>'
+    + esc(TLi18n.t(key, { count: s.executions, days: s.window_days })) + '</span></div>');
+}
+
+function renderSummary(data) {
+  var s = data.summary;
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxBuild').text(filterLabel('builds', data.filter.build_id));
+  $('#ctxPlatform').text(filterLabel('platforms', data.filter.platform_id));
+  $('#ctxTester').text(filterLabel('testers', data.filter.tester_id));
+  $('#ctxStatus').text(data.filter.status ? statusLabel(data.filter.status) : TLi18n.t('exlt.allStatuses'));
+  $('#ctxWindow').text((data.filter.days || 30) + ' ' + TLi18n.t('exlt.days') + ' ('
+    + (s.window_start || '-') + ')');
+  $('#sAssigned').text(s.assigned);
+  $('#sExecuted').text(s.executed);
+  $('#sRemaining').text(s.remaining);
+  $('#sCoverage').text(s.coverage_pct);
+  $('#sExecutions').text(s.executions);
+  $('#sPassed').text(s.passed);
+  $('#sFailed').text(s.failed);
+  $('#sBlocked').text(s.blocked);
+  $('#sPassRate').text(s.pass_rate);
+  $('#sActiveDays').text(s.active_days);
+  $('#sAvgPerDay').text(s.avg_per_active_day);
+  $('#sFirst').text(s.first_execution || '\u2014');
+  $('#sLast').text(s.last_execution || '\u2014');
+}
+
+function statusPill(key, qty) {
+  var cls = key === 'passed' ? 'good' : (key === 'failed' ? 'bad' : (key === 'blocked' ? 'warn' : 'info'));
+  return '<span class="pill ' + cls + '" title="' + esc(statusLabel(key)) + '">' + esc(qty) + '</span>';
+}
+
+function renderTable(data) {
+  var rows = '';
+  $.each(data.timeline, function (i, a) {
+    var statuses = a.statuses || {};
+    var p = statuses.passed || 0, f = statuses.failed || 0, b = statuses.blocked || 0;
+    var other = 0;
+    $.each(statuses, function (key, qty) {
+      if (key !== 'passed' && key !== 'failed' && key !== 'blocked') { other += qty; }
+    });
+    var cov = Math.max(0, Math.min(100, Number(a.coverage_pct) || 0));
+    rows += '<tr' + (a.is_weekend ? ' class="weekend"' : '') + '>'
+      + '<td>' + esc(a.day) + '</td>'
+      + '<td class="num"><span class="pill info">' + esc(a.executions) + '</span></td>'
+      + '<td class="num">' + statusPill('passed', p) + '</td>'
+      + '<td class="num">' + statusPill('failed', f) + '</td>'
+      + '<td class="num">' + statusPill('blocked', b) + '</td>'
+      + '<td class="num">' + (other > 0 ? esc(other) : '&mdash;') + '</td>'
+      + '<td class="num">' + esc(a.versions) + '</td>'
+      + '<td class="num">' + esc(a.testers) + '</td>'
+      + '<td class="num">' + (a.newly_executed > 0
+          ? '<span class="pill good">' + esc(a.newly_executed) + '</span>' : '&mdash;') + '</td>'
+      + '<td class="num"><span class="bar" style="width:' + Math.round(cov / 4) + 'px;"></span>'
+        + esc(cov) + '%</td>'
+      + '</tr>';
+  });
+  if (dtTimeline) { dtTimeline.destroy(); dtTimeline = null; }
+  if (rows === '') {
+    $('#tblTimeline tbody').html('<tr><td colspan="10" style="text-align:center;">'
+      + esc(TLi18n.t('exlt.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tblTimeline tbody').html(rows);
+  dtTimeline = $('#tblTimeline').DataTable({
+    paging: true, pageLength: 15, searching: true, info: true,
+    language: dtLang('exlt.noRows'),
+    order: [[0, 'desc']],
+    columnDefs: [{ targets: [1, 2, 3, 4, 5, 6, 7, 8, 9], className: 'num' }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tblTimeline').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'executionTimelineTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'executionTimelineTableSearch'); }
+    }
+  }, 0);
+}
+
+function fillFilters(filters, filter) {
+  var build = '<option value="0">' + esc(TLi18n.t('exlt.allBuilds')) + '</option>';
+  $.each(filters.builds || [], function (i, b) {
+    build += '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(filter && filter.build_id ? filter.build_id : 0));
+
+  var plat = '<option value="0">' + esc(TLi18n.t('exlt.allPlatforms')) + '</option>';
+  $.each(filters.platforms || [], function (i, p) {
+    plat += '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+
+  var tester = '<option value="0">' + esc(TLi18n.t('exlt.allTesters')) + '</option>';
+  $.each(filters.testers || [], function (i, t) {
+    tester += '<option value="' + esc(t.id) + '">' + esc(t.name) + '</option>';
+  });
+  $('#selTester').html(tester).val(String(filter && filter.tester_id ? filter.tester_id : 0));
+
+  var status = '<option value="">' + esc(TLi18n.t('exlt.allStatuses')) + '</option>';
+  $.each(filters.statuses || {}, function (key, code) {
+    status += '<option value="' + esc(key) + '">' + esc(statusLabel(key)) + '</option>';
+  });
+  $('#selStatus').html(status).val(filter && filter.status ? filter.status : '');
+  $('#inpDays').val(String(filter && filter.days ? filter.days : 30));
+}
+
+function baseParams() {
+  var params = { tplan_id: q('tplan_id') };
+  var tprojectId = q('tproject_id');
+  if (tprojectId && /^[0-9]+$/.test(String(tprojectId))) { params.tproject_id = tprojectId; }
+  return params;
+}
+
+function load() {
+  if (!q('tplan_id') || !/^[0-9]+$/.test(String(q('tplan_id')))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('exlt.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('exlt.badRequestBody', { status: 400 })) + '</div>'
+      + '<div class="code">missing_tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = baseParams();
+  params.action = 'report';
+  var b = $('#selBuild').val();
+  if (b && b !== '0') { params.build_id = b; }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.platform_id = p; }
+  var u = $('#selTester').val();
+  if (u && u !== '0') { params.tester_id = u; }
+  var st = $('#selStatus').val();
+  if (st) { params.status = st; }
+  var d = parseInt($('#inpDays').val(), 10);
+  if (!isNaN(d) && d > 0) { params.days = d; }
+
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      currentData = data;
+      $('#stateBox').html('');
+      $('#report').show();
+      fillFilters(data.filters, data.filter);
+      renderSummary(data);
+      renderBanner(data.summary);
+      renderTable(data);
+      $('#btnCsv').prop('disabled', !data.timeline || data.timeline.length === 0
+        || !data.summary || data.summary.assigned === 0);
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function loadInit() {
+  if (!q('tplan_id') || !/^[0-9]+$/.test(String(q('tplan_id')))) { load(); return; }
+  showLoading();
+  var params = baseParams();
+  params.action = 'init';
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      fillFilters(data.filters, data.filter);
+      load();
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function exportCsv() {
+  if (!currentData) { return; }
+  var d = currentData, s = d.summary || {}, lines = [];
+  lines.push(csvCell(TLi18n.t('exlt.title')));
+  lines.push(csvCell(TLi18n.t('exlt.ctxProject')) + ';' + csvCell(d.context.tproject_name));
+  lines.push(csvCell(TLi18n.t('exlt.ctxPlan')) + ';' + csvCell(d.context.tplan_name));
+  lines.push(csvCell(TLi18n.t('exlt.kpiAssigned')) + ';' + csvCell(s.assigned));
+  lines.push(csvCell(TLi18n.t('exlt.kpiExecuted')) + ';' + csvCell(s.executed));
+  lines.push(csvCell(TLi18n.t('exlt.kpiCoverage')) + ';' + csvCell(s.coverage_pct));
+  lines.push(csvCell(TLi18n.t('exlt.kpiExecutions')) + ';' + csvCell(s.executions));
+  lines.push(csvCell(TLi18n.t('exlt.kpiPassed')) + ';' + csvCell(s.passed));
+  lines.push(csvCell(TLi18n.t('exlt.kpiFailed')) + ';' + csvCell(s.failed));
+  lines.push(csvCell(TLi18n.t('exlt.kpiBlocked')) + ';' + csvCell(s.blocked));
+  lines.push(csvCell(TLi18n.t('exlt.kpiPassRate')) + ';' + csvCell(s.pass_rate));
+  lines.push('');
+  var head = ['colDay', 'colExecutions', 'colPassed', 'colFailed', 'colBlocked',
+              'colOther', 'colVersions', 'colTesters', 'colNewly', 'colCoverage']
+    .map(function (k) { return csvCell(TLi18n.t('exlt.' + k)); }).join(';');
+  lines.push(head);
+  $.each(d.timeline || [], function (i, a) {
+    var st = a.statuses || {};
+    var other = 0;
+    $.each(st, function (key, qty) {
+      if (key !== 'passed' && key !== 'failed' && key !== 'blocked') { other += qty; }
+    });
+    lines.push([a.day, a.executions, st.passed || 0, st.failed || 0, st.blocked || 0,
+      other, a.versions, a.testers, a.newly_executed, a.coverage_pct].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'execution-timeline-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('exlt.csvDone'));
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('exlt.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
