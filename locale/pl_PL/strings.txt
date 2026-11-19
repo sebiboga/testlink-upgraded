@@ -3922,3 +3922,4 @@ $TLS_link_report_platform_matrix = "Macierz pokrycia platform planu testów"; //
 $TLS_link_report_tester_build_matrix = "Macierz wykonań tester × kompilacja planu testów"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Macierz wyników przypadek testowy × kompilacja planu testów"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
 $TLS_link_report_unassigned_tests = "Testy bez przypisanego testera"; // Test Plan Unassigned Tests report (Refs #2007)
+$TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)

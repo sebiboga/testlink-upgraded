@@ -3791,3 +3791,4 @@ $TLS_link_report_platform_matrix = "Testplan-Plattform-Abdeckungsmatrix"; // Tes
 $TLS_link_report_tester_build_matrix = "Tester- × Build-Ausführungsmatrix des Testplans"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "Testfall- × Build-Ergebnismatrix des Testplans"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
 $TLS_link_report_unassigned_tests = "Nicht zugewiesene Testfälle"; // Test Plan Unassigned Tests report (Refs #2007)
+$TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)

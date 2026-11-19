@@ -783,6 +783,16 @@ $tlCfg->reports_list['unassigned_tests'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2011: Test Plan Linked Defects (net-new). The 1.9.20 execution bug
+// links were only visible one execution at a time; this read-only report
+// groups them by defect with build/platform/result filters and CSV.
+$tlCfg->reports_list['linked_defects'] = array(
+	'title' => 'link_report_linked_defects',
+	'url' => 'gui/templates/results/linkedDefects.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

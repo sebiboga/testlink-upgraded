@@ -4634,3 +4634,4 @@ $TLS_link_report_platform_matrix = "テスト計画プラットフォームカ�
 $TLS_link_report_tester_build_matrix = "テストプランのテスター × ビルド実行マトリクス"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "テストプランのテストケース × ビルド結果マトリクス"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
 $TLS_link_report_unassigned_tests = "未割り当てテスト"; // Test Plan Unassigned Tests report (Refs #2007)
+$TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)

@@ -2524,3 +2524,4 @@ $TLS_link_report_platform_matrix = "테스트 계획 플랫폼 커버리지 매�
 $TLS_link_report_tester_build_matrix = "테스트 계획 테스터 × 빌드 실행 매트릭스"; // Test Plan Tester x Build Execution Matrix report (Refs #1997)
 $TLS_link_report_tc_build_matrix = "테스트 계획 테스트 케이스 × 빌드 결과 매트릭스"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
 $TLS_link_report_unassigned_tests = "할당되지 않은 테스트"; // Test Plan Unassigned Tests report (Refs #2007)
+$TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)

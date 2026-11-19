@@ -2745,6 +2745,12 @@ function getActions(&$gui,$baseURL) {
   $actions->unassignedTests =
     "/gui/templates/results/unassignedTests.html?{$ctx}";
 
+  // Refs #2011: Test Plan Linked Defects report (net-new screen).
+  // Defects linked to this plan's executions, grouped by defect with
+  // build/platform/result re-scoping. Backed by api/linkeddefects.
+  $actions->linkedDefects =
+    "/gui/templates/results/linkedDefects.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

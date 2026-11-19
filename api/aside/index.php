@@ -339,6 +339,11 @@ if ($tplan_id > 0) {
                 // with no active tester, build/platform filterable).
                 $hrefR = '/gui/templates/results/unassignedTests.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_linked_defects') {
+                // Refs #2011: Test Plan Linked Defects (execution bug links
+                // grouped by defect, with build/platform/result filters).
+                $hrefR = '/gui/templates/results/linkedDefects.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone
