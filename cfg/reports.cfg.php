@@ -611,6 +611,17 @@ $tlCfg->reports_list['execution_ageing'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2005: Test Plan Execution Timeline (net-new report). 1.9.20 exposes
+// only one test case's execution history; this report shows the whole plan's
+// daily activity, result split, testers and cumulative coverage. Backed by
+// the api/executiontimeline BFF (init/report), modern screen only.
+$tlCfg->reports_list['execution_timeline'] = array(
+	'title' => 'link_report_execution_timeline',
+	'url' => 'gui/templates/results/executionTimeline.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #1983: Test Plan Completion Forecast (net-new report; 1.9.20/2.0.1
 // ship progress history (execBurnDown) but no forward-looking answer to
 // "will this plan finish by its milestone deadline?"). Velocity over a

@@ -2733,6 +2733,12 @@ function getActions(&$gui,$baseURL) {
   $actions->executionAgeing =
     "/gui/templates/results/executionAgeing.html?{$ctx}";
 
+  // Refs #2005: Test Plan Execution Timeline report (net-new screen).
+  // Chronological plan-wide activity: daily executions and results, testers,
+  // first runs and cumulative coverage. Backed by api/executiontimeline.
+  $actions->executionTimeline =
+    "/gui/templates/results/executionTimeline.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

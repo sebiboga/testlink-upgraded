@@ -193,6 +193,8 @@ $bff = function ($action) use ($db, $user) {
             'blocked_ageing' => 'gui/templates/results/blockedAgeing.html',
             // Refs #1989: Test Plan Execution Ageing report.
             'execution_ageing' => 'gui/templates/results/executionAgeing.html',
+            // Refs #2005: Test Plan Execution Timeline report.
+            'execution_timeline' => 'gui/templates/results/executionTimeline.html',
             // Refs #1986: Test Plan Test Case Version Churn report.
             'version_churn' => 'gui/templates/results/versionChurn.html',
             // Refs #1988: Test Plan Execution Frequency / re-run analysis.

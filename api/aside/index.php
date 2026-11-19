@@ -329,6 +329,11 @@ if ($tplan_id > 0) {
                 // cases have gone stale, bucketed fresh/aging/stale/dormant).
                 $hrefR = '/gui/templates/results/executionAgeing.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_execution_timeline') {
+                // Refs #2005: Test Plan Execution Timeline (daily activity,
+                // result split and cumulative coverage of the whole plan).
+                $hrefR = '/gui/templates/results/executionTimeline.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone
