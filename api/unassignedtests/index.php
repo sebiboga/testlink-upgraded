@@ -262,6 +262,7 @@ if ($platformId > 0) {
 }
 $execSql .= " ORDER BY e.execution_ts ASC, e.id ASC";
 $lastExec = array();
+$lastExecAny = array();
 $execCounts = array();
 $execRs = $db->get_recordset($execSql);
 if (is_array($execRs)) {
@@ -269,6 +270,7 @@ if (is_array($execRs)) {
         $tcv = intval($e['tcversion_id']);
         $plat = intval($e['platform_id']);
         $lastExec[$tcv . '|' . $plat] = $e;
+        $lastExecAny[$tcv] = $e;
         if (!isset($execCounts[$tcv])) { $execCounts[$tcv] = 0; }
         $execCounts[$tcv]++;
     }
@@ -321,7 +323,9 @@ foreach ($featureRs as $r) {
     $assignees = isset($assignCounts[$fid]) ? count($assignCounts[$fid]) : 0;
     $isUnassigned = ($assignees === 0);
 
-    $e = isset($lastExec[$tcv . '|' . $pinned]) ? $lastExec[$tcv . '|' . $pinned] : null;
+    $e = ($pinned === 0 && isset($lastExecAny[$tcv]))
+        ? $lastExecAny[$tcv]
+        : (isset($lastExec[$tcv . '|' . $pinned]) ? $lastExec[$tcv . '|' . $pinned] : null);
     if ($e === null && $pinned !== 0 && isset($lastExec[$tcv . '|0'])) {
         $e = $lastExec[$tcv . '|0'];
     }
@@ -343,6 +347,10 @@ foreach ($featureRs as $r) {
         continue;
     }
 
+    $level = function_exists('priority_to_level')
+        ? intval(priority_to_level(intval($r['urgency']))) : MEDIUM;
+    $priority = $level >= HIGH ? 'high' : ($level >= MEDIUM ? 'medium' : 'low');
+
     $rows[] = array(
         'feature_id' => $fid,
         'tcase_id' => intval($r['tcase_id']),
@@ -353,8 +361,7 @@ foreach ($featureRs as $r) {
         'suite_name' => uatDecode((string)($r['suite_name'] ?: '-')),
         'platform_id' => $pinned,
         'platform_name' => ($pinned > 0 && isset($platformNames[$pinned])) ? $platformNames[$pinned] : '',
-        'priority' => function_exists('priority_to_level')
-            ? (string)priority_to_level(intval($r['urgency'])) : 'medium',
+        'priority' => $priority,
         'assignees' => $assignees,
         'unassigned' => $isUnassigned,
         'executions' => isset($execCounts[$tcv]) ? $execCounts[$tcv] : 0,
