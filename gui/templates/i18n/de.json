@@ -11881,7 +11881,7 @@
   "uat.kpiAssigned": "Zugewiesene Versionen",
   "uat.kpiCovered": "Mit Tester",
   "uat.kpiFailed": "Unassigned failed",
-  "uat.kpiNever": "Unassigned, never run",
+  "uat.kpiNever": "Unassigned, no run in scope",
   "uat.kpiPassed": "Unassigned passed",
   "uat.kpiSuites": "Suites affected",
   "uat.kpiUnassigned": "Ohne Tester",

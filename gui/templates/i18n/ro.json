@@ -11881,7 +11881,7 @@
   "uat.kpiAssigned": "Versiuni atribuite",
   "uat.kpiCovered": "Cu tester",
   "uat.kpiFailed": "Neatribuite eșuate",
-  "uat.kpiNever": "Neatribuite, neexecutate",
+  "uat.kpiNever": "Neatribuite, fără rulări în contextul filtrului",
   "uat.kpiPassed": "Neatribuite trecute",
   "uat.kpiSuites": "Suite afectate",
   "uat.kpiUnassigned": "Fără tester",
