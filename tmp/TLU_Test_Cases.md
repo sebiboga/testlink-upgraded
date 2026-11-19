@@ -48488,3 +48488,29 @@ Scope: net-new read-only report over a test plan's execution bug links. Fixture 
 - When the console, `events` table and the four captured screenshots are inspected
 - Then there are no console Error/Warning messages, no new Error/Warning Event Viewer rows, and the normal/filters/detail/empty/no-right screenshots exist
 - Pass/Fail: PASS.
+
+## Issue #2011 (code review fixes) — Test Plan Linked Defects report
+
+### Test Case 2011r.1: Session-expired state clears stale report
+- Given a loaded report with KPIs and an Export CSV button enabled
+- When a subsequent report request answers 401 `session_expired`
+- Then the shared state card shows the localized session-expired message and the KPI strip, DataTable, verdict and Export CSV button are cleared
+- Pass/Fail: PASS.
+
+### Test Case 2011r.2: Invalid-parameter state clears stale report
+- Given a loaded report with visible rows
+- When a request answers 400 `invalid_parameter`
+- Then the localized invalid-request card replaces the report instead of rendering above stale rows
+- Pass/Fail: PASS.
+
+### Test Case 2011r.3: Detail screenshot evidence
+- Given the defect detail modal opened for BUG-100
+- When `docs/screenshots/issue-2011-linkeddefects-detail.png` is inspected
+- Then the screenshot contains the modal with its three linked executions and is mirrored to the wiki page
+- Pass/Fail: PASS.
+
+### Test Case 2011r.4: Recorded measurement corrections
+- Given the original measurements recorded in 2011.2, 2011.19 and 2011.22
+- When the code review corrections are appended
+- Then the KPI order is defects/links/executions/cases/builds/failed defects/blocked links/pass rate (3/6/5/3/2/1/2/16.7%), the i18n keys are 75 `ldf.*` keys plus `footers.linkedDefects`, and five screenshots are captured
+- Pass/Fail: PASS.

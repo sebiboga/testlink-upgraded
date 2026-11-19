@@ -154,9 +154,13 @@ function toast(msg, isErr) {
   setTimeout(function(){ $el.fadeOut(300); }, 3000);
 }
 function showState(code) {
+  $('#loadingBox').hide();
+  resetView();
   var map = {
     invalid_request: ['ldf.errBadRequest', 'Invalid request', 'ldf.errBadRequestBody', 'The report parameters are not valid.'],
+    invalid_parameter: ['ldf.errBadRequest', 'Invalid request', 'ldf.errBadRequestBody', 'The report parameters are not valid.'],
     not_authenticated: ['ldf.errSession', 'Session expired', 'ldf.errSessionBody', 'Please sign in again.'],
+    session_expired: ['ldf.errSession', 'Session expired', 'ldf.errSessionBody', 'Please sign in again.'],
     no_right: ['ldf.errNoRight', 'No permission', 'ldf.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
     tplan_not_found: ['ldf.errNotFound', 'Test plan not found', 'ldf.errNotFoundBody', 'The requested test plan does not exist.'],
     project_not_found: ['ldf.errNotFound', 'Test plan not found', 'ldf.errNotFoundBody', 'The requested test plan does not exist.'],
