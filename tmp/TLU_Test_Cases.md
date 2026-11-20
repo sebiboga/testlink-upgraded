@@ -48514,3 +48514,36 @@ Scope: net-new read-only report over a test plan's execution bug links. Fixture 
 - When the code review corrections are appended
 - Then the KPI order is defects/links/executions/cases/builds/failed defects/blocked links/pass rate (3/6/5/3/2/1/2/16.7%), the i18n keys are 75 `ldf.*` keys plus `footers.linkedDefects`, and five screenshots are captured
 - Pass/Fail: PASS.
+
+## Issue #2012 — Test Plan Step Coverage (`stepCoverage`) — BFF `api/stepcoverage` + Dashio screen + bug #2013
+
+Fixture: `tmp/fixtures_2012.php` — project STPC2012 (id 1), plan STPC Plan (id 2), empty plan STPC Empty Plan (id 3), builds 1/2, platforms 1/2, 5 assigned versions (complete, partial, missing-expected, no-steps, markup-name), 3 executions, no-right user `stpc2012norights`. Browser: Chrome devtools against `http://localhost:8082`, admin/admin.
+
+| # | Case | Steps / input | Expected | Result |
+|---|---|---|---|---|
+| 2012.1 | Screen load | `stepCoverage.html?tproject_id=1&tplan_id=2` | Header, context STPC Plan / STPC2012, 8 KPIs, 5 rows, verdict banner | PASS |
+| 2012.2 | KPI math | default report | 5 assigned / 5 in scope / 4 with steps / 1 without / 6 design steps / 2 missing expected / 66.7% expected coverage / 3 executed | PASS |
+| 2012.3 | Completeness classes | read the Completeness column | Complete / Partial / Missing expected result / No steps / Complete as designed | PASS |
+| 2012.4 | Latest execution | read Result + build/platform columns | Passed/Build 1, Failed/Build 2/Platform A, Blocked/Build 2, Not run for the other two | PASS |
+| 2012.5 | Step detail modal | click the first test-case link | Modal with 2 steps, actions and expected results, correct suite path | PASS (after #2013 fix) |
+| 2012.6 | Detail — no steps | open the no-steps version | Empty "This version has no design steps" | PASS |
+| 2012.7 | Scope filter | `scope=no_steps` | 1 row, KPI in scope = 1, verdict "None of these test cases has design steps" | PASS |
+| 2012.8 | Scope filter | `scope=missing_expected` | 2 rows, KPI missing = 2 | PASS |
+| 2012.9 | Result filter | `status=f` | 1 row (partial case), executed = 1 | PASS |
+| 2012.10 | Build filter | `build_id=1` | All 5 rows remain in scope, executed = 1 | PASS |
+| 2012.11 | Platform filter | `platform_id=1` (Platform A) | Platform-A execution shown; platform-less links remain included | PASS |
+| 2012.12 | Stored-markup escaping | version named `<b>STPC Markup</b> Case` with `<img src=x onerror=alert(1)>` in the step | Literal text in table, modal and detail API; no script execution; console clean | PASS |
+| 2012.13 | CSV export | click Export CSV, inspect BFF `action=csv` | BOM, `;` delimiter, header + 1 row for `scope=no_steps`, formula guard on all cells | PASS |
+| 2012.14 | Refresh button | click Refresh | Filters rebuilt from init and report reloaded, no stale state | PASS |
+| 2012.15 | Empty plan | `tplan_id=3` | Zero KPIs, no_data verdict and empty box, CSV disabled | PASS |
+| 2012.16 | No-right user | login `stpc2012norights`, open report | 403 `no_right` state card, no data rendered | PASS |
+| 2012.17 | Anonymous | unauthenticated browser fetch | 401 `not_authenticated` | PASS |
+| 2012.18 | Unknown plan | `tplan_id=99999` | 404 `tplan_not_found` | PASS |
+| 2012.19 | Cross-project assertion | `tplan_id=2&tproject_id=999` | 404 `project_mismatch` | PASS |
+| 2012.20 | Invalid filters/action | `status=bogus`, `scope=bogus`, `build_id=999`, `platform_id=999`, `action=bogus` | 400 `invalid_request` for each | PASS |
+| 2012.21 | Wrong verb / detail scope | POST on init; `action=detail&tcversion_id=99999` | 405 `method_not_allowed`; 404 `tcversion_not_found` | PASS |
+| 2012.22 | Romanian locale | switch to Română | All dynamic labels translated (KPIs, badges, filters, verdict, DataTables); no raw `stpc.*` keys | PASS |
+| 2012.23 | Reports menu | expand ASIDE → Reports | "Test Plan Step Coverage" entry points to `stepCoverage.html?tproject_id=1&tplan_id=3` | PASS |
+| 2012.24 | i18n gate | `bash ai/verify_i18n_coverage.sh` | 9/9 bundles PASS, 12141 keys | PASS |
+| 2012.25 | Bug #2013 regression | re-read Suite column after fix | `STPC Suite complete` etc. — no test-case name suffix | PASS |
+| 2012.26 | Event Viewer | query `events` after the full pass | Only 8 AUDIT rows; 0 new Error/Warning | PASS |
