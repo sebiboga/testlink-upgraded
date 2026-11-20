@@ -87,10 +87,10 @@ function stpcPath($db, $tbl, $nodeId, $cache)
             break;
         }
         $r = $row[0];
-        if (intval($r['node_type_id']) !== 1) {
+        $parent = intval($r['parent_id']);
+        if ($depth > 0 && intval($r['node_type_id']) !== 1) {
             $parts[] = stpcDecode($r['name']);
         }
-        $parent = intval($r['parent_id']);
         if (intval($r['node_type_id']) === 1 || $parent === $current) {
             break;
         }
