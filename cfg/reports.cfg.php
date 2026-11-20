@@ -802,6 +802,15 @@ $tlCfg->reports_list['step_coverage'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2014: Test Plan Execution Notes Coverage (net-new). 1.9.20 stores
+// execution notes but never answers which assigned cases carry evidence.
+$tlCfg->reports_list['exec_notes_coverage'] = array(
+	'title' => 'link_report_exec_notes_coverage',
+	'url' => 'gui/templates/results/execNotesCoverage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

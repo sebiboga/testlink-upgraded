@@ -349,6 +349,11 @@ if ($tplan_id > 0) {
                 // completeness of the plan's assigned test-case versions).
                 $hrefR = '/gui/templates/results/stepCoverage.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_exec_notes_coverage') {
+                // Refs #2014: Test Plan Execution Notes Coverage (plain-text
+                // execution-note evidence for the plan's assigned versions).
+                $hrefR = '/gui/templates/results/execNotesCoverage.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone

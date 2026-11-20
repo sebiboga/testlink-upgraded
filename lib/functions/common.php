@@ -2756,6 +2756,11 @@ function getActions(&$gui,$baseURL) {
   $actions->stepCoverage =
     "/gui/templates/results/stepCoverage.html?{$ctx}";
 
+  // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
+  // Which assigned test-case versions carry explanatory execution evidence.
+  $actions->execNotesCoverage =
+    "/gui/templates/results/execNotesCoverage.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

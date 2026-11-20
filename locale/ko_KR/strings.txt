@@ -2526,3 +2526,4 @@ $TLS_link_report_tc_build_matrix = "테스트 계획 테스트 케이스 × 빌�
 $TLS_link_report_unassigned_tests = "할당되지 않은 테스트"; // Test Plan Unassigned Tests report (Refs #2007)
 $TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)
 $TLS_link_report_step_coverage = "Test Plan Step Coverage"; // Test Plan Step Coverage report (Refs #2012)
+$TLS_link_report_exec_notes_coverage = "Test Plan Execution Notes Coverage"; // Test Plan Execution Notes Coverage report (Refs #2014)
