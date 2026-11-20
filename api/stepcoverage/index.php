@@ -290,12 +290,18 @@ foreach ($builds as $b) { $buildNames[$b['id']] = $b['name']; }
 $platformNames = array();
 foreach ($platforms as $p) { $platformNames[$p['id']] = $p['name']; }
 
-$stepRs = $db->get_recordset(
-    "SELECT s.id, s.step_number, s.actions, s.expected_results, s.active," .
-    "       nh.parent_id AS tcversion_id" .
-    " FROM {$tbl['tcsteps']} s" .
-    " JOIN {$tbl['nodes_hierarchy']} nh ON nh.id = s.id" .
-    " WHERE s.active = 1 ORDER BY nh.parent_id, s.step_number, s.id");
+$stepRs = array();
+if (count($versionIds) > 0) {
+    $stepSql =
+        "SELECT s.id, s.step_number, s.actions, s.expected_results, s.active," .
+        "       nh.parent_id AS tcversion_id" .
+        " FROM {$tbl['tcsteps']} s" .
+        " JOIN {$tbl['nodes_hierarchy']} nh ON nh.id = s.id" .
+        " WHERE s.active = 1 AND nh.parent_id IN (" .
+        implode(',', array_fill(0, count($versionIds), '%d')) . ")" .
+        " ORDER BY nh.parent_id, s.step_number, s.id";
+    $stepRs = $db->get_recordset(sprintf($stepSql, ...array_keys($versionIds)));
+}
 if (is_array($stepRs)) {
     foreach ($stepRs as $s) {
         $vid = intval($s['tcversion_id']);
@@ -308,13 +314,11 @@ if (is_array($stepRs)) {
         } else {
             $versions[$vid]['missing_expected']++;
         }
-        if (count($versions[$vid]['step_rows']) < 40) {
-            $versions[$vid]['step_rows'][] = array(
-                'step_number' => intval($s['step_number']),
-                'actions' => $actions,
-                'expected_results' => $expected,
-            );
-        }
+        $versions[$vid]['step_rows'][] = array(
+            'step_number' => intval($s['step_number']),
+            'actions' => $actions,
+            'expected_results' => $expected,
+        );
     }
 }
 
