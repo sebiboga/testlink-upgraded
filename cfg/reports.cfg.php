@@ -811,6 +811,13 @@ $tlCfg->reports_list['exec_notes_coverage'] = array(
 	'format' => 'format_html'
 );
 
+$tlCfg->reports_list['keyword_usage'] = array(
+	'title' => 'link_report_keyword_usage',
+	'url' => 'gui/templates/results/keywordUsage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

@@ -2761,6 +2761,9 @@ function getActions(&$gui,$baseURL) {
   $actions->execNotesCoverage =
     "/gui/templates/results/execNotesCoverage.html?{$ctx}";
 
+  $actions->keywordUsage =
+    "/gui/templates/results/keywordUsage.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

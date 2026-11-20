@@ -200,6 +200,9 @@ if ($tplan_id > 0) {
                 // Refs #1995: per-keyword coverage, pass rate and gap report.
                 $hrefR = '/gui/templates/results/keywordCoverage.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_keyword_usage') {
+                $hrefR = '/gui/templates/results/keywordUsage.html' .
+                         "?tproject_id={$tproject_id}";
             } else if ($rptItem['title'] == 'link_report_free_testcases_on_testproject') {
                 $hrefR = '/gui/templates/results/freeTestCases.html' .
                          "?tproject_id={$tproject_id}";
