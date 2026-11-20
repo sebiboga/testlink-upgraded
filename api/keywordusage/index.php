@@ -309,6 +309,7 @@ if ($action === 'detail') {
 }
 
 $byKeyword = array();
+$allSuites = array();
 foreach ($links as $link) {
     $kid = $link['keyword_id'];
     if (!isset($byKeyword[$kid])) {
@@ -320,6 +321,9 @@ foreach ($links as $link) {
     $byKeyword[$kid]['testcases'][$link['testcase_id']] = true;
     $byKeyword[$kid]['versions'][$link['tcversion_id']] = true;
     $byKeyword[$kid]['suites'][$link['suite_name']] = true;
+    if ($link['suite_name'] !== '') {
+        $allSuites[$link['suite_name']] = true;
+    }
     if ($link['modification_ts'] > $byKeyword[$kid]['last_activity']) {
         $byKeyword[$kid]['last_activity'] = $link['modification_ts'];
     }
@@ -403,6 +407,7 @@ $summary = array(
     'links_total' => $linkCount,
     'versions_total' => count($versions),
     'executions_total' => $execCount,
+    'suites_involved' => count($allSuites),
     'plans_total' => count($planIds),
     'builds_total' => $buildCount,
     'verdict' => $keywordTotal <= 0 ? 'no_keywords'

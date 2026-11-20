@@ -367,7 +367,7 @@ function showReport(payload) {
   $('#sLinks').text(s.links_total);
   $('#sVersions').text(s.versions_total);
   $('#sExecutions').text(s.executions_total);
-  $('#sSuites').text(payload.rows.reduce(function (sum, r) { return sum + Number(r.suites); }, 0));
+  $('#sSuites').text(Number(payload.summary.suites_involved) || 0);
   $('#bannerBox').html(bannerFor(s));
   $('#stateBox').html('');
   $('#report').show();
