@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Project Keyword Usage Inventory of TestLink 2.0.1 (Refs #2015)">
+<title>Project Keyword Usage Inventory</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 280px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 118px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card .u { font-size: 11px; color: #5c6470; font-weight: 400; margin-left: 3px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; white-space: nowrap; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.high { background: #1e7a34; }
+.badge-v.medium { background: #2a5fb8; }
+.badge-v.low { background: #b8860b; }
+.badge-v.unused { background: #6c757d; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { height: 6px; background: #eceef2; border-radius: 4px; overflow: hidden; margin-top: 4px; min-width: 70px; }
+.bar > span { display: block; height: 100%; background: #4ECDC4; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-body { padding: 18px 22px; }
+.modal-body table { width: 100%; font-size: 13px; }
+.modal-body th { color: #5c6470; font-size: 11px; text-transform: uppercase; text-align: left; padding: 6px 8px; }
+.modal-body td { padding: 7px 8px; border-top: 1px solid #eceef2; vertical-align: top; }
+</style>
+</head>
+<body>
+
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-tags" style="margin-right:8px;"></i>
+  <span data-i18n="kup.title">Project Keyword Usage Inventory</span>
+  <span class="sub" data-i18n="kup.subtitle">which keywords are actually used by this project's test cases</span>
+</div>
+
+<div class="toolbar">
+  <label for="selProject" data-i18n="kup.project">Test project</label>
+  <select id="selProject"></select>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="kup.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="kup.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selVerdict" data-i18n="kup.verdictFilter">Usage</label>
+  <select id="selVerdict">
+    <option value="all" data-i18n="kup.verdictAll">All keywords</option>
+    <option value="high" data-i18n="kup.verdictHigh">Broad</option>
+    <option value="medium" data-i18n="kup.verdictMedium">Partial</option>
+    <option value="low" data-i18n="kup.verdictLow">Sparse</option>
+    <option value="unused" data-i18n="kup.verdictUnused">Unused</option>
+  </select>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="kup.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="kup.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="kup.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="kup.ctxCases">Test cases</span><span class="v" id="ctxCases">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="kup.ctxBuilds">Builds</span><span class="v" id="ctxBuilds">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="kup.ctxPlans">Plans with tagged cases</span><span class="v" id="ctxPlans">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="kup.summaryTitle">Keyword usage summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="kup.kpiKeywords">Keywords</div><div class="v" id="sKeywords">0</div></div>
+      <div class="card good"><div class="k" data-i18n="kup.kpiUsed">Used</div><div class="v" id="sUsed">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="kup.kpiUnused">Unused</div><div class="v" id="sUnused">0</div></div>
+      <div class="card"><div class="k" data-i18n="kup.kpiCases">Test cases</div><div class="v" id="sCases">0</div></div>
+      <div class="card info"><div class="k" data-i18n="kup.kpiTagged">Tagged cases</div><div class="v" id="sTagged">0</div></div>
+      <div class="card info"><div class="k" data-i18n="kup.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card"><div class="k" data-i18n="kup.kpiLinks">Keyword links</div><div class="v" id="sLinks">0</div></div>
+      <div class="card"><div class="k" data-i18n="kup.kpiVersions">Versions</div><div class="v" id="sVersions">0</div></div>
+      <div class="card"><div class="k" data-i18n="kup.kpiExecutions">Executions</div><div class="v" id="sExecutions">0</div></div>
+      <div class="card"><div class="k" data-i18n="kup.kpiSuites">Suites involved</div><div class="v" id="sSuites">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="kupTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="kup.colKeyword">Keyword</th>
+          <th scope="col" data-i18n="kup.colCases">Test cases</th>
+          <th scope="col" data-i18n="kup.colVersions">Versions</th>
+          <th scope="col" data-i18n="kup.colSuites">Suites</th>
+          <th scope="col" data-i18n="kup.colPlans">Plans</th>
+          <th scope="col" data-i18n="kup.colExecutions">Executions</th>
+          <th scope="col" data-i18n="kup.colPassed">Passed</th>
+          <th scope="col" data-i18n="kup.colFailed">Failed</th>
+          <th scope="col" data-i18n="kup.colBlocked">Blocked</th>
+          <th scope="col" data-i18n="kup.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="kup.colActivity">Last activity</th>
+          <th scope="col" data-i18n="kup.colVerdict">Usage</th>
+          <th scope="col" data-i18n="kup.colActions">Details</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+</main>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="detailTitle"></h4>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.keywordUsage"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/keywordusage/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function q(name) {
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'kup.deniedTitle', body: 'kup.deniedBody' },
+    session_expired: { cls: 'deny', title: 'kup.deniedTitle', body: 'kup.expiredBody' },
+    no_right: { cls: 'deny', title: 'kup.deniedTitle', body: 'kup.noRightBody' },
+    project_not_found: { cls: 'warn', title: 'kup.notFoundTitle', body: 'kup.notFoundBody' },
+    keyword_not_found: { cls: 'warn', title: 'kup.notFoundTitle', body: 'kup.keywordNotFoundBody' },
+    invalid_request: { cls: 'warn', title: 'kup.badRequestTitle', body: 'kup.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'kup.badRequestTitle', body: 'kup.badRequestBody' }
+  };
+  var m = map[code];
+  var detail = '';
+  if (!m) {
+    m = { cls: 'warn', title: 'kup.serverErrorTitle', body: 'kup.serverErrorBody' };
+    if (rawMessage) { detail = '<div class="code">' + esc(rawMessage) + '</div>'; }
+  }
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+       + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+
+function isAuthError(code) {
+  return code === 'session_expired' || code === 'not_authenticated';
+}
+
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+
+function showLoading() {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('kup.loading')) + '</div>');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.removeClass('err').text(msg);
+  if (kind === 'err') { $t.addClass('err'); }
+  $t.css('display', 'block');
+  window.setTimeout(function () { $t.css('display', 'none'); }, 2800);
+}
+
+function verdictKey(raw) {
+  if (raw === 'high' || raw === 'medium' || raw === 'low' || raw === 'unused') { return raw; }
+  return 'unused';
+}
+
+function fetchJson(url) {
+  return fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+    .then(function (response) {
+      return response.json().catch(function () { return { status: 'error', code: 'http_' + response.status }; })
+        .then(function (payload) {
+          if (!response.ok || payload.status !== 'ok') {
+            return { error: true, status: response.status, payload: payload };
+          }
+          return { error: false, payload: payload };
+        });
+    })
+    .catch(function () {
+      return { error: true, status: 0, payload: { code: 'network_error' } };
+    });
+}
+
+function handleError(result) {
+  var code = result.payload ? result.payload.code : '';
+  if (isAuthError(code) || result.status === 401) {
+    redirectToLogin();
+    return;
+  }
+  showState(stateFor(code, result.status, result.payload ? result.payload.message : ''));
+}
+
+function bannerFor(s) {
+  var cls = 'info';
+  var key = 'kup.bannerBroad';
+  if (s.verdict === 'no_keywords') { cls = 'warn'; key = 'kup.bannerNoKeywords'; }
+  else if (s.verdict === 'no_usage') { cls = 'warn'; key = 'kup.bannerNoUsage'; }
+  else if (s.verdict === 'sparse') { cls = 'bad'; key = 'kup.bannerSparse'; }
+  else if (s.verdict === 'partial') { cls = 'warn'; key = 'kup.bannerPartial'; }
+  return '<div class="banner ' + cls + '"><i class="fa fa-circle-info"></i><span>'
+    + esc(TLi18n.t(key, { coverage: s.coverage_pct, keywords: s.keywords_total })) + '</span></div>';
+}
+
+function dtLanguage() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    lengthMenu: TLi18n.t('common.showEntries', 'Show') + ' _MENU_ '
+      + TLi18n.t('common.entries', 'entries'),
+    info: TLi18n.t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    paginate: { previous: TLi18n.t('common.prev', 'Previous'), next: TLi18n.t('common.next', 'Next') },
+    emptyTable: TLi18n.t('kup.noRows'),
+    zeroRecords: TLi18n.t('kup.noRows'),
+    infoEmpty: TLi18n.t('kup.pageInfoEmpty'),
+    infoFiltered: TLi18n.t('kup.pageInfoFiltered'),
+    aria: {
+      sortAscending: TLi18n.t('kup.ariaSortAsc'),
+      sortDescending: TLi18n.t('kup.ariaSortDesc')
+    }
+  };
+}
+
+function renderTable(rows) {
+  var data = rows.map(function (r) {
+    return [
+      esc(r.name), r.testcases, r.versions, r.suites, r.plans, r.executions,
+      r.passed, r.failed, r.blocked,
+      esc(r.coverage_pct) + '%<div class="bar"><span style="width:'
+        + Math.min(100, Math.max(0, Number(r.coverage_pct))) + '%"></span></div>',
+      esc(r.last_activity || '\u2014'),
+      '<span class="badge-v ' + verdictKey(r.verdict) + '">'
+        + esc(TLi18n.t('kup.verdict' + verdictKey(r.verdict).charAt(0).toUpperCase()
+          + verdictKey(r.verdict).slice(1))) + '</span>',
+      '<button type="button" class="btn-teal btn-xs detail-btn" data-id="'
+        + Number(r.keyword_id) + '">' + esc(TLi18n.t('kup.details')) + '</button>'
+    ];
+  });
+  if (dt) { dt.destroy(); $('#kupTable tbody').empty(); }
+  dt = $('#kupTable').DataTable({
+    data: data,
+    language: dtLanguage(),
+    pageLength: 25,
+    order: [[1, 'desc'], [0, 'asc']],
+    columnDefs: [
+      { targets: [1, 2, 3, 4, 5, 6, 7, 8, 9], className: 'num' },
+      { targets: [12], orderable: false, searchable: false }
+    ]
+  });
+  $('#kupTable').off('click', '.detail-btn').on('click', '.detail-btn', function () {
+    openDetail(Number($(this).attr('data-id')));
+  });
+}
+
+function applyVerdict() {
+  if (!dt || !currentData) { return; }
+  var v = $('#selVerdict').val();
+  if (v === 'all') {
+    dt.search('').draw();
+  } else {
+    dt.column(11).search(TLi18n.t('kup.verdict'
+      + v.charAt(0).toUpperCase() + v.slice(1)), false, false).draw();
+  }
+}
+
+function showReport(payload) {
+  currentData = payload;
+  var s = payload.summary;
+  $('#ctxProject').text(payload.context.tproject_name);
+  $('#ctxCases').text(s.testcases_total);
+  $('#ctxBuilds').text(s.builds_total);
+  $('#ctxPlans').text(s.plans_total);
+  $('#sKeywords').text(s.keywords_total);
+  $('#sUsed').text(s.keywords_used);
+  $('#sUnused').text(s.keywords_unused);
+  $('#sCases').text(s.testcases_total);
+  $('#sTagged').text(s.testcases_tagged);
+  $('#sCoverage').text(s.coverage_pct);
+  $('#sLinks').text(s.links_total);
+  $('#sVersions').text(s.versions_total);
+  $('#sExecutions').text(s.executions_total);
+  $('#sSuites').text(payload.rows.reduce(function (sum, r) { return sum + Number(r.suites); }, 0));
+  $('#bannerBox').html(bannerFor(s));
+  $('#stateBox').html('');
+  $('#report').show();
+  $('#btnCsv').prop('disabled', payload.rows.length === 0);
+  renderTable(payload.rows);
+  $('#selVerdict').val('all');
+}
+
+function load() {
+  showLoading();
+  var pid = $('#selProject').val();
+  var url = API + '?action=report';
+  if (pid && /^[0-9]+$/.test(String(pid))) {
+    url += '&tproject_id=' + encodeURIComponent(pid);
+  }
+  fetchJson(url).then(function (result) {
+    if (result.error) { handleError(result); return; }
+    showReport(result.payload);
+  });
+}
+
+function loadProjects() {
+  fetchJson(API + '?action=projects').then(function (result) {
+    if (result.error) { handleError(result); return; }
+    var projects = result.payload.projects || [];
+    var $sel = $('#selProject');
+    $sel.empty();
+    $.each(projects, function (i, p) {
+      $sel.append($('<option></option>').attr('value', p.id).text(p.name));
+    });
+    if (projects.length === 0) {
+      showState('<div class="state warn"><h4>' + esc(TLi18n.t('kup.noProjectsTitle'))
+        + '</h4><div>' + esc(TLi18n.t('kup.noProjectsBody')) + '</div></div>');
+      return;
+    }
+    var wanted = q('tproject_id');
+    if (wanted && $sel.find('option[value="' + Number(wanted) + '"]').length > 0) {
+      $sel.val(String(Number(wanted)));
+    }
+    load();
+  });
+}
+
+function openDetail(keywordId) {
+  if (!currentData) { return; }
+  var url = API + '?action=detail&keyword_id=' + Number(keywordId)
+    + '&tproject_id=' + Number(currentData.context.tproject_id);
+  $('#detailTitle').text(TLi18n.t('kup.detailTitle'));
+  $('#detailBody').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('kup.loading')) + '</div>');
+  $('#detailModal').modal('show');
+  fetchJson(url).then(function (result) {
+    if (result.error) {
+      $('#detailBody').html(stateFor(result.payload.code, result.status,
+        result.payload.message));
+      return;
+    }
+    var rows = result.payload.cases || [];
+    var html = '<p>' + esc(TLi18n.t('kup.detailHint', {
+      keyword: result.payload.keyword.name, count: rows.length })) + '</p>';
+    if (rows.length === 0) {
+      html += '<div class="state">' + esc(TLi18n.t('kup.noDetailRows')) + '</div>';
+    } else {
+      html += '<table><thead><tr><th>' + esc(TLi18n.t('kup.colId')) + '</th><th>'
+        + esc(TLi18n.t('kup.colTestcase')) + '</th><th>' + esc(TLi18n.t('kup.colSuite'))
+        + '</th><th>' + esc(TLi18n.t('kup.colVersions')) + '</th><th>'
+        + esc(TLi18n.t('kup.colExecutions')) + '</th><th>'
+        + esc(TLi18n.t('kup.colActivity')) + '</th></tr></thead><tbody>';
+      $.each(rows, function (i, r) {
+        html += '<tr><td>' + esc(r.external_id) + '</td><td>' + esc(r.testcase_name)
+          + '</td><td>' + esc(r.suite_name) + '</td><td>' + Number(r.versions)
+          + '</td><td>' + Number(r.executions) + '</td><td>'
+          + esc(r.last_execution || '\u2014') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    $('#detailBody').html(html);
+  });
+}
+
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
+function filteredRows() {
+  if (!currentData) { return []; }
+  var v = $('#selVerdict').val();
+  if (v === 'all') { return currentData.rows; }
+  return currentData.rows.filter(function (r) { return r.verdict === v; });
+}
+
+function exportCsv() {
+  if (!currentData) { return; }
+  var head = ['kup.colKeyword', 'kup.colCases', 'kup.colVersions', 'kup.colSuites',
+    'kup.colPlans', 'kup.colExecutions', 'kup.colPassed', 'kup.colFailed',
+    'kup.colBlocked', 'kup.colCoverage', 'kup.colActivity', 'kup.colVerdict'];
+  var lines = [head.map(function (k) { return csvCell(TLi18n.t(k)); }).join(';')];
+  $.each(filteredRows(), function (i, r) {
+    lines.push([r.name, r.testcases, r.versions, r.suites, r.plans, r.executions,
+      r.passed, r.failed, r.blocked, r.coverage_pct, r.last_activity,
+      TLi18n.t('kup.verdict' + verdictKey(r.verdict).charAt(0).toUpperCase()
+        + verdictKey(r.verdict).slice(1))].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'keyword-usage-' + currentData.context.tproject_id + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('kup.csvDone'));
+}
+
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#selVerdict').on('change', applyVerdict);
+  $('#selProject').on('change', function () {
+    var pid = $(this).val();
+    if (pid && /^[0-9]+$/.test(String(pid))) {
+      var url = new URL(window.location.href);
+      url.searchParams.set('tproject_id', pid);
+      window.location.href = url.toString();
+    }
+  });
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('kup.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadProjects();
+  });
+});
+</script>
+</body>
+</html>
