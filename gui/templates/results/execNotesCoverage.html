@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Execution Notes Coverage</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 190px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 130px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.documented { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.no_data, .verdict.undocumented, .verdict.at_risk { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.tcase a, td.tcase span.link { color: #259b93; font-weight: 700; text-decoration: none; cursor: pointer; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-documented, .badge-passed { background: #d4edda; color: #155724; }
+.badge-undocumented, .badge-no_exec, .badge-failed, .badge-at_risk { background: #f5c6cb; color: #b94a48; }
+.badge-partial, .badge-blocked, .badge-watch { background: #ffecb5; color: #856404; }
+.badge-not_run { background: #e9ecef; color: #555; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; }
+.modal-body { padding: 16px 20px; }
+.detail-meta { font-size: 12px; color: #667; margin-bottom: 10px; }
+.note-text { white-space: pre-wrap; word-break: break-word; max-width: 480px; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-note-sticky" style="margin-right:8px;"></i>
+  <span data-i18n="enc.header">Test Plan Execution Notes Coverage</span>
+  <span class="sub" data-i18n="enc.subtitle">execution evidence by assigned test-case version</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx" data-i18n="enc.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="enc.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="buildFilter" data-i18n="enc.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="enc.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="enc.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="enc.allPlatforms">All platforms</option></select>
+  <label for="statusFilter" data-i18n="enc.status">Result</label>
+  <select id="statusFilter">
+    <option value="all" data-i18n="enc.statusAll">All</option>
+    <option value="p" data-i18n="enc.statusPassed">Passed</option>
+    <option value="f" data-i18n="enc.statusFailed">Failed</option>
+    <option value="b" data-i18n="enc.statusBlocked">Blocked</option>
+  </select>
+  <label for="scopeFilter" data-i18n="enc.evidence">Evidence</label>
+  <select id="scopeFilter">
+    <option value="all" data-i18n="enc.scopeAll">All cases</option>
+    <option value="documented" data-i18n="enc.scopeDocumented">Every run documented</option>
+    <option value="partial" data-i18n="enc.scopePartial">Partially documented</option>
+    <option value="undocumented" data-i18n="enc.scopeUndocumented">No notes at all</option>
+    <option value="latest_missing" data-i18n="enc.scopeLatestMissing">Latest run has no note</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="enc.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="enc.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="enc.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi teal"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="enc.kpiAssigned">Assigned versions</div></div>
+  <div class="kpi"><div class="v" id="kpiShown">0</div><div class="l" data-i18n="enc.kpiShown">In scope</div></div>
+  <div class="kpi"><div class="v" id="kpiExecutions">0</div><div class="l" data-i18n="enc.kpiExecutions">Executions</div></div>
+  <div class="kpi teal"><div class="v" id="kpiWithNotes">0</div><div class="l" data-i18n="enc.kpiWithNotes">With notes</div></div>
+  <div class="kpi alert"><div class="v" id="kpiWithoutNotes">0</div><div class="l" data-i18n="enc.kpiWithoutNotes">Without notes</div></div>
+  <div class="kpi teal"><div class="v" id="kpiCoverage">0%</div><div class="l" data-i18n="enc.kpiCoverage">Note coverage</div></div>
+  <div class="kpi alert"><div class="v" id="kpiLatestMissing">0</div><div class="l" data-i18n="enc.kpiLatestMissing">Latest run undocumented</div></div>
+  <div class="kpi"><div class="v" id="kpiPassed">0</div><div class="l" data-i18n="enc.kpiPassed">Passed versions</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.execNotesCoverage">TestLink 2.0.1 - Test Plan Execution Notes Coverage</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="detailTitle"><span data-i18n="enc.detailTitle">Execution notes</span></h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], summary: {}, context: {}, filter: {}, dt: null, seq: 0 };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  if (isErr) { $el.addClass('err'); } else { $el.removeClass('err'); }
+  setTimeout(function(){ $el.fadeOut(300); }, 3000);
+}
+function showState(code) {
+  $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired');
+    return;
+  }
+  resetView();
+  var map = {
+    invalid_request: ['enc.errBadRequest', 'Invalid request', 'enc.errBadRequestBody', 'The report parameters are not valid.'],
+    invalid_parameter: ['enc.errBadRequest', 'Invalid request', 'enc.errBadRequestBody', 'The report parameters are not valid.'],
+    no_right: ['enc.errNoRight', 'No permission', 'enc.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
+    tplan_not_found: ['enc.errNotFound', 'Test plan not found', 'enc.errNotFoundBody', 'The requested test plan does not exist.'],
+    project_mismatch: ['enc.errMismatch', 'Wrong test project', 'enc.errMismatchBody', 'This test plan belongs to another test project.'],
+    tcversion_not_found: ['enc.errItemNotFound', 'Version not found', 'enc.errItemNotFoundBody', 'This version is not assigned to the test plan.'],
+    method_not_allowed: ['enc.errMethod', 'Method not allowed', 'enc.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['enc.errGeneric', 'Could not load the report', 'enc.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(m[0], m[1])) + '</h4><p>' + esc(t(m[2], m[3])) + '</p>' +
+    '<p>' + esc(t('enc.code', 'Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty().removeClass('documented watch at_risk undocumented no_data');
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+}
+function filterParams(action) {
+  return {
+    action: action || 'report',
+    tplan_id: tplan_id,
+    tproject_id: tproject_id,
+    build_id: parseInt($('#buildFilter').val(), 10) || 0,
+    platform_id: parseInt($('#platformFilter').val(), 10) || 0,
+    status: $('#statusFilter').val() || 'all',
+    scope: $('#scopeFilter').val() || 'all'
+  };
+}
+function fillSelect($sel, items, allKey, allFallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, allFallback)));
+  (items || []).forEach(function(item) {
+    $sel.append($('<option>').val(item.id).text(item.name));
+  });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  var seq = ++STATE.seq;
+  $.ajax({
+    url: '/api/execnotescoverage/index.php',
+    data: { action: 'init', tplan_id: tplan_id, tproject_id: tproject_id },
+    dataType: 'json',
+    success: function(d) {
+      if (seq !== STATE.seq) { return; }
+      if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      fillSelect($('#buildFilter'), (d.filters || {}).builds, 'enc.allBuilds', 'All builds');
+      fillSelect($('#platformFilter'), (d.filters || {}).platforms, 'enc.allPlatforms', 'All platforms');
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      loadReport();
+    },
+    error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
+      $('#loadingBox').hide();
+      showState((xhr.responseJSON || {}).code || 'error');
+    }
+  });
+}
+function loadReport() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/execnotescoverage/index.php',
+    data: filterParams('report'),
+    dataType: 'json',
+    success: function(d) {
+      if (seq !== STATE.seq) { return; }
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || [];
+      STATE.summary = d.summary || {};
+      STATE.filter = d.filter || {};
+      STATE.context = d.context || {};
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+
+      var s = STATE.summary;
+      $('#kpiAssigned').text(s.assigned || 0);
+      $('#kpiShown').text(s.shown || 0);
+      $('#kpiExecutions').text(s.executions || 0);
+      $('#kpiWithNotes').text(s.with_notes || 0);
+      $('#kpiWithoutNotes').text(s.without_notes || 0);
+      $('#kpiCoverage').text((s.note_coverage || 0) + '%');
+      $('#kpiLatestMissing').text(s.latest_missing || 0);
+      $('#kpiPassed').text(s.passed || 0);
+      $('#kpis').show();
+
+      var vmap = {
+        no_data: ['enc.verdictNoData', 'No executions match this filter.', 'no_data'],
+        undocumented: ['enc.verdictUndocumented', 'None of these executions has a note.', 'undocumented'],
+        at_risk: ['enc.verdictRisk', 'Fewer than half of the executions are documented.', 'at_risk'],
+        watch: ['enc.verdictWatch', 'Some executions still have no note.', 'watch'],
+        documented: ['enc.verdictDocumented', 'Every execution in scope has a note.', 'documented']
+      };
+      var v = vmap[d.verdict] || vmap.no_data;
+      $('#verdictBox').addClass(v[2]).html(
+        '<i class="fa fa-circle-info"></i> ' + esc(t(v[0], v[1]))).show();
+
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' +
+          esc(t('enc.empty', 'No test cases match this filter.'))).show();
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('enc.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
+      $('#loadingBox').hide();
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('enc.toastError', 'Error loading data'), true);
+    }
+  });
+}
+function badge(kind, value) {
+  return '<span class="badge badge-' + esc(value) + '">' +
+    esc(t('enc_' + value, value)) + '</span>';
+}
+function renderTable() {
+  $('#reportArea').html('<div class="section"><div class="section-head">' +
+    '<i class="fa fa-note-sticky"></i> ' + esc(t('enc.tableTitle', 'Execution evidence by assigned version')) +
+    '<span class="bmeta">' + esc(t('enc.rowCount', 'Versions')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('enc.colCase', 'Test case'), data: 'tcase_name', className: 'tcase',
+        render: function(data, type, row) {
+          if (type !== 'display') { return data; }
+          return '<span class="link" data-key="' + esc(row.link_key) + '">' + esc(data) + '</span>';
+        } },
+      { title: t('enc.colExternal', 'External ID'), data: 'external_id',
+        render: $.fn.dataTable.render.text() },
+      { title: t('enc.colVersion', 'Version'), data: 'version' },
+      { title: t('enc.colSuite', 'Suite'), data: 'path',
+        render: $.fn.dataTable.render.text() },
+      { title: t('enc.colExecutions', 'Executions'), data: 'executions' },
+      { title: t('enc.colWithNotes', 'With notes'), data: 'with_notes' },
+      { title: t('enc.colWithoutNotes', 'Without notes'), data: 'without_notes' },
+      { title: t('enc.colCoverage', 'Note coverage'), data: 'note_coverage',
+        render: function(data, type, row) {
+          var pct = row.executions ? Math.round(100 * row.with_notes / row.executions) : 0;
+          return type === 'display' ? pct + '%' : pct;
+        } },
+      { title: t('enc.colEvidence', 'Evidence'), data: 'note_state',
+        render: function(data, type) {
+          if (type !== 'display') { return data; }
+          return badge('enc', data);
+        } },
+      { title: t('enc.colStatus', 'Result'), data: 'status',
+        render: function(data, type) {
+          if (type !== 'display') { return data; }
+          return badge('enc', data);
+        } },
+      { title: t('enc.colBuild', 'Latest build'), data: 'build_name',
+        render: $.fn.dataTable.render.text() },
+      { title: t('enc.colPlatform', 'Platform'), data: 'platform_name',
+        render: $.fn.dataTable.render.text() },
+      { title: t('enc.colRun', 'Executed on'), data: 'execution_ts',
+        render: $.fn.dataTable.render.text() }
+    ],
+    order: [[3, 'asc'], [0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('enc.infoEmpty', 'No entries'),
+      zeroRecords: t('enc.zeroRecords', 'No matching test cases'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('enc.empty', 'No test cases match this filter.')
+    }
+  });
+  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-key')); });
+}
+function showDetails(key) {
+  var p = filterParams('detail');
+  p.link_key = key;
+  $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' +
+    esc(t('common.loading', 'Loading...')));
+  $('#detailModal').modal('show');
+  $.ajax({
+    url: '/api/execnotescoverage/index.php',
+    data: p,
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') {
+        $('#detailModal').modal('hide');
+        toast(t('enc.toastError', 'Error loading data') + ': ' + d.code, true);
+        return;
+      }
+      var item = d.item || {};
+      var notes = d.notes || [];
+      var html = '<div class="detail-meta">' + esc(item.external_id || '') + ' &mdash; ' +
+        esc(item.tcase_name || '') + ' v' + esc(item.version || '') + ' &mdash; ' +
+        esc(item.path || '') + '</div>';
+      if (!notes.length) {
+        html += '<div class="empty">' + esc(t('enc.emptyNotes', 'This version has no executions.')) + '</div>';
+      } else {
+        html += '<table class="flat"><thead><tr><th>' +
+          esc(t('enc.colRun', 'Executed on')) + '</th><th>' +
+          esc(t('enc.colStatus', 'Result')) + '</th><th>' +
+          esc(t('enc.colBuild', 'Latest build')) + '</th><th>' +
+          esc(t('enc.colPlatform', 'Platform')) + '</th><th>' +
+          esc(t('enc.colNoteText', 'Note')) + '</th></tr></thead><tbody>';
+        notes.forEach(function(n) {
+          html += '<tr><td>' + esc(n.execution_ts || '-') + '</td><td>' +
+            esc(t('enc_' + n.status, n.status)) + '</td><td>' + esc(n.build_name || '-') +
+            '</td><td>' + esc(n.platform_name || '-') + '</td><td class="note-text">' +
+            esc(n.notes || t('enc.noNote', '(no note)')) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      $('#detailBody').html(html);
+      TLi18n.apply($('#detailBody')[0]);
+    },
+    error: function(xhr) {
+      $('#detailModal').modal('hide');
+      toast(t('enc.toastError', 'Error loading data') + ': ' +
+        ((xhr.responseJSON || {}).code || 'error'), true);
+    }
+  });
+}
+function exportCsv() {
+  window.location.href = '/api/execnotescoverage/index.php?' + $.param(filterParams('csv'));
+}
+$(function() {
+  $('#btnRefresh').on('click', function() { loadInit(); });
+  $('#btnExport').on('click', exportCsv);
+  $('#buildFilter, #platformFilter, #statusFilter, #scopeFilter').on('change', loadReport);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, window.location.origin); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = t('footers.execNotesCoverage', 'TestLink 2.0.1 - Test Plan Execution Notes Coverage');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
