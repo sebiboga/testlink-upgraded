@@ -793,6 +793,15 @@ $tlCfg->reports_list['linked_defects'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2012: Test Plan Step Coverage (net-new). 1.9.20 never answered how
+// completely the design steps of a plan's assigned test cases are documented.
+$tlCfg->reports_list['step_coverage'] = array(
+	'title' => 'link_report_step_coverage',
+	'url' => 'gui/templates/results/stepCoverage.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

@@ -2751,6 +2751,11 @@ function getActions(&$gui,$baseURL) {
   $actions->linkedDefects =
     "/gui/templates/results/linkedDefects.html?{$ctx}";
 
+  // Refs #2012: Test Plan Step Coverage report (net-new screen).
+  // Design-step completeness of the plan's assigned test-case versions.
+  $actions->stepCoverage =
+    "/gui/templates/results/stepCoverage.html?{$ctx}";
+
   // Refs #1983: Test Plan Completion Forecast report (net-new screen).
   // Answers the manager question 1.9.20 never could - will this plan
   // finish by its milestone deadline? Execution velocity over a trailing

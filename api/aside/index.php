@@ -344,6 +344,11 @@ if ($tplan_id > 0) {
                 // grouped by defect, with build/platform/result filters).
                 $hrefR = '/gui/templates/results/linkedDefects.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_step_coverage') {
+                // Refs #2012: Test Plan Step Coverage (design-step
+                // completeness of the plan's assigned test-case versions).
+                $hrefR = '/gui/templates/results/stepCoverage.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_plan_forecast') {
                 // Refs #1983: Test Plan Completion Forecast (execution
                 // velocity, projected completion date and milestone

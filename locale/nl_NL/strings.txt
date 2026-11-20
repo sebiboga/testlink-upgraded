@@ -4150,3 +4150,4 @@ $TLS_link_report_tester_build_matrix = "Uitvoingsmatrix tester × build van test
 $TLS_link_report_tc_build_matrix = "Resultaatmatrix testcase × build van testplan"; // Test Plan Test Case x Build Result Matrix report (Refs #1999)
 $TLS_link_report_unassigned_tests = "Niet-toegewezen tests"; // Test Plan Unassigned Tests report (Refs #2007)
 $TLS_link_report_linked_defects = "Test Plan Linked Defects"; // Test Plan Linked Defects report (Refs #2011)
+$TLS_link_report_step_coverage = "Test Plan Step Coverage"; // Test Plan Step Coverage report (Refs #2012)
