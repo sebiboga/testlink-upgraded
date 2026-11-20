@@ -48597,3 +48597,11 @@ Fixture: `tmp/fixtures_2014.php` — project ENC2014 (id 1), plans ENC Notes Pla
 | 2014.28 | i18n gate | `python3 -m json.tool` on all bundles and `bash ai/verify_i18n_coverage.sh` | All bundles well-formed; 9/9 compared, 0 missing keys | PASS |
 | 2014.29 | PHP syntax | `php -l` on BFF, ASIDE, common.php, reports.cfg.php | PASS | PASS |
 | 2014.30 | Event Viewer | query `events` after full pass | 10 rows, all `log_level=16` (login/logout/audit); 0 Error/Warning entries | PASS |
+
+### Code review fixes (Issue #2014)
+
+| Case | Check | Action | Expected / Observed | Result |
+| --- | --- | --- | --- | --- |
+| 2014r.1 | Detail ignores active build/platform filter | Set Build=ENC Build 1, open detail for ENC Login documented | Modal shows all 3 notes from Build 1 and Build 2; BFF returns 3 notes for `build_id=1`, `platform_id=1` and combined filters | PASS |
+| 2014r.2 | Note text preserved and escaped | Open the documented case detail | Stored markup renders as the literal text `alert(1) plain text is safe`; whitespace/newlines are no longer collapsed | PASS |
+| 2014r.3 | Coverage column uses BFF value | Inspect table after filter changes | 100.0% / 50.0% / 0.0% values come from `note_coverage` and sort numerically; console clean | PASS |

@@ -53,9 +53,10 @@ function encDecode($value)
     return html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 }
 
-function encPlain($value, $limit = 1200)
+function encPlain($value, $limit = 1200, $collapse = true)
 {
-    $s = trim(preg_replace('/\s+/', ' ', strip_tags(encDecode($value))));
+    $s = strip_tags(encDecode($value));
+    $s = $collapse ? trim(preg_replace('/\s+/', ' ', $s)) : trim($s);
     if (function_exists('mb_substr')) {
         return mb_substr($s, 0, $limit, 'UTF-8');
     }
@@ -86,7 +87,7 @@ function encCsvCell($value)
     return str_replace(array("\r", "\n"), array(' ', ' '), $s);
 }
 
-function encPath($db, $tbl, $nodeId, $cache)
+function encPath($db, $tbl, $nodeId, &$cache)
 {
     $nodeId = intval($nodeId);
     if (isset($cache[$nodeId])) {
@@ -173,6 +174,10 @@ if ($action === 'detail' && $tcversionId <= 0 && $linkKey === '') {
 }
 $buildId = intval($rawBuild);
 $platformId = intval($rawPlatform);
+if ($action === 'detail') {
+    $buildId = 0;
+    $platformId = 0;
+}
 
 $tbl = tlObjectWithDB::getDBTables(array(
     'testplans', 'testprojects', 'nodes_hierarchy', 'tcversions',
@@ -330,7 +335,7 @@ if (is_array($execRs)) {
         if (!isset($linkKeysByVersion[$vid])) { continue; }
         $pid = intval($e['platform_id']);
         if ($platformId > 0 && $pid !== 0 && $pid !== $platformId) { continue; }
-        $note = encPlain($e['notes'] ?? '');
+        $note = encPlain($e['notes'] ?? '', 4000, false);
         foreach ($linkKeysByVersion[$vid] as $key) {
             $assignedPid = $versions[$key]['assigned_platform_id'];
             if ($pid > 0 && $assignedPid !== 0 && $assignedPid !== $pid) { continue; }

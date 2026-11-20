@@ -297,7 +297,7 @@ function loadReport() {
     }
   });
 }
-function badge(kind, value) {
+function badge(value) {
   return '<span class="badge badge-' + esc(value) + '">' +
     esc(t('enc_' + value, value)) + '</span>';
 }
@@ -323,19 +323,19 @@ function renderTable() {
       { title: t('enc.colWithNotes', 'With notes'), data: 'with_notes' },
       { title: t('enc.colWithoutNotes', 'Without notes'), data: 'without_notes' },
       { title: t('enc.colCoverage', 'Note coverage'), data: 'note_coverage',
-        render: function(data, type, row) {
-          var pct = row.executions ? Math.round(100 * row.with_notes / row.executions) : 0;
-          return type === 'display' ? pct + '%' : pct;
+        render: function(data, type) {
+          var pct = parseFloat(data) || 0;
+          return type === 'display' ? pct.toFixed(1) + '%' : pct;
         } },
       { title: t('enc.colEvidence', 'Evidence'), data: 'note_state',
         render: function(data, type) {
           if (type !== 'display') { return data; }
-          return badge('enc', data);
+          return badge(data);
         } },
       { title: t('enc.colStatus', 'Result'), data: 'status',
         render: function(data, type) {
           if (type !== 'display') { return data; }
-          return badge('enc', data);
+          return badge(data);
         } },
       { title: t('enc.colBuild', 'Latest build'), data: 'build_name',
         render: $.fn.dataTable.render.text() },
@@ -359,8 +359,7 @@ function renderTable() {
   $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-key')); });
 }
 function showDetails(key) {
-  var p = filterParams('detail');
-  p.link_key = key;
+  var p = { action: 'detail', tplan_id: tplan_id, tproject_id: tproject_id, link_key: key };
   $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' +
     esc(t('common.loading', 'Loading...')));
   $('#detailModal').modal('show');
