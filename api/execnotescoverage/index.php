@@ -168,8 +168,8 @@ if (($rawBuild !== '' && !preg_match('/^[0-9]+$/', $rawBuild)) ||
 if ($tcversionId > 0 && $action !== 'detail') {
     encFail(400, 'invalid_request', 'tcversion_id is only valid for the detail action');
 }
-if ($action === 'detail' && $tcversionId <= 0) {
-    encFail(400, 'invalid_request', 'Missing tcversion_id');
+if ($action === 'detail' && $tcversionId <= 0 && $linkKey === '') {
+    encFail(400, 'invalid_request', 'Missing tcversion_id or link_key');
 }
 $buildId = intval($rawBuild);
 $platformId = intval($rawPlatform);
@@ -384,6 +384,7 @@ foreach ($versions as &$v) {
     }
     $v['path'] = encPath($db, $tbl, $v['tcase_id'], $paths);
     $paths[$v['tcase_id']] = $v['path'];
+    $v['note_coverage'] = encPct($v['with_notes'], $v['executions']);
 }
 unset($v);
 
