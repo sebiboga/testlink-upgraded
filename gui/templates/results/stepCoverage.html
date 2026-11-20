@@ -146,7 +146,7 @@ td.tcase a, td.tcase span.link { color: #259b93; font-weight: 700; text-decorati
 var params = new URLSearchParams(window.location.search);
 var tplan_id = parseInt(params.get('tplan_id')) || 0;
 var tproject_id = parseInt(params.get('tproject_id')) || 0;
-var STATE = { rows: [], summary: {}, context: {}, filter: {}, dt: null };
+var STATE = { rows: [], summary: {}, context: {}, filter: {}, dt: null, seq: 0 };
 
 function esc(s) {
   if (s === null || s === undefined) return '';
@@ -163,11 +163,14 @@ function toast(msg, isErr) {
 }
 function showState(code) {
   $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired');
+    return;
+  }
   resetView();
   var map = {
     invalid_request: ['stpc.errBadRequest', 'Invalid request', 'stpc.errBadRequestBody', 'The report parameters are not valid.'],
-    not_authenticated: ['stpc.errSession', 'Session expired', 'stpc.errSessionBody', 'Please sign in again.'],
-    session_expired: ['stpc.errSession', 'Session expired', 'stpc.errSessionBody', 'Please sign in again.'],
+    invalid_parameter: ['stpc.errBadRequest', 'Invalid request', 'stpc.errBadRequestBody', 'The report parameters are not valid.'],
     no_right: ['stpc.errNoRight', 'No permission', 'stpc.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
     tplan_not_found: ['stpc.errNotFound', 'Test plan not found', 'stpc.errNotFoundBody', 'The requested test plan does not exist.'],
     project_mismatch: ['stpc.errMismatch', 'Wrong test project', 'stpc.errMismatchBody', 'This test plan belongs to another test project.'],
@@ -211,11 +214,13 @@ function fillSelect($sel, items, allKey, allFallback) {
   if (!$sel.val()) { $sel.val('0'); }
 }
 function loadInit() {
+  var seq = ++STATE.seq;
   $.ajax({
     url: '/api/stepcoverage/index.php',
     data: { action: 'init', tplan_id: tplan_id, tproject_id: tproject_id },
     dataType: 'json',
     success: function(d) {
+      if (seq !== STATE.seq) { return; }
       if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
       STATE.context = d.context || {};
       tplan_id = STATE.context.tplan_id || tplan_id;
@@ -227,12 +232,14 @@ function loadInit() {
       loadReport();
     },
     error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
       $('#loadingBox').hide();
       showState((xhr.responseJSON || {}).code || 'error');
     }
   });
 }
 function loadReport() {
+  var seq = ++STATE.seq;
   $('#loadingBox').show();
   resetView();
   $.ajax({
@@ -240,6 +247,7 @@ function loadReport() {
     data: filterParams('report'),
     dataType: 'json',
     success: function(d) {
+      if (seq !== STATE.seq) { return; }
       $('#loadingBox').hide();
       if (d.status === 'error') { showState(d.code); return; }
       STATE.rows = d.rows || [];
@@ -255,7 +263,7 @@ function loadReport() {
       $('#kpiWithSteps').text(s.with_steps || 0);
       $('#kpiNoSteps').text(s.no_steps || 0);
       $('#kpiSteps').text(s.total_steps || 0);
-      $('#kpiMissing').text(s.missing_expected || 0);
+      $('#kpiMissing').text(s.missing_expected_steps || 0);
       $('#kpiExpected').text((s.expected_coverage || 0) + '%');
       $('#kpiExecuted').text(s.executed || 0);
       $('#kpis').show();
@@ -281,6 +289,7 @@ function loadReport() {
       $('#footerInfo').text(t('stpc.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
     },
     error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
       $('#loadingBox').hide();
       showState((xhr.responseJSON || {}).code || 'error');
       toast(t('stpc.toastError', 'Error loading data'), true);
@@ -377,55 +386,26 @@ function showDetails(vid) {
       TLi18n.apply($('#detailBody')[0]);
     },
     error: function(xhr) {
-      $('#detailBody').html('<div class="state">' +
-        esc((xhr.responseJSON || {}).code || 'error') + '</div>');
+      $('#detailModal').modal('hide');
+      toast(t('stpc.toastError', 'Error loading data') + ': ' +
+        esc((xhr.responseJSON || {}).code || 'error'), true);
     }
   });
 }
-function csvGuard(v) {
-  var s = (v === null || v === undefined) ? '' : String(v);
-  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
-  return '"' + s.replace(/"/g, '""') + '"';
-}
 function exportCsv() {
-  var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
-  if (!rows.length) { return; }
-  var header = [
-    t('stpc.colCase', 'Test case'), t('stpc.colExternal', 'External ID'),
-    t('stpc.colVersion', 'Version'), t('stpc.colSuite', 'Suite'),
-    t('stpc.colSteps', 'Steps'), t('stpc.colExpected', 'With expected'),
-    t('stpc.colMissing', 'Missing expected'), t('stpc.colComplete', 'Completeness'),
-    t('stpc.colStatus', 'Result'), t('stpc.colBuild', 'Latest build'),
-    t('stpc.colPlatform', 'Platform'), t('stpc.colRun', 'Executed on')
-  ];
-  var lines = [header.map(csvGuard).join(';')];
-  rows.forEach(function(r) {
-    lines.push([
-      r.tcase_name, r.external_id, r.version, r.path, r.steps, r.with_expected,
-      r.missing_expected, t('stpc_' + r.complete, r.complete),
-      t('stpc_' + r.status, r.status), r.build_name, r.platform_name, r.execution_ts
-    ].map(csvGuard).join(';'));
-  });
-  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'step-coverage-' + (tplan_id || 0) + '.csv';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
-  toast(t('stpc.toastExported', 'CSV exported'));
+  window.location.href = '/api/stepcoverage/index.php?' + $.param(filterParams('csv'));
 }
 $(function() {
   $('#btnRefresh').on('click', function() { loadInit(); });
   $('#btnExport').on('click', exportCsv);
   $('#buildFilter, #platformFilter, #statusFilter, #scopeFilter').on('change', loadReport);
   $('#btnClose').on('click', function() {
-    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, window.location.origin); }
     window.close();
   });
   TLi18n.load(function() {
     TLi18n.apply();
-    document.title = 'TestLink 2.0.1 - ' + t('stpc.header', 'Test Plan Step Coverage');
+    document.title = t('footers.stepCoverage', 'TestLink 2.0.1 - Test Plan Step Coverage');
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadInit();
   });

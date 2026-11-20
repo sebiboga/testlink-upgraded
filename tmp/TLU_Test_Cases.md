@@ -48547,3 +48547,16 @@ Fixture: `tmp/fixtures_2012.php` — project STPC2012 (id 1), plan STPC Plan (id
 | 2012.24 | i18n gate | `bash ai/verify_i18n_coverage.sh` | 9/9 bundles PASS, 12141 keys | PASS |
 | 2012.25 | Bug #2013 regression | re-read Suite column after fix | `STPC Suite complete` etc. — no test-case name suffix | PASS |
 | 2012.26 | Event Viewer | query `events` after the full pass | Only 8 AUDIT rows; 0 new Error/Warning | PASS |
+
+### Issue #2012 code-review fixes re-verified (browser + BFF, 2026-11-20)
+
+| # | Case | Steps / input | Expected | Result |
+|---|---|---|---|---|
+| 2012r.1 | Missing-step KPI counts steps | default report | `missing_expected_steps` = 2 (two distinct steps lack expected results), while the row-level defect count stays per version | PASS |
+| 2012r.2 | Multi-platform assignment scope | `platform_id=1` and default report | Assignment links are keyed by `(tcversion_id, platform_id)`; platform A excludes versions linked only to B, and `platform_id=0` applies to every platform | PASS |
+| 2012r.3 | Assigned platform display | default report, no execution | `STPC Partial Case` shows assigned `STPC Platform A`; unexecuted links keep their assigned platform name | PASS |
+| 2012r.4 | Detail independent of result filter | `action=detail&tcversion_id=16&status=p` | Design steps are still returned (status filter only narrows the report rows) | PASS |
+| 2012r.5 | Request sequencing | two quick filter changes | generation counter discards the stale report response; only the latest renders | PASS (code review + browser smoke) |
+| 2012r.6 | CSV path alignment | click Export CSV | Button now requests the guarded BFF `action=csv` with the same server-side filters, BOM and 12-column header | PASS |
+| 2012r.7 | Error-state aliases | `invalid_parameter`, session-expired codes | Invalid parameter uses the localized invalid-request card; 401/expired redirects to `login.php?note=expired` | PASS (code review) |
+| 2012r.8 | Final gates | `php -l`, i18n gate, suite gate, Chrome console | PHP syntax PASS; i18n 9/9; suite gate 34 PASS / 0 FAIL; console clean | PASS |

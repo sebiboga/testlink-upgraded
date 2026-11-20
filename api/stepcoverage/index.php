@@ -255,19 +255,32 @@ $versionSql =
 $versionRs = $db->get_recordset($versionSql);
 if (!is_array($versionRs)) { $versionRs = array(); }
 
+$buildNames = array();
+foreach ($builds as $b) { $buildNames[$b['id']] = $b['name']; }
+$platformNames = array();
+foreach ($platforms as $p) { $platformNames[$p['id']] = $p['name']; }
+
 $versions = array();
 $versionIds = array();
+$linkKeysByVersion = array();
 foreach ($versionRs as $r) {
     $vid = intval($r['tcversion_id']);
+    $assignedPid = intval($r['assigned_platform_id']);
+    if ($platformId > 0 && $assignedPid !== 0 && $assignedPid !== $platformId) {
+        continue;
+    }
+    $key = $vid . '/' . $assignedPid;
     $versionIds[$vid] = true;
+    $linkKeysByVersion[$vid][] = $key;
     $external = trim((string)$r['prefix']) . '-' . intval($r['tc_external_id']);
-    $versions[$vid] = array(
+    $versions[$key] = array(
+        'link_key' => $key,
         'tcversion_id' => $vid,
         'tcase_id' => intval($r['tcase_id']),
         'tcase_name' => stpcDecode($r['tcase_name']),
         'external_id' => $external,
         'version' => intval($r['version']),
-        'assigned_platform_id' => intval($r['assigned_platform_id']),
+        'assigned_platform_id' => $assignedPid,
         'steps' => 0,
         'with_expected' => 0,
         'missing_expected' => 0,
@@ -276,19 +289,15 @@ foreach ($versionRs as $r) {
         'status_letter' => '',
         'build_id' => 0,
         'build_name' => '',
-        'platform_id' => intval($r['assigned_platform_id']),
-        'platform_name' => '',
+        'platform_id' => $assignedPid,
+        'platform_name' => $assignedPid > 0 && isset($platformNames[$assignedPid]) ?
+            $platformNames[$assignedPid] : '',
         'execution_ts' => '',
         'tester_id' => 0,
         'path' => '',
         'step_rows' => array(),
     );
 }
-
-$buildNames = array();
-foreach ($builds as $b) { $buildNames[$b['id']] = $b['name']; }
-$platformNames = array();
-foreach ($platforms as $p) { $platformNames[$p['id']] = $p['name']; }
 
 $stepRs = array();
 if (count($versionIds) > 0) {
@@ -305,20 +314,22 @@ if (count($versionIds) > 0) {
 if (is_array($stepRs)) {
     foreach ($stepRs as $s) {
         $vid = intval($s['tcversion_id']);
-        if (!isset($versions[$vid])) { continue; }
+        if (!isset($linkKeysByVersion[$vid])) { continue; }
         $actions = trim(stpcDecode($s['actions']));
         $expected = trim(stpcDecode($s['expected_results']));
-        $versions[$vid]['steps']++;
-        if ($expected !== '') {
-            $versions[$vid]['with_expected']++;
-        } else {
-            $versions[$vid]['missing_expected']++;
+        foreach ($linkKeysByVersion[$vid] as $key) {
+            $versions[$key]['steps']++;
+            if ($expected !== '') {
+                $versions[$key]['with_expected']++;
+            } else {
+                $versions[$key]['missing_expected']++;
+            }
+            $versions[$key]['step_rows'][] = array(
+                'step_number' => intval($s['step_number']),
+                'actions' => $actions,
+                'expected_results' => $expected,
+            );
         }
-        $versions[$vid]['step_rows'][] = array(
-            'step_number' => intval($s['step_number']),
-            'actions' => $actions,
-            'expected_results' => $expected,
-        );
     }
 }
 
@@ -332,19 +343,23 @@ $execRs = $db->get_recordset($execSql . " ORDER BY execution_ts ASC, id ASC");
 if (is_array($execRs)) {
     foreach ($execRs as $e) {
         $vid = intval($e['tcversion_id']);
-        if (!isset($versions[$vid])) { continue; }
+        if (!isset($linkKeysByVersion[$vid])) { continue; }
         $pid = intval($e['platform_id']);
         if ($platformId > 0 && $pid !== 0 && $pid !== $platformId) { continue; }
-        $versions[$vid]['status'] = stpcStatus($e['status']);
-        $versions[$vid]['status_letter'] = strtolower(trim((string)$e['status']));
-        $versions[$vid]['build_id'] = intval($e['build_id']);
-        $versions[$vid]['build_name'] = isset($buildNames[intval($e['build_id'])]) ?
-            $buildNames[intval($e['build_id'])] : '';
-        $versions[$vid]['platform_id'] = $pid;
-        $versions[$vid]['platform_name'] = $pid > 0 && isset($platformNames[$pid]) ?
-            $platformNames[$pid] : '';
-        $versions[$vid]['execution_ts'] = (string)($e['execution_ts'] ?? '');
-        $versions[$vid]['tester_id'] = intval($e['tester_id']);
+        foreach ($linkKeysByVersion[$vid] as $key) {
+            $assignedPid = $versions[$key]['assigned_platform_id'];
+            if ($pid > 0 && $assignedPid !== 0 && $assignedPid !== $pid) { continue; }
+            $versions[$key]['status'] = stpcStatus($e['status']);
+            $versions[$key]['status_letter'] = strtolower(trim((string)$e['status']));
+            $versions[$key]['build_id'] = intval($e['build_id']);
+            $versions[$key]['build_name'] = isset($buildNames[intval($e['build_id'])]) ?
+                $buildNames[intval($e['build_id'])] : '';
+            $versions[$key]['platform_id'] = $pid;
+            $versions[$key]['platform_name'] = $pid > 0 && isset($platformNames[$pid]) ?
+                $platformNames[$pid] : $versions[$key]['platform_name'];
+            $versions[$key]['execution_ts'] = (string)($e['execution_ts'] ?? '');
+            $versions[$key]['tester_id'] = intval($e['tester_id']);
+        }
     }
 }
 
@@ -365,14 +380,17 @@ foreach ($versions as &$v) {
 unset($v);
 
 if ($action === 'detail') {
-    if (!isset($versions[$tcversionId])) {
+    $detailKey = null;
+    foreach ($versions as $key => $candidate) {
+        if (intval($candidate['tcversion_id']) === $tcversionId) {
+            $detailKey = $key;
+            break;
+        }
+    }
+    if ($detailKey === null) {
         stpcFail(404, 'tcversion_not_found', 'Test case version is not assigned to this plan');
     }
-    $v = $versions[$tcversionId];
-    if ($status !== 'all' && $v['status'] !== stpcStatus($status)) {
-        stpcOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
-            'item' => $v, 'steps' => array()));
-    }
+    $v = $versions[$detailKey];
     stpcOut(array(
         'status' => 'ok',
         'code' => 200,
@@ -410,6 +428,7 @@ $summary = array(
     'missing_expected' => 0,
     'total_steps' => 0,
     'steps_with_expected' => 0,
+    'missing_expected_steps' => 0,
     'executed' => 0,
     'passed' => 0,
     'failed' => 0,
@@ -427,6 +446,7 @@ foreach ($rows as $r) {
     if ($r['status'] === 'failed') { $summary['failed']++; }
     if ($r['status'] === 'blocked') { $summary['blocked']++; }
 }
+$summary['missing_expected_steps'] = $summary['total_steps'] - $summary['steps_with_expected'];
 $summary['step_coverage'] = stpcPct($summary['with_steps'], $summary['shown']);
 $summary['expected_coverage'] = stpcPct($summary['steps_with_expected'], $summary['total_steps']);
 $summary['pass_rate'] = stpcPct($summary['passed'], $summary['executed']);
