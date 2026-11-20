@@ -48560,3 +48560,40 @@ Fixture: `tmp/fixtures_2012.php` — project STPC2012 (id 1), plan STPC Plan (id
 | 2012r.6 | CSV path alignment | click Export CSV | Button now requests the guarded BFF `action=csv` with the same server-side filters, BOM and 12-column header | PASS |
 | 2012r.7 | Error-state aliases | `invalid_parameter`, session-expired codes | Invalid parameter uses the localized invalid-request card; 401/expired redirects to `login.php?note=expired` | PASS (code review) |
 | 2012r.8 | Final gates | `php -l`, i18n gate, suite gate, Chrome console | PHP syntax PASS; i18n 9/9; suite gate 34 PASS / 0 FAIL; console clean | PASS |
+
+## Issue #2014 — Test Plan Execution Notes Coverage (`execNotesCoverage`) — BFF `api/execnotescoverage` + Dashio screen
+
+Fixture: `tmp/fixtures_2014.php` — project ENC2014 (id 1), plans ENC Notes Plan (id 2) and ENC Empty Plan (id 3), builds ENC Build 1/2, platforms ENC Platform A/B, four assigned versions (documented, partial, undocumented, no-exec) with seven executions, markup/formula note samples, no-right user `enc2014norights`. Browser: Chrome devtools against `http://localhost:8082`, admin/admin.
+
+| # | Case | Steps / input | Expected | Result |
+|---|---|---|---|---|
+| 2014.1 | Reports ASIDE entry | expand Reports in the ASIDE menu | "Test Plan Execution Notes Coverage" points to `execNotesCoverage.html?tproject_id=1&tplan_id=3`; screen loads with Dashio shell, locale switcher and context labels | PASS |
+| 2014.2 | Screen load | `execNotesCoverage.html?tproject_id=1&tplan_id=2` | Header/subtitle, ENC Notes Plan / ENC2014 context, eight KPIs, verdict banner, DataTable with 4 rows, CSV enabled | PASS |
+| 2014.3 | KPI math | default report | 4 assigned / 4 in scope / 7 executions / 5 with notes / 2 without notes / 71.4% coverage / 1 latest undocumented / 2 passed versions | PASS |
+| 2014.4 | Evidence classes | read Evidence column | Documented / Partial / Partial / Not run for the four versions | PASS |
+| 2014.5 | Latest execution columns | read Result, Latest build, Platform, Executed on | Failed/Build 2, Passed/Build 2/Platform A, Passed/Build 2/Platform B, Not run as expected | PASS |
+| 2014.6 | Detail modal | click `ENC Login documented` | Modal shows ENC-1 v1, suite, 3 executions with dates/results/builds/platforms and all three notes; all 3 executions shown (oldest-50 truncation fixed) | PASS |
+| 2014.7 | Detail — no executions | click `ENC Cleanup untouched` | Modal shows "This version has no executions." | PASS |
+| 2014.8 | Stored-markup escaping | detail and table for `alert(1) plain text is safe` note | Literal text, no script execution, no console errors | PASS |
+| 2014.9 | Formula guard | inspect CSV row for `=HYPERLINK(...)` | Cell is exported as `'=HYPERLINK(...)` with UTF-8 BOM and `;` delimiter | PASS |
+| 2014.10 | Evidence filter (UI) | set Evidence to "Latest run has no note", click Refresh | 1 row (`ENC Search partial`), KPI shown=1, executions=2, coverage 50%, verdict "Some executions still have no note." | PASS |
+| 2014.11 | Evidence filter (API) | `scope=documented`, `scope=undocumented`, `scope=partial`, `scope=latest_missing` | 1 documented row (3 executions), 0 undocumented rows, 2 partial rows, 1 latest-missing row | PASS |
+| 2014.12 | Result filter | `status=f` | 1 failed row, 2 executions | PASS |
+| 2014.13 | Build filter | `build_id=1` | All 4 rows remain in scope, 3 executions counted | PASS |
+| 2014.14 | Platform filter | `platform_id=1` | All 4 rows remain in scope, 6 executions counted; platform-less assignments included | PASS |
+| 2014.15 | Combined filters | `build_id=1&platform_id=1&status=p` | 1 passed row, 1 execution | PASS |
+| 2014.16 | CSV export (UI + API) | click Export CSV and inspect `action=csv` request | 200, BOM, 14-column header, four rows for default filters, same server-side filters as report | PASS |
+| 2014.17 | Refresh button | click Refresh after switching filter | Filters rebuilt from init, report reloaded; no stale rows | PASS |
+| 2014.18 | Empty plan | `tplan_id=3` (via ASIDE link) | Zero KPIs, no_data verdict, empty box, CSV disabled | PASS |
+| 2014.19 | No-right user | login `enc2014norights`, open report | 403 `no_right` localized state card, no data rendered, AUDIT denial row written | PASS |
+| 2014.20 | Session expiry | logout then open the screen URL directly | Redirected to `login.php?note=expired` | PASS |
+| 2014.21 | Anonymous | unauthenticated BFF request | 401 `not_authenticated` | PASS |
+| 2014.22 | Unknown plan | `tplan_id=999` | 404 `tplan_not_found` | PASS |
+| 2014.23 | Cross-project assertion | `tplan_id=2&tproject_id=99` | 404 `project_mismatch` | PASS |
+| 2014.24 | Invalid filters/action | `status=bogus`, `scope=bogus`, `build_id=999`, `platform_id=999`, `action=bogus`, missing `tplan_id` | 400 `invalid_request` for each | PASS |
+| 2014.25 | Wrong verb / detail scope | POST on report; `action=detail&link_key=999/0`; detail without `link_key` | 405 `method_not_allowed`; 404 `tcversion_not_found`; 400 `invalid_request` | PASS |
+| 2014.26 | Detail ignores report filters | `action=detail&link_key=6/0&status=f&scope=undocumented` | All 3 notes returned; detail scope is the exact assignment link, not the report row filter | PASS |
+| 2014.27 | Romanian locale | switch locale switcher to Română | All dynamic labels translated (title, KPIs, filters, badges, verdict, DataTables); no raw `enc.*` keys visible in rendered DOM | PASS |
+| 2014.28 | i18n gate | `python3 -m json.tool` on all bundles and `bash ai/verify_i18n_coverage.sh` | All bundles well-formed; 9/9 compared, 0 missing keys | PASS |
+| 2014.29 | PHP syntax | `php -l` on BFF, ASIDE, common.php, reports.cfg.php | PASS | PASS |
+| 2014.30 | Event Viewer | query `events` after full pass | 10 rows, all `log_level=16` (login/logout/audit); 0 Error/Warning entries | PASS |
