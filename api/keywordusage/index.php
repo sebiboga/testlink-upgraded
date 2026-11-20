@@ -224,6 +224,8 @@ if (count($versions) > 0) {
         "SELECT e.tcversion_id, e.status, e.execution_ts, e.testplan_id," .
         " tk.keyword_id" .
         " FROM {$tbl['executions']} e" .
+        " JOIN {$tbl['testplans']} tp ON tp.id = e.testplan_id" .
+        " AND tp.testproject_id = " . intval($projectId) .
         " JOIN {$tbl['testcase_keywords']} tk ON tk.tcversion_id = e.tcversion_id" .
         " WHERE e.tcversion_id IN ({$versionIds})");
     if (is_array($execRows)) {
@@ -244,7 +246,6 @@ if (count($versions) > 0) {
             if ((string)$row['execution_ts'] > $s['last']) {
                 $s['last'] = (string)$row['execution_ts'];
             }
-            $s['plans'][intval($row['testplan_id'])] = true;
             unset($s);
         }
     }
@@ -308,6 +309,27 @@ if ($action === 'detail') {
         'keyword' => $keywords[$keywordId], 'cases' => $detail));
 }
 
+$assignmentPlans = array();
+if (count($versions) > 0) {
+    $versionIds = implode(',', array_keys($versions));
+    $assignRows = $db->get_recordset(
+        "SELECT DISTINCT tpt.testplan_id, tk.keyword_id" .
+        " FROM {$tbl['testplan_tcversions']} tpt" .
+        " JOIN {$tbl['testplans']} tp ON tp.id = tpt.testplan_id" .
+        " AND tp.testproject_id = " . intval($projectId) .
+        " JOIN {$tbl['testcase_keywords']} tk ON tk.tcversion_id = tpt.tcversion_id" .
+        " WHERE tpt.tcversion_id IN ({$versionIds})");
+    if (is_array($assignRows)) {
+        foreach ($assignRows as $row) {
+            $kid = intval($row['keyword_id']);
+            $planId = intval($row['testplan_id']);
+            if (isset($keywords[$kid]) && $planId > 0) {
+                $assignmentPlans[$kid][$planId] = true;
+            }
+        }
+    }
+}
+
 $byKeyword = array();
 $allSuites = array();
 foreach ($links as $link) {
@@ -343,6 +365,11 @@ foreach ($keywords as $kid => $keyword) {
     $stats = isset($executionStats[$kid]) ? $executionStats[$kid] : array(
         'count' => 0, 'passed' => 0, 'failed' => 0, 'blocked' => 0,
         'last' => '', 'plans' => array());
+    if (isset($assignmentPlans[$kid])) {
+        foreach ($assignmentPlans[$kid] as $planId => $one) {
+            $stats['plans'][$planId] = true;
+        }
+    }
     $tcCount = count($agg['testcases']);
     foreach ($agg['testcases'] as $tcId => $one) {
         $usedTestcases[$tcId] = true;

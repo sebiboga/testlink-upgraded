@@ -48605,3 +48605,37 @@ Fixture: `tmp/fixtures_2014.php` — project ENC2014 (id 1), plans ENC Notes Pla
 | 2014r.1 | Detail ignores active build/platform filter | Set Build=ENC Build 1, open detail for ENC Login documented | Modal shows all 3 notes from Build 1 and Build 2; BFF returns 3 notes for `build_id=1`, `platform_id=1` and combined filters | PASS |
 | 2014r.2 | Note text preserved and escaped | Open the documented case detail | Stored markup renders as the literal text `alert(1) plain text is safe`; whitespace/newlines are no longer collapsed | PASS |
 | 2014r.3 | Coverage column uses BFF value | Inspect table after filter changes | 100.0% / 50.0% / 0.0% values come from `note_coverage` and sort numerically; console clean | PASS |
+
+## Issue #2015 — Modernize: Project Keyword Usage Inventory (`keywordUsage`) — BFF `api/keywordusage` + Dashio screen
+
+Fixture: `tmp/fixtures_2015.php` — KUP2015 (id 1, 6 cases, 2 suites, 5 keywords, 6 links, 4 tagged cases, 1 plan, 2 builds, 5 executions), KUP2015 OTHER (id 2, foreign twin `smoke` keyword, 1 case), KUP2015 EMPTY (id 3, no keywords), no-right user `kup2015norights`. Browser: Chrome devtools against `http://localhost:8082`, admin/admin.
+
+| # | Case | Steps / input | Expected | Result |
+|---|---|---|---|---|
+| 2015.1 | BFF syntax and project list | `php -l api/keywordusage/index.php`; `action=projects` | No syntax errors; 3 readable projects returned | PASS |
+| 2015.2 | Screen load | open `keywordUsage.html?tproject_id=1` | Teal Dashio header, project picker, 10 KPIs, banner, 13-column DataTable, footer locale switcher | PASS |
+| 2015.3 | KPI math | default report | 5 keywords / 4 used / 1 unused / 6 cases / 4 tagged / 66.7% coverage / 6 links / 4 versions / 6 executions / 2 suites / 1 plan / 2 builds | PASS |
+| 2015.4 | Keyword rows | read table | `regression` and `smoke` 2 cases each, `performance` and XSS keyword 1 each, `unused` 0; verdicts Partial/Unused | PASS |
+| 2015.5 | Detail modal | click Details on `smoke` | Modal shows KUP-1 and KUP-2, suite KUP Suite Alpha, 1 version/1 execution each | PASS |
+| 2015.6 | Detail — unused keyword | click Details on `unused` | Modal shows "No test case is linked to this keyword." | PASS |
+| 2015.7 | Usage filter | set filter to Unused | 1 row, info "Showing 1 to 1 of 1 entries (filtered from 5 total entries)" | PASS |
+| 2015.8 | Project switch — empty | switch to KUP2015 EMPTY | Banner "This test project defines no keywords yet.", all KPIs 0, CSV disabled, "No keywords to display" | PASS |
+| 2015.9 | Project switch — isolation | switch to KUP2015 OTHER | Only the foreign project's own twin `smoke` keyword and 1 case shown; no KUP2015 rows leak | PASS |
+| 2015.10 | Refresh | click Refresh on KUP2015 | KPIs and rows reload with identical values; console clean | PASS |
+| 2015.11 | CSV export | click Export CSV | Download triggered, toast shown, no console error; UTF-8 BOM and formula guard in client writer | PASS |
+| 2015.12 | Stored-markup escaping | inspect XSS keyword row | Literal `xss<img src=x onerror=alert(1)>`, zero `img`/`script` nodes injected | PASS |
+| 2015.13 | Romanian locale | switch locale to Română | Title, buttons, KPIs, banners and table headers translated; no raw `kup.*` keys | PASS |
+| 2015.14 | No-right user | login `kup2015norights`, open screen | "No readable test project" state card; BFF 403 `no_right`; AUDIT row written | PASS |
+| 2015.15 | Unauthenticated | open screen with no session | Redirected to `login.php?note=expired`; BFF 401 `not_authenticated` | PASS |
+| 2015.16 | Invalid request | `tproject_id=abc`, detail without `keyword_id`, `action=bogus` | 400 `invalid_request` for each | PASS |
+| 2015.17 | Missing entities | `tproject_id=999`, `keyword_id=999` | 404 `project_not_found` / `keyword_not_found` | PASS |
+| 2015.18 | Wrong verb | POST `action=report` | 403 without origin proof; 405 `method_not_allowed` with valid origin | PASS |
+| 2015.19 | Report hub wiring | query `api/resultsnav/index.php?action=init` | `keyword_usage` entry with localized name and `keywordUsage.html` href | PASS |
+| 2015.20 | i18n gate | `python3 -m json.tool` on all bundles; `bash ai/verify_i18n_coverage.sh` | All bundles well-formed; 9/9 compared, 0 missing | PASS |
+| 2015.21 | PHP syntax | `php -l` on BFF, ASIDE, `common.php`, `reports.cfg.php` | No syntax errors | PASS |
+| 2015.22 | Bug #2016 regression | compare suite KPI after fixture with shared suites | Distinct suites = 2 instead of summed 5; BFF `summary.suites_involved=2` | PASS |
+| 2015.23 | Bug #2017 regression | click Refresh, inspect all `th` aria-labels | One sort hint per header; no doubled text | PASS |
+| 2015.24 | Event Viewer | query `events` after full pass | 8 rows, all `log_level=16` (login/create/AUDIT); 0 Error/Warning | PASS |
+| 2015r.1 | Usage filter reset (code review) | select Unused, then All keywords | Unused shows 1 row; All restores all 5 rows and clears the column search, console clean | PASS |
+| 2015r.2 | Numeric coverage sort (code review) | sort Coverage ascending and descending | ascending 0%, 16.7%, 16.7%, 33.3%, 33.3%; descending 33.3%, 33.3%, 16.7%, 16.7%, 0% (not lexicographic) | PASS |
+| 2015r.3 | Plans KPI is project-scoped (code review) | temporarily create `KUP Plan No Exec` with tagged tcversion 8 but no executions, then a foreign-project plan with an execution of tcversion 8; query BFF after each; delete both | no-exec plan makes `plans_total=2` and smoke/regression `plans=2`; foreign plan leaves `plans_total=1` and `executions_total=6` unchanged; after cleanup `plans_total=1` | PASS |
