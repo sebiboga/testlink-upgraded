@@ -324,7 +324,9 @@ function renderTable(rows) {
         + Number(r.keyword_id) + '">' + esc(TLi18n.t('kup.details')) + '</button>'
     ];
   });
-  if (dt) { dt.destroy(); $('#kupTable tbody').empty(); }
+  if (dt) { dt.destroy(); dt = null; }
+  $('#kupTable thead th').removeAttr('aria-label');
+  $('#kupTable tbody').empty();
   dt = $('#kupTable').DataTable({
     data: data,
     language: dtLanguage(),
