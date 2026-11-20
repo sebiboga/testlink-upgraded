@@ -71,7 +71,7 @@ role-3 user). Suite `Issue #2012` records 26 executed cases covering KPI math,
 all filters, detail modal, CSV, stored-markup escaping, RO locale, empty plan,
 role-3 403, anonymous 401, unknown/mismatched plans, invalid parameters, wrong
 verb, ASIDE entry, bug #2013 regression and Event Viewer. The shared suite gate
-reports 34 PASS / 0 FAIL / 0 SKIP; the i18n coverage gate passes 9/9; `stpc.*`
+reports 34 PASS / 0 FAIL / 0 SKIP (plus 8 review-fix cases); the i18n coverage gate passes 9/9; `stpc.*`
 keys plus `footers.stepCoverage` exist in all 10 client bundles and
 `$TLS_link_report_step_coverage` in all 19 server locales. Browser console is
 clean and Event Viewer has only AUDIT rows.
