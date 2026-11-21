@@ -318,7 +318,8 @@ function renderTable() {
       { title: t('dd.colCase', 'Test case'), data: 'tcase_name', className: 'tcase',
         render: function(data, type, row) {
           if (type !== 'display') { return data; }
-          return '<span class="link" data-vid="' + esc(row.tcversion_id) + '">' + esc(data) + '</span>';
+          return '<span class="link" data-vid="' + esc(row.tcversion_id) +
+            '" data-key="' + esc(row.link_key) + '">' + esc(data) + '</span>';
         } },
       { title: t('dd.colExternal', 'External ID'), data: 'external_id',
         render: $.fn.dataTable.render.text() },
@@ -360,11 +361,14 @@ function renderTable() {
       emptyTable: t('dd.empty', 'No test cases match this filter.')
     }
   });
-  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-vid')); });
+  $('#dtResults').on('click', '.link', function() {
+    showDetails($(this).attr('data-vid'), $(this).attr('data-key'));
+  });
 }
-function showDetails(vid) {
+function showDetails(vid, key) {
   var p = filterParams('detail');
   p.tcversion_id = vid;
+  if (key) { p.link_key = key; }
   $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' +
     esc(t('common.loading', 'Loading...')));
   $('#detailModal').modal('show');
@@ -373,7 +377,11 @@ function showDetails(vid) {
     data: p,
     dataType: 'json',
     success: function(d) {
-      if (d.status === 'error') { showState(d.code); $('#detailModal').modal('hide'); return; }
+      if (d.status === 'error') {
+        $('#detailModal').modal('hide');
+        toast(t('dd.toastError', 'Error loading data') + ': ' + d.code, true);
+        return;
+      }
       var item = d.item || {};
       var execs = d.executions || [];
       var html = '<div class="detail-meta">' + esc(item.external_id || '') + ' &mdash; ' +

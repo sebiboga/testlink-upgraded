@@ -265,4 +265,4 @@ $TLS_link_report_step_coverage = "Acoperirea pașilor planului de test"; // Test
 $TLS_link_report_exec_notes_coverage = "Acoperirea notelor de execuție a planului de test"; // Test Plan Execution Notes Coverage report (Refs #2014)
 $TLS_link_report_keyword_usage = "Project Keyword Usage Inventory"; // Project keyword usage inventory report (Refs #2015)
 
-$TLS_link_report_defect_density = "Test Plan Defect Density"; // Test Plan Defect Density report (Refs #2018)
+$TLS_link_report_defect_density = "Densitatea defectelor în planul de test"; // Test Plan Defect Density report (Refs #2018)

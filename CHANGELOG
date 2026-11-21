@@ -17,6 +17,12 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [SCREEN] - #2018: **Test Plan Defect Density** (`gui/templates/results/defectDensity.html` + `api/defectdensity/index.php`) — net-new read-only plan report answering which assigned test-case versions carry the most linked defects per failed run: 12 KPIs with globally distinct defects and case-bug links, verdict banner, keyed execution/defect history modal, build/platform/result/case-scope filters and CSV (BOM + `;` + formula guard); `testplan_metrics` on the owning project with AUDIT denials, `dd.*` (90) + footer keys in all 10 bundles and the menu label in all 19 server locales. Suite #2018 = 52/52, i18n gate 9/9, docs/wiki and 4 screenshots. (Refs #2018)
+
+- [BUGFIX] - #2019: **Defect Density KPI double-counted shared defects** (`api/defectdensity/index.php` + `gui/templates/results/defectDensity.html`) — a defect linked to multiple test cases inflated `linked_bugs`; the BFF now exposes global `linked_bugs` and a separate `case_bug_links` used by the density KPI. (Fixes #2019, Refs #2018)
+
+- [BUGFIX] - #2020: **Defect Density CSV omitted linked defect ids** (`api/defectdensity/index.php`) — CSV now includes a `bug_ids` column with a per-id formula-injection guard; redundant manual quote doubling was removed in favour of `fputcsv`. (Fixes #2020, Refs #2018)
+
 - [SCREEN] - #2015: **Project Keyword Usage Inventory** (`gui/templates/results/keywordUsage.html` + `api/keywordusage`) — net-new read-only project-wide report answering "which keywords are actually used?": per-keyword test-case/version/suite/plan/execution footprint, pass/fail/blocked split, 10 KPIs, usage verdict, searchable DataTable, detail modal, client CSV with BOM/formula guard and localized 400/401/403/404/405 state cards. `mgt_view_tc` on the ADDRESSED project with AUDIT denials, foreign-project links ignored, `kup.*` (74) + footer keys in all 10 bundles and the menu label in all 19 server locales. Suite #2015 = 27/27, i18n gate 9/9, docs/wiki and 4 screenshots. (Refs #2015)
 
 - [BUGFIX] - #2016: **Keyword Usage distinct suite KPI** (`api/keywordusage/index.php` + `gui/templates/results/keywordUsage.html`) — a suite shared by several keywords was counted once per keyword; the BFF now exposes `summary.suites_involved` and the KPI uses it. Verified with the shared-suite fixture. (Fixes #2016, Refs #2015)

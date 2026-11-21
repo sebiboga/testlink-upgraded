@@ -75,7 +75,7 @@ function dfdCsvCell($value)
     if ($s !== '' && preg_match('/^[\s]*[=+\-@]/', $s)) {
         $s = "'" . $s;
     }
-    return str_replace(array('"', "\r", "\n"), array('""', ' ', ' '), $s);
+    return str_replace(array("\r", "\n"), array(' ', ' '), $s);
 }
 
 function dfdPath($db, $tbl, $nodeId, $cache)
@@ -138,6 +138,13 @@ $rawPlatform = trim((string)($_GET['platform_id'] ?? '0'));
 $status = strtolower(trim((string)($_GET['status'] ?? 'all')));
 $scope = strtolower(trim((string)($_GET['scope'] ?? 'all')));
 $tcversionId = dfdPositiveInt($_GET['tcversion_id'] ?? null);
+$linkKey = trim((string)($_GET['link_key'] ?? ''));
+if ($linkKey !== '' && !preg_match('/^[0-9]+\/[0-9]+$/', $linkKey)) {
+    dfdFail(400, 'invalid_request', 'Invalid link_key');
+}
+if ($linkKey !== '' && $action !== 'detail') {
+    dfdFail(400, 'invalid_request', 'link_key is only valid for the detail action');
+}
 if (!in_array($status, array('all', 'p', 'f', 'b'), true)) {
     dfdFail(400, 'invalid_request', 'Invalid status');
 }
@@ -154,8 +161,8 @@ if (($rawBuild !== '' && !preg_match('/^[0-9]+$/', $rawBuild)) ||
 if ($tcversionId > 0 && $action !== 'detail') {
     dfdFail(400, 'invalid_request', 'tcversion_id is only valid for the detail action');
 }
-if ($action === 'detail' && $tcversionId <= 0) {
-    dfdFail(400, 'invalid_request', 'Missing tcversion_id');
+if ($action === 'detail' && $tcversionId <= 0 && $linkKey === '') {
+    dfdFail(400, 'invalid_request', 'Missing tcversion_id or link_key');
 }
 $buildId = intval($rawBuild);
 $platformId = intval($rawPlatform);
@@ -381,31 +388,43 @@ unset($v);
 
 if ($action === 'detail') {
     $detailKey = null;
-    foreach ($versions as $key => $candidate) {
-        if (intval($candidate['tcversion_id']) === $tcversionId) {
-            $detailKey = $key;
-            break;
+    if ($linkKey !== '' && isset($versions[$linkKey])) {
+        $detailKey = $linkKey;
+    } elseif ($linkKey === '') {
+        foreach ($versions as $key => $candidate) {
+            if (intval($candidate['tcversion_id']) === $tcversionId) {
+                $detailKey = $key;
+                break;
+            }
         }
     }
     if ($detailKey === null) {
         dfdFail(404, 'tcversion_not_found', 'Test case version is not assigned to this plan');
     }
     $item = $versions[$detailKey];
+    $executions = $item['execution_rows'];
+    unset($item['bug_ids'], $item['execution_rows']);
     dfdOut(array(
         'status' => 'ok',
         'code' => 200,
         'context' => $context,
         'item' => $item,
-        'executions' => $item['execution_rows'],
+        'executions' => $executions,
     ));
 }
 
 $rows = array();
+$filteredBugIds = array();
+$bugIdsByVersion = array();
 foreach ($versions as $v) {
     if ($status !== 'all' && $v['last_result'] !== dfdStatus($status)) { continue; }
     if ($scope === 'with_defects' && $v['linked_bugs'] === 0) { continue; }
     if ($scope === 'without_defects' && $v['linked_bugs'] > 0) { continue; }
     if ($scope === 'never_run' && $v['executions'] > 0) { continue; }
+    foreach ($v['bug_ids'] as $bugId) {
+        if (!in_array($bugId, $filteredBugIds, true)) { $filteredBugIds[] = $bugId; }
+    }
+    $bugIdsByVersion[$v['link_key']] = $v['bug_ids'];
     unset($v['bug_ids'], $v['execution_rows']);
     $rows[] = $v;
 }
@@ -430,6 +449,7 @@ $summary = array(
     'never_run' => 0,
     'cases_with_defects' => 0,
     'linked_bugs' => 0,
+    'case_bug_links' => 0,
     'hot' => 0,
     'spike' => 0,
     'density' => 0.0,
@@ -440,14 +460,15 @@ foreach ($rows as $r) {
     $summary['passed'] += $r['passed'];
     $summary['failed'] += $r['failed'];
     $summary['blocked'] += $r['blocked'];
-    $summary['linked_bugs'] += $r['linked_bugs'];
+    $summary['case_bug_links'] += $r['linked_bugs'];
     if ($r['executions'] > 0) { $summary['executed_cases']++; }
     if ($r['executions'] === 0) { $summary['never_run']++; }
     if ($r['linked_bugs'] > 0) { $summary['cases_with_defects']++; }
     if ($r['verdict'] === 'hot') { $summary['hot']++; }
     if ($r['verdict'] === 'spike') { $summary['spike']++; }
 }
-$summary['density'] = dfdPct($summary['linked_bugs'], $summary['failed']);
+$summary['linked_bugs'] = count(array_unique($filteredBugIds));
+$summary['density'] = dfdPct($summary['case_bug_links'], $summary['failed']);
 $summary['pass_rate'] = dfdPct($summary['passed'], $summary['executions']);
 
 if ($summary['shown'] === 0) {
@@ -469,13 +490,16 @@ if ($action === 'csv') {
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
     fputcsv($out, array('test_case', 'external_id', 'version', 'suite_path',
-        'executions', 'passed', 'failed', 'blocked', 'linked_bugs', 'density',
+        'executions', 'passed', 'failed', 'blocked', 'linked_bugs', 'bug_ids', 'density',
         'verdict', 'last_result', 'last_build', 'last_platform', 'last_ts'), ';');
     foreach ($rows as $r) {
+        $csvBugs = isset($bugIdsByVersion[$r['link_key']]) ?
+            array_map('dfdCsvCell', $bugIdsByVersion[$r['link_key']]) : array();
         fputcsv($out, array(
             dfdCsvCell($r['tcase_name']), dfdCsvCell($r['external_id']),
             $r['version'], dfdCsvCell($r['path']), $r['executions'], $r['passed'],
-            $r['failed'], $r['blocked'], $r['linked_bugs'], $r['density'],
+            $r['failed'], $r['blocked'], $r['linked_bugs'],
+            implode(' | ', $csvBugs), $r['density'],
             dfdCsvCell($r['verdict']), dfdCsvCell($r['last_result']),
             dfdCsvCell($r['last_build']), dfdCsvCell($r['last_platform']),
             dfdCsvCell($r['last_ts']),

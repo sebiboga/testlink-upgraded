@@ -48639,3 +48639,71 @@ Fixture: `tmp/fixtures_2015.php` — KUP2015 (id 1, 6 cases, 2 suites, 5 keyword
 | 2015r.1 | Usage filter reset (code review) | select Unused, then All keywords | Unused shows 1 row; All restores all 5 rows and clears the column search, console clean | PASS |
 | 2015r.2 | Numeric coverage sort (code review) | sort Coverage ascending and descending | ascending 0%, 16.7%, 16.7%, 33.3%, 33.3%; descending 33.3%, 33.3%, 16.7%, 16.7%, 0% (not lexicographic) | PASS |
 | 2015r.3 | Plans KPI is project-scoped (code review) | temporarily create `KUP Plan No Exec` with tagged tcversion 8 but no executions, then a foreign-project plan with an execution of tcversion 8; query BFF after each; delete both | no-exec plan makes `plans_total=2` and smoke/regression `plans=2`; foreign plan leaves `plans_total=1` and `executions_total=6` unchanged; after cleanup `plans_total=1` | PASS |
+
+## Issue #2018 — Modernize: Test Plan Defect Density (defectDensity) — BFF api/defectdensity + Dashio screen
+
+Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dfd2018norights` fixtures from `tmp/fixtures_2018.php`. Plan `3` = DFD Plan (6 assigned versions, 11 executions, 4 distinct defects), plan `4` = empty, project `2` = other project. Date: 2026-11-21.
+
+### BFF and API contract
+
+2018.1 — `GET api/defectdensity/index.php?action=init&tplan_id=3&tproject_id=1` PASS: 200, `ok`, plan/project labels and build/platform/status/scope option lists returned.
+2018.2 — `GET ...action=report&tplan_id=3&tproject_id=1` PASS: 200, summary assigned=6, shown=6, executed_cases=5, executions=11, passed=2, failed=8, blocked=1, linked_bugs=4 (global distinct), case_bug_links=7, cases_with_defects=3, density=87.5, pass_rate=18.2, never_run=1, hot=2, spike=1, verdict `at_risk`, 6 rows.
+2018.3 — `GET ...action=detail&...&tcversion_id=7` PASS: 200, 3 executions, bug ids DFD-1/DFD-2/DFD-3, execution notes present.
+2018.4 — `GET ...action=detail&...&link_key=7/0` PASS: 200, same detail as tcversion_id fallback; no `bug_ids` or `execution_rows` internal arrays leaked.
+2018.5 — `GET ...action=detail&...&link_key=bad` PASS: 400 `invalid_request`.
+2018.6 — `GET ...action=csv&tplan_id=3` PASS: 200, `text/csv; charset=utf-8`, BOM bytes 239/187/191, `;` separator, header includes `bug_ids`, formula cell exported as `"DFD-2 | '=FORMULA(1)"`, newlines neutralized.
+2018.7 — `GET ...action=report&tplan_id=4` PASS: 200 `no_data`, empty rows, CSV disabled by client.
+2018.8 — `GET ...action=report&tplan_id=999` PASS: 404 `tplan_not_found`.
+2018.9 — `GET ...action=report&tplan_id=3&tproject_id=2` PASS: 404 `project_mismatch`.
+2018.10 — `GET ...action=report&tplan_id=3&status=xx` PASS: 400 `invalid_request`.
+2018.11 — `GET ...action=report&tplan_id=3&scope=xx` PASS: 400 `invalid_request`.
+2018.12 — `GET ...action=report&tplan_id=3&build_id=999` PASS: 400 `invalid_request`.
+2018.13 — `GET ...action=detail&tplan_id=3&tcversion_id=999` PASS: 404 `tcversion_not_found`.
+2018.14 — `GET ...action=nope&tplan_id=3` PASS: 400 `invalid_request`.
+2018.15 — `POST ...action=report` with same-origin proof PASS: 405 `method_not_allowed`, `Allow: GET, HEAD`.
+2018.16 — Anonymous request in clean context PASS: 401 `not_authenticated`.
+2018.17 — `dfd2018norights` request PASS: 403 `no_right`, AUDIT event logged.
+2018.18 — Headers on all BFF responses PASS: `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`.
+
+### Dashio screen and interactions
+
+2018.19 — Screen loads with plan/project context PASS: test plan `DFD Plan`, project `DFD2018`, locale switcher visible.
+2018.20 — Default KPI cards PASS: 6 assigned versions, 6 in scope, 5 executed cases, 11 executions, 2 passed, 8 failed, 1 blocked, 4 distinct defects, 3 cases with defects, 87.5% defects/failed run, 18.2% pass rate, 1 never run, 2 hot, 1 spike; verdict `at_risk`.
+2018.21 — DataTable PASS: 6 rows, columns test case/external id/version/suite/runs/passed/failed/blocked/defects/density/verdict/latest result/latest build/platform/executed-on, default sort by defects then density.
+2018.22 — Clicking DFD Login PASS: modal opens with 3 executions and linked defect ids; close modal works.
+2018.23 — Clicking a row after the `link_key` review fix PASS: `data-key` calls `showDetails(vid, key)` and detail response uses `link_key` (verified API, page reloaded).
+2018.24 — Build filter `DFD Build 2` PASS: report narrows to build 2 executions and KPIs/rows recompute.
+2018.25 — Platform filter `DFD Platform A` PASS: report narrows to platform A.
+2018.26 — Result filter `Failed` PASS: only failed executions counted.
+2018.27 — Combined Build 2 + Platform A + Failed PASS: 3 rows; DFD-Login/DFD-Import/DFD-Cleanup counts correct.
+2018.28 — Scope `With linked defects` PASS: only DFD Login, DFD Import, DFD Cleanup rows shown.
+2018.29 — Scope `Without linked defects` PASS: DFD Import, DFD Archive, DFD Cleanup rows shown, density 0.
+2018.30 — Scope `Never run` PASS: only DFD Archive row, verdict text `No linked defects in the current scope.`
+2018.31 — Refresh button PASS: re-issues init/report with current filters, selected scope retained, no console errors.
+2018.32 — Export CSV button/API path PASS: download produced BOM/`;`/formula guard and `bug_ids` column.
+2018.33 — Close button PASS: no JS exception; in embedded shell it navigates back.
+2018.34 — Empty plan UI PASS: localized `no_data` state card, table empty, CSV disabled.
+2018.35 — No-right UI PASS: localized 403 `no_right` state card, CSV disabled, expected 403 network error only.
+2018.36 — ASIDE Reports launcher PASS: `link_report_defect_density` opens the screen.
+2018.37 — Results navigator PASS: `defect_density` tab/link present.
+2018.38 — Locale switcher RO PASS: labels and state strings switch to Romanian; RO label translated.
+2018.39 — Browser console PASS: no new errors/warnings except the deliberate negative-case 400 request.
+2018.40 — Event Viewer PASS: only AUDIT events from fixture creation/logins/denials; 0 Error/Warning.
+
+### Integration, i18n, lint and regression gates
+
+2018.41 — `cfg/reports.cfg.php` PASS: `defect_density` registered and comments correctly placed.
+2018.42 — `lib/functions/common.php` PASS: `$actions->defectDensity` present.
+2018.43 — Client i18n PASS: 90 `dd.*` keys plus footer keys in all 10 JSON bundles.
+2018.44 — `bash ai/verify_i18n_coverage.sh` PASS: 9/9 bundles, 12389 keys.
+2018.45 — Server locale PASS: `$TLS_link_report_defect_density` present in 19 bundles; RO value translated.
+2018.46 — `php -l api/defectdensity/index.php` PASS: no syntax errors.
+2018.47 — `php -l cfg/reports.cfg.php` PASS: no syntax errors.
+2018.48 — `git diff --check` PASS: no whitespace errors.
+2018.49 — Code review PASS: review completed; security baseline accepted; all actionable findings applied.
+2018.50 — Bug #2019 regression PASS: defect DFD-2 linked twice is counted once in `linked_bugs` KPI (4) and twice in `case_bug_links` (7); density remains 87.5%.
+2018.51 — Bug #2020 regression PASS: CSV `bug_ids` column exports DFD-1, DFD-2, DFD-3 per run and formula guard covers each id.
+2018.52 — Multi-platform detail regression PASS: `link_key=7/0` resolves the exact assignment; bad `link_key` 400.
+2018.20a — Correction to 2018.20: the 2 passed and 1 blocked values are report/table counters, not KPI cards; the 12 KPI cards are assigned versions, in scope, executed cases, executions, failed runs, distinct defects, cases with defects, defects per failed run, pass rate, never run, hot cases and defect spikes.
+2018.23a — Correction to 2018.23/2018.52: the #2018 fixture assigns every test-case version with `platform_id=0`, so these cases verify `link_key` parsing, validation and the `tcversion_id` fallback, not platform-specific disjoint histories; platform-specific history separation remains a follow-up fixture enhancement.
+2018.54 — Code-review fix PASS: a detail error now hides the modal and shows `dd.toastError` without calling `showState()`; injecting `data-key="bad"` produced toast `Error loading data: invalid_request`, kept 6 table rows and the original verdict banner. A valid row click still opened the modal.
