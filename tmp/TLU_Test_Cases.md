@@ -48707,3 +48707,72 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dfd2018
 2018.20a — Correction to 2018.20: the 2 passed and 1 blocked values are report/table counters, not KPI cards; the 12 KPI cards are assigned versions, in scope, executed cases, executions, failed runs, distinct defects, cases with defects, defects per failed run, pass rate, never run, hot cases and defect spikes.
 2018.23a — Correction to 2018.23/2018.52: the #2018 fixture assigns every test-case version with `platform_id=0`, so these cases verify `link_key` parsing, validation and the `tcversion_id` fallback, not platform-specific disjoint histories; platform-specific history separation remains a follow-up fixture enhancement.
 2018.54 — Code-review fix PASS: a detail error now hides the modal and shows `dd.toastError` without calling `showState()`; injecting `data-key="bad"` produced toast `Error loading data: invalid_request`, kept 6 table rows and the original verdict banner. A valid row click still opened the modal.
+
+## Issue #2021 — Modernize: Defect Severity Distribution (defectSeverity) — BFF api/defectseverity + Dashio screen
+
+Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021norights` fixtures from `tmp/fixtures_2021.php`. Plan `2` = DSV Plan (5 linked defects, 8 execution links, 6 failed runs), plan `3` = DSV Empty Plan, project `1` = DSV2021. Date: 2026-11-21.
+
+### BFF and API contract
+
+2021.1 — `GET api/defectseverity/index.php?action=init&tplan_id=2&tproject_id=1` PASS: 200 `ok`, context plan/project names, all-build/all-platform options and severity/status option lists returned.
+2021.2 — `GET ...action=report&tplan_id=2&tproject_id=1` PASS: 200, 5 rows; summary total=5, links=8, failed_runs=6, passed_runs=1, affected_cases=3, affected_suites=3, critical=1, high=2, medium=0, low=1, unclassified=1, open=4, in_progress=1, blockers=1, open_high=3, severity_index=60; verdict `at_risk`.
+2021.3 — Lazy schema PASS: first request creates `tc_defect_severity` after the table was added to the `getDBTables()` whitelist; no fatal `Wrong table name(s)` afterwards.
+2021.4 — `GET ...action=detail&...&bug_id=CRIT-101` PASS: 200, returns CRIT-101 (3 evidence executions, owner QA Lead, component Auth), not the last-iterated defect; regression for bug #2022.
+2021.5 — `GET ...action=detail` for S2-202, MAJ-303, BUG-505 and LOW-404 PASS: each response item bug_id equals the requested id; 3/2/1/1 evidence rows respectively.
+2021.6 — `POST ...action=classify` with `{"bug_id":"CRIT-101","severity":"critical","status":"in_progress","owner":"QA Lead","component":"Auth","notes":"confirmed blocker"}` PASS: 200 `ok`, persisted project-wide metadata reflected in the next report.
+2021.7 — `GET ...action=csv&tplan_id=2&tproject_id=1` PASS: 200 `text/csv; charset=utf-8`, UTF-8 BOM bytes 239/187/191, `;` separator, all 17 header columns, quoted cells with ` | ` lists.
+2021.8 — `GET ...action=report&tplan_id=3` PASS: 200 `no_data`, zero rows, zero KPIs, CSV disabled by the client.
+2021.9 — `GET ...action=report&tplan_id=999` PASS: 404 `tplan_not_found`.
+2021.10 — `GET ...action=report&tplan_id=2&tproject_id=999` PASS: 404 `project_mismatch`.
+2021.11 — `GET ...action=report&tplan_id=2&severity=bogus` PASS: 400 `invalid_request`.
+2021.12 — `GET ...action=report&tplan_id=2&status=bogus` PASS: 400 `invalid_request`.
+2021.13 — `GET ...action=report&tplan_id=2&build_id=bogus` / `platform_id=bogus` PASS: 400 `invalid_request`.
+2021.14 — `GET ...action=report&tplan_id=2&build_id=999` PASS: 400 `invalid_request` (unknown project build).
+2021.15 — `GET ...action=report&tplan_id=2&platform_id=999` PASS: 400 `invalid_request` (unknown plan platform).
+2021.16 — `GET ...action=classify&tplan_id=2` PASS: 405 `method_not_allowed`.
+2021.17 — `GET ...action=report&tplan_id=2&bug_id=CRIT-101` PASS: 400 `invalid_request` (bug_id only for detail/classify).
+2021.18 — `GET ...action=detail&tplan_id=2` PASS: 400 `invalid_request` (missing bug_id).
+2021.19 — Anonymous BFF requests for init/report/csv PASS: 401 `not_authenticated`.
+2021.20 — `dsv2021norights` BFF requests for init/report/csv PASS: 403 `no_right`, AUDIT event logged.
+2021.21 — Named-platform filter regression for bug #2023 PASS: `build_id=1&platform_id=1` includes the platform_id=0 execution links and returns CRIT-101 + S2-202; unfiltered build 1 also returns 2 rows.
+2021.22 — Severity inference PASS: CRIT-101 maps to critical, S2-202 and MAJ-303 to high, LOW-404 to low, BUG-505 to unclassified; all five bug references counted once in `total`.
+
+### Dashio screen and interactions
+
+2021.23 — Screen loads with plan/project context PASS: `DSV Plan`, `DSV2021`, 12 KPIs, verdict banner, distribution bar, legend, DataTable, filters and CSV button.
+2021.24 — Default KPI cards PASS: 5 distinct defects, 8 execution links, 1 critical, 2 high, 0 medium, 1 low, 1 unclassified, 1 blocker, 3 open critical/high, 60% critical+high share, 3 affected cases, 6 failed runs.
+2021.25 — DataTable PASS: 5 rows, columns defect/severity/status/owner/component/links/failed runs/cases/suites/builds/last activity/verdict/actions; default sort by verdict then links.
+2021.26 — Severity badges PASS: `in_progress`, `blocker`, `high`, `low`, `watch`, `open` and `critical` render localized words, never raw `dsv.*` keys.
+2021.27 — Evidence detail modal PASS: clicking CRIT-101 opens CRIT-101 with 3 failed execution rows and affected cases/suites/notes; close button dismisses it; regression for bug #2022.
+2021.28 — Classify modal PASS: clicking Classify on BUG-505 opens the prefilled form, saving Medium/In progress/Triager/Core refreshes the row with owner, component, status and `watch` verdict; regression for classify path.
+2021.29 — Build filter PASS: selecting DSV Build 1 narrows report to CRIT-101 and S2-202.
+2021.30 — Combined Build 1 + Platform A filter PASS: report still shows 2 rows including the all-platform execution links; regression for bug #2023.
+2021.31 — Refresh button PASS: re-issues init/report with current filters, preserves selections, no console errors.
+2021.32 — Export CSV button PASS: download triggered by current filter params; no JS exception or console error.
+2021.33 — Close button PASS: no JS exception; posts `close` to the embedding shell in-frame.
+2021.34 — Empty plan UI PASS: DSV Empty Plan shows localized `no_data` state card, zero KPIs and disabled CSV.
+2021.35 — No-right UI PASS: `dsv2021norights` sees localized 403 `no_right` state card with code, CSV disabled.
+2021.36 — Anonymous UI PASS: clean browser context redirects to `login.php?note=expired`; BFF 401 verified separately.
+2021.37 — Romanian locale PASS: title, subtitle, KPIs, verdict banner, distribution, table headers, filters, buttons, statuses and state cards switch to Romanian; no raw keys.
+2021.38 — Browser console PASS: no Error/Warning entries during the entire pass, including modal, classify, CSV, filter and locale interactions.
+
+### Integration, i18n, lint and regression gates
+
+2021.39 — `cfg/reports.cfg.php` PASS: `defect_severity` report launcher registered.
+2021.40 — `api/aside/index.php` PASS: `link_report_defect_severity` ASIDE Reports entry registered.
+2021.41 — `lib/functions/common.php` PASS: `$actions->defectSeverity` present.
+2021.42 — Client i18n PASS: 97 `dsv.*` keys plus footer keys in all 10 JSON bundles; Romanian visible labels translated; `dsv.watch` added everywhere.
+2021.43 — `python3 -m json.tool` PASS: all 10 bundles well-formed.
+2021.44 — `bash ai/verify_i18n_coverage.sh` PASS: 9/9 compared, 0 failures.
+2021.45 — Server locale PASS: `$TLS_link_report_defect_severity` present in all 19 `locale/*/strings.txt` bundles.
+2021.46 — `php -l api/defectseverity/index.php` PASS: no syntax errors.
+2021.47 — `php -l lib/functions/object.class.php` PASS: no syntax errors.
+2021.48 — `git diff --check` PASS: no whitespace errors.
+2021.49 — Bug #2022 fixed and closed PASS: detail modal shows the requested defect in browser and API.
+2021.50 — Bug #2023 fixed and closed PASS: named-platform filters include platform_id=0 assignments.
+2021.51 — Event Viewer PASS: 11 AUDIT rows in the last 30 minutes, 0 Error/Warning (`log_level IN (1,2)`).
+2021.52 — Screenshots PASS: normal, detail, classify, filters, Romanian, empty and no-right states captured under `docs/screenshots/issue-2021-defectseverity-*.png`.
+2021.53 — Code-review recount PASS: `en.json` actually defines 103 `dsv.*` keys (earlier case 2021.42 recorded 97); all 10 bundles still pass the key-set gate.
+2021.54 — Table-prefix regression PASS: BFF resolves `testplans` through `dsvTables()` before the plan lookup; no literal `FROM testplans` remains in `api/defectseverity/index.php`.
+2021.55 — Read-only triage capability PASS: role-7 user `dsv2021readonly` gets report `context.canClassify=false`, sees 5 rows with zero visible Classify buttons, and `POST action=classify` returns 403 `no_right`.
+2021.56 — Verdict ordering PASS: default DataTable puts `blocker`/`Blocant` first and `high`/`Ridicat` second via `verdict_rank`; detail request uses a separate race guard; `api/resultsnav` maps `defect_severity`.

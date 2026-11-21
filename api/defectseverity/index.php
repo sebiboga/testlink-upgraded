@@ -198,6 +198,7 @@ if ($action === 'detail' && $detailBugId === '') {
 $buildId = intval($rawBuild);
 $platformId = intval($rawPlatform);
 
+$tbl = dsvTables();
 $body = array();
 if ($action === 'classify') {
     $rawBody = file_get_contents('php://input');
@@ -213,7 +214,7 @@ if ($tplanId <= 0) {
 }
 
 $planRow = $db->get_recordset(
-    "SELECT id, testproject_id FROM testplans WHERE id = " . $tplanId);
+    "SELECT id, testproject_id FROM {$tbl['testplans']} WHERE id = " . $tplanId);
 if (!is_array($planRow) || count($planRow) === 0) {
     dsvFail(404, 'tplan_not_found', 'Test plan not found');
 }
@@ -247,7 +248,6 @@ $context = array(
 $filter = array('build_id' => $buildId, 'platform_id' => $platformId,
                 'severity' => $severity, 'status' => $status);
 
-$tbl = dsvTables();
 $sevTable = dsvEnsureSchema($db);
 
 $builds = array();
@@ -438,6 +438,8 @@ foreach ($execRs as $e) {
     unset($item);
 }
 
+$verdictRank = array('blocker' => 6, 'high' => 5, 'watch' => 4, 'low' => 3,
+                     'resolved' => 2, 'unclassified' => 1);
 $allRows = array();
 foreach ($bugs as $bugId => $item) {
     if ($severity !== 'all' && $item['severity'] !== $severity) { continue; }
@@ -454,6 +456,7 @@ foreach ($bugs as $bugId => $item) {
         $verdict = 'watch';
     }
     $item['verdict'] = $verdict;
+    $item['verdict_rank'] = $verdictRank[$verdict];
     $item['affected_cases'] = count($item['cases']);
     $item['affected_suites'] = count($item['suites']);
     $item['build_count'] = count($item['builds']);

@@ -217,7 +217,7 @@ td.bug a, td.bug span.link { color: #259b93; font-weight: 700; text-decoration: 
 var params = new URLSearchParams(window.location.search);
 var tplan_id = parseInt(params.get('tplan_id')) || 0;
 var tproject_id = parseInt(params.get('tproject_id')) || 0;
-var STATE = { rows: [], summary: {}, context: {}, dt: null, seq: 0, bugId: '' };
+var STATE = { rows: [], summary: {}, context: {}, dt: null, seq: 0, detailSeq: 0, bugId: '' };
 
 function esc(s) {
   if (s === null || s === undefined) return '';
@@ -232,6 +232,14 @@ function toast(msg, isErr) {
   if (isErr) { $el.addClass('err'); } else { $el.removeClass('err'); }
   setTimeout(function(){ $el.fadeOut(300); }, 3000);
 }
+function canClassify() {
+  return STATE.context.canClassify !== false;
+}
+function applyCapabilities() {
+  var allowed = canClassify();
+  $('.btn-classify').prop('disabled', !allowed).toggle(allowed);
+  $('#btnSaveClass').prop('disabled', !allowed);
+}
 function showState(code) {
   $('#loadingBox').hide();
   if (code === 'session_expired' || code === 'not_authenticated') {
@@ -245,8 +253,7 @@ function showState(code) {
     tplan_not_found: ['dsv.errNotFound', 'Test plan not found', 'dsv.errNotFoundBody', 'The requested test plan does not exist.'],
     project_mismatch: ['dsv.errMismatch', 'Wrong test project', 'dsv.errMismatchBody', 'This test plan belongs to another test project.'],
     defect_not_found: ['dsv.errDefectNotFound', 'Defect not found', 'dsv.errDefectNotFoundBody', 'This defect is not part of the current report.'],
-    method_not_allowed: ['dsv.errMethod', 'Method not allowed', 'dsv.errMethodBody', 'This action is not allowed.'],
-    bad_classification: ['dsv.errBadClassification', 'Invalid classification', 'dsv.errBadClassificationBody', 'Check the severity and status values.']
+    method_not_allowed: ['dsv.errMethod', 'Method not allowed', 'dsv.errMethodBody', 'This action is not allowed.']
   };
   var m = map[code] || ['dsv.errGeneric', 'Could not load the report', 'dsv.errGenericBody', 'Unexpected server error.'];
   $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
@@ -300,6 +307,7 @@ function loadInit() {
       fillSelect($('#platformFilter'), (d.filters || {}).platforms, 'dsv.allPlatforms', 'All platforms');
       $('#tplanName').text(STATE.context.tplan_name || '-');
       $('#tprojectName').text(STATE.context.tproject_name || '-');
+      applyCapabilities();
       loadReport();
     },
     error: function(xhr) {
@@ -356,6 +364,7 @@ function loadReport() {
       }
       renderDist(s);
       renderTable();
+      applyCapabilities();
       $('#btnExport').prop('disabled', false);
       $('#footerInfo').text(t('dsv.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
     },
@@ -420,15 +429,20 @@ function renderTable() {
       { title: t('dsv.colBuilds', 'Builds'), data: 'build_count' },
       { title: t('dsv.colLastTs', 'Last activity'), data: 'last_ts', render: $.fn.dataTable.render.text() },
       { title: t('dsv.colVerdict', 'Verdict'), data: 'verdict',
-        render: function(data, type) { if (type !== 'display') { return data; } return badge(data); } },
+        render: function(data, type, row) {
+          if (type === 'sort' || type === 'type') { return row.verdict_rank || 0; }
+          if (type !== 'display') { return data; }
+          return badge(data);
+        } },
       { title: t('dsv.colActions', 'Actions'), data: 'bug_id', orderable: false,
         render: function(data, type) {
           if (type !== 'display') { return data; }
+          if (!canClassify()) { return ''; }
           return '<button class="btn-ghost btn-classify" data-bug="' + esc(data) + '">' +
             '<i class="fa fa-pen"></i> ' + esc(t('dsv.classify', 'Classify')) + '</button>';
         } }
     ],
-    order: [[11, 'asc'], [5, 'desc']],
+    order: [[11, 'desc'], [5, 'desc']],
     pageLength: 25,
     language: {
       search: t('common.filter', 'Filter') + ':',
@@ -450,6 +464,7 @@ function findRow(bugId) {
   return null;
 }
 function showDetails(bugId) {
+  var detailSeq = ++STATE.detailSeq;
   var p = filterParams('detail');
   p.bug_id = bugId;
   $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' +
@@ -460,6 +475,7 @@ function showDetails(bugId) {
     data: p,
     dataType: 'json',
     success: function(d) {
+      if (detailSeq !== STATE.detailSeq) { return; }
       if (d.status === 'error') {
         $('#detailModal').modal('hide');
         toast(t('dsv.toastError', 'Error loading data') + ': ' + d.code, true);
@@ -499,6 +515,7 @@ function showDetails(bugId) {
       TLi18n.apply($('#detailBody')[0]);
     },
     error: function(xhr) {
+      if (detailSeq !== STATE.detailSeq) { return; }
       $('#detailModal').modal('hide');
       toast(t('dsv.toastError', 'Error loading data') + ': ' +
         esc((xhr.responseJSON || {}).code || 'error'), true);
@@ -506,6 +523,10 @@ function showDetails(bugId) {
   });
 }
 function openClassify(bugId) {
+  if (!canClassify()) {
+    toast(t('dsv.errNoRight', 'No permission'), true);
+    return;
+  }
   var row = findRow(bugId);
   if (!row) { return; }
   STATE.bugId = bugId;
@@ -519,6 +540,10 @@ function openClassify(bugId) {
   $('#classifyModal').modal('show');
 }
 function saveClassify() {
+  if (!canClassify()) {
+    toast(t('dsv.errNoRight', 'No permission'), true);
+    return;
+  }
   var payload = {
     tplan_id: tplan_id,
     tproject_id: tproject_id,
