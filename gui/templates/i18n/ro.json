@@ -12487,5 +12487,11 @@
   "dsv.verdictWatch": "Defectele de severitate ridicată sau neclasificate necesită triare.",
   "dsv.wontfix": "Won't fix",
   "dsv.zeroRecords": "No matching defects",
-  "footers.defectSeverity": "TestLink 2.0.1 - Distribuția severității defectelor"
+  "footers.defectSeverity": "TestLink 2.0.1 - Distribuția severității defectelor",
+  "dsv.blocker": "Blocant",
+  "dsv.failed": "Eșuat",
+  "dsv.in_progress": "În lucru",
+  "dsv.not_run": "Nu a rulat",
+  "dsv.passed": "Trecut",
+  "dsv.resolved": "Rezolvat"
 }

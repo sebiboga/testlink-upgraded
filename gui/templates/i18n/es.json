@@ -12487,5 +12487,11 @@
   "dsv.verdictWatch": "High-severity or unclassified defects need triage.",
   "dsv.wontfix": "Won't fix",
   "dsv.zeroRecords": "No matching defects",
-  "footers.defectSeverity": "TestLink 2.0.1 - Defect Severity Distribution"
+  "footers.defectSeverity": "TestLink 2.0.1 - Defect Severity Distribution",
+  "dsv.blocker": "Blocker",
+  "dsv.failed": "Failed",
+  "dsv.in_progress": "In progress",
+  "dsv.not_run": "Not run",
+  "dsv.passed": "Passed",
+  "dsv.resolved": "Resolved"
 }
