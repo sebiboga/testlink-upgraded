@@ -836,6 +836,15 @@ $tlCfg->reports_list['defect_severity'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2024: Step Execution Results (net-new). Step-level pass/fail/blocked
+// evidence from execution_tcsteps for the assigned versions of one plan.
+$tlCfg->reports_list['step_execution_results'] = array(
+	'title' => 'link_report_step_execution_results',
+	'url' => 'gui/templates/results/stepExecutionResults.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

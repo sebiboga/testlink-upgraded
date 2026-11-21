@@ -211,6 +211,8 @@ $bff = function ($action) use ($db, $user) {
             'defect_density' => 'gui/templates/results/defectDensity.html',
             // Refs #2021: Test Plan Defect Severity Distribution.
             'defect_severity' => 'gui/templates/results/defectSeverity.html',
+            // Refs #2024: Test Plan Step Execution Results.
+            'step_execution_results' => 'gui/templates/results/stepExecutionResults.html',
         );
 
         $reportList = config_get('reports_list');

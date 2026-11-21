@@ -2766,6 +2766,11 @@ function getActions(&$gui,$baseURL) {
   $actions->defectSeverity =
     "/gui/templates/results/defectSeverity.html?{$ctx}";
 
+  // Refs #2024: Step Execution Results report (net-new screen).
+  // Per-step pass/fail/blocked evidence from execution_tcsteps.
+  $actions->stepExecutionResults =
+    "/gui/templates/results/stepExecutionResults.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =
