@@ -2756,6 +2756,11 @@ function getActions(&$gui,$baseURL) {
   $actions->stepCoverage =
     "/gui/templates/results/stepCoverage.html?{$ctx}";
 
+  // Refs #2018: Test Plan Defect Density report (net-new screen).
+  // Distinct linked defects per failed run of the plan's assigned versions.
+  $actions->defectDensity =
+    "/gui/templates/results/defectDensity.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =

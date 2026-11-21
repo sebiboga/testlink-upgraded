@@ -207,6 +207,8 @@ $bff = function ($action) use ($db, $user) {
             'build_trend' => 'gui/templates/results/buildTrend.html',
             // Refs #1992: Test Plan Platform Coverage Matrix.
             'platform_matrix' => 'gui/templates/results/platformMatrix.html',
+            // Refs #2018: Test Plan Defect Density.
+            'defect_density' => 'gui/templates/results/defectDensity.html',
         );
 
         $reportList = config_get('reports_list');

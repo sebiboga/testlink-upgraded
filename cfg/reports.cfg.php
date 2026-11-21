@@ -804,6 +804,15 @@ $tlCfg->reports_list['step_coverage'] = array(
 
 // Refs #2014: Test Plan Execution Notes Coverage (net-new). 1.9.20 stores
 // execution notes but never answers which assigned cases carry evidence.
+// Refs #2018: Test Plan Defect Density (net-new). Correlates execution_bugs
+// with failed runs of the plan's assigned test-case versions.
+$tlCfg->reports_list['defect_density'] = array(
+	'title' => 'link_report_defect_density',
+	'url' => 'gui/templates/results/defectDensity.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 $tlCfg->reports_list['exec_notes_coverage'] = array(
 	'title' => 'link_report_exec_notes_coverage',
 	'url' => 'gui/templates/results/execNotesCoverage.html',

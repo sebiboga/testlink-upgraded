@@ -352,6 +352,11 @@ if ($tplan_id > 0) {
                 // completeness of the plan's assigned test-case versions).
                 $hrefR = '/gui/templates/results/stepCoverage.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_defect_density') {
+                // Refs #2018: Test Plan Defect Density (distinct linked bugs
+                // per failed run of the plan's assigned test-case versions).
+                $hrefR = '/gui/templates/results/defectDensity.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_notes_coverage') {
                 // Refs #2014: Test Plan Execution Notes Coverage (plain-text
                 // execution-note evidence for the plan's assigned versions).
