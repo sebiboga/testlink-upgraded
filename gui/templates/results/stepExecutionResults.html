@@ -411,7 +411,29 @@ function showDetails(sid) {
   });
 }
 function exportCsv() {
-  window.location.href = API + '?' + $.param(filterParams('csv'));
+  $.ajax({
+    url: API,
+    data: filterParams('csv'),
+    dataType: 'json',
+    success: function(d) {
+      if (d.status !== 'ok' || !d.csv) {
+        toast(t('ser.toastError', 'Error loading data'), true);
+        return;
+      }
+      var url = URL.createObjectURL(new Blob([d.csv], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'step-execution-results-' + tplan_id + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) {
+      toast(t('ser.toastError', 'Error loading data') + ': ' +
+        ((xhr.responseJSON || {}).code || 'error'), true);
+    }
+  });
 }
 $(function() {
   $('#btnRefresh').on('click', function() { loadInit(); });
