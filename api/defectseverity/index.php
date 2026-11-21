@@ -324,7 +324,7 @@ if ($buildId > 0) {
     $execSql .= " AND e.build_id = " . $buildId;
 }
 if ($platformId > 0) {
-    $execSql .= " AND e.platform_id = " . $platformId;
+    $execSql .= " AND (e.platform_id = " . $platformId . " OR e.platform_id = 0)";
 }
 $execRs = $db->get_recordset($execSql . " ORDER BY e.execution_ts ASC, e.id ASC");
 if (!is_array($execRs)) {
