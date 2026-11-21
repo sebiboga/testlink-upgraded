@@ -266,3 +266,4 @@ $TLS_link_report_exec_notes_coverage = "Acoperirea notelor de execuție a planul
 $TLS_link_report_keyword_usage = "Project Keyword Usage Inventory"; // Project keyword usage inventory report (Refs #2015)
 
 $TLS_link_report_defect_density = "Densitatea defectelor în planul de test"; // Test Plan Defect Density report (Refs #2018)
+$TLS_link_report_defect_severity = "Distribuția severității defectelor"; // Defect severity report (Refs #2021)

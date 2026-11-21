@@ -2236,3 +2236,4 @@ $TLS_link_report_exec_notes_coverage = "Test Plan Execution Notes Coverage"; // 
 $TLS_link_report_keyword_usage = "Project Keyword Usage Inventory"; // Project keyword usage inventory report (Refs #2015)
 
 $TLS_link_report_defect_density = "Test Plan Defect Density"; // Test Plan Defect Density report (Refs #2018)
+$TLS_link_report_defect_severity = "Defect Severity Distribution"; // Defect severity report (Refs #2021)

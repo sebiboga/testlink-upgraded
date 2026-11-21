@@ -2761,6 +2761,11 @@ function getActions(&$gui,$baseURL) {
   $actions->defectDensity =
     "/gui/templates/results/defectDensity.html?{$ctx}";
 
+  // Refs #2021: Defect Severity Distribution report (net-new screen).
+  // Classified execution defects per test plan, with triage metadata.
+  $actions->defectSeverity =
+    "/gui/templates/results/defectSeverity.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =

@@ -827,6 +827,15 @@ $tlCfg->reports_list['keyword_usage'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2021: Defect Severity Distribution (net-new). Classifies the distinct
+// execution_bugs references of one plan into an editable severity/status registry.
+$tlCfg->reports_list['defect_severity'] = array(
+	'title' => 'link_report_defect_severity',
+	'url' => 'gui/templates/results/defectSeverity.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

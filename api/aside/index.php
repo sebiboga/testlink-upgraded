@@ -357,6 +357,9 @@ if ($tplan_id > 0) {
                 // per failed run of the plan's assigned test-case versions).
                 $hrefR = '/gui/templates/results/defectDensity.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_defect_severity') {
+                $hrefR = '/gui/templates/results/defectSeverity.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_notes_coverage') {
                 // Refs #2014: Test Plan Execution Notes Coverage (plain-text
                 // execution-note evidence for the plan's assigned versions).
