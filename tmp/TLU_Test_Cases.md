@@ -48776,3 +48776,74 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2021.54 — Table-prefix regression PASS: BFF resolves `testplans` through `dsvTables()` before the plan lookup; no literal `FROM testplans` remains in `api/defectseverity/index.php`.
 2021.55 — Read-only triage capability PASS: role-7 user `dsv2021readonly` gets report `context.canClassify=false`, sees 5 rows with zero visible Classify buttons, and `POST action=classify` returns 403 `no_right`.
 2021.56 — Verdict ordering PASS: default DataTable puts `blocker`/`Blocant` first and `high`/`Ridicat` second via `verdict_rank`; detail request uses a separate race guard; `api/resultsnav` maps `defect_severity`.
+
+## Issue #2024 — Modernize: Test Plan Step Execution Results (`stepExecutionResults`) — BFF `api/stepExecutionResults` + Dashio screen + bugs #2025, #2026, #2027
+
+### BFF API and data model
+
+2024.1 — Fixture `php tmp/fixtures_2024.php` PASS: project `SER2024` (`tproject_id=24`, prefix `SR`), plans `SER Step Results Plan` (`tplan_id=25`) and `SER Empty Plan` (`tplan_id=26`), builds 3/4, platforms 3/4, user `ser2024norights` role 3, 4 cases / 8 design steps / 11 `execution_tcsteps` rows.
+2024.2 — `GET api/stepExecutionResults/index.php?action=init&tplan_id=25&tproject_id=24` PASS: 200 `ok`, context and build/platform filter lists populated.
+2024.3 — `GET ...action=report&tplan_id=25&tproject_id=24` PASS: KPIs `versions=4`, `design_steps=8`, `step_results=11`, `passed=6`, `failed=2`, `blocked=2`, `not_run=1`, `failure_rate=18.2`, `failing_steps=2`, `blocked_steps=2`, `passing_steps=2`, `flaky_steps=0`, `cases_with_failures=2`, `verdict=at_risk`.
+2024.4 — Step aggregation PASS: `SER Login` step 2 has 2 evidence rows (1 pass, 1 fail) and verdict `failing` but its latest execution has overall status `passed`; regression for bug #2025 (classification is computed from step rows, not the execution header).
+2024.5 — Detail regression PASS: `GET ...action=detail&step_id=31` returns the requested step, not the last-iterated one; tester resolves to `Testlink Administrator`; `bad password` note preserved.
+2024.6 — Timestamp tie regression PASS: rows sharing `execution_ts` keep a stable deterministic order after the #2025 fix; no nondeterministic first-row selection.
+2024.7 — `GET ...action=csv&tplan_id=25&tproject_id=24` PASS: 200 JSON envelope with BOM-prefixed `;`-delimited CSV, 18 header columns and one line per step; current filters echoed.
+2024.8 — `GET ...action=report&tplan_id=26` PASS: empty plan returns `verdict=no_data`, zero rows/KPIs and zero build/platform step evidence.
+2024.9 — `GET ...action=report&tplan_id=999` PASS: 404 `tplan_not_found`.
+2024.10 — `GET ...action=report&tplan_id=25&tproject_id=1` PASS: 404 `project_mismatch`.
+2024.11 — `GET ...action=report&tplan_id=0` PASS: 400 `invalid_request`.
+2024.12 — `GET ...action=report&tplan_id=25&build_id=bogus` PASS: 400 `invalid_request`.
+2024.13 — `GET ...action=report&tplan_id=25&platform_id=bogus` PASS: 400 `invalid_request`.
+2024.14 — `GET ...action=report&tplan_id=25&status=bogus` PASS: 400 `invalid_request`.
+2024.15 — `GET ...action=report&tplan_id=25&scope=bogus` PASS: 400 `invalid_request`.
+2024.16 — `GET ...action=report&tplan_id=25&step_id=31` PASS: 400 `invalid_request` (`step_id` restricted to `detail`).
+2024.17 — `GET ...action=detail&tplan_id=25` PASS: 400 `invalid_request` (missing `step_id`).
+2024.18 — `GET ...action=detail&tplan_id=25&step_id=99999` PASS: 404 `step_not_found`.
+2024.19 — `POST ...action=report&tplan_id=25` PASS: 405 `method_not_allowed` (read-only BFF).
+2024.20 — Anonymous BFF requests for init/report/detail/csv PASS: 401 `not_authenticated`.
+2024.21 — `ser2024norights` BFF requests for init/report/detail/csv PASS: 403 `no_right` with localized client state.
+2024.22 — Unknown action PASS: 400 `invalid_request`; SQL identifiers resolved through the table-prefix map, no literal `FROM testplans` / `FROM executions` in the endpoint.
+
+### Dashio screen and interactions
+
+2024.23 — Screen loads for `tproject_id=24&tplan_id=25` PASS: title, subtitle, context, 12 KPI cards, verdict banner, 4 filter selects, Refresh/Export/Close, 16-column DataTable and footer render.
+2024.24 — Default KPIs PASS: 4 / 8 / 11 / 6 / 2 / 2 / 1 / 18.2% / 2 / 0 / 2 displayed exactly as the BFF report.
+2024.25 — DataTable PASS: 8 rows, default sort by test case + step, all 16 columns, DataTables search/pagination/info localized.
+2024.26 — Verdict badges PASS: `Passing`, `Failing`, `Blocked`, `Not run` render localized words; regression for bug #2026 (underscore key `ser_failing` changed to dotted `ser.failing`).
+2024.27 — Detail modal PASS: clicking a design-step link opens `Step evidence history` with step number, actions, expected result and each run's timestamp/result/build/platform/tester/notes; close button dismisses it.
+2024.28 — Build filter PASS: selecting `SER Build 1` narrows to 4 step results, 1 failing, 25% failure rate, 8 design-step rows.
+2024.29 — Latest result filter PASS: selecting `Failed` narrows the table to 1 row and preserves the whole-scope KPI strip.
+2024.30 — Scope filter PASS: `Ever failed` narrows to the single failing step (`SR-1` step 2); `Ever blocked`, `Ever passed`, `Mixed results` and `With step evidence` options all present.
+2024.31 — Platform filter PASS: `SER Platform A` / `SER Platform B` options populated from the plan; selecting one reloads the report with that `platform_id`.
+2024.32 — DataTables search PASS: typing `SER Search` filters 8 rows down to 2 with info `(filtered from 8 total entries)`; column sorting works on Failed.
+2024.33 — Refresh PASS: re-issues `init` + `report`, preserves the current filter selections and regenerates the footer timestamp.
+2024.34 — Export CSV PASS: button fetches `action=csv` via XHR and triggers a Blob download (`step-execution-results-25.csv`) without leaving the screen; regression for bug #2027.
+2024.35 — Export disabled state PASS: empty plan and every error state disable Export; no JS exception on a disabled click.
+2024.36 — Close PASS: posts `{action:'close'}` to the embedding shell and calls `window.close()` with no JS exception; shell-level no-op matches the sibling modernized report screens.
+2024.37 — Empty plan UI PASS: `SER Empty Plan` shows localized `no_data` verdict, zero KPIs, empty-table message and disabled Export.
+2024.38 — No-right UI PASS: `ser2024norights` sees localized `No permission` state with `Code: no_right` and disabled Export.
+2024.39 — Anonymous UI PASS: a clean browser context is redirected to `login.php?note=expired`.
+2024.40 — Error state UI PASS: `tplan_not_found`, `project_mismatch` and `invalid_request` render localized headings, bodies and stable codes.
+2024.41 — Romanian locale PASS: title, subtitle, filters, buttons, KPIs, verdict, DataTable headers/info, badges and empty/error states all switch to Romanian; no raw `ser.*` keys.
+2024.42 — ASIDE integration PASS: Reports menu contains `Step Execution Results`; clicking it loads the screen in the main frame with the selected project/plan context.
+2024.43 — Browser console PASS: no new Error/Warning messages; only the pre-existing shared locale-switcher accessibility notice (a11y-form field) observed.
+2024.44 — Screenshots PASS: `docs/screenshots/issue-2024-stepexecresults-normal.png`, `-detail.png`, `-empty.png`, `-ro.png`, `-no-right.png` captured.
+
+### Integration, i18n, lint and regression gates
+
+2024.45 — `cfg/reports.cfg.php` PASS: `step_execution_results` launcher registered.
+2024.46 — `api/aside/index.php` PASS: Reports entry wired to `stepExecutionResults.html` with project/plan context.
+2024.47 — `api/resultsnav/index.php` PASS: `step_execution_results` resultsnav mapping present.
+2024.48 — `lib/functions/common.php` PASS: `$actions->stepExecutionResults` present.
+2024.49 — Client i18n PASS: 90 `ser.*` keys plus footer keys in all 10 client bundles; Romanian browser pass shows no raw keys.
+2024.50 — `python3 -m json.tool` PASS: all touched locale bundles well-formed.
+2024.51 — `bash ai/verify_i18n_coverage.sh` PASS: 9 bundles compared, 0 failures, 12583 keys in `en.json`.
+2024.52 — Server locale PASS: `$TLS_link_report_step_execution_results` present in all 19 `locale/*/strings.txt` bundles.
+2024.53 — `php -l` PASS: BFF and all four wired PHP files parse without syntax errors.
+2024.54 — `node --check` PASS: inline screen JavaScript parses after both #2026 and #2027 fixes.
+2024.55 — `git diff --check` PASS: no whitespace errors across the screen's commits.
+2024.56 — Bug #2025 PASS: step verdict computed from `execution_tcsteps`, tester from the execution, timestamp ties broken deterministically; API and browser agree.
+2024.57 — Bug #2026 PASS: badges localized in both table and modal after dotted i18n key fix.
+2024.58 — Bug #2027 PASS: CSV downloads as a file instead of navigating to the JSON envelope.
+2024.59 — Event Viewer PASS: one `log_level=1` row from the initial fixture attempt (`status='not_run'` in `CHAR(1) execution_tcsteps.status`) identified, removed as test-only data, and final query over the last hour shows only `log_level=16` informational rows (0 Error/Warning).
+2024.60 — CHANGELOG PASS: one-line `[SCREEN] - #2024` entry added under the 2.0.1 screens section.
