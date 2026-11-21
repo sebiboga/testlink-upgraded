@@ -304,7 +304,7 @@ function loadReport() {
 }
 function badge(kind, value) {
   return '<span class="badge badge-' + esc(value) + '">' +
-    esc(t(kind + '_' + value, value)) + '</span>';
+    esc(t(kind + '.' + value, value)) + '</span>';
 }
 function renderTable() {
   $('#reportArea').html('<div class="section"><div class="section-head">' +
