@@ -177,7 +177,7 @@ $rawBuild = trim((string)(isset($_GET['build_id']) ? $_GET['build_id'] : '0'));
 $rawPlatform = trim((string)(isset($_GET['platform_id']) ? $_GET['platform_id'] : '0'));
 $severity = strtolower(trim((string)(isset($_GET['severity']) ? $_GET['severity'] : 'all')));
 $status = strtolower(trim((string)(isset($_GET['status']) ? $_GET['status'] : 'all')));
-$bugId = trim((string)(isset($_GET['bug_id']) ? $_GET['bug_id'] : ''));
+$detailBugId = trim((string)(isset($_GET['bug_id']) ? $_GET['bug_id'] : ''));
 $severities = array('all', 'critical', 'high', 'medium', 'low', 'unclassified');
 $statuses = array('all', 'open', 'in_progress', 'fixed', 'closed', 'wontfix');
 if (!in_array($severity, $severities, true) || !in_array($status, $statuses, true)) {
@@ -189,10 +189,10 @@ if ($rawBuild !== '' && !preg_match('/^[0-9]+$/', $rawBuild)) {
 if ($rawPlatform !== '' && !preg_match('/^[0-9]+$/', $rawPlatform)) {
     dsvFail(400, 'invalid_request', 'Invalid platform_id');
 }
-if ($bugId !== '' && $action !== 'detail' && $action !== 'classify') {
+if ($detailBugId !== '' && $action !== 'detail' && $action !== 'classify') {
     dsvFail(400, 'invalid_request', 'bug_id is only valid for detail and classify');
 }
-if ($action === 'detail' && $bugId === '') {
+if ($action === 'detail' && $detailBugId === '') {
     dsvFail(400, 'invalid_request', 'Missing bug_id');
 }
 $buildId = intval($rawBuild);
@@ -493,7 +493,7 @@ usort($allRows, 'dsvSortRows');
 if ($action === 'detail') {
     $detail = null;
     foreach ($allRows as $r) {
-        if ($r['bug_id'] === $bugId) { $detail = $r; break; }
+        if ($r['bug_id'] === $detailBugId) { $detail = $r; break; }
     }
     if ($detail === null) {
         dsvFail(404, 'defect_not_found', 'Defect is not part of this report');
