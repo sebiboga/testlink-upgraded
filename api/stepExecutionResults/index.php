@@ -71,7 +71,7 @@ function serCsvCell($value)
     if ($s !== '' && preg_match('/^[\s]*[=+\-@]/', $s)) {
         $s = "'" . $s;
     }
-    return str_replace(array('"', "\r", "\n"), array('""', ' ', ' '), $s);
+    return $s;
 }
 
 function serPath($db, $tbl, $nodeId, &$cache)
@@ -288,13 +288,15 @@ foreach ($stepRs as $r) {
 
 $evidenceRs = $db->get_recordset(
     "SELECT es.id AS evidence_id, es.execution_id, es.tcstep_id, es.status, es.notes," .
-    "       e.tcversion_id, e.build_id, e.platform_id, e.tester_id, e.execution_ts," .
-    "       tptv.platform_id AS assigned_platform_id" .
+    "       e.tcversion_id, e.build_id, e.platform_id, e.tester_id, e.execution_ts" .
     " FROM {$tbl['execution_tcsteps']} es" .
     " JOIN {$tbl['executions']} e ON e.id = es.execution_id" .
-    " JOIN {$tbl['testplan_tcversions']} tptv ON tptv.tcversion_id = e.tcversion_id" .
-    "      AND tptv.testplan_id = " . intval($tplanId) .
-    " WHERE (" . intval($platformId) . " = 0 OR e.platform_id = " . intval($platformId) . ")" .
+    " WHERE e.testplan_id = " . intval($tplanId) .
+    "   AND EXISTS (SELECT 1 FROM {$tbl['testplan_tcversions']} tpt" .
+    "               WHERE tpt.testplan_id = " . intval($tplanId) .
+    "                 AND tpt.tcversion_id = e.tcversion_id" .
+    "                 AND (tpt.platform_id = 0 OR tpt.platform_id = e.platform_id))" .
+    "   AND (" . intval($platformId) . " = 0 OR e.platform_id = " . intval($platformId) . ")" .
     "   AND (" . intval($buildId) . " = 0 OR e.build_id = " . intval($buildId) . ")" .
     " ORDER BY e.execution_ts, e.id, es.id");
 if (!is_array($evidenceRs)) { $evidenceRs = array(); }
@@ -477,14 +479,14 @@ if ($action === 'detail') {
 }
 
 if ($action === 'csv') {
-    $lines = array();
-    $header = array('test_case', 'external_id', 'version', 'suite', 'step', 'actions',
-                    'expected', 'verdict', 'evidence', 'passed', 'failed', 'blocked',
-                    'latest_status', 'latest_build', 'latest_platform', 'latest_tester',
-                    'latest_ts', 'latest_notes');
-    $lines[] = implode(';', $header);
+    $out = fopen('php://temp', 'r+');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, array('test_case', 'external_id', 'version', 'suite', 'step', 'actions',
+        'expected', 'verdict', 'evidence', 'passed', 'failed', 'blocked',
+        'latest_status', 'latest_build', 'latest_platform', 'latest_tester',
+        'latest_ts', 'latest_notes'), ';');
     foreach ($rows as $r) {
-        $lines[] = implode(';', array(
+        fputcsv($out, array(
             serCsvCell($r['tcase_name']), serCsvCell($r['external_id']),
             $r['version'], serCsvCell($r['suite_path']), $r['step_number'],
             serCsvCell($r['actions']), serCsvCell($r['expected']),
@@ -492,10 +494,12 @@ if ($action === 'csv') {
             $r['latest_status'], serCsvCell($r['latest_build']),
             serCsvCell($r['latest_platform']), serCsvCell($r['latest_tester']),
             serCsvCell($r['latest_ts']), serCsvCell($r['latest_notes']),
-        ));
+        ), ';');
     }
-    serOut(array('status' => 'ok', 'code' => 200,
-                 'csv' => "\xEF\xBB\xBF" . implode("\r\n", $lines) . "\r\n",
+    rewind($out);
+    $csv = stream_get_contents($out);
+    fclose($out);
+    serOut(array('status' => 'ok', 'code' => 200, 'csv' => $csv,
                  'rows' => count($rows)));
 }
 

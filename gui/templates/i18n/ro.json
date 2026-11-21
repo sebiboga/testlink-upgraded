@@ -12555,6 +12555,7 @@
   "ser.colNotes": "Note",
   "ser.empty": "Niciun pas de proiectare nu corespunde filtrului.",
   "ser.emptyEvidence": "Niciun rezultat de pas înregistrat în acest domeniu.",
+  "ser.infoEmpty": "Fără înregistrări",
   "ser.zeroRecords": "Niciun pas de proiectare găsit",
   "ser.detailTitle": "Istoricul dovezilor pasului",
   "ser.generatedOn": "Generat la",

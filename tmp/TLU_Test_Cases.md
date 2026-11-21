@@ -48847,3 +48847,15 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2024.58 — Bug #2027 PASS: CSV downloads as a file instead of navigating to the JSON envelope.
 2024.59 — Event Viewer PASS: one `log_level=1` row from the initial fixture attempt (`status='not_run'` in `CHAR(1) execution_tcsteps.status`) identified, removed as test-only data, and final query over the last hour shows only `log_level=16` informational rows (0 Error/Warning).
 2024.60 — CHANGELOG PASS: one-line `[SCREEN] - #2024` entry added under the 2.0.1 screens section.
+
+2024.61 — Bug #2028 PASS: code review found that joining `testplan_tcversions` by tcversion only duplicated evidence for multi-platform assignments; added a temporary second `tptv` row for tcversion 29/platform 3, confirmed `step_results=11`, `passed=6`, `failed=2`, `blocked=2` and 2 history rows per login step stayed unchanged, then removed the temporary row.
+
+2024.62 — Bug #2029 PASS: CSV rows are now produced with `fputcsv()` into `php://temp`; a step action containing `;` and quotes exported as `"Choose format; select ""Export"""` and parses back to one field, with the UTF-8 BOM and formula guard retained; test data reverted.
+
+2024.63 — Bug #2030 PASS: `ser.infoEmpty` added to all 10 client bundles and used by the DataTables `infoEmpty` option; browser RO locale resolves it to `Fără înregistrări` and the i18n key-set gate passes.
+
+2024.64 — Code review PASS: subagent reviewed the BFF, screen, i18n and wiring; findings #2028/#2029/#2030 were filed as labeled bugs, fixed and re-verified before final commit.
+
+2024.65 — Docs/wiki PASS: `docs/Test-Plan-Step-Execution-Results-Modernized.md` mirrors the wiki page (no image lines) and 6 screenshots are attached to the wiki page.
+
+2024.66 — CHANGELOG PASS: bugfix lines for #2025-#2030 added under the 2.0.1 section with issue references.

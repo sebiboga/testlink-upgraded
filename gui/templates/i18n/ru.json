@@ -12555,6 +12555,7 @@
   "ser.colNotes": "Notes",
   "ser.empty": "No design steps match this filter.",
   "ser.emptyEvidence": "No step result recorded in this scope.",
+  "ser.infoEmpty": "No entries",
   "ser.zeroRecords": "No matching design steps",
   "ser.detailTitle": "Step evidence history",
   "ser.generatedOn": "Generated on",
