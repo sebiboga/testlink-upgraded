@@ -99,10 +99,10 @@ function dsvInferSeverity($bugId)
 {
     $s = ' ' . strtolower(dsvText($bugId)) . ' ';
     $patterns = array(
-        'critical' => '/(^|[^a-z])(blocker|critical|s1|p0|showstopper)([^a-z]|$)/',
-        'high' => '/(^|[^a-z])(high|major|s2|p1)([^a-z]|$)/',
-        'medium' => '/(^|[^a-z])(medium|normal|s3|p2)([^a-z]|$)/',
-        'low' => '/(^|[^a-z])(low|minor|s4|p3|trivial)([^a-z]|$)/',
+        'critical' => '/(^|[^a-z])(blocker|critical|crit|s1|p0|showstopper)([^a-z]|$)/',
+        'high' => '/(^|[^a-z])(high|major|maj|s2|p1)([^a-z]|$)/',
+        'medium' => '/(^|[^a-z])(medium|med|normal|s3|p2)([^a-z]|$)/',
+        'low' => '/(^|[^a-z])(low|minor|min|s4|p3|trivial)([^a-z]|$)/',
     );
     foreach ($patterns as $severity => $regex) {
         if (preg_match($regex, $s)) {
@@ -299,7 +299,7 @@ if ($action === 'classify') {
     $owner = substr(dsvText(isset($body['owner']) ? $body['owner'] : ''), 0, 128);
     $component = substr(dsvText(isset($body['component']) ? $body['component'] : ''), 0, 128);
     $notes = substr(dsvText(isset($body['notes']) ? $body['notes'] : ''), 0, 4000);
-    $esc = function ($v) use ($db) { return $db->escape_string((string)$v); };
+    $esc = function ($v) use ($db) { return $db->prepare_string((string)$v); };
     $sql = "INSERT INTO {$sevTable} (testproject_id, bug_id, severity, status, owner, component, notes, update_ts)" .
            " VALUES (" . $owningProjectId . ", '" . $esc($bugId) . "', '" . $esc($newSeverity) .
            "', '" . $esc($newStatus) . "', '" . $esc($owner) . "', '" . $esc($component) .
@@ -510,6 +510,7 @@ $summary = array(
     'blockers' => 0, 'open_high' => 0, 'severity_index' => 0.0,
 );
 $allCases = array();
+$allSuites = array();
 foreach ($allRows as $r) {
     $summary['total']++;
     $summary['links'] += $r['links'];
@@ -524,8 +525,10 @@ foreach ($allRows as $r) {
         }
     }
     foreach ($r['case_names'] as $name) { $allCases[$name] = true; }
+    foreach ($r['suite_names'] as $name) { $allSuites[$name] = true; }
 }
 $summary['affected_cases'] = count($allCases);
+$summary['affected_suites'] = count($allSuites);
 $summary['severity_index'] = dsvPct($summary['critical'] + $summary['high'], $summary['total']);
 
 if ($summary['total'] === 0) {

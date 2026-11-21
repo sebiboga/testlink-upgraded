@@ -718,6 +718,22 @@ CREATE TABLE /*prefix*/tc_exit_criteria (
 ) DEFAULT CHARSET=utf8;
 
 
+CREATE TABLE /*prefix*/tc_defect_severity (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
+  `bug_id` varchar(255) NOT NULL default '',
+  `severity` varchar(16) NOT NULL default 'unclassified',
+  `status` varchar(16) NOT NULL default 'open',
+  `owner` varchar(128) NOT NULL default '',
+  `component` varchar(128) NOT NULL default '',
+  `notes` text,
+  `creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_ts` datetime default NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY `idx_dsv_project_bug` (`testproject_id`, `bug_id`)
+) DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE /*prefix*/tc_webhooks (
   `id` int(10) unsigned NOT NULL auto_increment,
   `testproject_id` int(10) unsigned NOT NULL default '0',
