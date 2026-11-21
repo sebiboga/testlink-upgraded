@@ -12493,5 +12493,6 @@
   "dsv.in_progress": "In progress",
   "dsv.not_run": "Not run",
   "dsv.passed": "Passed",
-  "dsv.resolved": "Resolved"
+  "dsv.resolved": "Resolved",
+  "dsv.watch": "Vigilancia"
 }
