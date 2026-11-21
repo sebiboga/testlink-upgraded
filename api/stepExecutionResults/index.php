@@ -324,7 +324,12 @@ foreach ($evidenceRs as $e) {
         'execution_ts' => serText($e['execution_ts']),
     );
     $s['runs'][] = $run;
-    if ((string)$e['execution_ts'] >= (string)$s['latest_ts'] || $s['latest_ts'] === '') {
+    $currentExecId = intval($e['execution_id']);
+    $latestExecId = isset($s['latest_exec_id']) ? $s['latest_exec_id'] : 0;
+    if ((string)$e['execution_ts'] > (string)$s['latest_ts'] ||
+        $s['latest_ts'] === '' ||
+        ((string)$e['execution_ts'] === (string)$s['latest_ts'] && $currentExecId > $latestExecId)) {
+        $s['latest_exec_id'] = $currentExecId;
         $s['latest_ts'] = serText($e['execution_ts']);
         $s['latest_status'] = $sv;
         $s['latest_status_letter'] = $letter;
@@ -358,8 +363,7 @@ if (count($testerIds) > 0) {
     }
 }
 
-$rows = array();
-foreach ($steps as $s) {
+foreach ($steps as &$s) {
     foreach ($s['runs'] as $i => $r) {
         $s['runs'][$i]['tester'] = isset($testerNames[$r['tester_id']]) ?
             $testerNames[$r['tester_id']] : '';
@@ -369,6 +373,7 @@ foreach ($steps as $s) {
             $testerNames[$s['latest_tester_id']] : '';
         unset($s['latest_tester_id']);
     }
+    unset($s['latest_exec_id']);
     if ($s['failed'] > 0) {
         $s['verdict'] = 'failing';
     } elseif ($s['blocked'] > 0) {
@@ -380,6 +385,11 @@ foreach ($steps as $s) {
     } else {
         $s['verdict'] = 'not_run';
     }
+}
+unset($s);
+
+$rows = array();
+foreach ($steps as $s) {
     $statusMatch = ($status === 'all' ||
         ($status === 'p' && $s['latest_status'] === 'passed') ||
         ($status === 'f' && $s['latest_status'] === 'failed') ||
