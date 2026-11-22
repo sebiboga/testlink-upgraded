@@ -48989,3 +48989,15 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2031.60 — Code review PASS: subagent reviewed BFF, screen, i18n and wiring; findings filed as labeled bugs #2033/#2034/#2035, fixed and re-verified before commit `f0053f2c3`.
 
 2031.61 — Commits PASS: API `a2ef68b38`, screen `a6dbf49d1`, wiring/i18n `6c5f4410c`, bug #2032 `38b5b276a` and final fixes `f0053f2c3`; each commit references #2031 and progress checkpoints were posted on the issue.
+
+2031.62 — Docs PASS: `docs/Test-Plan-Defect-Arrival-Rate-Modernized.md` documents the net-new report, semantics, API contract, wiring, verification and files, with no image lines.
+
+2031.63 — Wiki mirror PASS: `tmp/wiki-repo/Test-Plan-Defect-Arrival-Rate-Modernized.md` mirrors the docs page and adds six screenshot links; all six image files exist in the wiki clone.
+
+2031.64 — Screenshots PASS: six `docs/screenshots/issue-2031-defect-arrival-*.png` files committed to the main repo and copied to the wiki clone (normal, detail, filtered, empty, no-right, RO).
+
+2031.65 — `docs/MODERNIZATION-STATUS.md` PASS: Last-updated line, 96 + 145 count, summary row and detailed DONE row record screen 2031 DONE with issues/verification.
+
+2031.66 — CHANGELOG PASS: one `[SCREEN] - #2031` line added under the 2.0.1 screens section with bugfixes #2032–#2035 and issue references.
+
+2031.67 — Final gates PASS: `git diff --check`, i18n key-set gate 9/9 (12667 keys), suite gate 34 PASS / 0 FAIL, docs/wiki mirror + six image files and PHP/JS syntax all verified after the docs phase.
