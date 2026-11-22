@@ -48859,3 +48859,133 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2024.65 — Docs/wiki PASS: `docs/Test-Plan-Step-Execution-Results-Modernized.md` mirrors the wiki page (no image lines) and 6 screenshots are attached to the wiki page.
 
 2024.66 — CHANGELOG PASS: bugfix lines for #2025-#2030 added under the 2.0.1 section with issue references.
+
+## Issue #2031 — Modernize: Test Plan Defect Arrival Rate (`defectArrivalRate`) — net-new BFF `api/defectarrivalrate` + Dashio screen + bugs #2032, #2033, #2034, #2035
+
+### Fixture and BFF API
+
+2031.1 — Fixture `php tmp/fixtures_2031.php` PASS: project `DAR2031` (`tproject_id=1`), plans `DAR Plan` (`tplan_id=2`) and `DAR Empty Plan` (`tplan_id=3`), builds `DAR Build 1` / `DAR Build 2`, platforms `DAR Platform A` / `DAR Platform B`, bugs `BUG-100`…`BUG-700`, and no-right user `dar2031norights` / `dar2031norights` role 3.
+
+2031.2 — `GET api/defectarrivalrate/index.php?action=init&tproject_id=1&tplan_id=2` PASS: 200 `ok`, context plus build/platform filter lists populated.
+
+2031.3 — `GET ...action=report&tproject_id=1&tplan_id=2` PASS: 200 `ok` with `distinct_defects=7`, `execution_links=11`, `active_days=5`, `new_last_7=0`, `avg_per_active_day=1.4`, `peak_day=2026-11-04`, `new_on_peak_day=4`, `affected_cases=3`, `failed_runs_linked=9` and first/last arrival dates populated.
+
+2031.4 — Distinct-case regression PASS: daily `cases` maps use label keys with `true` values and KPI `affected_cases` uses `array_keys()`; prior wrong value `1` is now `3` (bug #2032, commit `38b5b276a`).
+
+2031.5 — New-in-last-7-days regression PASS: window is anchored to the current date with `$windowStart = date('Y-m-d', strtotime('-6 days'))`; fixture ending `2026-11-05` yields `new_last_7=0` and verdict `steady` (bug #2033, commit `f0053f2c3`).
+
+2031.6 — `GET ...action=detail&tproject_id=1&tplan_id=2&bug_id=BUG-100` PASS: exact requested bug returned with linked executions, builds, platforms, testers and statuses; no last-iteration bug.
+
+2031.7 — `GET ...action=csv&tproject_id=1&tplan_id=2` PASS: 200 JSON envelope with UTF-8 BOM-prefixed, `;`-delimited CSV, header row and one line per arrival; formula guard retained.
+
+2031.8 — CSV error handling regression PASS: screen uses `$.ajax({dataType:'text'})`, BOM-safe Blob download and `showState()` on error; raw JSON is never rendered as a download (bug #2034, commit `f0053f2c3`).
+
+2031.9 — Named-platform filter PASS: `platform_id` filters include assignments with `platform_id=0` as well as named-platform rows, matching the sibling defect-severity behavior.
+
+2031.10 — `GET ...action=report&tproject_id=1&tplan_id=3` PASS: empty plan returns `verdict=no_data`, zero KPIs, empty rows and empty build/platform evidence.
+
+2031.11 — `GET ...action=report&tproject_id=1&tplan_id=999` PASS: 404 `tplan_not_found`.
+
+2031.12 — `GET ...action=report&tproject_id=999&tplan_id=2` PASS: 404 `project_mismatch` (or `no_right` where the project is not accessible); no data leaked across projects.
+
+2031.13 — `GET ...action=report&tproject_id=1&tplan_id=0` PASS: 400 `invalid_request`.
+
+2031.14 — `GET ...action=report&tproject_id=1&tplan_id=2&build_id=bogus` PASS: 400 `invalid_request`.
+
+2031.15 — `GET ...action=report&tproject_id=1&tplan_id=2&platform_id=bogus` PASS: 400 `invalid_request`.
+
+2031.16 — Unknown action PASS: 400 `invalid_request`; no unhandled PHP notice and no SQL from untrusted action names.
+
+2031.17 — Read-only BFF PASS: `POST ...action=report&tproject_id=1&tplan_id=2` returns 405 `method_not_allowed` when `Origin: http://localhost:8082` or `Referer: http://localhost:8082/` is present.
+
+2031.18 — Same-origin guard PASS: POST without `Origin`/`Referer` returns 403 from `bffSameOriginGuard()`; verified as intended protection, not a bug.
+
+2031.19 — Anonymous BFF PASS: init/report/detail/csv requests without a session return 401 `not_authenticated`.
+
+2031.20 — No-right BFF PASS: `dar2031norights` requests for init/report/detail/csv return 403 `no_right` and emit `tLog(..., 'AUDIT')` denials only.
+
+2031.21 — Final API script PASS: 23/23 checks green after the #2033/#2034/#2035 fixes, including KPI values, detail, filters, CSV BOM/rows, empty plan, 401/403/400/404/405 paths and 7-day window.
+
+### Dashio screen and interactions
+
+2031.22 — Screen loads for `tproject_id=1&tplan_id=2` PASS: title, subtitle, context, 12 KPI cards, verdict banner, Build/Platform filters, Refresh/Export CSV/Close, defect DataTable and footer render.
+
+2031.23 — Default KPIs PASS: browser shows 7 distinct defects, 11 execution links, 5 active days, 0 new in last 7 days, 1.4 average per active day, peak `2026-11-04` with 4 new arrivals, 3 affected cases, 9 failed runs linked and populated first/last arrival dates.
+
+2031.24 — DataTable PASS: daily arrival rows render with counts, verdicts and linked defect IDs; DataTables search/pagination/info are enabled and localized.
+
+2031.25 — Detail modal PASS: clicking the `BUG-100` link opens the defect evidence modal with the requested bug and its execution history; close button dismisses it.
+
+2031.26 — Modal i18n regression PASS: `dar.close` is used for the modal `aria-label`; EN shows `Close` and RO shows `Închide` (bug #2035, commit `f0053f2c3`).
+
+2031.27 — Build filter PASS: selecting `DAR Build 2` reloads init+report with `build_id=2` and narrows the defect/execution evidence.
+
+2031.28 — Platform filter PASS: selecting `DAR Platform A` reloads with the named `platform_id` and includes both platform-A and global assignments.
+
+2031.29 — Combined filter PASS: build `DAR Build 2` plus platform `DAR Platform A` produce a consistent filtered report and CSV request.
+
+2031.30 — DataTables filter PASS: typing in the table search narrows displayed rows and localized info reports the filtered count.
+
+2031.31 — DataTables i18n regression PASS: `dar.infoFiltered` added to all 10 bundles; RO shows `(filtrat din 5 înregistrări)` with no raw key (bug #2035, commit `f0053f2c3`).
+
+2031.32 — Refresh PASS: re-issues init+report, preserves current Build/Platform selections and regenerates the footer timestamp.
+
+2031.33 — Export CSV PASS: button issues AJAX `GET action=csv`, network returns 200, no top-level document navigation occurs and the BOM/rows are downloaded as a file.
+
+2031.34 — Export error state PASS: CSV errors call `showState()` instead of navigating to the JSON envelope; regression for bug #2034.
+
+2031.35 — Export disabled state PASS: empty plan and all error/no-right states disable Export without a JS exception.
+
+2031.36 — Close PASS: posts `{action:'close'}` to the embedding shell and calls `window.close()` with no JS exception; matches sibling modernized report screens.
+
+2031.37 — Empty plan UI PASS: `DAR Empty Plan` (`tplan_id=3`) shows `No defects linked to executions in this scope.`, zero KPIs, empty-table message and disabled Export.
+
+2031.38 — No-right UI PASS: `dar2031norights` sees localized `No permission` state with `Code: no_right` and disabled Export.
+
+2031.39 — Anonymous UI PASS: a clean browser context is redirected to `login.php?note=expired`.
+
+2031.40 — Romanian locale PASS: title, subtitle, KPIs, filters, buttons, verdict, DataTable headers/info, modal and empty/error states render translated labels with no raw `dar.*` keys.
+
+2031.41 — Translation completeness PASS: 82 `dar.*` values translated in `de/es/fr/it/ja/pt/ro/ru/zh` and the footer key translated in every client bundle; 19 server-side `$TLS_link_report_defect_arrival_rate` occurrences updated.
+
+2031.42 — ASIDE integration PASS: Reports menu contains `Defect Arrival Rate`; clicking it loads `defectArrivalRate.html?tproject_id=1&tplan_id=3` in the main frame with the selected project/plan context and the empty-plan state.
+
+2031.43 — Browser console PASS: no `error`/`warn` messages after the final fixes; only the shared DataTables-generated notice `A form field element should have an id or name attribute (count: 12)` observed.
+
+2031.44 — Screenshots PASS: `docs/screenshots/issue-2031-defect-arrival-normal.png`, `-detail.png`, `-filtered.png`, `-empty.png`, `-no-right.png` and `-ro.png` captured after the final fixes.
+
+### Integration, i18n, lint and regression gates
+
+2031.45 — `cfg/reports.cfg.php` PASS: `defect_arrival_rate` launcher registered.
+
+2031.46 — `api/aside/index.php` PASS: Reports entry wired to `defectArrivalRate.html` with project/plan context.
+
+2031.47 — `api/resultsnav/index.php` PASS: `defect_arrival_rate` mapped for the Results Navigator.
+
+2031.48 — `lib/functions/common.php` PASS: `$actions->defectArrivalRate` present for the Reports menu switch.
+
+2031.49 — `python3 -m json.tool` PASS: all 10 client locale bundles are well-formed after the translation and `dar.infoFiltered` additions.
+
+2031.50 — `bash ai/verify_i18n_coverage.sh` PASS: 9 bundles compared against `en.json`, 0 failures, 12667 keys.
+
+2031.51 — Server locale PASS: `$TLS_link_report_defect_arrival_rate` present in all 19 `locale/*/strings.txt` bundles.
+
+2031.52 — `php -l` PASS: `api/defectarrivalrate/index.php`, `cfg/reports.cfg.php`, `api/aside/index.php`, `api/resultsnav/index.php` and `lib/functions/common.php` parse without syntax errors.
+
+2031.53 — `node --check` PASS: extracted inline screen JavaScript parses after the #2034 and #2035 fixes.
+
+2031.54 — `git diff --check` PASS: no whitespace errors across the screen's commits.
+
+2031.55 — Bug #2032 PASS: distinct affected cases corrected from 1 to 3 and bug closed after API/browser verification.
+
+2031.56 — Bug #2033 PASS: 7-day arrival window uses the current date and bug closed after API verification.
+
+2031.57 — Bug #2034 PASS: CSV error JSON no longer appears in the browser and bug closed after XHR/blob verification.
+
+2031.58 — Bug #2035 PASS: all remaining client/server labels translated and bug closed after EN/RO browser and coverage verification.
+
+2031.59 — Event Viewer PASS: only expected `log_level=16` AUDIT rows from no-right/anonymous denials; 0 Error/Warning rows (`log_level IN (1,2,4,8)`).
+
+2031.60 — Code review PASS: subagent reviewed BFF, screen, i18n and wiring; findings filed as labeled bugs #2033/#2034/#2035, fixed and re-verified before commit `f0053f2c3`.
+
+2031.61 — Commits PASS: API `a2ef68b38`, screen `a6dbf49d1`, wiring/i18n `6c5f4410c`, bug #2032 `38b5b276a` and final fixes `f0053f2c3`; each commit references #2031 and progress checkpoints were posted on the issue.
