@@ -388,13 +388,9 @@ foreach ($days as $day => $d) {
 sort($rows);
 
 $lastSeven = 0;
-$windowStart = '';
-if (count($rows) > 0) {
-    $lastDay = strtotime($rows[count($rows) - 1]['day']);
-    $windowStart = date('Y-m-d', strtotime('-6 days', $lastDay));
-}
+$windowStart = date('Y-m-d', strtotime('-6 days'));
 foreach ($rows as $r) {
-    if ($windowStart !== '' && $r['day'] >= $windowStart) {
+    if ($r['day'] >= $windowStart) {
         $lastSeven += $r['new_defects'];
     }
 }

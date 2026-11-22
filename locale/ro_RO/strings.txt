@@ -269,4 +269,4 @@ $TLS_link_report_defect_density = "Densitatea defectelor în planul de test"; //
 $TLS_link_report_defect_severity = "Distribuția severității defectelor"; // Defect severity report (Refs #2021)
 $TLS_link_report_step_execution_results = "Rezultatele execuției pașilor"; // Step execution results report (Refs #2024)
 
-$TLS_link_report_defect_arrival_rate = "Defect Arrival Rate"; // Defect arrival rate report (Refs #2031)
+$TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect arrival rate report (Refs #2031)

@@ -3800,4 +3800,4 @@ $TLS_link_report_defect_density = "Test Plan Defect Density"; // Test Plan Defec
 $TLS_link_report_defect_severity = "Defect Severity Distribution"; // Defect severity report (Refs #2021)
 $TLS_link_report_step_execution_results = "Step Execution Results"; // Step execution results report (Refs #2024)
 
-$TLS_link_report_defect_arrival_rate = "Defect Arrival Rate"; // Defect arrival rate report (Refs #2031)
+$TLS_link_report_defect_arrival_rate = "Rate neu gemeldeter Defekte"; // Defect arrival rate report (Refs #2031)

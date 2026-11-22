@@ -294,6 +294,7 @@ function dtLanguage(emptyText) {
     search: t('common.filter', 'Filter') + ':',
     lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
     info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    infoFiltered: t('dar.infoFiltered', '(filtered from _MAX_ total entries)'),
     infoEmpty: t('dar.infoEmpty', 'No entries'),
     zeroRecords: t('dar.zeroRecords', 'No matching records'),
     paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
@@ -413,7 +414,27 @@ function showDetails(bugId) {
   });
 }
 function exportCsv() {
-  window.location.href = '/api/defectarrivalrate/index.php?' + $.param(filterParams('csv'));
+  $.ajax({
+    url: '/api/defectarrivalrate/index.php',
+    data: filterParams('csv'),
+    dataType: 'text',
+    success: function(csv) {
+      if (!csv) { toast(t('dar.toastError', 'Error loading data'), true); return; }
+      if (csv.charAt(0) !== '\ufeff') { csv = '\ufeff' + csv; }
+      var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'defect-arrival-rate-tplan-' + tplan_id + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) {
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('dar.toastError', 'Error loading data'), true);
+    }
+  });
 }
 $(function() {
   $('#btnRefresh').on('click', loadInit);
@@ -426,6 +447,7 @@ $(function() {
   TLi18n.load(function() {
     TLi18n.apply();
     document.title = t('footers.defectArrivalRate', 'TestLink 2.0.1 - Defect Arrival Rate');
+    $('#detailModal .close').attr('aria-label', t('dar.close', 'Close'));
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadInit();
   });

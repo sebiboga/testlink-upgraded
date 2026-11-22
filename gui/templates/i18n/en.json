@@ -12660,6 +12660,7 @@
   "dar.code": "Code",
   "dar.empty": "No linked defects match this filter.",
   "dar.infoEmpty": "No entries",
+  "dar.infoFiltered": "(filtered from _MAX_ total entries)",
   "dar.zeroRecords": "No matching records",
   "dar.toastError": "Error loading data",
   "dar.generatedOn": "Generated on",
