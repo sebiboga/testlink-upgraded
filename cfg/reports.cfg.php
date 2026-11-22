@@ -845,6 +845,15 @@ $tlCfg->reports_list['step_execution_results'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
+// defects referenced by one plan's executions, grouped by day.
+$tlCfg->reports_list['defect_arrival_rate'] = array(
+	'title' => 'link_report_defect_arrival_rate',
+	'url' => 'gui/templates/results/defectArrivalRate.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

@@ -2776,6 +2776,11 @@ function getActions(&$gui,$baseURL) {
   $actions->execNotesCoverage =
     "/gui/templates/results/execNotesCoverage.html?{$ctx}";
 
+  // Refs #2031: Defect Arrival Rate report (net-new screen).
+  // First appearance of distinct defects linked to plan executions.
+  $actions->defectArrivalRate =
+    "/gui/templates/results/defectArrivalRate.html?{$ctx}";
+
   $actions->keywordUsage =
     "/gui/templates/results/keywordUsage.html?{$ctx}";
 
