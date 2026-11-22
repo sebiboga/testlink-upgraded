@@ -271,4 +271,4 @@ $TLS_link_report_step_execution_results = "Rezultatele execuției pașilor"; // 
 
 $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect arrival rate report (Refs #2031)
 
-$TLS_link_report_execution_flakiness = "Execution Flakiness"; // Execution flakiness report (Refs #2036)
+$TLS_link_report_execution_flakiness = "Instabilitatea execuției"; // Execution flakiness report (Refs #2036)

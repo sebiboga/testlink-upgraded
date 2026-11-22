@@ -388,8 +388,8 @@ foreach ($rows as $r) {
     $summary['passed'] += $r['passed'];
     $summary['failed'] += $r['failed'];
     $summary['blocked'] += $r['blocked'];
-    $summary[$r['verdict'] . '_cases'] = isset($summary[$r['verdict'] . '_cases'])
-        ? $summary[$r['verdict'] . '_cases'] + 1 : 0;
+    $verdictKey = $r['verdict'] . '_cases';
+    $summary[$verdictKey] = ($summary[$verdictKey] ?? 0) + 1;
     if ($r['verdict'] === 'never_run') { $summary['never_run']++; }
     if ($r['runs'] > 0) { $summary['executed']++; }
     if ($r['runs'] > $summary['max_runs']) { $summary['max_runs'] = $r['runs']; }

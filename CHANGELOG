@@ -10613,6 +10613,8 @@ Changes:
       project tables and added user metrics to the middle section
 
 ## 2.0.1 (in-progress)
+- [BUGFIX] - #2041: **Execution Flakiness menu label stayed English in every server locale** (`locale/*/strings.txt`) — `$TLS_link_report_execution_flakiness` is now translated in all 17 non-English locale bundles. (Fixes #2041, Refs #2036)
+- [BUGFIX] - #2040: **Execution Flakiness undercounted `never_run_cases` and could export stale-filter CSV** (`api/executionflakiness/index.php`, `gui/templates/results/executionFlakiness.html`) — verdict counters now increment with null-coalescing and CSV honors the same request sequence guard as report/detail. (Fixes #2040, Refs #2036)
 - [BUGFIX] - #2039: **Execution Flakiness DataTables sort labels stayed English in non-English locales** (`gui/templates/results/executionFlakiness.html`) — the `language.aria.sortAscending` and `sortDescending` strings now use the existing `dt.aria.*` keys (with a separating space) in every bundle. (Fixes #2039, Refs #2036)
 - [BUGFIX] - #2038: **Execution Flakiness showed raw `flk.` badges for never-run test cases** (`gui/templates/results/executionFlakiness.html`) — empty first/last statuses now render the localized never-run label. (Fixes #2038, Refs #2036)
 - [BUGFIX] - #2037: **Execution Flakiness report returned a DB Access Error instead of JSON** (`api/executionflakiness/index.php`) — the report query selected the nonexistent column `executions.execution_number`; it now selects `tcversion_number`. Verified report/detail/filters/CSV all return 200 JSON/CSV. (Fixes #2037, Refs #2036)

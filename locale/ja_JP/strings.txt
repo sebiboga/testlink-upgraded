@@ -4645,4 +4645,4 @@ $TLS_link_report_step_execution_results = "Step Execution Results"; // Step exec
 
 $TLS_link_report_defect_arrival_rate = "不具合発生率"; // Defect arrival rate report (Refs #2031)
 
-$TLS_link_report_execution_flakiness = "Execution Flakiness"; // Execution flakiness report (Refs #2036)
+$TLS_link_report_execution_flakiness = "実行の不安定性"; // Execution flakiness report (Refs #2036)

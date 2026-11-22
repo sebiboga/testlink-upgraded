@@ -414,11 +414,13 @@ function showDetails(vid) {
   });
 }
 function exportCsv() {
+  var seq = ++STATE.seq;
   $.ajax({
     url: '/api/executionflakiness/index.php',
     data: filterParams('csv'),
     dataType: 'text',
     success: function(csv) {
+      if (seq !== STATE.seq) { return; }
       if (!csv) { toast(t('flk.toastError', 'Error loading data'), true); return; }
       if (csv.charAt(0) !== '\ufeff') { csv = '\ufeff' + csv; }
       var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -431,6 +433,7 @@ function exportCsv() {
       setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
     },
     error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
       showState((xhr.responseJSON || {}).code || 'error');
       toast(t('flk.toastError', 'Error loading data'), true);
     }
