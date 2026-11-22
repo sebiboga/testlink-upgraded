@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Step Failure Hotspots</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select, .toolbar input { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 190px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 120px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.clear { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.at_risk { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { margin-left: auto; font-size: 12px; font-weight: 400; color: #667; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.tcase a, td.tcase span.link { color: #259b93; font-weight: 700; text-decoration: none; cursor: pointer; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-critical { background: #f5c6cb; color: #b94a48; }
+.badge-high, .badge-blocked { background: #ffecb5; color: #856404; }
+.badge-clear, .badge-passed { background: #d4edda; color: #155724; }
+.badge-failed { background: #f5c6cb; color: #b94a48; }
+.badge-no_data, .badge-not_run { background: #e9ecef; color: #555; }
+.bar { display: inline-block; min-width: 46px; height: 7px; border-radius: 4px; background: #e9ecef; vertical-align: middle; }
+.bar i { display: block; height: 7px; border-radius: 4px; background: #e6605e; }
+.empty, .state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i, .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; }
+.modal-body { padding: 16px 20px; }
+.detail-meta { font-size: 12px; color: #667; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="header"><i class="fa fa-bullseye" style="margin-right:8px;"></i>
+  <span data-i18n="sfh.header">Test Plan Step Failure Hotspots</span>
+  <span class="sub" data-i18n="sfh.subtitle">rank design steps by failed and blocked execution evidence</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx" data-i18n="sfh.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="sfh.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="buildFilter" data-i18n="sfh.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="sfh.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="sfh.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="sfh.allPlatforms">All platforms</option></select>
+  <label for="scopeFilter" data-i18n="sfh.scope">Scope</label>
+  <select id="scopeFilter">
+    <option value="all" data-i18n="sfh.scopeAll">All ranked steps</option>
+    <option value="failed" data-i18n="sfh.scopeFailed">Ever failed</option>
+    <option value="blocked" data-i18n="sfh.scopeBlocked">Ever blocked</option>
+    <option value="failing" data-i18n="sfh.scopeFailing">Failed or blocked</option>
+  </select>
+  <label for="minFailures" data-i18n="sfh.minScore">Min score</label>
+  <input id="minFailures" type="number" min="0" max="100" value="1" style="width:64px;">
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="sfh.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="sfh.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="sfh.close">Close</span></button>
+</div>
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiSteps">0</div><div class="l" data-i18n="sfh.kpiSteps">Design steps</div></div>
+  <div class="kpi teal"><div class="v" id="kpiResults">0</div><div class="l" data-i18n="sfh.kpiResults">Step results</div></div>
+  <div class="kpi"><div class="v" id="kpiPassed">0</div><div class="l" data-i18n="sfh.kpiPassed">Passed</div></div>
+  <div class="kpi alert"><div class="v" id="kpiFailed">0</div><div class="l" data-i18n="sfh.kpiFailed">Failed</div></div>
+  <div class="kpi alert"><div class="v" id="kpiBlocked">0</div><div class="l" data-i18n="sfh.kpiBlocked">Blocked</div></div>
+  <div class="kpi"><div class="v" id="kpiNoEvidence">0</div><div class="l" data-i18n="sfh.kpiNoEvidence">Without evidence</div></div>
+  <div class="kpi alert"><div class="v" id="kpiRate">0%</div><div class="l" data-i18n="sfh.kpiRate">Failure rate</div></div>
+  <div class="kpi alert"><div class="v" id="kpiCritical">0</div><div class="l" data-i18n="sfh.kpiCritical">Critical steps</div></div>
+  <div class="kpi"><div class="v" id="kpiHigh">0</div><div class="l" data-i18n="sfh.kpiHigh">High steps</div></div>
+  <div class="kpi"><div class="v" id="kpiBlockedSteps">0</div><div class="l" data-i18n="sfh.kpiBlockedSteps">Blocked steps</div></div>
+  <div class="kpi teal"><div class="v" id="kpiCases">0</div><div class="l" data-i18n="sfh.kpiCases">Affected cases</div></div>
+  <div class="kpi teal"><div class="v" id="kpiSuites">0</div><div class="l" data-i18n="sfh.kpiSuites">Affected suites</div></div>
+</div>
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.stepFailureHotspots">TestLink 2.0.1 - Test Plan Step Failure Hotspots</span></div>
+<div class="toast" id="toast"></div>
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header"><h4 class="modal-title" data-i18n="sfh.detailTitle">Step failure history</h4>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+    <div class="modal-body" id="detailBody"></div>
+  </div></div>
+</div>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], kpi: {}, context: {}, dt: null, seq: 0, detailSeq: 0 };
+var API = '/api/stepfailurehotspots/index.php';
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) { var v = TLi18n.t(key); return (v && v !== key) ? v : (fallback || key); }
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  $el.toggleClass('err', !!isErr);
+  setTimeout(function() { $el.fadeOut(300); }, 3000);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty(); $('#verdictBox').hide().empty().removeClass('clear watch at_risk');
+  $('#kpis').hide(); $('#footerInfo').empty(); $('#btnExport').prop('disabled', true);
+}
+function showState(code) {
+  $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired'); return;
+  }
+  resetView();
+  var map = {
+    invalid_request: ['sfh.errBadRequest', 'Invalid request', 'sfh.errBadRequestBody', 'The report parameters are not valid.'],
+    no_right: ['sfh.errNoRight', 'No permission', 'sfh.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
+    tplan_not_found: ['sfh.errNotFound', 'Test plan not found', 'sfh.errNotFoundBody', 'The requested test plan does not exist.'],
+    step_not_found: ['sfh.errStepNotFound', 'Step not found', 'sfh.errStepNotFoundBody', 'This step is not in the selected scope.'],
+    project_mismatch: ['sfh.errMismatch', 'Wrong test project', 'sfh.errMismatchBody', 'This test plan belongs to another test project.'],
+    method_not_allowed: ['sfh.errMethod', 'Method not allowed', 'sfh.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['sfh.errGeneric', 'Could not load the report', 'sfh.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+    esc(t(m[0],m[1])) + '</h4><p>' + esc(t(m[2],m[3])) + '</p><p>' +
+    esc(t('sfh.code','Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function filterParams(action) {
+  var min = parseInt($('#minFailures').val(), 10);
+  if (isNaN(min) || min < 0 || min > 100) { min = 1; }
+  $('#minFailures').val(min);
+  return { action: action || 'report', tplan_id: tplan_id, tproject_id: tproject_id,
+    build_id: parseInt($('#buildFilter').val(),10) || 0,
+    platform_id: parseInt($('#platformFilter').val(),10) || 0,
+    scope: $('#scopeFilter').val() || 'all', min_failures: min };
+}
+function fillSelect($sel, items, allKey, fallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, fallback)));
+  (items || []).forEach(function(x) { $sel.append($('<option>').val(x.id).text(x.name)); });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  $.ajax({ url: API, data: { action:'init', tplan_id:tplan_id, tproject_id:tproject_id }, dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      fillSelect($('#buildFilter'), (d.filters||{}).builds, 'sfh.allBuilds', 'All builds');
+      fillSelect($('#platformFilter'), (d.filters||{}).platforms, 'sfh.allPlatforms', 'All platforms');
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      loadReport();
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); }
+  });
+}
+function loadReport() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({ url: API, data: filterParams('report'), dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || []; STATE.kpi = d.kpi || {};
+      var s = STATE.kpi;
+      $('#kpiSteps').text(s.design_steps || 0); $('#kpiResults').text(s.step_results || 0);
+      $('#kpiPassed').text(s.passed || 0); $('#kpiFailed').text(s.failed || 0);
+      $('#kpiBlocked').text(s.blocked || 0); $('#kpiNoEvidence').text(s.not_run_steps || 0);
+      $('#kpiRate').text((s.failure_rate || 0) + '%'); $('#kpiCritical').text(s.critical_steps || 0);
+      $('#kpiHigh').text(s.high_steps || 0); $('#kpiBlockedSteps').text(s.blocked_steps || 0);
+      $('#kpiCases').text(s.affected_cases || 0); $('#kpiSuites').text(s.affected_suites || 0);
+      $('#kpis').show();
+      var vmap = {
+        no_data: ['sfh.verdictNoData', 'No step execution evidence is available in this scope.', ''],
+        at_risk: ['sfh.verdictRisk', 'Critical design steps need attention.', 'at_risk'],
+        watch: ['sfh.verdictWatch', 'High or blocked design steps were found.', 'watch'],
+        clear: ['sfh.verdictClear', 'No failed or blocked step results in this scope.', 'clear']
+      };
+      var v = vmap[s.verdict] || vmap.no_data;
+      $('#verdictBox').addClass(v[2] || '').html('<i class="fa fa-circle-info"></i> ' + esc(t(v[0],v[1]))).show();
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t('sfh.empty','No hotspots match this filter.'))).show();
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('sfh.generatedOn','Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); toast(t('sfh.toastError','Error loading data'), true); }
+  });
+}
+function badge(value) {
+  return '<span class="badge badge-' + esc(value) + '">' + esc(t('sfh.v.' + value, value)) + '</span>';
+}
+function renderTable() {
+  $('#reportArea').html('<div class="section"><div class="section-head"><i class="fa fa-ranking-star"></i> ' +
+    esc(t('sfh.tableTitle','Design steps ranked by failure score')) + '<span class="bmeta">' +
+    esc(t('sfh.rowCount','Steps')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('sfh.colScore','Score'), data: 'score' },
+      { title: t('sfh.colVerdict','Verdict'), data: 'verdict', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
+      { title: t('sfh.colCase','Test case'), data: 'tcase_name', className:'tcase',
+        render: function(data,type,row) { return type === 'display' ? '<span class="link" data-sid="' + esc(row.step_id) + '">' + esc(data) + '</span>' : data; } },
+      { title: t('sfh.colExternal','External ID'), data: 'external_id', render: $.fn.dataTable.render.text() },
+      { title: t('sfh.colSuite','Suite'), data: 'suite_path', render: $.fn.dataTable.render.text() },
+      { title: t('sfh.colStep','Step'), data: 'step_number' },
+      { title: t('sfh.colActions','Actions'), data: 'actions', render: $.fn.dataTable.render.text() },
+      { title: t('sfh.colEvidence','Results'), data: 'evidence' },
+      { title: t('sfh.colFailed','Failed'), data: 'failed' },
+      { title: t('sfh.colBlocked','Blocked'), data: 'blocked' },
+      { title: t('sfh.colPassed','Passed'), data: 'passed' },
+      { title: t('sfh.colRate','Failure rate'), data: 'failure_rate', render: function(data,type) { return type === 'display' ? '<span class="bar"><i style="width:' + Math.min(100,Math.max(0,parseFloat(data)||0)) + '%"></i></span> ' + esc(data) + '%' : data; } },
+      { title: t('sfh.colLatest','Latest result'), data: 'latest_status', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
+      { title: t('sfh.colBuild','Latest build'), data: 'latest_build', render: $.fn.dataTable.render.text() },
+      { title: t('sfh.colPlatform','Platform'), data: 'latest_platform', render: $.fn.dataTable.render.text() },
+      { title: t('sfh.colTester','Tester'), data: 'latest_tester', render: $.fn.dataTable.render.text() }
+    ],
+    order: [[0,'desc'],[8,'desc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter','Filter') + ':',
+      lengthMenu: t('common.showEntries','Show') + ' _MENU_ ' + t('common.entries','entries'),
+      info: t('common.pageInfo','Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('sfh.infoEmpty','No entries'),
+      zeroRecords: t('sfh.zeroRecords','No matching hotspots'),
+      paginate: { previous: t('common.prev','Previous'), next: t('common.next','Next') },
+      emptyTable: t('sfh.empty','No hotspots match this filter.')
+    }
+  });
+  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-sid')); });
+}
+function showDetails(sid) {
+  var p = filterParams('detail'); p.step_id = sid;
+  var dseq = ++STATE.detailSeq;
+  $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' + esc(t('common.loading','Loading...')));
+  $('#detailModal').modal('show');
+  $.ajax({ url: API, data: p, dataType:'json',
+    success: function(d) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if (d.status === 'error') {
+        $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+          esc(t('sfh.toastError','Error loading data')) + '</h4><p><code>' + esc(d.code) + '</code></p></div>');
+        return;
+      }
+      var s = d.step || {};
+      var html = '<div class="detail-meta">' + esc(s.external_id || '') + ' &mdash; ' + esc(s.tcase_name || '') +
+        ' v' + esc(s.version || '') + ' &mdash; ' + esc(s.suite_path || '') + '</div><table class="flat"><tbody>' +
+        '<tr><th>' + esc(t('sfh.colStep','Step')) + '</th><td>' + esc(s.step_number) + '</td></tr>' +
+        '<tr><th>' + esc(t('sfh.colActions','Actions')) + '</th><td>' + esc(s.actions || '-') + '</td></tr>' +
+        '<tr><th>' + esc(t('sfh.colExpected','Expected result')) + '</th><td>' + esc(s.expected || '-') + '</td></tr>' +
+        '<tr><th>' + esc(t('sfh.colVerdict','Verdict')) + '</th><td>' + badge(s.verdict) + '</td></tr>' +
+        '<tr><th>' + esc(t('sfh.colScore','Score')) + '</th><td>' + esc(s.score) + '</td></tr>' +
+        '</tbody></table>';
+      var runs = s.runs || [];
+      if (!runs.length) {
+        html += '<div class="empty">' + esc(t('sfh.emptyEvidence','No step result recorded in this scope.')) + '</div>';
+      } else {
+        html += '<table class="flat"><thead><tr><th>' + esc(t('sfh.colRun','Executed on')) + '</th><th>' +
+          esc(t('sfh.colLatest','Result')) + '</th><th>' + esc(t('sfh.colBuild','Build')) + '</th><th>' +
+          esc(t('sfh.colPlatform','Platform')) + '</th><th>' + esc(t('sfh.colTester','Tester')) + '</th><th>' +
+          esc(t('sfh.colNotes','Notes')) + '</th></tr></thead><tbody>';
+        runs.forEach(function(r) {
+          html += '<tr><td>' + esc(r.execution_ts) + '</td><td>' + badge(r.status) + '</td><td>' +
+            esc(r.build) + '</td><td>' + esc(r.platform) + '</td><td>' + esc(r.tester) + '</td><td>' +
+            esc(r.notes) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      $('#detailBody').html(html);
+      TLi18n.apply($('#detailBody')[0]);
+    },
+    error: function(xhr) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if ((xhr.status || 0) === 401) { $('#detailModal').modal('hide'); showState('not_authenticated'); return; }
+      $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+        esc(t('sfh.toastError','Error loading data')) + '</h4><p><code>' +
+        esc((xhr.responseJSON||{}).code || 'error') + '</code></p></div>');
+    }
+  });
+}
+function exportCsv() {
+  $.ajax({ url: API, data: filterParams('csv'), dataType:'json',
+    success: function(d) {
+      if (d.status !== 'ok' || !d.csv) { toast(t('sfh.toastError','Error loading data'), true); return; }
+      var url = URL.createObjectURL(new Blob([d.csv], { type:'text/csv;charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = 'step-failure-hotspots-' + tplan_id + '.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) { toast(t('sfh.toastError','Error loading data') + ': ' + ((xhr.responseJSON||{}).code || 'error'), true); }
+  });
+}
+$(function() {
+  $('#btnRefresh').on('click', loadInit);
+  $('#btnExport').on('click', exportCsv);
+  $('#buildFilter, #platformFilter, #scopeFilter, #minFailures').on('change', loadReport);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action:'close' }, window.location.origin); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    $('#detailModal .close').attr('aria-label', t('sfh.close', 'Close'));
+    document.title = t('footers.stepFailureHotspots', 'TestLink 2.0.1 - Test Plan Step Failure Hotspots');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
