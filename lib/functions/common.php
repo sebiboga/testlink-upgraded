@@ -2771,6 +2771,11 @@ function getActions(&$gui,$baseURL) {
   $actions->stepExecutionResults =
     "/gui/templates/results/stepExecutionResults.html?{$ctx}";
 
+  // Refs #2042: Step Failure Hotspots report (net-new screen).
+  // Failed/blocked design-step evidence from execution_tcsteps.
+  $actions->stepFailureHotspots =
+    "/gui/templates/results/stepFailureHotspots.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =

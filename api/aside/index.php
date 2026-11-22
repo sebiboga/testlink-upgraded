@@ -364,6 +364,10 @@ if ($tplan_id > 0) {
                 // Refs #2024: per-step execution evidence of the plan's assigned versions.
                 $hrefR = '/gui/templates/results/stepExecutionResults.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_step_failure_hotspots') {
+                // Refs #2042: failed/blocked design steps ranked by hotspot score.
+                $hrefR = '/gui/templates/results/stepFailureHotspots.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_defect_arrival_rate') {
                 // Refs #2031: daily arrival rate of distinct linked defects.
                 $hrefR = '/gui/templates/results/defectArrivalRate.html' .

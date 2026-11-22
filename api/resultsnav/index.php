@@ -213,6 +213,7 @@ $bff = function ($action) use ($db, $user) {
             'defect_severity' => 'gui/templates/results/defectSeverity.html',
             // Refs #2024: Test Plan Step Execution Results.
             'step_execution_results' => 'gui/templates/results/stepExecutionResults.html',
+            'step_failure_hotspots' => 'gui/templates/results/stepFailureHotspots.html',
             // Refs #2031: Test Plan Defect Arrival Rate.
             'defect_arrival_rate' => 'gui/templates/results/defectArrivalRate.html',
             // Refs #2036: Test Plan Execution Flakiness.

@@ -268,6 +268,7 @@ $TLS_link_report_keyword_usage = "Project Keyword Usage Inventory"; // Project k
 $TLS_link_report_defect_density = "Densitatea defectelor în planul de test"; // Test Plan Defect Density report (Refs #2018)
 $TLS_link_report_defect_severity = "Distribuția severității defectelor"; // Defect severity report (Refs #2021)
 $TLS_link_report_step_execution_results = "Rezultatele execuției pașilor"; // Step execution results report (Refs #2024)
+$TLS_link_report_step_failure_hotspots = "Step Failure Hotspots"; // Step failure hotspots report (Refs #2042)
 
 $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect arrival rate report (Refs #2031)
 

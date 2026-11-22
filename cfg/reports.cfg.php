@@ -845,6 +845,15 @@ $tlCfg->reports_list['step_execution_results'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2042: Step Failure Hotspots (net-new). Design steps ranked by failed
+// and blocked execution evidence for the assigned versions of one plan.
+$tlCfg->reports_list['step_failure_hotspots'] = array(
+	'title' => 'link_report_step_failure_hotspots',
+	'url' => 'gui/templates/results/stepFailureHotspots.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
 // defects referenced by one plan's executions, grouped by day.
 $tlCfg->reports_list['defect_arrival_rate'] = array(
