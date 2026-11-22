@@ -367,7 +367,7 @@ foreach ($days as $day => $d) {
         $peakDayValue = $d['new_defects'];
         $peakDay = $day;
     }
-    foreach ($d['cases'] as $name) { $allCases[$name] = true; }
+    foreach (array_keys($d['cases']) as $name) { $allCases[$name] = true; }
     $bugIds = array_keys($d['bugs']);
     sort($bugIds);
     $rows[] = array(
