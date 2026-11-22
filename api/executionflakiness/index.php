@@ -235,7 +235,7 @@ if ($buildId > 0) { $where .= " AND e.build_id = " . $buildId; }
 if ($platformId > 0) { $where .= " AND (e.platform_id = " . $platformId . " OR e.platform_id = 0)"; }
 $execRs = $db->get_recordset(
     "SELECT e.id, e.tcversion_id, e.status, e.build_id, e.platform_id," .
-    " e.execution_ts, e.tester_id, e.execution_number, e.notes" .
+    " e.execution_ts, e.tester_id, e.tcversion_number, e.notes" .
     " FROM {$tbl['executions']} e" . $where .
     " ORDER BY e.tcversion_id, e.execution_ts ASC, e.id ASC");
 if (!is_array($execRs)) { $execRs = array(); }
@@ -299,7 +299,7 @@ foreach ($execRs as $e) {
         'build' => isset($buildNames[$buildIdRow]) ? $buildNames[$buildIdRow] : '',
         'platform' => isset($platformNames[$platformIdRow]) ? $platformNames[$platformIdRow] : '',
         'tester_id' => $testerId,
-        'execution_number' => intval($e['execution_number']),
+        'tcversion_number' => intval($e['tcversion_number']),
         'notes' => flkText($e['notes']),
     );
     unset($item);
