@@ -281,6 +281,10 @@ function renderTable() {
       infoEmpty: t('sfh.infoEmpty','No entries'),
       zeroRecords: t('sfh.zeroRecords','No matching hotspots'),
       paginate: { previous: t('common.prev','Previous'), next: t('common.next','Next') },
+      aria: {
+        sortAscending: ' ' + t('dt.aria.sortAscending','activate to sort column ascending'),
+        sortDescending: ' ' + t('dt.aria.sortDescending','activate to sort column descending')
+      },
       emptyTable: t('sfh.empty','No hotspots match this filter.')
     }
   });

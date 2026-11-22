@@ -49139,3 +49139,113 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2036.62 — Status ledger PASS: `docs/MODERNIZATION-STATUS.md` Last-updated line, `96 + 146` count, summary row and detailed DONE row record #2036 with bugs #2037–#2041 fixed.
 
 2036.63 — Final gates PASS: i18n key-set gate 9/9 (12752 keys), `TLU_REQUIRE_SUITE="Issue #2036"` suite gate, `php -l`, `node --check`, `python3 -m json.tool`, `git diff --check`, docs/wiki mirror and all six screenshot files verified after the docs phase.
+
+## Issue #2042 — Modernize: Test Plan Step Failure Hotspots (`stepFailureHotspots`) — net-new BFF `api/stepfailurehotspots` + Dashio screen + bug #2043
+
+### Fixture and BFF API contract
+
+2042.1 — Fixture PASS: `php tmp/fixtures_2042.php` created project `SFH Project` (`tproject_id=1`), foreign project `SFH Foreign` (`tproject_id=2`), plans `SFH Plan` (`tplan_id=3`) and `SFH Foreign Plan` (`tplan_id=4`), builds 1/2, cases 7/12/16, versions 8/13/17 and role-3 user `norights` (`user_id=2`); IDs confirmed before all matrix runs.
+
+2042.2 — `action=init` PASS: authenticated admin GET returned 200 JSON with the selected plan and accessible build/project context; no database error or raw SQL leaked.
+
+2042.3 — `action=report` default PASS: plan 3 returned 200 JSON with `design_steps=7`, `step_results=15`, `passed=8`, `failed=4`, `blocked=3`, `not_run=0`, `failure_rate=26.7`, `critical_steps=2`, `high_steps=1`, `blocked_steps=3`, `affected_cases=2`, `affected_suites=1` and verdict `at_risk`.
+
+2042.4 — Ranking rows PASS: top hotspot was `SFH-1` / `SFH Login Flow` step 1 with score 5, 2 failed + 1 blocked, 66.7% failure rate, verdict `critical`; second was `SFH-2` step 2 with score 3; third was `SFH-1` step 2 with score 2 and verdict `high`.
+
+2042.5 — `action=detail` PASS: `step_id=8` returned chronological execution evidence with 3 runs (failed/failed/blocked), build 1 then build 2, tester, timestamp, notes and expected result.
+
+2042.6 — Build filter PASS: `build_id=1` returned 3 ranked rows with 3 failed step results; `build_id=2` returned 3 ranked rows with 1 failed step result and preserved the selected build through `init`.
+
+2042.7 — Scope filter PASS: `scope=blocked` returned only blocked evidence rows and `scope=failed` returned only failed evidence rows; combining `scope=failed` with `min_failures=3` left exactly one hotspot.
+
+2042.8 — Threshold filter PASS: `min_failures=0` exposed all ranked rows, `min_failures=3` narrowed to one row and `min_failures=100` returned zero rows with CSV export disabled.
+
+2042.9 — Platform filter PASS: `platform_id=0` (all platforms) returned the fixture data; the empty platform list renders the localized `All platforms` option and no raw key.
+
+2042.10 — CSV PASS: `action=csv&tplan_id=3&min_failures=0` returned 200 JSON with `rows=7`, UTF-8 BOM, semicolon separator, quoted cells and the header `test_case;external_id;version;suite;step;actions;expected;verdict;score;evidence;passed;failed;blocked;failure_rate;latest_status;latest_build;latest_platform;latest_tester`; `nosniff` and `Cache-Control: no-store` headers were present.
+
+2042.11 — Anonymous PASS: opening the screen without a session redirected to `login.php?note=expired` (401 guard path verified in browser).
+
+2042.12 — No-right PASS: `norights` received localized `no_right` card with `You need the testplan_metrics right on this test project.`; denial was written to the `events` table as `log_level=16` AUDIT.
+
+2042.13 — Invalid build PASS: `build_id=999` returned 400 `invalid_request` / `build_id does not belong to this project`.
+
+2042.14 — Invalid platform PASS: `platform_id=9999` returned 400 `invalid_request` / `platform_id does not belong to this plan`.
+
+2042.15 — Detail not found PASS: `step_id=99999` returned 404 `step_not_found` / `Step not found in this plan`.
+
+2042.16 — Unknown action PASS: `action=banana` returned 400 `invalid_request` / `Unknown action`.
+
+2042.17 — Missing plan PASS: `action=report` without `tplan_id` returned 400 `invalid_request` / `Missing or invalid tplan_id`.
+
+2042.18 — Invalid plan PASS: `tplan_id=999` returned 404 `tplan_not_found`; browser rendered the localized not-found state card with export disabled.
+
+2042.19 — Project mismatch PASS: `tproject_id=2&tplan_id=3` returned 404 `project_mismatch` / `Test plan belongs to another test project`; browser rendered the localized mismatch card with export disabled.
+
+2042.20 — Method guard PASS: POST `index.php?action=report&tplan_id=3` returned 405 `method_not_allowed` with `Allow: GET, HEAD`.
+
+2042.21 — Same-origin guard PASS: `bffSameOriginGuard()` runs before routing and `bffEnforceSession()` runs before data access (code review); no cross-origin report payload was produced in any browser request.
+
+### Browser and interaction matrix
+
+2042.22 — Login/load PASS: Chrome admin session opened `stepFailureHotspots.html?tproject_id=1&tplan_id=3` and rendered the teal Dashio shell, locale switcher, 12 KPI cards, verdict banner, toolbar and ranking table.
+
+2042.23 — KPI cards PASS: 12 cards rendered the verified default totals with no raw `sfh.*` keys.
+
+2042.24 — Verdict banner PASS: default plan rendered `Critical design steps need attention.` from 2 critical hotspots.
+
+2042.25 — DataTable PASS: four hotspot rows rendered with score, verdict, case, external ID, suite, step, actions, results, failed, blocked, passed, failure rate, latest result, latest build, platform and tester columns.
+
+2042.26 — Detail modal PASS: clicking `SFH Login Flow` opened the localized `Step failure history` modal with step metadata and 3 chronological runs; Close returned to the report.
+
+2042.27 — Build filter browser PASS: selecting `SFH Build 1` and `SFH Build 2` reloaded the report with 3 rows each and matching failed KPI counts.
+
+2042.28 — Scope/threshold browser PASS: selecting `Ever failed` and `Min score=3` left one row; raising the threshold to 100 rendered `No hotspots match this filter.` and disabled CSV export.
+
+2042.29 — Refresh PASS: Refresh reloaded the current scope without losing filters, kept 4 rows after reset and left `stateBox` empty.
+
+2042.30 — CSV browser PASS: Export CSV was enabled for non-empty data and clicked successfully; BFF CSV body verified separately.
+
+2042.31 — Search PASS: DataTables search for `Search Flow` narrowed 4 rows to 2 and clearing the search restored 4 rows without JavaScript errors.
+
+2042.32 — Console PASS: no application error/warn console entries appeared; the only 404 was the deliberate `tproject_id=2` negative API check.
+
+2042.33 — Screenshots PASS: `docs/screenshots/issue-2042-stepfailurehotspots-normal.png`, `-detail.png`, `-empty.png` and `-norights.png` captured.
+
+2042.34 — Locale switch PASS: switching to Română re-rendered toolbar, KPI, verdict, table, modal and state-card labels through `TLi18n` with no raw keys.
+
+2042.35 — DataTables aria FAIL then PASS: bug #2043 found — RO headers exposed English `activate to sort column ascending`; after adding `dt.aria.sortAscending`/`sortDescending` to the language object, headers exposed `Scor activează pentru a sorta coloana crescător` with the required separating space.
+
+2042.36 — Invalid/empty plan browser PASS: `tplan_id=999` and an over-threshold filter rendered localized `Test plan not found` and empty-state cards; `-empty.png` captured.
+
+2042.37 — No-right browser PASS: `norights` opened the screen but received the localized `No permission` card; `-norights.png` captured.
+
+2042.38 — ASIDE launcher PASS: `GET /api/aside/index.php?action=init` returned 200 and contained `stepFailureHotspots.html`; the link is exposed as `$TLS_link_report_step_failure_hotspots`.
+
+2042.39 — Results navigator PASS: `step_failure_hotspots` maps to the modern screen in `api/resultsnav/index.php`; `cfg/reports.cfg.php` carries the report entry.
+
+### Bugs found and fixed
+
+2042.40 — Bug #2043 PASS: DataTables sort aria labels use existing `dt.aria.*` keys in all bundles; verified in RO after the fix and issue closed after push.
+
+### Integration, i18n and static gates
+
+2042.41 — Client i18n PASS: 85 `sfh.*` plus footer keys added to all 10 bundles with EN values and translations in DE/ES/FR/IT/JA/PT/RO/RU/ZH.
+
+2042.42 — `python3 -m json.tool` PASS: all touched client bundles are well-formed after translations.
+
+2042.43 — `bash ai/verify_i18n_coverage.sh` PASS: 9 bundles compared against `en.json`, 0 failures, 12837 keys after the #2043 fix.
+
+2042.44 — Server locale PASS: `$TLS_link_report_step_failure_hotspots` present in all 19 `locale/*/strings.txt` bundles.
+
+2042.45 — `php -l` PASS: BFF, `cfg/reports.cfg.php`, `api/aside/index.php`, `api/resultsnav/index.php` and `lib/functions/common.php` parse without syntax errors.
+
+2042.46 — `node --check` PASS: extracted inline screen JavaScript parses after the #2043 fix.
+
+2042.47 — `git diff --check` PASS: no whitespace errors across the screen's commits.
+
+2042.48 — Code review PASS: subagent reviewed BFF + screen + i18n + wiring three times; all blocking and low findings were fixed and re-verified.
+
+2042.49 — Event Viewer PASS: `SELECT ... FROM events ORDER BY fired_at DESC` showed only `log_level=16` AUDIT rows for login/project creation and the expected no-right denial; no new Error or Warning entries.
+
+2042.50 — Commits/checkpoints PASS: `560c8e8eb`, `b4e136971` and `0cbe7be2b` reference #2042; checkpoints posted on the tracking issue after each push.
