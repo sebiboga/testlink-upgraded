@@ -215,6 +215,8 @@ $bff = function ($action) use ($db, $user) {
             'step_execution_results' => 'gui/templates/results/stepExecutionResults.html',
             // Refs #2031: Test Plan Defect Arrival Rate.
             'defect_arrival_rate' => 'gui/templates/results/defectArrivalRate.html',
+            // Refs #2036: Test Plan Execution Flakiness.
+            'execution_flakiness' => 'gui/templates/results/executionFlakiness.html',
         );
 
         $reportList = config_get('reports_list');

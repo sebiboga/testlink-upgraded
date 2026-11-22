@@ -270,3 +270,5 @@ $TLS_link_report_defect_severity = "Distribuția severității defectelor"; // D
 $TLS_link_report_step_execution_results = "Rezultatele execuției pașilor"; // Step execution results report (Refs #2024)
 
 $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect arrival rate report (Refs #2031)
+
+$TLS_link_report_execution_flakiness = "Execution Flakiness"; // Execution flakiness report (Refs #2036)

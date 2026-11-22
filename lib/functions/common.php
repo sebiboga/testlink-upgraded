@@ -2781,6 +2781,11 @@ function getActions(&$gui,$baseURL) {
   $actions->defectArrivalRate =
     "/gui/templates/results/defectArrivalRate.html?{$ctx}";
 
+  // Refs #2036: Execution Flakiness report (net-new screen).
+  // Status changes across a plan's assigned test-case versions.
+  $actions->executionFlakiness =
+    "/gui/templates/results/executionFlakiness.html?{$ctx}";
+
   $actions->keywordUsage =
     "/gui/templates/results/keywordUsage.html?{$ctx}";
 

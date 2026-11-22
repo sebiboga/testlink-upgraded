@@ -854,6 +854,15 @@ $tlCfg->reports_list['defect_arrival_rate'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2036: Execution Flakiness (net-new). Status flips across the
+// executions of one test plan's assigned test-case versions.
+$tlCfg->reports_list['execution_flakiness'] = array(
+	'title' => 'link_report_execution_flakiness',
+	'url' => 'gui/templates/results/executionFlakiness.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

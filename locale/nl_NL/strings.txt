@@ -4159,3 +4159,5 @@ $TLS_link_report_defect_severity = "Defect Severity Distribution"; // Defect sev
 $TLS_link_report_step_execution_results = "Step Execution Results"; // Step execution results report (Refs #2024)
 
 $TLS_link_report_defect_arrival_rate = "Frequentie van nieuwe defects"; // Defect arrival rate report (Refs #2031)
+
+$TLS_link_report_execution_flakiness = "Execution Flakiness"; // Execution flakiness report (Refs #2036)

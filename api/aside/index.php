@@ -368,6 +368,10 @@ if ($tplan_id > 0) {
                 // Refs #2031: daily arrival rate of distinct linked defects.
                 $hrefR = '/gui/templates/results/defectArrivalRate.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_execution_flakiness') {
+                // Refs #2036: status flips across the plan's executions.
+                $hrefR = '/gui/templates/results/executionFlakiness.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_notes_coverage') {
                 // Refs #2014: Test Plan Execution Notes Coverage (plain-text
                 // execution-note evidence for the plan's assigned versions).
