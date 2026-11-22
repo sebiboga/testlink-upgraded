@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Flakiness</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 190px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 120px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.stable { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.at_risk, .verdict.no_data { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 12px 20px 16px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.tc a, td.tc span.link { color: #259b93; font-weight: 700; text-decoration: none; cursor: pointer; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-passed { background: #d4edda; color: #155724; }
+.badge-failed { background: #f5c6cb; color: #b94a48; }
+.badge-blocked { background: #ffecb5; color: #856404; }
+.badge-not_run { background: #e9ecef; color: #555; }
+.badge-stable { background: #d4edda; color: #155724; }
+.badge-watch, .badge-limited { background: #ffecb5; color: #856404; }
+.badge-flaky, .badge-never_run { background: #f5c6cb; color: #b94a48; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; }
+.modal-body { padding: 16px 20px; }
+.detail-meta { font-size: 12px; color: #667; margin-bottom: 10px; }
+.detail-list { font-size: 12px; color: #667; margin: 8px 0 14px; }
+.detail-list b { color: #22242a; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-chart-line" style="margin-right:8px;"></i>
+  <span data-i18n="flk.header">Execution Flakiness</span>
+  <span class="sub" data-i18n="flk.subtitle">status changes across the executions of each assigned test case</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx" data-i18n="flk.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="flk.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="buildFilter" data-i18n="flk.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="flk.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="flk.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="flk.allPlatforms">All platforms</option></select>
+  <label for="verdictFilter" data-i18n="flk.verdictFilter">Verdict</label>
+  <select id="verdictFilter">
+    <option value="all" data-i18n="flk.allVerdicts">All verdicts</option>
+    <option value="flaky" data-i18n="flk.flaky">Flaky</option>
+    <option value="watch" data-i18n="flk.watch">Watch</option>
+    <option value="stable" data-i18n="flk.stable">Stable</option>
+    <option value="limited" data-i18n="flk.limited">Limited evidence</option>
+    <option value="never_run" data-i18n="flk.neverRun">Never run</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="flk.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="flk.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi teal"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="flk.kpiAssigned">Assigned versions</div></div>
+  <div class="kpi"><div class="v" id="kpiExecuted">0</div><div class="l" data-i18n="flk.kpiExecuted">Executed versions</div></div>
+  <div class="kpi"><div class="v" id="kpiExecutions">0</div><div class="l" data-i18n="flk.kpiExecutions">Executions in scope</div></div>
+  <div class="kpi alert"><div class="v" id="kpiFlips">0</div><div class="l" data-i18n="flk.kpiFlips">Status flips</div></div>
+  <div class="kpi alert"><div class="v" id="kpiFlaky">0</div><div class="l" data-i18n="flk.kpiFlaky">Flaky versions</div></div>
+  <div class="kpi"><div class="v" id="kpiRecovered">0</div><div class="l" data-i18n="flk.kpiRecovered">Recovered (fail to pass)</div></div>
+  <div class="kpi alert"><div class="v" id="kpiRegressed">0</div><div class="l" data-i18n="flk.kpiRegressed">Regressed (pass to fail)</div></div>
+  <div class="kpi"><div class="v" id="kpiAvgRuns">0</div><div class="l" data-i18n="flk.kpiAvgRuns">Average runs per version</div></div>
+  <div class="kpi"><div class="v" id="kpiMaxRuns">0</div><div class="l" data-i18n="flk.kpiMaxRuns">Most runs on one version</div></div>
+  <div class="kpi"><div class="v" id="kpiPassRate">0%</div><div class="l" data-i18n="flk.kpiPassRate">Passed executions</div></div>
+  <div class="kpi"><div class="v" id="kpiStable">0</div><div class="l" data-i18n="flk.kpiStable">Stable versions</div></div>
+  <div class="kpi"><div class="v" id="kpiNever">0</div><div class="l" data-i18n="flk.kpiNever">Never run</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.executionFlakiness">TestLink 2.0.1 - Execution Flakiness</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="detailTitle"><span data-i18n="flk.detailTitle">Execution history evidence</span></h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], summary: {}, context: {}, dtCases: null, seq: 0, detailSeq: 0 };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  if (isErr) { $el.addClass('err'); } else { $el.removeClass('err'); }
+  setTimeout(function(){ $el.fadeOut(300); }, 3000);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty().removeClass('stable watch at_risk no_data');
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dtCases) { try { STATE.dtCases.destroy(); } catch (e) {} STATE.dtCases = null; }
+}
+function showState(code) {
+  $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired');
+    return;
+  }
+  resetView();
+  var map = {
+    invalid_request: ['flk.errBadRequest', 'Invalid request', 'flk.errBadRequestBody', 'The report parameters are not valid.'],
+    no_right: ['flk.errNoRight', 'No permission', 'flk.errNoRightBody', 'You need the report right on this test project.'],
+    tplan_not_found: ['flk.errNotFound', 'Test plan not found', 'flk.errNotFoundBody', 'The requested test plan does not exist.'],
+    project_mismatch: ['flk.errMismatch', 'Wrong test project', 'flk.errMismatchBody', 'This test plan belongs to another test project.'],
+    method_not_allowed: ['flk.errMethod', 'Method not allowed', 'flk.errMethodBody', 'This action is not allowed.'],
+    test_case_not_found: ['flk.errCaseNotFound', 'Test case not found', 'flk.errCaseNotFoundBody', 'This test case is not part of the current report.']
+  };
+  var m = map[code] || ['flk.errGeneric', 'Could not load the report', 'flk.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(m[0], m[1])) + '</h4><p>' + esc(t(m[2], m[3])) + '</p>' +
+    '<p>' + esc(t('flk.code', 'Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function filterParams(action) {
+  return {
+    action: action || 'report',
+    tplan_id: tplan_id,
+    tproject_id: tproject_id,
+    build_id: parseInt($('#buildFilter').val(), 10) || 0,
+    platform_id: parseInt($('#platformFilter').val(), 10) || 0,
+    verdict: $('#verdictFilter').val() || 'all'
+  };
+}
+function fillSelect($sel, items, allKey, allFallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, allFallback)));
+  (items || []).forEach(function(item) {
+    $sel.append($('<option>').val(item.id).text(item.name));
+  });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  $.ajax({
+    url: '/api/executionflakiness/index.php',
+    data: { action: 'init', tplan_id: tplan_id, tproject_id: tproject_id },
+    dataType: 'json',
+    success: function(d) {
+      if (seq !== STATE.seq) { return; }
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.context = d.context || {};
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      fillSelect($('#buildFilter'), (d.filters || {}).builds, 'flk.allBuilds', 'All builds');
+      fillSelect($('#platformFilter'), (d.filters || {}).platforms, 'flk.allPlatforms', 'All platforms');
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      loadReport();
+    },
+    error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
+      showState((xhr.responseJSON || {}).code || 'error');
+    }
+  });
+}
+function loadReport() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/executionflakiness/index.php',
+    data: filterParams('report'),
+    dataType: 'json',
+    success: function(d) {
+      if (seq !== STATE.seq) { return; }
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || [];
+      STATE.summary = d.summary || {};
+      STATE.context = d.context || {};
+      var s = STATE.summary;
+      $('#kpiAssigned').text(s.assigned || 0);
+      $('#kpiExecuted').text(s.executed || 0);
+      $('#kpiExecutions').text(s.executions || 0);
+      $('#kpiFlips').text(s.total_flips || 0);
+      $('#kpiFlaky').text(s.flaky_cases || 0);
+      $('#kpiRecovered').text(s.recovered || 0);
+      $('#kpiRegressed').text(s.regressed || 0);
+      $('#kpiAvgRuns').text(s.avg_runs || 0);
+      $('#kpiMaxRuns').text(s.max_runs || 0);
+      $('#kpiPassRate').text((s.pass_rate || 0) + '%');
+      $('#kpiStable').text(s.stable_cases || 0);
+      $('#kpiNever').text(s.never_run || 0);
+      $('#kpis').show();
+      var vmap = {
+        no_data: ['flk.verdictNoData', 'No executions in this scope.', 'no_data'],
+        at_risk: ['flk.verdictAtRisk', 'Flaky test cases were found in this scope.', 'at_risk'],
+        watch: ['flk.verdictWatch', 'Some statuses changed or recovered; keep watching.', 'watch'],
+        stable: ['flk.verdictStable', 'No status changes were found in this scope.', 'stable']
+      };
+      var v = vmap[d.verdict] || vmap.no_data;
+      $('#verdictBox').addClass(v[2] || '').html(
+        '<i class="fa fa-circle-info"></i> ' + esc(t(v[0], v[1]))).show();
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' +
+          esc(t('flk.empty', 'No test cases match this filter.'))).show();
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('flk.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      if (seq !== STATE.seq) { return; }
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('flk.toastError', 'Error loading data'), true);
+    }
+  });
+}
+function badge(value) {
+  return '<span class="badge badge-' + esc(value) + '">' +
+    esc(t('flk.' + value, value)) + '</span>';
+}
+function dtLanguage(emptyText) {
+  return {
+    search: t('common.filter', 'Filter') + ':',
+    lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+    info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+    infoFiltered: t('flk.infoFiltered', '(filtered from _MAX_ total entries)'),
+    infoEmpty: t('flk.infoEmpty', 'No entries'),
+    zeroRecords: t('flk.zeroRecords', 'No matching records'),
+    paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+    emptyTable: emptyText
+  };
+}
+function renderTable() {
+  var emptyText = t('flk.empty', 'No test cases match this filter.');
+  $('#reportArea').append('<div class="section"><div class="section-head">' +
+    '<i class="fa fa-shuffle"></i> ' + esc(t('flk.casesTitle', 'Assigned test cases by instability')) +
+    '<span class="bmeta">' + esc(t('flk.rowCountCases', 'Test cases')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtCases" class="flat" style="width:100%"></table></div></div>');
+  STATE.dtCases = $('#dtCases').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('flk.colCase', 'Test case'), data: 'test_case', className: 'tc',
+        render: function(data, type, row) {
+          if (type !== 'display') { return data; }
+          return '<span class="link" data-vid="' + esc(row.tcversion_id) + '">' + esc(data) + '</span>';
+        } },
+      { title: t('flk.colSuite', 'Suite'), data: 'suite',
+        render: function(data) { return esc(data || '-'); } },
+      { title: t('flk.colRuns', 'Runs'), data: 'runs' },
+      { title: t('flk.colFlips', 'Flips'), data: 'flips' },
+      { title: t('flk.colFlipRate', 'Flip rate'), data: 'flip_rate',
+        render: function(data) { return esc(data) + '%'; } },
+      { title: t('flk.colRecovered', 'Recovered'), data: 'recovered' },
+      { title: t('flk.colRegressed', 'Regressed'), data: 'regressed' },
+      { title: t('flk.colFirstStatus', 'First result'), data: 'first_status',
+        render: function(data, type) { return type !== 'display' ? data : badge(data); } },
+      { title: t('flk.colLastStatus', 'Last result'), data: 'last_status',
+        render: function(data, type) { return type !== 'display' ? data : badge(data); } },
+      { title: t('flk.colPassRate', 'Pass rate'), data: 'pass_rate',
+        render: function(data) { return esc(data) + '%'; } },
+      { title: t('flk.colVerdict', 'Verdict'), data: 'verdict',
+        render: function(data, type) { return type !== 'display' ? data : badge(data); } },
+      { title: t('flk.colLastTs', 'Last execution'), data: 'last_ts' }
+    ],
+    order: [[3, 'desc'], [0, 'asc']],
+    pageLength: 25,
+    language: dtLanguage(emptyText)
+  });
+  $('#dtCases').on('click', '.link', function() { showDetails(parseInt($(this).attr('data-vid'), 10)); });
+}
+function showDetails(vid) {
+  var detailSeq = ++STATE.detailSeq;
+  var p = filterParams('detail');
+  p.tcversion_id = vid;
+  $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' +
+    esc(t('common.loading', 'Loading...')));
+  $('#detailModal').modal('show');
+  $.ajax({
+    url: '/api/executionflakiness/index.php',
+    data: p,
+    dataType: 'json',
+    success: function(d) {
+      if (detailSeq !== STATE.detailSeq) { return; }
+      if (d.status === 'error') {
+        $('#detailModal').modal('hide');
+        toast(t('flk.toastError', 'Error loading data') + ': ' + d.code, true);
+        return;
+      }
+      var item = d.item || {};
+      var execs = d.executions || [];
+      var html = '<div class="detail-meta">' + esc(item.test_case || '') + ' &mdash; ' +
+        esc(t('flk.colRuns', 'Runs')) + ': ' + esc(item.runs || 0) +
+        ' &mdash; ' + esc(t('flk.colFlips', 'Flips')) + ': ' + esc(item.flips || 0) + '</div>';
+      html += '<div class="detail-list"><b>' + esc(t('flk.colSuite', 'Suite')) + '</b>: ' +
+        esc(item.suite || '-') + '<br><b>' +
+        esc(t('flk.colBuilds', 'Builds')) + '</b>: ' +
+        esc((item.build_names || []).join(' | ') || '-') + '<br><b>' +
+        esc(t('flk.colPlatforms', 'Platforms')) + '</b>: ' +
+        esc((item.platform_names || []).join(' | ') || '-') + '</div>';
+      if (!execs.length) {
+        html += '<div class="empty">' + esc(t('flk.detailNoExec', 'No executions in this scope.')) + '</div>';
+      } else {
+        html += '<table class="flat"><thead><tr><th>' +
+          esc(t('flk.colExec', 'Run')) + '</th><th>' +
+          esc(t('flk.colResult', 'Result')) + '</th><th>' +
+          esc(t('flk.colBuild', 'Build')) + '</th><th>' +
+          esc(t('flk.colPlatform', 'Platform')) + '</th><th>' +
+          esc(t('flk.colTimestamp', 'Executed on')) + '</th><th>' +
+          esc(t('flk.colNotes', 'Notes')) + '</th></tr></thead><tbody>';
+        execs.forEach(function(e) {
+          html += '<tr><td>' + esc(e.execution_id) + '</td><td>' + badge(e.status) +
+            '</td><td>' + esc(e.build || '') + '</td><td>' + esc(e.platform || '') +
+            '</td><td>' + esc(e.execution_ts) + '</td><td>' + esc(e.notes || '') +
+            '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      $('#detailBody').html(html);
+      TLi18n.apply($('#detailBody')[0]);
+    },
+    error: function(xhr) {
+      if (detailSeq !== STATE.detailSeq) { return; }
+      $('#detailModal').modal('hide');
+      toast(t('flk.toastError', 'Error loading data') + ': ' +
+        esc((xhr.responseJSON || {}).code || 'error'), true);
+    }
+  });
+}
+function exportCsv() {
+  $.ajax({
+    url: '/api/executionflakiness/index.php',
+    data: filterParams('csv'),
+    dataType: 'text',
+    success: function(csv) {
+      if (!csv) { toast(t('flk.toastError', 'Error loading data'), true); return; }
+      if (csv.charAt(0) !== '\ufeff') { csv = '\ufeff' + csv; }
+      var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'execution-flakiness-tplan-' + tplan_id + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) {
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('flk.toastError', 'Error loading data'), true);
+    }
+  });
+}
+$(function() {
+  $('#btnRefresh').on('click', loadInit);
+  $('#btnExport').on('click', exportCsv);
+  $('#buildFilter, #platformFilter, #verdictFilter').on('change', loadReport);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, window.location.origin); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = t('footers.executionFlakiness', 'TestLink 2.0.1 - Execution Flakiness');
+    $('#detailModal .close').attr('aria-label', t('flk.close', 'Close'));
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
