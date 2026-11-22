@@ -49001,3 +49001,141 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2031.66 — CHANGELOG PASS: one `[SCREEN] - #2031` line added under the 2.0.1 screens section with bugfixes #2032–#2035 and issue references.
 
 2031.67 — Final gates PASS: `git diff --check`, i18n key-set gate 9/9 (12667 keys), suite gate 34 PASS / 0 FAIL, docs/wiki mirror + six image files and PHP/JS syntax all verified after the docs phase.
+
+## Issue #2036 — Modernize: Test Plan Execution Flakiness report (`executionFlakiness`) — net-new BFF `api/executionflakiness` + Dashio screen + bugs #2037–#2041
+
+### Fixture and BFF API contract
+
+2036.1 — Fixture PASS: `php tmp/fixtures_2036.php` created project `F36:FLK2036` (`tproject_id=24`), plans `FLK Flakiness Plan` (`tplan_id=25`) and `FLK Empty Plan` (`tplan_id=26`), builds 3/4, platforms 3/4, versions 29/33/37/41/45/49 and role-3 user `flk2036norights`; IDs confirmed before all matrix runs.
+
+2036.2 — `action=init` PASS: authenticated admin GET returned 200 JSON with accessible projects/plans and selected plan/filters; no database error after the #2037 fix.
+
+2036.3 — `action=report` default PASS: plan 25 returned 200 JSON with `summary`, `rows` and `suites`; actual totals were 6 assigned, 5 executed, 13 executions, 5 total flips, 2 flaky cases, 1 watch case, 1 stable case, 1 limited case, 1 never-run case, 3 recoveries, 2 regressions, 9 passed, 4 failed, 2.6 average runs, 4 maximum runs, 69.2% pass rate and verdict `at_risk`.
+
+2036.4 — Per-case rows PASS: `F36-1` 4 runs/3 flips/flaky, `F36-3` 2/1/flaky, `F36-4` 4/1/watch, `F36-2` 2/0/stable, `F36-5` 1/0/limited and `F36-6` 0/0/never_run.
+
+2036.5 — `action=detail` PASS: `tcversion_id=29` returned chronological evidence with failed then passed then failed results, build/platform/tester/timestamp fields and no raw SQL errors.
+
+2036.6 — Build filter PASS: `build_id=3` narrowed the report to 4 executed links, 6 executions and 1 flip; build 4 remained selectable through `init`.
+
+2036.7 — Platform filter PASS: `platform_id=3` and `platform_id=4` returned scoped results and the screen reloaded with the selected platform; `platform_id=0` assignments are included in named-platform scopes.
+
+2036.8 — Verdict filter PASS: `verdict=watch` returned only `F36-4` with 4 runs, 1 flip, 33.3% pass rate and verdict `watch`.
+
+2036.9 — CSV PASS: `action=csv` returned 200 with `content-disposition: attachment; filename="execution-flakiness.csv"`, UTF-8 BOM, `;` separator and escaped row `"F36-1 FLK Login";1;"FLK Suite login";2;1;100;1;0;1;1;0;0;50;failed;passed;flaky`.
+
+2036.10 — Anonymous PASS: report without a session returned 401 `not_authenticated` and no report data.
+
+2036.11 — No-right PASS: `flk2036norights` received 403 `no_right` with message `testplan_metrics right required`; denial was audited.
+
+2036.12 — Invalid build PASS: `build_id=999` returned 400 `invalid_request` / `build_id does not belong to this project`.
+
+2036.13 — Invalid platform PASS: `platform_id=9999` returned 400 `invalid_request` / `platform_id does not belong to this plan`.
+
+2036.14 — Project mismatch PASS: `tproject_id=999` returned 404 `project_mismatch` / `Test plan belongs to another test project`, with the owning-project rights check first (no existence oracle).
+
+2036.15 — Detail not found PASS: `tcversion_id=99999` returned 404 `test_case_not_found` / `Test case is not part of this report`.
+
+2036.16 — Method guard PASS: POST with `Origin`/`Referer` returned 405 `method_not_allowed` with `Allow: GET, HEAD`.
+
+2036.17 — Same-origin guard PASS: POST without `Origin`/`Referer` was blocked with 403 before the method check.
+
+2036.18 — Cache/security headers PASS: JSON and CSV answers carried `nosniff` and `Cache-Control: no-store`.
+
+2036.19 — Invalid plan PASS: `tplan_id=999` returned 404 `tplan_not_found`; browser rendered the localized not-found state card.
+
+2036.20 — Empty plan PASS: `tplan_id=26` returned 200 with no data and verdict `no_data`; browser rendered the localized empty state.
+
+### Browser and interaction matrix
+
+2036.21 — Login/load PASS: Chrome admin session opened `executionFlakiness.html?tproject_id=24&tplan_id=25` through the Reports launcher and rendered the teal Dashio shell.
+
+2036.22 — KPI cards PASS: 12 cards rendered the verified default totals with no raw `flk.` keys.
+
+2036.23 — Verdict banner PASS: default plan rendered `at_risk` from 2 flaky and 1 watch case.
+
+2036.24 — DataTable PASS: six case rows rendered with sortable/searchable columns for case, suite, runs, flips, pass rate, first/last status and verdict.
+
+2036.25 — Detail modal PASS: clicking `F36-1` opened chronological evidence in a Bootstrap modal and Close returned to the report.
+
+2036.26 — Build filter browser PASS: selecting `FLK Build 1` and applying reduced the table to 4 executed cases, 6 executions and 1 flip.
+
+2036.27 — Platform filter browser PASS: selecting FLK Platform 1/2 and applying reloaded the report with the selected platform reflected in the toolbar and KPI cards.
+
+2036.28 — Verdict filter browser PASS: selecting Flaky and applying left exactly `F36-1` and `F36-3` in the table.
+
+2036.29 — Refresh PASS: Refresh reloaded the current scope without losing filters and kept the console clean.
+
+2036.30 — CSV browser PASS: Export CSV produced a 200 Blob download with the expected filename and body row.
+
+2036.31 — Search/sort PASS: DataTables search and column sorting narrowed/reordered rows without JavaScript errors.
+
+2036.32 — Console PASS: no new `error` or `warn` entries appeared during the full browser matrix; only deliberate negative API cases logged expected responses.
+
+2036.33 — Screenshots PASS: `docs/screenshots/issue-2036-flakiness-normal.png` and `-detail.png` captured after the final fixes.
+
+2036.34 — Locale switch PASS: switching to Română re-rendered toolbar, KPI, verdict, table, modal and state-card labels through `TLi18n` with no raw keys; `docs/screenshots/issue-2036-flakiness-ro.png` captured.
+
+2036.35 — DataTables aria PASS: sort labels used localized `dt.aria.sortAscending`/`sortDescending` after #2039 and the follow-up patch restored the separating space (`Caz de test activează...`).
+
+2036.36 — Invalid/empty plan browser PASS: `tplan_id=999` and empty plan 26 rendered localized `flk.state.tplanNotFound` and `flk.state.empty` cards; `-empty.png` captured.
+
+2036.37 — Anonymous browser PASS: an expired/no-session open redirected to `login.php?note=expired`.
+
+2036.38 — No-right browser PASS: `flk2036norights` opened the screen but received the localized `flk.state.noRight` card; `-no-right.png` captured.
+
+2036.39 — ASIDE launcher PASS: Reports menu contained Execution Flakiness and clicking it loaded the modern screen in the main frame; `-aside.png` captured.
+
+2036.40 — Results navigator PASS: `execution_flakiness` mapped to the modern screen in `api/resultsnav/index.php`; Reports config key `execution_flakiness` and `$actions->executionFlakiness` were present.
+
+### Bugs found and fixed
+
+2036.41 — Bug #2037 PASS: report query no longer selects nonexistent `executions.execution_number`; it selects `tcversion_number`, verified with report/detail/filters/CSV 200 JSON/CSV; issue closed.
+
+2036.42 — Bug #2038 PASS: never-run rows render the localized never-run label instead of raw `flk.*` keys; verified in the default table and issue closed.
+
+2036.43 — Bug #2039 PASS: DataTables sort aria labels use existing `dt.aria.*` keys in all bundles; verified in RO and issue closed.
+
+2036.44 — Aria spacing follow-up PASS: sort aria text now includes a separating space between the column name and the action; verified as `Caz de test activează...` in RO.
+
+2036.45 — Bug #2040 counter PASS: `never_run_cases` is 1 after null-coalescing verdict counter increments were added; verified by API and issue closed.
+
+2036.46 — Bug #2040 CSV race PASS: `exportCsv()` captures `STATE.seq` and discards stale success/error responses; verified by code review and issue closed.
+
+2036.47 — Bug #2041 PASS: `$TLS_link_report_execution_flakiness` translated in all 17 non-English server locale bundles; `en_GB`/`en_US` remain English; issue closed.
+
+### Integration, i18n and static gates
+
+2036.48 — Client i18n PASS: 85 `flk.*` plus footer keys added to all 10 bundles with EN values and translations in DE/ES/FR/IT/JA/PT/RO/RU/ZH.
+
+2036.49 — `python3 -m json.tool` PASS: all touched client bundles are well-formed after translations.
+
+2036.50 — `bash ai/verify_i18n_coverage.sh` PASS: 9 bundles compared against `en.json`, 0 failures, 12752 keys.
+
+2036.51 — Server locale PASS: `$TLS_link_report_execution_flakiness` present in all 19 `locale/*/strings.txt` bundles.
+
+2036.52 — `php -l` PASS: BFF, `cfg/reports.cfg.php`, `api/aside/index.php`, `api/resultsnav/index.php` and `lib/functions/common.php` parse without syntax errors.
+
+2036.53 — `node --check` PASS: extracted inline screen JavaScript parses after the #2038/#2039/#2040 fixes.
+
+2036.54 — `git diff --check` PASS: no whitespace errors across the screen's commits.
+
+2036.55 — Code review PASS: subagent reviewed BFF + screen + i18n + wiring twice with no blocking findings; all low findings were fixed and re-verified.
+
+2036.56 — Event Viewer PASS: no new Error/Warning entries after the fixes; only two pre-fix #2037 `log_level=1` rows at 11:24:06/17 remained.
+
+2036.57 — Commits/checkpoints PASS: `e8eb467d9`, `9dba9288e`, `0a2f778f1`, `ae4534257`, `9903a2e8b`, `64a0d5abe`, `7e25e72ae`, `9d323de21` and `b212f336c` all reference #2036; checkpoints posted on the tracking issue after each push.
+
+2036.58 — CHANGELOG PASS: `[SCREEN] - #2036` and `[BUGFIX]` lines for #2037–#2041 are present under 2.0.1 sections.
+
+### Documentation and final gates
+
+2036.59 — Docs mirror PASS: `docs/Test-Plan-Execution-Flakiness-Modernized.md` documents the net-new report, semantics, API contract, wiring, verification and files with no image lines.
+
+2036.60 — Wiki mirror PASS: `tmp/wiki-repo/Test-Plan-Execution-Flakiness-Modernized.md` mirrors the docs page and adds the six screenshot links; all six image files exist in the wiki clone.
+
+2036.61 — Screenshots PASS: six `docs/screenshots/issue-2036-flakiness-*.png` files exist for normal, detail, RO, empty, no-right and ASIDE states.
+
+2036.62 — Status ledger PASS: `docs/MODERNIZATION-STATUS.md` Last-updated line, `96 + 146` count, summary row and detailed DONE row record #2036 with bugs #2037–#2041 fixed.
+
+2036.63 — Final gates PASS: i18n key-set gate 9/9 (12752 keys), `TLU_REQUIRE_SUITE="Issue #2036"` suite gate, `php -l`, `node --check`, `python3 -m json.tool`, `git diff --check`, docs/wiki mirror and all six screenshot files verified after the docs phase.
