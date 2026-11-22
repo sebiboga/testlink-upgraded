@@ -294,6 +294,10 @@ function loadReport() {
   });
 }
 function badge(value) {
+  if (!value) {
+    return '<span class="badge badge-never_run">' +
+      esc(t('flk.never_run', 'Never run')) + '</span>';
+  }
   return '<span class="badge badge-' + esc(value) + '">' +
     esc(t('flk.' + value, value)) + '</span>';
 }
