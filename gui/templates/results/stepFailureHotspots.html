@@ -116,9 +116,9 @@ td.tcase a, td.tcase span.link { color: #259b93; font-weight: 700; text-decorati
 <div class="footer" id="footerInfo"></div>
 <div class="footer"><span data-i18n="footers.stepFailureHotspots">TestLink 2.0.1 - Test Plan Step Failure Hotspots</span></div>
 <div class="toast" id="toast"></div>
-<div class="modal fade" id="detailModal" tabindex="-1" role="dialog">
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
   <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
-    <div class="modal-header"><h4 class="modal-title" data-i18n="sfh.detailTitle">Step failure history</h4>
+    <div class="modal-header"><h4 class="modal-title" id="detailTitle" data-i18n="sfh.detailTitle">Step failure history</h4>
       <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
     <div class="modal-body" id="detailBody"></div>
   </div></div>
@@ -257,7 +257,7 @@ function renderTable() {
       { title: t('sfh.colScore','Score'), data: 'score' },
       { title: t('sfh.colVerdict','Verdict'), data: 'verdict', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
       { title: t('sfh.colCase','Test case'), data: 'tcase_name', className:'tcase',
-        render: function(data,type,row) { return type === 'display' ? '<span class="link" data-sid="' + esc(row.step_id) + '">' + esc(data) + '</span>' : data; } },
+        render: function(data,type,row) { return type === 'display' ? '<span class="link" role="button" tabindex="0" data-sid="' + esc(row.step_id) + '">' + esc(data) + '</span>' : data; } },
       { title: t('sfh.colExternal','External ID'), data: 'external_id', render: $.fn.dataTable.render.text() },
       { title: t('sfh.colSuite','Suite'), data: 'suite_path', render: $.fn.dataTable.render.text() },
       { title: t('sfh.colStep','Step'), data: 'step_number' },
@@ -288,9 +288,20 @@ function renderTable() {
       emptyTable: t('sfh.empty','No hotspots match this filter.')
     }
   });
-  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-sid')); });
+  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-sid'), this); });
+  $('#dtResults').on('keydown', '.link', function(e) {
+    if (e.which === 13 || e.which === 32) { e.preventDefault(); showDetails($(this).attr('data-sid'), this); }
+  });
 }
-function showDetails(sid) {
+var detailTrigger = null;
+function sfhBackgroundInert(on) {
+  $('.header, .toolbar, #loadingBox, #stateBox, #kpis, #verdictBox, #reportArea, #emptyBox, .footer, #toast').each(function () {
+    if (on) { this.setAttribute('inert', 'inert'); this.setAttribute('aria-hidden', 'true'); }
+    else { this.removeAttribute('inert'); this.removeAttribute('aria-hidden'); }
+  });
+}
+function showDetails(sid, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
   var p = filterParams('detail'); p.step_id = sid;
   var dseq = ++STATE.detailSeq;
   $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' + esc(t('common.loading','Loading...')));
@@ -354,6 +365,23 @@ function exportCsv() {
 $(function() {
   $('#btnRefresh').on('click', loadInit);
   $('#btnExport').on('click', exportCsv);
+  $('#detailModal').on('shown.bs.modal', function () {
+    sfhBackgroundInert(true);
+    $(this).trigger('focus');
+  }).on('hidden.bs.modal', function () {
+    sfhBackgroundInert(false);
+    var trigger = detailTrigger;
+    detailTrigger = null;
+    setTimeout(function () { if (trigger && trigger.length) { trigger.trigger('focus'); } }, 0);
+  }).on('keydown', function (e) {
+    if (e.which !== 9) { return; }
+    var sel = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    var f = $(this).find(sel).filter(':visible');
+    if (!f.length) { e.preventDefault(); return; }
+    var first = f.first()[0], last = f.last()[0], outside = !this.contains(document.activeElement);
+    if (e.shiftKey && (outside || document.activeElement === first || document.activeElement === this)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (outside || document.activeElement === last || document.activeElement === this)) { e.preventDefault(); first.focus(); }
+  });
   $('#buildFilter, #platformFilter, #scopeFilter, #minFailures').on('change', loadReport);
   $('#btnClose').on('click', function() {
     if (window.parent && window.parent !== window) { window.parent.postMessage({ action:'close' }, window.location.origin); }

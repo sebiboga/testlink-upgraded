@@ -29,7 +29,7 @@ function sfhPositiveInt($raw)
 {
     if ($raw === null || is_array($raw)) { return 0; }
     $raw = trim((string)$raw);
-    if ($raw === '' || !preg_match('/^[0-9]+$/', $raw)) { return 0; }
+    if ($raw === '' || strlen($raw) > 10 || !preg_match('/^[0-9]+$/', $raw)) { return 0; }
     $n = intval($raw);
     return $n > 0 ? $n : 0;
 }
@@ -61,7 +61,7 @@ function sfhStatus($letter)
 
 function sfhCsvCell($value)
 {
-    $s = sfhDecode($value);
+    $s = str_replace(array("\r", "\n", "\u{00A0}"), array(' ', ' ', ' '), sfhDecode($value));
     if ($s !== '' && preg_match('/^\s*[=+\-@]/', $s)) { $s = "'" . $s; }
     return $s;
 }

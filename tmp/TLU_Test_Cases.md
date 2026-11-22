@@ -49249,3 +49249,25 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2042.49 — Event Viewer PASS: `SELECT ... FROM events ORDER BY fired_at DESC` showed only `log_level=16` AUDIT rows for login/project creation and the expected no-right denial; no new Error or Warning entries.
 
 2042.50 — Commits/checkpoints PASS: `560c8e8eb`, `b4e136971` and `0cbe7be2b` reference #2042; checkpoints posted on the tracking issue after each push.
+
+### Documentation and final gates
+
+2042.51 — Docs mirror PASS: `docs/Test-Plan-Step-Failure-Hotspots-Modernized.md` documents the net-new report, semantics, API contract, wiring, verification and files with no image lines; committed as `631f0c22b`.
+
+2042.52 — Wiki mirror PASS: `tmp/wiki-repo/Test-Plan-Step-Failure-Hotspots-Modernized.md` mirrors the docs page and adds six screenshot links; wiki commit `4c59344` pushed to `origin master`.
+
+2042.53 — Screenshots PASS: six `docs/screenshots/issue-2042-stepfailurehotspots-*.png` files exist for normal, detail, RO, empty, no-right and ASIDE states and were copied to the wiki clone.
+
+2042.54 — ASIDE click PASS: clicking `Step Failure Hotspots` under Reports opened the modern screen in the main frame with the correct `tproject_id=2&tplan_id=4` context; the no-evidence (foreign plan) state rendered localized `no_data` cards.
+
+2042.55 — Detail modal accessibility PASS: the modal exposes `aria-modal="true"` and `aria-labelledby="detailTitle"`; on open, focus moves to `#detailModal`, background regions gain `inert` and `aria-hidden`, Tab stays inside the modal, Escape closes it, `inert`/`aria-hidden` are removed, and focus returns to the triggering step link.
+
+2042.56 — Keyboard detail opener PASS: step links render as `role="button" tabindex="0"`; pressing Enter on a focused step link opens the detail modal and moves focus into it.
+
+2042.57 — Out-of-range plan id PASS: `?action=detail&tplan_id=99999999999999999999&step_id=9&tproject_id=1` returned HTTP 400 `invalid_request` with message `Missing or invalid tplan_id` after the digit-string length guard.
+
+2042.58 — Out-of-range platform id PASS: `?action=report&tplan_id=3&platform_id=99999999999999999999&tproject_id=1` returned HTTP 400 `invalid_request` with message `platform_id does not belong to this plan`.
+
+2042.59 — CSV after hardening PASS: `?action=csv&tplan_id=3&tproject_id=1` still returned HTTP 200 JSON with a BOM-prefixed semicolon-delimited CSV after the formula-guard hardening.
+
+2042.60 — Final review re-check PASS: a second code review found two medium a11y gaps; after the fix, `#kpis` and `#verdictBox` also receive `inert`/`aria-hidden` while the modal is open, and Shift+Tab from the focused modal container wraps to the modal close button instead of escaping to BODY; Escape restores focus to the step link.

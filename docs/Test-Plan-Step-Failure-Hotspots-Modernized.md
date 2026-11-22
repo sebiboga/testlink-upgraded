@@ -62,7 +62,7 @@ Security: `bffSameOriginGuard()` + `bffEnforceSession()`; denials are logged at 
 ## Verification
 
 - Browser: default report (7 design steps / 15 step results / 8 passed / 4 failed / 3 blocked / 26.7% failure rate / 2 critical / 1 high / 3 blocked / 2 affected cases / 1 suite), detail modal, build/scope/threshold filters, DataTables search, Refresh, CSV download, empty/not-found/wrong-project cards, no-right card, anonymous redirect, Romanian locale, localized DataTables sort aria labels and ASIDE launcher.
-- Machine: full 200/400/401/403/404/405 contract, `TLU_REQUIRE_SUITE="Issue #2042"` gate PASS (50 cases, no suite lost), i18n gate 9/9, PHP/JS/JSON syntax, `git diff --check`, Event Viewer with no new Error/Warning after the fixes.
+- Machine: full 200/400/401/403/404/405 contract, `TLU_REQUIRE_SUITE="Issue #2042"` gate PASS (60 cases, no suite lost), i18n gate 9/9, PHP/JS/JSON syntax, `git diff --check`, Event Viewer with no new Error/Warning after the fixes.
 - Bugs found and fixed: #2043 (English DataTables sort aria labels in non-English locales).
 
 ## Files
