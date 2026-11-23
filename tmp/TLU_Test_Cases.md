@@ -49345,3 +49345,63 @@ Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3
 2044.31 — PASS: case-sensitive defect filter after final review: `bug_id=bug-1` returned 0 defects/rows while `bug_id=BUG-1` returned 1 defect/row.
 
 2044.32 — PASS: final-review refresh regression: after loading a deep link and changing Build=2, Verdict=Verified and Defect ID=BUG-1 in the controls, clicking Refresh kept all three values and reloaded the scoped report (0 rows).
+
+## Issue #2047 — Requirement Traceability Gaps
+
+### Fixture and BFF contract
+
+2047.1 — PASS: `php tmp/fixtures_2047.php` created RTG2047 (id 113, specs 126/128), 6 requirements, 6 coverage rows, beta v1/v2, role-3 user `rtg2047norights`, empty project id 2; the earlier `$idEmpty` and `testprojects.name` errors were fixed and the final run logged no warning/error.
+
+2047.2 — PASS: `action=report&tproject_id=113` returned 6 requirements, 4 gaps (1 uncovered, 1 stale, 1 closed, 1 under-covered, 2 ok), 4 live links, 42.9% coverage and verdict `at_risk`.
+
+2047.3 — PASS: verdict precedence verified on the fixture rows: `RTG-UNCOVERED` uncovered, `RTG-STALE` stale_links, `RTG-CLOSED` closed_links, `RTG-UNDER` under_covered, `RTG-OK` ok and `RTG-NA` ok.
+
+2047.4 — PASS: historical-link regression — `RTG-OK` has one live alpha link plus one inactive status-3 beta link; it stays `ok` with `historical_links=1`, confirming superseded rows no longer create false gaps.
+
+2047.5 — PASS: `expected_coverage=0` on `RTG-NA` returns `expected=0`, `expected_na=1`, `coverage=null`, verdict `ok`; the browser renders `n/a` and the KPI denominator excludes it.
+
+2047.6 — PASS: latest requirement version and DB view are resolved through `tlObjectWithDB::getDBViews()`; the old literal `latest_req_version_id` reference was removed from both BFF and fixture.
+
+2047.7 — PASS: `spec_id=126` returned only spec-A requirements; `issue=stale_links` returned only `RTG-STALE`; `issue=ok` returned `RTG-OK` and `RTG-NA`.
+
+2047.8 — PASS: deep link `spec_id=126&issue=stale_links` restored both toolbar filters and showed only `RTG-STALE`.
+
+2047.9 — PASS: `action=detail&req_id=130` returned `RTG-OK` with 2 link rows (1 live, 1 historical) and the `historical` flag on the evidence rows.
+
+2047.10 — PASS: detail deep link is scoped to the filtered row set: `issue=ok&req_id=136` returned HTTP 404 `req_not_found`.
+
+2047.11 — PASS: `action=csv` returned BOM + `;` + quoted fields and header `req_doc_id;spec;version;status;expected;links;historical_links;open_links;closed_links;inactive_links;stale_links;coverage;verdict;cases`; `RTG-NA` expected/coverage cells are empty.
+
+2047.12 — PASS: error contract — missing `tproject_id`, unknown `spec_id`, unknown action → 400 `invalid_request`; unknown project → 404 `tproject_not_found`; anonymous → 401 `not_authenticated`; POST → 405 `method_not_allowed`.
+
+2047.13 — PASS: right check on the addressed project — role-3 `rtg2047norights` → HTTP 403 `no_right`, denial logged at AUDIT; admin sees the report.
+
+### Screen and browser matrix
+
+2047.14 — PASS: browser report at `?tproject_id=113&locale=en` rendered 6 KPI tiles, 12-column DataTable and 6 rows with localized labels; RTG-OK showed Historical=1 and stayed OK; RTG-NA showed `n/a` for Expected and Coverage.
+
+2047.15 — PASS: changing Specification / Issue filters reloaded the scoped rows; clicking Refresh kept the live toolbar values instead of resetting to URL defaults.
+
+2047.16 — PASS: clicking `RTG-OK` opened the evidence modal with 2 rows, per-row Active/Historical/Stale flags, `aria-modal=true` and focus return; the first implementation had stripped detail before the response and was fixed.
+
+2047.17 — PASS: locale switcher changed the title, KPIs, verdict, badges and DataTables strings; RO/DE/FR/ES/IT `rtg.*` values are translated, other bundles carry the same keys.
+
+2047.18 — PASS: empty project `tproject_id=2` showed no_data verdict, localized empty card, zero KPIs and disabled Export CSV.
+
+2047.19 — PASS: no-right user saw the localized 403 card with no form/table; state-card keys `rtg.err*` now resolve to real strings in every bundle.
+
+2047.20 — PASS: normal, detail and no-right screenshots were captured; an empty-state capture was attempted twice and skipped after repeated browser screenshot timeouts, so the wiki uses the available current-state evidence plus written empty-state verification.
+
+2047.21 — PASS: browser console query earlier in the run returned no error/warning messages; the final query timed out at the MCP layer, with no application error observed in the UI.
+
+### Gates and review
+
+2047.22 — PASS: `php -l` clean for the BFF, cfg, aside, common, resultsnav and fixture; `node --check` clean for the screen script; `git diff --check` clean.
+
+2047.23 — PASS: all 10 i18n bundles parse; `bash ai/verify_i18n_coverage.sh` 9/9 PASS with 12999 keys; 19 server-locale report labels; all 65 literal `rtg.*` keys and 5 dynamic verdict keys resolve.
+
+2047.24 — PASS: two code-review subagent passes were run; all 7 findings from the first pass plus the Refresh finding from the second were fixed in `00b7a7458` and `8f7560aba`.
+
+2047.25 — PASS: final Event Viewer query showed only AUDIT rows after the fixed fixture run (project create/delete and role changes); the only ERROR after the first fixture run was the now-corrected `testprojects.name` query, and no new Error/Warning appeared after the fix.
+
+2047.26 — PASS: CHANGELOG entry for #2047 added under 2.0.1 screens with the review fixes summarized.
