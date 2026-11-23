@@ -49337,3 +49337,11 @@ Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3
 2044.27 — PASS: Event Viewer query after the browser pass showed only log_level 16 AUDIT rows (project creation, logins, expected no-right denial); 0 new Error/Warning entries.
 
 2044.28 — PASS: five screenshots captured for normal, detail, RO, empty and no-right states.
+
+2044.29 — PASS: final review KPI-scope check: `bug_id=BUG-1` re-scoped KPIs to 1 defect / 1 link / 1 verified / 100%, while `bug_id` absent returned 4 defects / 5 links / 2 verified / 50%; docs amended to state that Build/Platform/Defect ID re-scope KPIs but Verdict only narrows rows.
+
+2044.30 — PASS: CSV formula guard exercised with a temporary defect ID `=DVG_FORMULA()` linked to execution 1; `action=csv` exported the cell as `'=DVG_FORMULA()` (rows=5) and the temporary link was removed afterwards.
+
+2044.31 — PASS: case-sensitive defect filter after final review: `bug_id=bug-1` returned 0 defects/rows while `bug_id=BUG-1` returned 1 defect/row.
+
+2044.32 — PASS: final-review refresh regression: after loading a deep link and changing Build=2, Verdict=Verified and Defect ID=BUG-1 in the controls, clicking Refresh kept all three values and reloaded the scoped report (0 rows).

@@ -367,7 +367,7 @@ function exportCsv() {
   });
 }
 $(function() {
-  $('#btnRefresh').on('click', loadInit);
+  $('#btnRefresh').on('click', loadReport);
   $('#btnExport').on('click', exportCsv);
   $('#detailModal').on('shown.bs.modal', function () {
     dvgBackgroundInert(true);

@@ -202,7 +202,7 @@ $linkRs = $db->get_recordset(
     " JOIN {$tbl['nodes_hierarchy']} nh ON nh.id = nh_tv.parent_id" .
     " JOIN {$tbl['tcversions']} tv ON tv.id = e.tcversion_id" .
     " WHERE " . $scopeWhere .
-    ($bugFilter !== '' ? " AND eb.bug_id = '" . $db->prepare_string($bugFilter) . "'" : "") .
+    ($bugFilter !== '' ? " AND BINARY eb.bug_id = '" . $db->prepare_string($bugFilter) . "'" : "") .
     " ORDER BY eb.bug_id, e.execution_ts, e.id");
 if (!is_array($linkRs)) { $linkRs = array(); }
 
