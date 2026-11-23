@@ -142,8 +142,8 @@ $reqRs = $db->get_recordset(
     "SELECT R.id AS req_id, R.req_doc_id, RV.id AS version_id, RV.version, RV.active," .
     "       RV.expected_coverage, RV.scope, RV.status, RS.id AS spec_id, RS.doc_id AS spec_doc_id" .
     " FROM {$tbl['requirements']} R" .
-    " JOIN {$tbl['req_versions']} RV ON RV.id = (SELECT MAX(RV2.id) FROM {$tbl['req_versions']} RV2" .
-    "                                        WHERE RV2.req_id = R.id)" .
+    " JOIN latest_req_version_id LRV ON LRV.req_id = R.id" .
+    " JOIN {$tbl['req_versions']} RV ON RV.id = LRV.req_version_id" .
     " JOIN {$tbl['req_specs']} RS ON RS.id = R.srs_id" .
     " WHERE RS.testproject_id = " . intval($projectId) .
     ($specFilter > 0 ? " AND RS.id = " . intval($specFilter) : "") .
@@ -170,10 +170,27 @@ if (count($reqIds) > 0) {
         $rid = intval($l['req_id']);
         if (!isset($linksByReq[$rid])) { $linksByReq[$rid] = array(); }
         $linksByReq[$rid][] = $l;
-        $caseId = intval($l['testcase_id']);
-        $version = intval($l['tc_version']);
-        if (!isset($latestByCase[$caseId]) || $version > $latestByCase[$caseId]['version']) {
-            $latestByCase[$caseId] = array('version' => $version, 'id' => intval($l['tcversion_id']));
+    }
+    $caseIds = array();
+    foreach ($linksByReq as $linksForReq) {
+        foreach ($linksForReq as $l) { $caseIds[intval($l['testcase_id'])] = true; }
+    }
+    if (count($caseIds) > 0) {
+        $versionRs = $db->get_recordset(
+            "SELECT NH.parent_id AS case_id, TV.id, TV.version" .
+            " FROM {$tbl['tcversions']} TV" .
+            " JOIN {$tbl['nodes_hierarchy']} NH ON NH.id = TV.id" .
+            " WHERE NH.parent_id IN (" . implode(',', array_keys($caseIds)) . ")" .
+            " ORDER BY TV.version, TV.id");
+        if (is_array($versionRs)) {
+            foreach ($versionRs as $vr) {
+                $caseId = intval($vr['case_id']);
+                if (!isset($latestByCase[$caseId]) ||
+                    intval($vr['version']) >= $latestByCase[$caseId]['version']) {
+                    $latestByCase[$caseId] = array('version' => intval($vr['version']),
+                                                   'id' => intval($vr['id']));
+                }
+            }
         }
     }
 }
@@ -209,7 +226,7 @@ foreach ($reqRs as $r) {
     $expected = intval($r['expected_coverage']);
     if ($expected < 1) { $expected = 1; }
     $verdict = 'ok';
-    if ($open === 0) { $verdict = 'uncovered'; }
+    if (count($links) === 0) { $verdict = 'uncovered'; }
     elseif ($stale > 0) { $verdict = 'stale_links'; }
     elseif ($closed > 0 || $inactive > 0) { $verdict = 'closed_links'; }
     elseif ($open < $expected) { $verdict = 'under_covered'; }
