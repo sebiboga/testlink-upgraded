@@ -3941,3 +3941,4 @@ $TLS_link_report_defect_verification = "Defect Verification Gap"; // Defect veri
 $TLS_link_report_defect_arrival_rate = "Tasa de aparición de defectos"; // Defect arrival rate report (Refs #2031)
 
 $TLS_link_report_execution_flakiness = "Inestabilidad de ejecuciones"; // Execution flakiness report (Refs #2036)
+$TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)

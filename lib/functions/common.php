@@ -2781,6 +2781,11 @@ function getActions(&$gui,$baseURL) {
   $actions->defectVerification =
     "/gui/templates/results/defectVerification.html?{$ctx}";
 
+  // Refs #2047: Requirement Traceability Gaps (net-new screen).
+  // Open, stale and closed requirement-to-test-case links.
+  $actions->reqTraceabilityGaps =
+    "/gui/templates/results/reqTraceabilityGaps.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =

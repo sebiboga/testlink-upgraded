@@ -881,6 +881,15 @@ $tlCfg->reports_list['execution_flakiness'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2047: Requirement Traceability Gaps (net-new). Open, stale and
+// missing requirement-to-test-case links in one test project.
+$tlCfg->reports_list['requirement_traceability_gaps'] = array(
+	'title' => 'link_report_requirement_traceability_gaps',
+	'url' => 'gui/templates/results/reqTraceabilityGaps.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';
