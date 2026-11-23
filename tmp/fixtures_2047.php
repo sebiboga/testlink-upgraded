@@ -10,7 +10,8 @@ $tcaseMgr = new testcase($db);
 $reqSpecMgr = new requirement_spec_mgr($db);
 $reqMgr = new requirement_mgr($db);
 $userId = 1;
-$tables = tlObjectWithDB::getDBTables(array('req_coverage', 'users', 'nodes_hierarchy'));
+$tables = tlObjectWithDB::getDBTables(array('req_coverage', 'users', 'nodes_hierarchy', 'testprojects'));
+$views = tlObjectWithDB::getDBViews(array('latest_req_version_id'));
 $tbl = $tables;
 
 foreach ((array)$tprojMgr->get_by_name('RTG2047') as $row) {
@@ -80,16 +81,19 @@ $reqs = array(
     'closed' => $mkr('A', 'RTG-CLOSED', 1),
     'uncovered' => $mkr('B', 'RTG-UNCOVERED', 1),
     'under' => $mkr('B', 'RTG-UNDER', 3),
+    'na' => $mkr('B', 'RTG-NA', 0),
 );
-$lrvi = $db->get_recordset('SELECT req_id, req_version_id FROM latest_req_version_id WHERE req_id IN (' .
+$lrvi = $db->get_recordset('SELECT req_id, req_version_id FROM ' . $views['latest_req_version_id'] . ' WHERE req_id IN (' .
     implode(',', $reqs) . ')');
 $rv = array();
 foreach ((array)$lrvi as $row) { $rv[intval($row['req_id'])] = intval($row['req_version_id']); }
 $links = array(
     array($reqs['ok'], $cases['alpha'], 1, 1),
     array($reqs['stale'], $cases['beta'], 1, 1),
-    array($reqs['closed'], $cases['gamma'], 4, 1),
+    array($reqs['closed'], $cases['gamma'], 4, 0),
     array($reqs['under'], $cases['alpha'], 1, 1),
+    array($reqs['na'], $cases['alpha'], 1, 1),
+    array($reqs['ok'], $cases['beta'], 3, 0),
 );
 $rows = array();
 foreach ($links as $l) {
@@ -110,4 +114,6 @@ $db->exec_query("INSERT INTO {$tables['users']}
           'ck_rtg2047norights','DB')
   ON DUPLICATE KEY UPDATE password=VALUES(password),role_id=3,active=1,
     default_testproject_id=$idP");
+$emptyRows = $db->get_recordset("SELECT id FROM {$tbl['testprojects']} WHERE prefix = 'RTE' ORDER BY id LIMIT 1");
+$idEmpty = intval($emptyRows[0]['id'] ?? 2);
 echo 'FIXTURE READY tproject=' . $idP . ' empty=' . $idEmpty . "\n";

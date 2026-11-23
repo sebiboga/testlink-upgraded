@@ -78,6 +78,7 @@ $tbl = tlObjectWithDB::getDBTables(array(
     'testprojects', 'requirements', 'req_versions', 'req_specs', 'req_coverage',
     'nodes_hierarchy', 'tcversions',
 ));
+$views = tlObjectWithDB::getDBViews(array('latest_req_version_id'));
 
 if ($action === 'projects') {
     $items = array();
@@ -101,7 +102,7 @@ if (!$user->hasRight($db, 'mgt_view_req', $projectId, null, true)) {
          ' has no mgt_view_req right on tproject ' . $projectId, 'AUDIT');
     rgpFail(403, 'no_right', 'mgt_view_req right required');
 }
-$projectRow = $db->get_recordset("SELECT id, notes FROM {$tbl['testprojects']} WHERE id = " . intval($projectId));
+$projectRow = $db->get_recordset("SELECT id FROM {$tbl['testprojects']} WHERE id = " . intval($projectId));
 if (!is_array($projectRow) || count($projectRow) === 0) {
     rgpFail(404, 'tproject_not_found', 'Test project not found');
 }
@@ -139,10 +140,10 @@ if ($action === 'init') {
 }
 
 $reqRs = $db->get_recordset(
-    "SELECT R.id AS req_id, R.req_doc_id, RV.id AS version_id, RV.version, RV.active," .
-    "       RV.expected_coverage, RV.scope, RV.status, RS.id AS spec_id, RS.doc_id AS spec_doc_id" .
+    "SELECT R.id AS req_id, R.req_doc_id, RV.id AS version_id, RV.version," .
+    "       RV.expected_coverage, RV.scope, RV.status, RS.id AS spec_id" .
     " FROM {$tbl['requirements']} R" .
-    " JOIN latest_req_version_id LRV ON LRV.req_id = R.id" .
+    " JOIN {$views['latest_req_version_id']} LRV ON LRV.req_id = R.id" .
     " JOIN {$tbl['req_versions']} RV ON RV.id = LRV.req_version_id" .
     " JOIN {$tbl['req_specs']} RS ON RS.id = R.srs_id" .
     " WHERE RS.testproject_id = " . intval($projectId) .
@@ -156,10 +157,13 @@ $linksByReq = array();
 $latestByCase = array();
 if (count($reqIds) > 0) {
     $linkRs = $db->get_recordset(
-        "SELECT RC.req_id, RC.testcase_id, RC.tcversion_id, RC.link_status, RC.is_active," .
-        "       NH.name AS tcase_name, TV.version AS tc_version, TV.tc_external_id," .
+        "SELECT RC.req_id, RC.req_version_id, RC.testcase_id, RC.tcversion_id," .
+        "       RC.link_status, RC.is_active, NH.name AS tcase_name," .
+        "       TV.version AS tc_version, TV.active AS tc_active, TV.tc_external_id," .
         "       PN.name AS suite_name" .
         " FROM {$tbl['req_coverage']} RC" .
+        " JOIN {$views['latest_req_version_id']} LRV ON LRV.req_id = RC.req_id" .
+        "   AND LRV.req_version_id = RC.req_version_id" .
         " LEFT JOIN {$tbl['nodes_hierarchy']} NH ON NH.id = RC.testcase_id" .
         " LEFT JOIN {$tbl['nodes_hierarchy']} PN ON PN.id = NH.parent_id" .
         " LEFT JOIN {$tbl['tcversions']} TV ON TV.id = RC.tcversion_id" .
@@ -179,9 +183,9 @@ if (count($reqIds) > 0) {
         $versionRs = $db->get_recordset(
             "SELECT NH.parent_id AS case_id, TV.id, TV.version" .
             " FROM {$tbl['tcversions']} TV" .
-            " JOIN {$tbl['nodes_hierarchy']} NH ON NH.id = TV.id" .
-            " WHERE NH.parent_id IN (" . implode(',', array_keys($caseIds)) . ")" .
-            " ORDER BY TV.version, TV.id");
+             " JOIN {$tbl['nodes_hierarchy']} NH ON NH.id = TV.id" .
+             " WHERE TV.active = 1 AND NH.parent_id IN (" . implode(',', array_keys($caseIds)) . ")" .
+             " ORDER BY TV.version, TV.id");
         if (is_array($versionRs)) {
             foreach ($versionRs as $vr) {
                 $caseId = intval($vr['case_id']);
@@ -199,54 +203,72 @@ $rows = array();
 foreach ($reqRs as $r) {
     $reqId = intval($r['req_id']);
     $links = isset($linksByReq[$reqId]) ? $linksByReq[$reqId] : array();
-    $open = 0; $closed = 0; $inactive = 0; $stale = 0;
+    $open = 0; $closed = 0; $inactive = 0; $stale = 0; $live = 0; $historical = 0;
     $cases = array(); $detail = array();
     foreach ($links as $l) {
         $caseId = intval($l['testcase_id']);
-        $tcvId = intval($l['tcversion_id']);
-        $isOpen = (intval($l['link_status']) === 1);
+        $status = intval($l['link_status']);
         $isActive = (intval($l['is_active']) === 1);
-        $isStale = isset($latestByCase[$caseId]) &&
-                   $latestByCase[$caseId]['version'] > intval($l['tc_version']);
-        if ($isActive && $isOpen) { $open++; } else { $closed++; }
-        if (!$isActive) { $inactive++; }
+        $isLive = $isActive && ($status === 1 || $status === 2);
+        $isHistorical = !$isLive;
+        $isStale = $isLive && ((isset($latestByCase[$caseId]) &&
+                   $latestByCase[$caseId]['version'] > intval($l['tc_version'])) ||
+                   intval($l['tc_active']) !== 1);
+        if ($isLive) {
+            $live++;
+            if ($status === 1) { $open++; } else { $closed++; }
+        } else {
+            $historical++;
+            $inactive++;
+        }
         if ($isStale) { $stale++; }
         $caseName = rgpDecode($l['tcase_name']);
-        if ($caseName !== '') { $cases[$caseName] = $caseName; }
+        if ($caseName === '') { $caseName = rgpDecode($l['tc_external_id']); }
+        $cases[$caseId] = $caseName;
         $detail[] = array(
             'case' => $caseName,
             'external_id' => rgpDecode($l['tc_external_id']),
             'suite' => rgpDecode($l['suite_name']),
             'version' => intval($l['tc_version']),
-            'link_status' => intval($l['link_status']),
+            'link_status' => $status,
             'is_active' => intval($l['is_active']),
-            'stale' => $isStale,
+            'historical' => $isHistorical ? 1 : 0,
+            'stale' => $isStale ? 1 : 0,
         );
     }
-    $expected = intval($r['expected_coverage']);
-    if ($expected < 1) { $expected = 1; }
-    $verdict = 'ok';
-    if (count($links) === 0) { $verdict = 'uncovered'; }
-    elseif ($stale > 0) { $verdict = 'stale_links'; }
-    elseif ($closed > 0 || $inactive > 0) { $verdict = 'closed_links'; }
-    elseif ($open < $expected) { $verdict = 'under_covered'; }
+    $expected = max(0, intval($r['expected_coverage']));
+    $expectedNa = ($expected === 0);
+    if ($expectedNa) {
+        if ($stale > 0) { $verdict = 'stale_links'; }
+        elseif ($live === 0 && $historical > 0) { $verdict = 'closed_links'; }
+        else { $verdict = 'ok'; }
+        $coverage = null;
+    } else {
+        if ($live === 0 && $historical === 0) { $verdict = 'uncovered'; }
+        elseif ($stale > 0) { $verdict = 'stale_links'; }
+        elseif ($live === 0 && $historical > 0) { $verdict = 'closed_links'; }
+        elseif (($open + $closed) < $expected) { $verdict = 'under_covered'; }
+        else { $verdict = 'ok'; }
+        $coverage = rgpPct(min($live, $expected), $expected);
+    }
     $rows[] = array(
         'req_id' => $reqId,
         'req_doc_id' => rgpDecode($r['req_doc_id']),
         'spec' => isset($specNames[intval($r['spec_id'])]) ? $specNames[intval($r['spec_id'])] : '',
         'spec_id' => intval($r['spec_id']),
         'version' => intval($r['version']),
-        'active' => intval($r['active']),
         'status' => rgpDecode($r['status']),
         'scope' => rgpText($r['scope']),
         'expected' => $expected,
-        'links' => count($links),
+        'expected_na' => $expectedNa ? 1 : 0,
+        'links' => $live,
+        'historical_links' => $historical,
         'open_links' => $open,
         'closed_links' => $closed,
         'inactive_links' => $inactive,
         'stale_links' => $stale,
-        'coverage' => rgpPct($open, $expected),
-        'cases' => array_values($cases),
+        'coverage' => $coverage,
+        'cases' => array_values(array_filter($cases, function ($name) { return $name !== ''; })),
         'verdict' => $verdict,
         'detail' => $detail,
     );
@@ -274,32 +296,32 @@ $kpi = array(
     'coverage' => 0.0, 'verdict' => 'no_data',
 );
 $specsWithGaps = array();
-$expectedTotal = 0;
+$expectedTotal = 0; $coveredTotal = 0;
 foreach ($allRows as $r) {
     $kpi[$r['verdict']]++;
     $kpi['total_links'] += $r['links'];
     $kpi['open_links'] += $r['open_links'];
-    $expectedTotal += $r['expected'];
+    if (!$r['expected_na']) {
+        $expectedTotal += $r['expected'];
+        $coveredTotal += min($r['links'], $r['expected']);
+    }
     if ($r['verdict'] !== 'ok') {
         $kpi['gaps']++;
         $specsWithGaps[$r['spec_id']] = true;
     }
 }
 $kpi['affected_specs'] = count($specsWithGaps);
-$kpi['coverage'] = rgpPct($kpi['open_links'], $expectedTotal);
+$kpi['coverage'] = $expectedTotal > 0 ? rgpPct($coveredTotal, $expectedTotal) : null;
 if (count($allRows) === 0) { $kpi['verdict'] = 'no_data'; }
 elseif ($kpi['uncovered'] > 0 || $kpi['stale_links'] > 0) { $kpi['verdict'] = 'at_risk'; }
 elseif ($kpi['gaps'] > 0) { $kpi['verdict'] = 'watch'; }
 else { $kpi['verdict'] = 'clear'; }
 
-foreach ($rows as &$r) { unset($r['detail']); }
-unset($r);
-
 if ($action === 'detail') {
     $reqId = rgpPositiveInt($_GET['req_id'] ?? null);
     if ($reqId <= 0) { rgpFail(400, 'invalid_request', 'Missing req_id'); }
     $req = null;
-    foreach ($allRows as $r) { if ($r['req_id'] === $reqId) { $req = $r; break; } }
+    foreach ($rows as $r) { if ($r['req_id'] === $reqId) { $req = $r; break; } }
     if (is_null($req)) { rgpFail(404, 'req_not_found', 'Requirement not found in this project'); }
     rgpOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
                  'filter' => $filterEcho, 'requirement' => $req));
@@ -309,13 +331,15 @@ if ($action === 'csv') {
     $out = fopen('php://temp', 'r+');
     fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, array('req_doc_id', 'spec', 'version', 'status', 'expected', 'links',
-        'open_links', 'closed_links', 'inactive_links', 'stale_links', 'coverage',
-        'verdict', 'cases'), ';');
+        'historical_links', 'open_links', 'closed_links', 'inactive_links', 'stale_links',
+        'coverage', 'verdict', 'cases'), ';');
     foreach ($rows as $r) {
         fputcsv($out, array(
             rgpCsvCell($r['req_doc_id']), rgpCsvCell($r['spec']), $r['version'],
-            rgpCsvCell($r['status']), $r['expected'], $r['links'], $r['open_links'],
-            $r['closed_links'], $r['inactive_links'], $r['stale_links'], $r['coverage'],
+            rgpCsvCell($r['status']), $r['expected_na'] ? '' : $r['expected'],
+            $r['links'], $r['historical_links'], $r['open_links'],
+            $r['closed_links'], $r['inactive_links'], $r['stale_links'],
+            $r['coverage'] === null ? '' : $r['coverage'],
             $r['verdict'], rgpCsvCell(implode(', ', $r['cases'])),
         ), ';');
     }
@@ -324,6 +348,9 @@ if ($action === 'csv') {
     fclose($out);
     rgpOut(array('status' => 'ok', 'code' => 200, 'csv' => $csv, 'rows' => count($rows)));
 }
+
+foreach ($rows as &$r) { unset($r['detail']); }
+unset($r);
 
 rgpOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
              'filters' => array('specs' => $specs), 'filter' => $filterEcho,

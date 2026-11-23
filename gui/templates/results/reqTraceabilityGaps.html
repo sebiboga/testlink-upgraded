@@ -175,12 +175,14 @@ function fillSelect($sel, items, allKey, fallback) {
   $sel.val(current);
   if (!$sel.val()) { $sel.val('0'); }
 }
-function loadInit() {
+function loadInit(useCurrent) {
   var seq = ++STATE.seq;
+  var specValue = useCurrent ? ($('#specFilter').val() || '0') : (params.get('spec_id') || '0');
+  var issueValue = useCurrent ? ($('#issueFilter').val() || 'all') : (params.get('issue') || 'all');
   $('#loadingBox').show();
   $.ajax({ url: API, data: { action:'init', tproject_id:tproject_id,
-      spec_id: parseInt(params.get('spec_id'),10) || 0,
-      issue: params.get('issue') || 'all' },
+      spec_id: parseInt(specValue,10) || 0,
+      issue: issueValue },
     dataType:'json',
     success: function(d) {
       if (seq !== STATE.seq) return;
@@ -211,7 +213,8 @@ function loadReport() {
       $('#kpiRequirements').text(s.requirements || 0); $('#kpiGaps').text(s.gaps || 0);
       $('#kpiUncovered').text(s.uncovered || 0); $('#kpiStale').text(s.stale_links || 0);
       $('#kpiClosed').text(s.closed_links || 0); $('#kpiUnder').text(s.under_covered || 0);
-      $('#kpiCoverage').text((s.coverage || 0) + '%'); $('#kpiOpenLinks').text(s.open_links || 0);
+       $('#kpiCoverage').text(s.coverage === null || s.coverage === undefined ? t('rtg.na','n/a') : (s.coverage + '%'));
+       $('#kpiOpenLinks').text(s.open_links || 0);
       $('#kpiSpecs').text(s.affected_specs || 0); $('#kpiLinks').text(s.total_links || 0);
       $('#kpis').show();
       var vmap = {
@@ -249,12 +252,17 @@ function renderTable() {
       { title: t('rtg.colSpec','Specification'), data: 'spec' },
       { title: t('rtg.colVersion','Version'), data: 'version' },
       { title: t('rtg.colVerdict','Verdict'), data: 'verdict', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
-      { title: t('rtg.colExpected','Expected'), data: 'expected' },
-      { title: t('rtg.colOpen','Open links'), data: 'open_links' },
-      { title: t('rtg.colClosed','Closed links'), data: 'closed_links' },
-      { title: t('rtg.colInactive','Inactive links'), data: 'inactive_links' },
-      { title: t('rtg.colStale','Stale links'), data: 'stale_links' },
-      { title: t('rtg.colCoverage','Coverage'), data: 'coverage', render: function(data,type) { return type === 'display' ? '<span class="bar"><i style="width:' + Math.min(100,Math.max(0,parseFloat(data)||0)) + '%"></i></span> ' + esc(data) + '%' : data; } },
+       { title: t('rtg.colExpected','Expected'), data: 'expected', render: function(data,type,row) { var v = row.expected_na ? t('rtg.na','n/a') : data; return type === 'display' ? esc(v) : v; } },
+       { title: t('rtg.colOpen','Open links'), data: 'open_links' },
+       { title: t('rtg.colClosed','Closed links'), data: 'closed_links' },
+       { title: t('rtg.colInactive','Inactive links'), data: 'inactive_links' },
+       { title: t('rtg.colHistorical','Historical'), data: 'historical_links' },
+       { title: t('rtg.colStale','Stale links'), data: 'stale_links' },
+       { title: t('rtg.colCoverage','Coverage'), data: 'coverage', render: function(data,type,row) {
+           if (row.expected_na) { return type === 'display' ? esc(t('rtg.na','n/a')) : ''; }
+           var n = parseFloat(data) || 0;
+           return type === 'display' ? '<span class="bar"><i style="width:' + Math.min(100,Math.max(0,n)) + '%"></i></span> ' + esc(n) + '%' : n;
+         } },
       { title: t('rtg.colCases','Linked cases'), data: 'cases', render: function(data,type) { return type === 'display' ? esc((data||[]).join(', ')) : (data||[]).join(', '); } }
     ],
     order: [],
@@ -304,8 +312,9 @@ function showDetails(reqId, trigger) {
         ' &mdash; ' + esc(t('rtg.colSpec','Specification')) + ': ' + esc(r.spec) + '</div>' +
         '<table class="flat"><tbody>' +
         '<tr><th>' + esc(t('rtg.colOpen','Open links')) + '</th><td>' + esc(r.open_links) + '</td></tr>' +
-        '<tr><th>' + esc(t('rtg.colExpected','Expected')) + '</th><td>' + esc(r.expected) + '</td></tr>' +
-        '<tr><th>' + esc(t('rtg.colStale','Stale links')) + '</th><td>' + esc(r.stale_links) + '</td></tr>' +
+         '<tr><th>' + esc(t('rtg.colExpected','Expected')) + '</th><td>' + esc(r.expected_na ? t('rtg.na','n/a') : r.expected) + '</td></tr>' +
+         '<tr><th>' + esc(t('rtg.colCoverage','Coverage')) + '</th><td>' + esc(r.expected_na ? t('rtg.na','n/a') : (r.coverage + '%')) + '</td></tr>' +
+         '<tr><th>' + esc(t('rtg.colStale','Stale links')) + '</th><td>' + esc(r.stale_links) + '</td></tr>' +
         '<tr><th>' + esc(t('rtg.detailScope','Scope')) + '</th><td>' + esc(r.scope) + '</td></tr>' +
         '</tbody></table>';
       var links = r.detail || [];
@@ -314,13 +323,14 @@ function showDetails(reqId, trigger) {
       } else {
         html += '<table class="flat"><thead><tr><th>' + esc(t('rtg.colCase','Test case')) + '</th><th>' +
           esc(t('rtg.colSuite','Suite')) + '</th><th>' + esc(t('rtg.colVersion','Version')) + '</th><th>' +
-          esc(t('rtg.colLinkStatus','Link status')) + '</th><th>' + esc(t('rtg.colLinkActive','Active')) + '</th><th>' +
-          esc(t('rtg.colStale','Stale')) + '</th></tr></thead><tbody>';
-        links.forEach(function(l) {
-          html += '<tr><td>' + esc(l.external_id) + ' ' + esc(l.case) + '</td><td>' + esc(l.suite) +
-            '</td><td>' + esc(l.version) + '</td><td>' + esc(l.link_status) + '</td><td>' +
-            esc(l.is_active) + '</td><td>' + (l.stale ? esc(t('rtg.yes','Yes')) : esc(t('rtg.no','No'))) + '</td></tr>';
-        });
+           esc(t('rtg.colLinkStatus','Link status')) + '</th><th>' + esc(t('rtg.colLinkActive','Active')) + '</th><th>' +
+           esc(t('rtg.colHistorical','Historical')) + '</th><th>' + esc(t('rtg.colStale','Stale')) + '</th></tr></thead><tbody>';
+         links.forEach(function(l) {
+           html += '<tr><td>' + esc(l.external_id) + ' ' + esc(l.case) + '</td><td>' + esc(l.suite) +
+             '</td><td>' + esc(l.version) + '</td><td>' + esc(l.link_status) + '</td><td>' +
+             esc(l.is_active) + '</td><td>' + (l.historical ? esc(t('rtg.yes','Yes')) : esc(t('rtg.no','No'))) +
+             '</td><td>' + (l.stale ? esc(t('rtg.yes','Yes')) : esc(t('rtg.no','No'))) + '</td></tr>';
+         });
         html += '</tbody></table>';
       }
       $('#detailBody').html(html);
@@ -348,7 +358,7 @@ function exportCsv() {
   });
 }
 $(function() {
-  $('#btnRefresh').on('click', loadReport);
+  $('#btnRefresh').on('click', function() { loadInit(true); });
   $('#btnExport').on('click', exportCsv);
   $('#detailModal').on('shown.bs.modal', function () {
     rtgBackgroundInert(true);
