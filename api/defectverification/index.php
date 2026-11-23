@@ -256,8 +256,8 @@ foreach ($linkRs as $r) {
     if ($sv === 'blocked') { $b['blocked_links']++; }
     $bid = intval($r['build_id']);
     $pid = intval($r['platform_id']);
-    if (isset($buildNames[$bid])) { $b['builds'][$buildNames[$bid]] = true; }
-    if (isset($platformNames[$pid])) { $b['platforms'][$platformNames[$pid]] = true; }
+    if (isset($buildNames[$bid])) { $b['builds'][$buildNames[$bid]] = $buildNames[$bid]; }
+    if (isset($platformNames[$pid])) { $b['platforms'][$platformNames[$pid]] = $platformNames[$pid]; }
     $b['cases'][trim($prefix) . '-' . intval($r['tc_external_id'])] =
         dvfDecode($r['tcase_name']);
     $b['case_ids'][intval($r['tcase_id'])] = true;
