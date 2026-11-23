@@ -186,7 +186,12 @@ function fillSelect($sel, items, allKey, fallback) {
 function loadInit() {
   var seq = ++STATE.seq;
   $('#loadingBox').show();
-  $.ajax({ url: API, data: { action:'init', tplan_id:tplan_id, tproject_id:tproject_id }, dataType:'json',
+  var initData = { action:'init', tplan_id:tplan_id, tproject_id:tproject_id,
+    build_id: parseInt(params.get('build_id'),10) || 0,
+    platform_id: parseInt(params.get('platform_id'),10) || 0,
+    verdict: params.get('verdict') || 'all',
+    bug_id: (params.get('bug_id') || '').substring(0,64) };
+  $.ajax({ url: API, data: initData, dataType:'json',
     success: function(d) {
       if (seq !== STATE.seq) return;
       if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
