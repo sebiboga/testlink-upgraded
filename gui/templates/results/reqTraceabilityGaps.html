@@ -178,7 +178,9 @@ function fillSelect($sel, items, allKey, fallback) {
 function loadInit() {
   var seq = ++STATE.seq;
   $('#loadingBox').show();
-  $.ajax({ url: API, data: { action:'init', tproject_id:tproject_id },
+  $.ajax({ url: API, data: { action:'init', tproject_id:tproject_id,
+      spec_id: parseInt(params.get('spec_id'),10) || 0,
+      issue: params.get('issue') || 'all' },
     dataType:'json',
     success: function(d) {
       if (seq !== STATE.seq) return;
