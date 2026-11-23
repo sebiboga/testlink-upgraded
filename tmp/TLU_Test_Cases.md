@@ -49271,3 +49271,69 @@ Environment: TestLink 2.0.1 at `http://localhost:8082`, admin/admin and `dsv2021
 2042.59 — CSV after hardening PASS: `?action=csv&tplan_id=3&tproject_id=1` still returned HTTP 200 JSON with a BOM-prefixed semicolon-delimited CSV after the formula-guard hardening.
 
 2042.60 — Final review re-check PASS: a second code review found two medium a11y gaps; after the fix, `#kpis` and `#verdictBox` also receive `inert`/`aria-hidden` while the modal is open, and Shift+Tab from the focused modal container wraps to the modal close button instead of escaping to BODY; Escape restores focus to the step link.
+
+## Issue #2044 — Test Plan Defect Verification Gap
+
+Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3, 2 builds, 2 platforms, 4 cases, 6 executions, 5 bug links; role-3 user `dvg2044norights`).
+
+### BFF contract and security
+
+2044.1 — PASS: `GET api/defectverification/index.php?action=init&tplan_id=2&tproject_id=1` returned 200 with context DVG Plan / DVG2044, 2 builds and 2 platforms.
+
+2044.2 — PASS: `action=report` returned 4 defects, 5 links, 1 escaped, 2 unverified, 2 verified, 50% verification rate, 3 affected cases.
+
+2044.3 — PASS: BUG-3 classified escaped (failed link on build 1, passed link on build 2/platform A), BUG-4 unverified (blocked link, no later pass), BUG-1/BUG-2 verified (later pass on same tcversion/platform).
+
+2044.4 — PASS: `action=projects` returned the projects where the caller has `testplan_metrics`.
+
+2044.5 — PASS: `action=detail&bug_id=BUG-3` returned both link evidence rows with build/platform/tester/later-pass fields.
+
+2044.6 — PASS: `action=csv` returned HTTP 200 with a UTF-8 BOM, `;` separators, quoted multi-value cells and 4 data rows.
+
+2044.7 — PASS: `action=bogus` → 400 `invalid_request`; missing `tplan_id` → 400; unknown plan 999999 → 404 `tplan_not_found`.
+
+2044.8 — PASS: mismatched `tproject_id=999` → 404 `project_mismatch`; unknown build/platform → 400 `invalid_request`; invalid verdict → 400.
+
+2044.9 — PASS: `action=detail&bug_id=NOPE` → 404 `defect_not_found`.
+
+2044.10 — PASS: POST on `action=report` → 405 `method_not_allowed` with `Allow: GET, HEAD`.
+
+2044.11 — PASS: anonymous BFF request from an isolated browser context → JSON 401 `not_authenticated`.
+
+2044.12 — PASS: role-3 `dvg2044norights` → HTTP 403 `no_right`; denial logged at AUDIT (`log_level=16`), not ERROR/WARNING.
+
+### Screen and browser matrix
+
+2044.13 — PASS: admin screen loaded with all KPI tiles, localized verdict banner, 12-column DataTable and 4 rows; build/platform names rendered correctly after bug #2045 fix.
+
+2044.14 — PASS: Build filter 1 returned all 4 defects (each has at least one build-1 link); Platform filter B returned only BUG-4.
+
+2044.15 — PASS: Verdict filter Escaped returned only BUG-3; Defect ID filter BUG-1 returned one row.
+
+2044.16 — PASS: deep link `build_id=2&verdict=unverified` restored both controls after bug #2046 fix and showed the localized empty state (no matching row).
+
+2044.17 — PASS: clicking BUG-3 opened the evidence modal with 2 rows, per-link verification badges, testers, build/platform and later-pass details; `aria-modal=true` and focus return verified.
+
+2044.18 — PASS: locale switcher RO changed the title, header, KPI labels, verdict and empty text to Romanian strings from the bundle.
+
+2044.19 — PASS: empty plan 3 showed the no-data verdict, localized empty card, 0 KPIs and a disabled Export CSV button.
+
+2044.20 — PASS: role-3 user saw the localized `no_right` state card and no form/table.
+
+2044.21 — PASS: ASIDE BFF `action=init` contains `Defect Verification Gap → /gui/templates/results/defectVerification.html?tproject_id=1&tplan_id=2`.
+
+2044.22 — PASS: browser console had no application errors (only the deliberate 403/405 probe responses).
+
+### Gates and documentation
+
+2044.23 — PASS: `php -l` clean for the BFF, cfg, aside, common and resultsnav.
+
+2044.24 — PASS: all 10 i18n bundles parse; `bash ai/verify_i18n_coverage.sh` 9/9 PASS with 12922 keys; 19 server-locale report labels.
+
+2044.25 — PASS: code review of BFF, screen, i18n/wiring and final diff applied; all findings fixed.
+
+2044.26 — PASS: bug #2045 (boolean build/platform values) filed with label `bug` and fixed in its own commit; bug #2046 (ignored deep-link filters) filed with label `bug` and fixed in its own commit.
+
+2044.27 — PASS: Event Viewer query after the browser pass showed only log_level 16 AUDIT rows (project creation, logins, expected no-right denial); 0 new Error/Warning entries.
+
+2044.28 — PASS: five screenshots captured for normal, detail, RO, empty and no-right states.
