@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Traceability Gaps</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 230px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 120px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.clear { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.at_risk { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { margin-left: auto; font-size: 12px; font-weight: 400; color: #667; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.req a, td.req span.link { color: #259b93; font-weight: 700; text-decoration: none; cursor: pointer; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-uncovered, .badge-stale_links, .badge-closed_links { background: #f5c6cb; color: #b94a48; }
+.badge-under_covered { background: #ffecb5; color: #856404; }
+.badge-ok { background: #d4edda; color: #155724; }
+.bar { display: inline-block; min-width: 46px; height: 7px; border-radius: 4px; background: #e9ecef; vertical-align: middle; }
+.bar i { display: block; height: 7px; border-radius: 4px; background: #259b93; }
+.empty, .state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i, .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; }
+.modal-body { padding: 16px 20px; }
+.detail-meta { font-size: 12px; color: #667; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="header"><i class="fa fa-link" style="margin-right:8px;"></i>
+  <span data-i18n="rtg.header">Requirement Traceability Gaps</span>
+  <span class="sub" data-i18n="rtg.subtitle">open, stale and missing requirement-to-test-case links</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx" data-i18n="rtg.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="specFilter" data-i18n="rtg.spec">Specification</label>
+  <select id="specFilter"><option value="0" data-i18n="rtg.allSpecs">All specifications</option></select>
+  <label for="issueFilter" data-i18n="rtg.issue">Issue</label>
+  <select id="issueFilter">
+    <option value="all" data-i18n="rtg.issueAll">All requirements</option>
+    <option value="uncovered" data-i18n="rtg.issueUncovered">Uncovered</option>
+    <option value="stale_links" data-i18n="rtg.issueStale">Stale version links</option>
+    <option value="closed_links" data-i18n="rtg.issueClosed">Closed / inactive links</option>
+    <option value="under_covered" data-i18n="rtg.issueUnder">Under-covered</option>
+    <option value="ok" data-i18n="rtg.issueOk">No gaps</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="rtg.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="rtg.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="rtg.close">Close</span></button>
+</div>
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiRequirements">0</div><div class="l" data-i18n="rtg.kpiRequirements">Requirements</div></div>
+  <div class="kpi alert"><div class="v" id="kpiGaps">0</div><div class="l" data-i18n="rtg.kpiGaps">Requirements with gaps</div></div>
+  <div class="kpi alert"><div class="v" id="kpiUncovered">0</div><div class="l" data-i18n="rtg.kpiUncovered">Uncovered</div></div>
+  <div class="kpi alert"><div class="v" id="kpiStale">0</div><div class="l" data-i18n="rtg.kpiStale">Stale links</div></div>
+  <div class="kpi alert"><div class="v" id="kpiClosed">0</div><div class="l" data-i18n="rtg.kpiClosed">Closed / inactive</div></div>
+  <div class="kpi"><div class="v" id="kpiUnder">0</div><div class="l" data-i18n="rtg.kpiUnder">Under-covered</div></div>
+  <div class="kpi teal"><div class="v" id="kpiCoverage">0%</div><div class="l" data-i18n="rtg.kpiCoverage">Coverage of expected</div></div>
+  <div class="kpi"><div class="v" id="kpiOpenLinks">0</div><div class="l" data-i18n="rtg.kpiOpenLinks">Open links</div></div>
+  <div class="kpi"><div class="v" id="kpiSpecs">0</div><div class="l" data-i18n="rtg.kpiSpecs">Specs with gaps</div></div>
+  <div class="kpi"><div class="v" id="kpiLinks">0</div><div class="l" data-i18n="rtg.kpiLinks">All links</div></div>
+</div>
+<div class="verdict" id="verdictBox" role="status" aria-live="polite"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox" aria-live="polite"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" role="status" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.reqTraceabilityGaps">TestLink 2.0.1 - Requirement Traceability Gaps</span></div>
+<div class="toast" id="toast" role="alert"></div>
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header"><h4 class="modal-title" id="detailTitle" data-i18n="rtg.detailTitle">Requirement link evidence</h4>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+    <div class="modal-body" id="detailBody"></div>
+  </div></div>
+</div>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], kpi: {}, context: {}, dt: null, seq: 0, detailSeq: 0 };
+var API = '/api/reqtraceabilitygaps/index.php';
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) { var v = TLi18n.t(key); return (v && v !== key) ? v : (fallback || key); }
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  $el.toggleClass('err', !!isErr);
+  setTimeout(function() { $el.fadeOut(300); }, 3000);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty().removeClass('clear watch at_risk');
+  $('#kpis').hide(); $('#footerInfo').empty(); $('#btnExport').prop('disabled', true);
+}
+function showState(code) {
+  $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired'); return;
+  }
+  resetView();
+  var map = {
+    invalid_request: ['rtg.errBadRequest', 'Invalid request', 'rtg.errBadRequestBody', 'The report parameters are not valid.'],
+    no_right: ['rtg.errNoRight', 'No permission', 'rtg.errNoRightBody', 'You need the mgt_view_req right on this test project.'],
+    tproject_not_found: ['rtg.errNotFound', 'Project not found', 'rtg.errNotFoundBody', 'The requested test project does not exist.'],
+    req_not_found: ['rtg.errReqNotFound', 'Requirement not found', 'rtg.errReqNotFoundBody', 'This requirement is not part of the selected scope.'],
+    method_not_allowed: ['rtg.errMethod', 'Method not allowed', 'rtg.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['rtg.errGeneric', 'Could not load the report', 'rtg.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+    esc(t(m[0],m[1])) + '</h4><p>' + esc(t(m[2],m[3])) + '</p><p>' +
+    esc(t('rtg.code','Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function filterParams(action) {
+  return { action: action || 'report', tproject_id: tproject_id,
+    spec_id: parseInt($('#specFilter').val(),10) || 0,
+    issue: $('#issueFilter').val() || 'all' };
+}
+function fillSelect($sel, items, allKey, fallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, fallback)));
+  (items || []).forEach(function(x) { $sel.append($('<option>').val(x.id).text(x.name)); });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  $.ajax({ url: API, data: { action:'init', tproject_id:tproject_id },
+    dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      fillSelect($('#specFilter'), (d.filters||{}).specs, 'rtg.allSpecs', 'All specifications');
+      var fe = d.filter || {};
+      if (fe.spec_id) { $('#specFilter').val(String(fe.spec_id)); }
+      if (fe.issue) { $('#issueFilter').val(fe.issue); }
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      loadReport();
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); }
+  });
+}
+function loadReport() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({ url: API, data: filterParams('report'), dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || []; STATE.kpi = d.kpi || {};
+      var s = STATE.kpi;
+      $('#kpiRequirements').text(s.requirements || 0); $('#kpiGaps').text(s.gaps || 0);
+      $('#kpiUncovered').text(s.uncovered || 0); $('#kpiStale').text(s.stale_links || 0);
+      $('#kpiClosed').text(s.closed_links || 0); $('#kpiUnder').text(s.under_covered || 0);
+      $('#kpiCoverage').text((s.coverage || 0) + '%'); $('#kpiOpenLinks').text(s.open_links || 0);
+      $('#kpiSpecs').text(s.affected_specs || 0); $('#kpiLinks').text(s.total_links || 0);
+      $('#kpis').show();
+      var vmap = {
+        no_data: ['rtg.verdictNoData', 'No requirements are defined in this scope.', ''],
+        at_risk: ['rtg.verdictRisk', 'Uncovered requirements or stale links need attention.', 'at_risk'],
+        watch: ['rtg.verdictWatch', 'Some requirement links need clean-up.', 'watch'],
+        clear: ['rtg.verdictClear', 'Every requirement has the expected open links.', 'clear']
+      };
+      var v = vmap[s.verdict] || vmap.no_data;
+      $('#verdictBox').addClass(v[2] || '').html('<i class="fa fa-circle-info"></i> ' + esc(t(v[0],v[1]))).show();
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t('rtg.empty','No requirements match this filter.'))).show();
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('rtg.generatedOn','Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); toast(t('rtg.toastError','Error loading data'), true); }
+  });
+}
+function badge(value) {
+  return '<span class="badge badge-' + esc(value) + '">' + esc(t('rtg.v.' + value, value)) + '</span>';
+}
+function renderTable() {
+  $('#reportArea').html('<div class="section"><div class="section-head"><i class="fa fa-list-check"></i> ' +
+    esc(t('rtg.tableTitle','Requirements and their link state')) + '<span class="bmeta">' +
+    esc(t('rtg.rowCount','Requirements')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('rtg.colReq','Requirement'), data: 'req_doc_id', className:'req',
+        render: function(data,type,row) { return type === 'display' ? '<span class="link" role="button" tabindex="0" data-req="' + esc(row.req_id) + '">' + esc(data) + '</span>' : data; } },
+      { title: t('rtg.colSpec','Specification'), data: 'spec' },
+      { title: t('rtg.colVersion','Version'), data: 'version' },
+      { title: t('rtg.colVerdict','Verdict'), data: 'verdict', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
+      { title: t('rtg.colExpected','Expected'), data: 'expected' },
+      { title: t('rtg.colOpen','Open links'), data: 'open_links' },
+      { title: t('rtg.colClosed','Closed links'), data: 'closed_links' },
+      { title: t('rtg.colInactive','Inactive links'), data: 'inactive_links' },
+      { title: t('rtg.colStale','Stale links'), data: 'stale_links' },
+      { title: t('rtg.colCoverage','Coverage'), data: 'coverage', render: function(data,type) { return type === 'display' ? '<span class="bar"><i style="width:' + Math.min(100,Math.max(0,parseFloat(data)||0)) + '%"></i></span> ' + esc(data) + '%' : data; } },
+      { title: t('rtg.colCases','Linked cases'), data: 'cases', render: function(data,type) { return type === 'display' ? esc((data||[]).join(', ')) : (data||[]).join(', '); } }
+    ],
+    order: [],
+    pageLength: 25,
+    language: {
+      search: t('common.filter','Filter') + ':',
+      lengthMenu: t('common.showEntries','Show') + ' _MENU_ ' + t('common.entries','entries'),
+      info: t('common.pageInfo','Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('rtg.infoEmpty','No entries'),
+      zeroRecords: t('rtg.zeroRecords','No matching requirements'),
+      paginate: { previous: t('common.prev','Previous'), next: t('common.next','Next') },
+      aria: {
+        sortAscending: ' ' + t('dt.aria.sortAscending','activate to sort column ascending'),
+        sortDescending: ' ' + t('dt.aria.sortDescending','activate to sort column descending')
+      },
+      emptyTable: t('rtg.empty','No requirements match this filter.')
+    }
+  });
+  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-req'), this); });
+  $('#dtResults').on('keydown', '.link', function(e) {
+    if (e.which === 13 || e.which === 32) { e.preventDefault(); showDetails($(this).attr('data-req'), this); }
+  });
+}
+var detailTrigger = null;
+function rtgBackgroundInert(on) {
+  $('.header, .toolbar, #loadingBox, #stateBox, #kpis, #verdictBox, #reportArea, #emptyBox, .footer, #toast').each(function () {
+    if (on) { this.setAttribute('inert', 'inert'); this.setAttribute('aria-hidden', 'true'); }
+    else { this.removeAttribute('inert'); this.removeAttribute('aria-hidden'); }
+  });
+}
+function showDetails(reqId, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  var p = filterParams('detail'); p.req_id = reqId;
+  var dseq = ++STATE.detailSeq;
+  $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' + esc(t('common.loading','Loading...')));
+  $('#detailModal').modal('show');
+  $.ajax({ url: API, data: p, dataType:'json',
+    success: function(d) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if (d.status === 'error') {
+        $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+          esc(t('rtg.toastError','Error loading data')) + '</h4><p><code>' + esc(d.code) + '</code></p></div>');
+        return;
+      }
+      var r = d.requirement || {};
+      var html = '<div class="detail-meta">' + esc(r.req_doc_id || '') + ' &mdash; ' + badge(r.verdict) +
+        ' &mdash; ' + esc(t('rtg.colSpec','Specification')) + ': ' + esc(r.spec) + '</div>' +
+        '<table class="flat"><tbody>' +
+        '<tr><th>' + esc(t('rtg.colOpen','Open links')) + '</th><td>' + esc(r.open_links) + '</td></tr>' +
+        '<tr><th>' + esc(t('rtg.colExpected','Expected')) + '</th><td>' + esc(r.expected) + '</td></tr>' +
+        '<tr><th>' + esc(t('rtg.colStale','Stale links')) + '</th><td>' + esc(r.stale_links) + '</td></tr>' +
+        '<tr><th>' + esc(t('rtg.detailScope','Scope')) + '</th><td>' + esc(r.scope) + '</td></tr>' +
+        '</tbody></table>';
+      var links = r.detail || [];
+      if (!links.length) {
+        html += '<div class="empty">' + esc(t('rtg.emptyEvidence','No links recorded for this requirement.')) + '</div>';
+      } else {
+        html += '<table class="flat"><thead><tr><th>' + esc(t('rtg.colCase','Test case')) + '</th><th>' +
+          esc(t('rtg.colSuite','Suite')) + '</th><th>' + esc(t('rtg.colVersion','Version')) + '</th><th>' +
+          esc(t('rtg.colLinkStatus','Link status')) + '</th><th>' + esc(t('rtg.colLinkActive','Active')) + '</th><th>' +
+          esc(t('rtg.colStale','Stale')) + '</th></tr></thead><tbody>';
+        links.forEach(function(l) {
+          html += '<tr><td>' + esc(l.external_id) + ' ' + esc(l.case) + '</td><td>' + esc(l.suite) +
+            '</td><td>' + esc(l.version) + '</td><td>' + esc(l.link_status) + '</td><td>' +
+            esc(l.is_active) + '</td><td>' + (l.stale ? esc(t('rtg.yes','Yes')) : esc(t('rtg.no','No'))) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      $('#detailBody').html(html);
+      TLi18n.apply($('#detailBody')[0]);
+    },
+    error: function(xhr) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if ((xhr.status || 0) === 401) { $('#detailModal').modal('hide'); showState('not_authenticated'); return; }
+      $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+        esc(t('rtg.toastError','Error loading data')) + '</h4><p><code>' +
+        esc((xhr.responseJSON||{}).code || 'error') + '</code></p></div>');
+    }
+  });
+}
+function exportCsv() {
+  $.ajax({ url: API, data: filterParams('csv'), dataType:'json',
+    success: function(d) {
+      if (d.status !== 'ok' || !d.csv) { toast(t('rtg.toastError','Error loading data'), true); return; }
+      var url = URL.createObjectURL(new Blob([d.csv], { type:'text/csv;charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = 'requirement-traceability-gaps-' + tproject_id + '.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) { toast(t('rtg.toastError','Error loading data') + ': ' + ((xhr.responseJSON||{}).code || 'error'), true); }
+  });
+}
+$(function() {
+  $('#btnRefresh').on('click', loadReport);
+  $('#btnExport').on('click', exportCsv);
+  $('#detailModal').on('shown.bs.modal', function () {
+    rtgBackgroundInert(true);
+    $(this).trigger('focus');
+  }).on('hidden.bs.modal', function () {
+    rtgBackgroundInert(false);
+    var trigger = detailTrigger;
+    detailTrigger = null;
+    setTimeout(function () { if (trigger && trigger.length) { trigger.trigger('focus'); } }, 0);
+  }).on('keydown', function (e) {
+    if (e.which !== 9) { return; }
+    var sel = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    var f = $(this).find(sel).filter(':visible');
+    if (!f.length) { e.preventDefault(); return; }
+    var first = f.first()[0], last = f.last()[0], outside = !this.contains(document.activeElement);
+    if (e.shiftKey && (outside || document.activeElement === first || document.activeElement === this)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (outside || document.activeElement === last || document.activeElement === this)) { e.preventDefault(); first.focus(); }
+  });
+  $('#specFilter, #issueFilter').on('change', loadReport);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action:'close' }, window.location.origin); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    $('#detailModal .close').attr('aria-label', t('rtg.close', 'Close'));
+    document.title = t('footers.reqTraceabilityGaps', 'TestLink 2.0.1 - Requirement Traceability Gaps');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
