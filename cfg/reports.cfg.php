@@ -854,6 +854,15 @@ $tlCfg->reports_list['step_failure_hotspots'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2044: Defect Verification Gap (net-new). Linked defects whose later
+// execution evidence is missing, passing (verified) or contradictory (escaped).
+$tlCfg->reports_list['defect_verification'] = array(
+	'title' => 'link_report_defect_verification',
+	'url' => 'gui/templates/results/defectVerification.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
 // defects referenced by one plan's executions, grouped by day.
 $tlCfg->reports_list['defect_arrival_rate'] = array(

@@ -2776,6 +2776,11 @@ function getActions(&$gui,$baseURL) {
   $actions->stepFailureHotspots =
     "/gui/templates/results/stepFailureHotspots.html?{$ctx}";
 
+  // Refs #2044: Defect Verification Gap report (net-new screen).
+  // Linked defects with missing, later or contradictory execution evidence.
+  $actions->defectVerification =
+    "/gui/templates/results/defectVerification.html?{$ctx}";
+
   // Refs #2014: Test Plan Execution Notes Coverage report (net-new screen).
   // Which assigned test-case versions carry explanatory execution evidence.
   $actions->execNotesCoverage =
