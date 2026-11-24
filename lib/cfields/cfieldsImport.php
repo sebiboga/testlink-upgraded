@@ -1,146 +1,44 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
  * This script is distributed under the GNU General Public License 2 or later.
- *  
- * Custom Fields definition import management
  *
- * @package 	  TestLink
- * @author 		  Francisco Mancardi (francisco.mancardi@gmail.com)
- * @copyright 	2005-2020, TestLink community 
  * @filesource  cfieldsImport.php
- * @uses 		    config.inc.php
  *
+ * 2.0.1 - Refs #2048: the legacy Smarty Custom Fields import screen is replaced
+ * by gui/templates/cfields/cfieldsTransfer.html (tab Import XML) and by the
+ * api/cfieldstransfer BFF. This controller is kept only as a session-guarded,
+ * non-mutating redirect shim for old deep links. The legacy doImport handler
+ * used simplexml_load_file_wrapper() which die()d on invalid XML, had no upload
+ * size cap and wrote every definition straight from the uploaded document; all
+ * of that now lives in the BFF's JSON POST ?action=import route.
  */
-require('../../config.inc.php');
+require_once(dirname(__FILE__) . '/../../config.inc.php');
 require_once('common.php');
-require_once('xml.inc.php');
 
-testlinkInitPage($db,false,false,"checkRights");
-$templateCfg = templateConfiguration();
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
-$resultMap = null;
-$args = init_args();
-
-$gui=new stdClass();
-$gui->page_title=lang_get('import_cfields');
-$gui->goback_url = !is_null($args->goback_url) ? $args->goback_url : ''; 
-$gui->file_check = array('show_results' => 0, 'status_ok' => 1, 
-                         'msg' => 'ok', 'filename' => '');
-
-switch( $args->doAction )
-{
-    case 'doImport':
-        $gui->file_check = doImport($db);
-    	break;  
-    
-    default:
-    	break;  
+if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET'
+    && strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+    header('Content-Type: text/plain; charset=utf-8');
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    echo "CFI-405: legacy import POSTs are no longer accepted here.\n"
+       . "Use gui/templates/cfields/cfieldsTransfer.html (api/cfieldstransfer?action=import).\n";
+    exit;
 }
 
-$obj_mgr = new cfield_mgr($db);
-$gui->importTypes = array('XML' => 'XML');
-$gui->importLimitKB = (config_get('import_file_max_size_bytes') / 1024);
-
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);  
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-
-
-/*
-  function: init_args()
-
-  args:
-  
-  returns: 
-
-*/
-function init_args()
-{
-	$args = new stdClass();
-	$_REQUEST = strings_stripSlashes($_REQUEST);
-
-	$iParams = 
-    array("doAction" => array(tlInputParameter::STRING_N,0,50),
-	 				"export_filename" 
-             => array(tlInputParameter::STRING_N,0,100));
-
-	R_PARAMS($iParams,$args);
-  $args->userID = $_SESSION['userID'];
-
-  // Refs #957: lib/cfields/cfieldsView.php was retired; the modern screen
-  // (gui/templates/cfields/cfieldsView.html) took over. Carry the project id
-  // explicitly, since the legacy controller used to infer it from the session.
-  $args->goback_url = $_SESSION['basehref'] .
-                      'gui/templates/cfields/cfieldsView.html?tproject_id=' .
-                      intval($_SESSION['testprojectID']);
-
-	return $args;
+if (!checkSessionValid($db)) {
+    exit;
 }
 
-
-/**
- * @param object dbHandler reference to db handler
- *
- */
-function doImport(&$dbHandler)
-{
-
-  	$import_msg=array('ok' => array(), 'ko' => array());
-  	$file_check=array('show_results' => 0, 'status_ok' => 0, 'msg' => '', 
-                    'filename' => '', 'import_msg' => $import_msg);
-  
-  	$key='targetFilename';
-	$dest = TL_TEMP_PATH . session_id(). "-import_cfields.tmp";
-	$source = isset($_FILES[$key]['tmp_name']) ? $_FILES[$key]['tmp_name'] : null;
-	
-	if (($source != 'none') && ($source != ''))
-	{ 
-		$file_check['filename'] = $_FILES[$key]['name'];
-		$file_check['status_ok'] = 1;
-		if (move_uploaded_file($source, $dest))
-		{
-      $file_check['status_ok']=!(($xml=@simplexml_load_file_wrapper($dest)) === FALSE);
-		}
-    if( $file_check['status_ok'] )
-    {
-      $file_check['show_results']=1;
-      $cfield_mgr = new cfield_mgr($dbHandler);
-      foreach($xml as $cf)
-      {
-        if( is_null($cfield_mgr->get_by_name($cf->name)) )
-        {
-          $cfield_mgr->create((array) $cf);
-          $import_msg['ok'][]=sprintf(lang_get('custom_field_imported'),$cf->name);              
-        }
-        else
-        {
-          $import_msg['ko'][]=sprintf(lang_get('custom_field_already_exists'),$cf->name);              
-        }
-      }      
-    }
-    else
-    {
-      $file_check['msg']=lang_get('problems_loading_xml_content');  
-    }
- 	}
-	else
-	{
-		$file_check = array('show_results'=>0, 'status_ok' => 0, 
-		                    'msg' => lang_get('please_choose_file_to_import'));
-	}
-  
-  $file_check['import_msg']=$import_msg;
-  return $file_check;
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
 }
-
-/**
- * 
- *
- */
-function checkRights(&$db,&$user)
-{
-	return $user->hasRight($db,"cfield_management");
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
 }
-?>
+header('Location: ' . $base . 'gui/templates/cfields/cfieldsTransfer.html#import');
+exit;

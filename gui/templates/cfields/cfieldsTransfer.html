@@ -316,6 +316,8 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    var hash = (window.location.hash || '').replace('#', '');
+    if (hash === 'export' || hash === 'import') { setMode(hash); }
     loadAll();
   });
 });

@@ -1,117 +1,44 @@
 <?php
 /**
- * TestLink Open Source Project - http://testlink.sourceforge.net/ 
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
  * This script is distributed under the GNU General Public License 2 or later.
- *  
- * Custom Fields definition export management
  *
- * @package   TestLink
- * @author    Francisco Mancardi (francisco.mancardi@gmail.com)
- * @copyright   2005-2020, TestLink community 
- * @uses    config.inc.php
+ * @filesource  cfieldsExport.php
  *
- *
+ * 2.0.1 - Refs #2048: the legacy Smarty Custom Fields export screen is replaced
+ * by gui/templates/cfields/cfieldsTransfer.html (tab Export XML), backed by
+ * api/cfieldstransfer?action=export. This controller is kept only as a
+ * session-guarded, non-mutating redirect shim for old deep links. The legacy
+ * doExport handler is not replayed here: it wrote the XML with PHP's exit()
+ * straight into the old form POST flow and had no rights gate on the download
+ * itself beyond the page load.
  */
-require_once("../../config.inc.php");
-require_once("common.php");
-require_once('../../third_party/adodb_xml/class.ADODB_XML.php');
+require_once(dirname(__FILE__) . '/../../config.inc.php');
+require_once('common.php');
 
-testlinkInitPage($db,false,false,"checkRights");
-$templateCfg = templateConfiguration();
-$args = init_args();
+$db = new database(DB_TYPE);
+doDBConnect($db);
 
-
-$gui = new stdClass();
-$gui->page_title = lang_get('export_cfields');
-$gui->do_it = 1;
-$gui->nothing_todo_msg = '';
-$gui->goback_url = !is_null($args->goback_url) ? $args->goback_url : ''; 
-$gui->export_filename = is_null($args->export_filename) ? 'customFields.xml' : $args->export_filename;
-$gui->exportTypes = array('XML' => 'XML');
-
-switch( $args->doAction )
-{
-    case 'doExport':
-      doExport($db,$gui->export_filename);
-      break;  
-    
-    default:
-      break;  
+if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET'
+    && strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+    header('Content-Type: text/plain; charset=utf-8');
+    http_response_code(405);
+    header('Allow: GET, HEAD');
+    echo "CFE-405: legacy export POSTs are no longer accepted here.\n"
+       . "Use gui/templates/cfields/cfieldsTransfer.html (api/cfieldstransfer?action=export).\n";
+    exit;
 }
 
-$smarty = new TLSmarty();
-$smarty->assign('gui',$gui);
-$smarty->display($templateCfg->template_dir . $templateCfg->default_template);
-
-
-/*
-  function: init_args()
-
-  args:
-  
-  returns: 
-
-*/
-function init_args()
-{
-  $args = new stdClass();
-  $_REQUEST = strings_stripSlashes($_REQUEST);
-
-  $iParams = 
-    array("doAction" 
-             => array(tlInputParameter::STRING_N,0,50),
-           "export_filename" 
-              => array(tlInputParameter::STRING_N,0,100));
-
-  R_PARAMS($iParams,$args);
-  $args->userID = $_SESSION['userID'];
-
-  // Refs #957: lib/cfields/cfieldsView.php was retired; the modern screen
-  // (gui/templates/cfields/cfieldsView.html) took over. Carry the project id
-  // explicitly, since the legacy controller used to infer it from the session.
-  $args->goback_url = $_SESSION['basehref'] .
-                      'gui/templates/cfields/cfieldsView.html?tproject_id=' .
-                      intval($_SESSION['testprojectID']);
-
-  return $args;
+if (!checkSessionValid($db)) {
+    exit;
 }
 
-
-
-/*
-  function: doExport()
-
-  args: dbHandler
-        filename: where to export
-  
-  returns: -
-
-*/
-function doExport(&$dbHandler,$filename)
-{
-  $tables = tlObjectWithDB::getDBTables(array('custom_fields','cfield_node_types'));
-
-  // To solve issues with MAC OS
-  $tmp = (PHP_OS == 'Darwin') ? config_get('temp_dir') : null;
-
-  $adodbXML = new ADODB_XML("1.0", "ISO-8859-1",$tmp);
-  $sql = " SELECT name,label,type,possible_values,default_value,valid_regexp, " .
-         " length_min,length_max,show_on_design,enable_on_design,show_on_execution," .
-         " enable_on_execution,show_on_testplan_design,enable_on_testplan_design, " .
-         " node_type_id " .
-         " FROM {$tables['custom_fields']} CF,{$tables['cfield_node_types']} " .
-         " WHERE CF.id=field_id ";
-  
-  $adodbXML->setRootTagName('custom_fields');
-  $adodbXML->setRowTagName('custom_field');
-
-  $content = $adodbXML->ConvertToXMLString($dbHandler->db, $sql);
-  downloadContentsToFile($content,$filename);
-  exit();
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
 }
-
-function checkRights(&$db,&$user)
-{
-  return $user->hasRight($db,"cfield_view");
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
 }
-?>
+header('Location: ' . $base . 'gui/templates/cfields/cfieldsTransfer.html#export');
+exit;

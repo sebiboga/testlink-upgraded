@@ -2161,6 +2161,11 @@ function getActions(&$gui,$baseURL) {
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
   $actions->cfieldsExchange = "/gui/templates/cfields/cfieldsExchange.html?{$ctx}";
+  // Custom Fields usage inventory + XML transfer hub (Refs #2048): net-new
+  // Dashio screen backed by api/cfieldstransfer (info/usage/export/import).
+  // The two legacy renderers lib/cfields/cfieldsImport.php and
+  // cfieldsExport.php are now session-guarded, non-mutating 302 shims.
+  $actions->cfieldsTransfer = "/gui/templates/cfields/cfieldsTransfer.html?{$ctx}";
   // Custom Field Editor (create / edit / delete of a definition), modernized in
   // Refs #1812. Legacy controller lib/cfields/cfieldsEdit.php (+ cfieldsEdit.tpl
   // + cfieldsEditJS.tpl, 505 lines) is now a session-guarded 302 shim onto this

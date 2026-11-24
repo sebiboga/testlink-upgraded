@@ -48,8 +48,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="toolbar">
   <button id="btnCreate" class="btn-teal" onclick="openEditor('create', 0)"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
-  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
-  <button id="btnUpload" class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
+  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsTransfer.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
+  <button id="btnUpload" class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsTransfer.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
+  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsTransfer.html#usage'"><i class="fa fa-chart-bar"></i> <span data-i18n="ctrf.tabUsage">Usage inventory</span></button>
   <button id="btnAssignTproject" class="btn-ghost" onclick="openTprojectAssign()"><i class="fa fa-link"></i> <span data-i18n="cfpa.assignToProject">Assign to Test Project</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
