@@ -234,7 +234,6 @@ $filters = array(
         array('id' => 'b', 'label_key' => 'bact.statusBlocked'),
     ),
     'windows' => array(
-        array('days' => 0, 'label_key' => 'bact.windowAll'),
         array('days' => 7, 'label_key' => 'bact.window7'),
         array('days' => 30, 'label_key' => 'bact.window30'),
         array('days' => 90, 'label_key' => 'bact.window90'),
