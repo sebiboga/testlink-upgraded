@@ -248,7 +248,12 @@ function render(data) {
 }
 function applyFilters() {
   if (!table) { return; }
-  table.column(11).search('^' + $('#verdictFilter').val() + '$', true, false).draw();
+  var verdict = $('#verdictFilter').val();
+  if (verdict === '') {
+    table.column(11).search('').draw();
+    return;
+  }
+  table.column(11).search('^' + verdict + '$', true, false).draw();
 }
 function downloadCsv() {
   if (!table) { return; }
