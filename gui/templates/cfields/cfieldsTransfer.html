@@ -248,7 +248,7 @@ function render(data) {
 }
 function applyFilters() {
   if (!table) { return; }
-  table.column(11).search($('#verdictFilter').val(), false, false).draw();
+  table.column(11).search('^' + $('#verdictFilter').val() + '$', true, false).draw();
 }
 function downloadCsv() {
   if (!table) { return; }
