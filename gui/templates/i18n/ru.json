@@ -13080,5 +13080,6 @@
   "ctrf.type.4": "Date and time",
   "ctrf.type.5": "Text area",
   "ctrf.type.6": "Text area (legacy)",
-  "footers.cfieldsTransfer": "TestLink 2.0.1 - Custom Fields Usage & Transfer"
+  "footers.cfieldsTransfer": "TestLink 2.0.1 - Custom Fields Usage & Transfer",
+  "ctrf.type.unknown": "Неизвестно ({n})"
 }

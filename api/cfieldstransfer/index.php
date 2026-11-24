@@ -74,6 +74,7 @@ function ctcfWritableNames() {
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
+$cfieldMgr = new cfield_mgr($db);
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || intval($userId) <= 0) {
@@ -127,6 +128,7 @@ if ($action === 'info') {
             'import_file_max_size_bytes' => (int)config_get('import_file_max_size_bytes'),
         ),
         'fields' => ctcfFieldNames(),
+        'types' => $cfieldMgr->custom_field_types,
         'filename' => 'customFields.xml',
     ));
 }
@@ -191,8 +193,10 @@ if ($action === 'usage') {
 if ($action === 'export') {
     require_once(__DIR__ . '/../../third_party/adodb_xml/class.ADODB_XML.php');
     $filename = (string)ctcfScalar($_GET['filename'] ?? '', 'customFields.xml');
-    $filename = basename(str_replace(array("\r", "\n", "\0"), '', $filename));
-    if ($filename === '') { $filename = 'customFields.xml'; }
+    $filename = basename(str_replace(array("\r", "\n", "\0", '"'), '', $filename));
+    if (!preg_match('/^[A-Za-z0-9 _.-]+$/', $filename) || $filename === '') {
+        $filename = 'customFields.xml';
+    }
     $tables = tlObjectWithDB::getDBTables(array('custom_fields', 'cfield_node_types'));
     // To solve issues with MAC OS (legacy cfieldsExport.php parity).
     $tmp = (PHP_OS === 'Darwin') ? config_get('temp_dir') : null;
@@ -228,8 +232,11 @@ $limit = min(CTCF_MAX_UPLOAD_BYTES, (int)config_get('import_file_max_size_bytes'
 if ($size <= 0 || $size > $limit) {
     ctcfFail(413, 'file_too_large', 'The file is too large');
 }
-$tmpName = (string)($file['tmp_name'] ?? '');
-$raw = $tmpName === '' ? false : file_get_contents($tmpName);
+$tmpName = $file['tmp_name'] ?? '';
+if (!is_string($tmpName) || $tmpName === '' || !is_uploaded_file($tmpName)) {
+    ctcfFail(422, 'no_file', 'The file could not be uploaded');
+}
+$raw = file_get_contents($tmpName);
 if ($raw === false || $raw === '') {
     ctcfFail(422, 'empty_file', 'The XML file is empty');
 }
@@ -244,7 +251,6 @@ if ($xml === false || !isset($xml->custom_field)) {
     ctcfFail(422, 'invalid_xml', 'Problems loading XML content');
 }
 
-$cfieldMgr = new cfield_mgr($db);
 $allowedNodeTypes = array_map('intval', array_values($cfieldMgr->get_allowed_nodes()));
 $writable = ctcfWritableNames();
 $created = array();

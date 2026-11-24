@@ -13080,5 +13080,6 @@
   "ctrf.type.4": "Dată și oră",
   "ctrf.type.5": "Zonă de text",
   "ctrf.type.6": "Zonă de text (legacy)",
-  "footers.cfieldsTransfer": "TestLink 2.0.1 - Utilizarea câmpurilor personalizate"
+  "footers.cfieldsTransfer": "TestLink 2.0.1 - Utilizarea câmpurilor personalizate",
+  "ctrf.type.unknown": "Necunoscut ({n})"
 }

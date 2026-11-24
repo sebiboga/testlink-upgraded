@@ -153,8 +153,10 @@ pre.sample { background:#f7f7f7; border:1px solid #e3e3e3; border-radius:4px; pa
 var API = '/api/cfieldstransfer/index.php';
 var ctx = null;
 var table = null;
+var TYPES = {};
 var currentMode = 'usage';
 var ROWS = [];
+var RAW_ROWS = [];
 
 function t(key, params) { return TLi18n.has(key) ? TLi18n.t(key, params) : key; }
 function esc(s) { return $('<div/>').text(s == null ? '' : String(s)).html(); }
@@ -175,6 +177,7 @@ function setMode(mode) {
   else { location.hash = mode; }
 }
 function showState(code, message) {
+  if (code === 'session_expired') { code = 'not_authenticated'; }
   $('#usageSection,#exportSection,#importSection').hide();
   $('#stateCard').show();
   var titles = {
@@ -202,6 +205,7 @@ function loadAll() {
   apiGet('info').then(function (r) {
     if (!r.res.ok) { showState(r.body.code, r.body.message); return null; }
     ctx = r.body;
+    TYPES = ctx.types || {};
     $('#ctxInfo').text(t('ctrf.context') + ' ' + (ctx.context.user_id || ''));
     $('#limitInfo').text(t('ctrf.maxSize') + ': ' + Math.round(ctx.limits.max_upload_bytes / 1024) + ' KB');
     $('#sampleXml').text('<custom_fields>\n  <custom_field>\n    <name>example</name>\n    <label>Example</label>\n    <type>0</type>\n    <node_type_id>1</node_type_id>\n  </custom_field>\n</custom_fields>');
@@ -213,8 +217,18 @@ function loadAll() {
     render(r.body);
   }).catch(function () { showState('server_error', t('ctrf.stateError')); });
 }
+function typeLabel(type) {
+  return TYPES[type] || t('ctrf.type.unknown', {n: type});
+}
+function nodeLabels(raw) {
+  return String(raw || '').split(', ').filter(function (x) { return x !== ''; }).map(function (slug) {
+    var key = 'cf.node.' + slug;
+    return TLi18n.has(key) ? t(key) : slug;
+  }).join(', ');
+}
 function render(data) {
   ROWS = data.rows || [];
+  RAW_ROWS = data.rows || [];
   var tot = data.totals || {};
   var kpis = [
     ['fields', tot.fields], ['linkedProjects', tot.linked_projects],
@@ -229,7 +243,7 @@ function render(data) {
   var verdictClass = ROWS.length === 0 ? 'no_data' : (tot.unused > 0 ? 'unused' : 'used');
   $('#verdict').removeClass('used unused no_data').addClass(verdictClass).text(t(verdictKey, {n: tot.unused || 0}));
   var body = ROWS.map(function (r) {
-    return [esc(r.name), esc(r.label), esc(t('ctrf.type.' + r.type)), esc(r.node_types),
+    return [esc(r.name), esc(r.label), esc(typeLabel(r.type)), esc(nodeLabels(r.node_types)),
       r.projects, r.design_values, r.execution_values, r.plan_values,
       r.build_values, r.values_total,
       '<span class="badge ' + r.verdict + '">' + esc(t('ctrf.verdict.' + r.verdict)) + '</span>',
@@ -246,7 +260,13 @@ function render(data) {
     order: [[0, 'asc']],
     columnDefs: [{targets: [11], visible: false, searchable: true}]
   });
-  $('#usageTable_length label').remove();
+  var lengthSelect = $('#usageTable_length select');
+  if (lengthSelect.length) {
+    lengthSelect.attr('id', 'usageTableLength');
+    $('#usageTable_length label').attr('for', 'usageTableLength');
+  } else {
+    $('#usageTable_length label').remove();
+  }
   $('#usageTable_filter input').attr('id', 'usageTableSearch');
   $('#usageTable_filter label').attr('for', 'usageTableSearch');
   applyFilters();
@@ -264,10 +284,11 @@ function downloadCsv() {
   if (!table) { return; }
   var lines = [];
   lines.push($('#usageTable thead th').map(function () { return $(this).text().trim(); }).get().slice(0, 11));
-  table.rows({search: 'applied'}).every(function () {
-    lines.push(Array.prototype.slice.call(this.data()).slice(0, 11).map(function (v) {
-      return String(v).replace(/<[^>]*>/g, '').trim();
-    }));
+  table.rows({search: 'applied'}).every(function (rowIdx) {
+    var r = RAW_ROWS[rowIdx] || {};
+    lines.push([r.name, r.label, typeLabel(r.type), nodeLabels(r.node_types),
+      r.projects, r.design_values, r.execution_values, r.plan_values,
+      r.build_values, r.values_total, t('ctrf.verdict.' + r.verdict)]);
   });
   var csv = '\ufeff' + lines.map(function (row) {
     return row.map(function (v) {
@@ -285,8 +306,29 @@ function downloadCsv() {
 }
 function doExport() {
   var filename = $('#exportFilename').val().trim() || 'customFields.xml';
-  $('#exportMsg').html('<div class="msg ok">' + esc(t('ctrf.exportStarted')) + '</div>');
-  window.location = API + '?action=export&filename=' + encodeURIComponent(filename);
+  var btn = $('#btnExport');
+  btn.prop('disabled', true);
+  $('#exportMsg').empty();
+  fetch(API + '?action=export&filename=' + encodeURIComponent(filename), {
+    credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).then(function (res) {
+    if (!res.ok) {
+      return res.json().then(function (b) {
+        showState(b.code, b.message);
+        throw new Error('export_failed');
+      });
+    }
+    return res.blob();
+  }).then(function (blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+    $('#exportMsg').html('<div class="msg ok">' + esc(t('ctrf.exportStarted')) + '</div>');
+  }).catch(function (e) {
+    if (!e || e.message !== 'export_failed') { showState('server_error', t('ctrf.stateError')); }
+  }).then(function () { btn.prop('disabled', !ctx || !ctx.grants.view); });
 }
 function doImport() {
   var input = $('#importFile')[0];
