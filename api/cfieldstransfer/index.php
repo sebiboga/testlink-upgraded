@@ -157,8 +157,8 @@ if ($action === 'usage') {
     $totals = array('fields' => 0, 'linked_projects' => 0, 'design_values' => 0,
                     'execution_values' => 0, 'plan_values' => 0, 'build_values' => 0,
                     'unused' => 0);
-    if ($rs) {
-        while ($row = $rs->FetchRow()) {
+    if (is_array($rs)) {
+        foreach ($rs as $row) {
             $values = (int)$row['design_values'] + (int)$row['execution_values'] +
                       (int)$row['plan_values'] + (int)$row['build_values'];
             $item = array(
