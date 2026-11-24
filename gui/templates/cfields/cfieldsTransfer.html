@@ -246,6 +246,9 @@ function render(data) {
     order: [[0, 'asc']],
     columnDefs: [{targets: [11], visible: false, searchable: true}]
   });
+  $('#usageTable_length label').remove();
+  $('#usageTable_filter input').attr('id', 'usageTableSearch');
+  $('#usageTable_filter label').attr('for', 'usageTableSearch');
   applyFilters();
 }
 function applyFilters() {
