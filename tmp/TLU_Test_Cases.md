@@ -49405,3 +49405,61 @@ Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3
 2047.25 — PASS: final Event Viewer query showed only AUDIT rows after the fixed fixture run (project create/delete and role changes); the only ERROR after the first fixture run was the now-corrected `testprojects.name` query, and no new Error/Warning appeared after the fix.
 
 2047.26 — PASS: CHANGELOG entry for #2047 added under 2.0.1 screens with the review fixes summarized.
+
+## Issue #2048 — Custom Fields Usage & Transfer Hub (cfieldsTransfer)
+
+### Fixture and BFF contract
+
+2048.1 — PASS: seeded a fresh fixture directly in MariaDB: project node 100 / prefix CFH, custom fields 1–4 (one `cf_used` with design + build values, two project-linked but valueless, one `<img src=x onerror=alert(1)>` XSS-name probe), node-type and project links; role-5 user `norights2048`/`norights` created. All numbers below reflect the later UI imports (6 → 7 definitions).
+
+2048.2 — PASS: `GET ?action=info` as admin returns 200 with `grants.view/manage = true`, `limits.max_upload_bytes = 1048576`, the 15 legacy export field names and (after review) the authoritative `cfield_mgr::$custom_field_types` map (0 string, 1 numeric, 2 float, 4 email, 5 checkbox, 6 list, 7 multiselection list, 8 date, 9 radio, 10 datetime, 20 text area, 500 script, 501 server).
+
+2048.3 — PASS: `GET ?action=usage` returns one row per definition with counts from `cfield_testprojects` / `cfield_design_values` / `cfield_execution_values` / `cfield_testplan_design_values` / `cfield_build_design_values` and the `used`/`unused` verdict. Bug #2049 (HTTP 500 from calling `FetchRow()` on the array returned by `database::get_recordset()`) was filed, fixed in `dc1072397` and re-verified.
+
+2048.4 — PASS: `GET ?action=export&filename=cf2048-ui-export.xml` returns 200, `application/xml; charset=ISO-8859-1`, root `<custom_fields>`, row `<custom_field>`, all legacy columns including `node_type_id`, and no stored values.
+
+2048.5 — PASS: `POST ?action=import` with a valid XML file creates only new names, skips duplicates (`cf_used` → `skipped`) and reports counts. Bug #2050 (string XML `node_type_id` rejected by a strict int comparison) was filed, fixed in `df90ba583`, then `cf_imported2048` was created and `cf_used` skipped as expected.
+
+2048.6 — PASS: invalid XML → 422 `invalid_xml`; missing file / empty file / oversized file are gated by 422/413 machine codes; `is_uploaded_file()` plus a scalar `tmp_name` check were added in the review pass.
+
+2048.7 — PASS: auth matrix — anonymous `info`/`usage`/`export` → 401; role-5 `norights2048` on all three → 403 `no_right`; `POST` on a GET route → 405; unknown action → 400; `POST` import by `norights2048` → 403.
+
+2048.8 — PASS: legacy shims — authenticated `GET lib/cfields/cfieldsImport.php` → 302 `#import`, `GET lib/cfields/cfieldsExport.php` → 302 `#export`, both `POST` → 405, both anonymous → the standard expired-session JavaScript bounce to `login.php?note=expired`. No legacy mutation path remains.
+
+2048.9 — PASS: filename parameter-injection attempt (`evil"; filename=x.xml`) was normalized by the review fix to `Content-Disposition: attachment; filename="customFields.xml"` while the XML response stayed 200.
+
+2048.10 — PASS: after review, `info.types` drives the type column (`string`, `text area`, …), unknown numeric types use the new `ctrf.type.unknown` key, and `node_types` slugs map through existing `cf.node.*` keys (`testcase` → RO `Caz de Testare`).
+
+### Screen and browser matrix
+
+2048.11 — PASS: `/gui/templates/cfields/cfieldsTransfer.html?tproject_id=100` loads the Dashio shell, localized title, locale switcher, 7 KPI tiles, verdict banner, three tabs, 11-column DataTable + hidden verdict-key column, and all six fixture rows.
+
+2048.12 — PASS: hostile field name renders as inert text, never as an `<img>` element, in both the table (`esc()`) and CSV (raw name retained, no entity double-encoding, quotes doubled, `;` separator, UTF-8 BOM and `=/-/+/@` formula guard). CSV respects the current filter and uses localized verdict/type/node labels.
+
+2048.13 — PASS: `Verdict` filter — `Used` → 1 row (`cf_used`), `Unused` → 4/5 rows, `All` → all rows. Bugs #2051 (raw i18n keys in the select), #2052 (`used` smart-matched `unused`) and the `All`-clears-search follow-up were filed/fixed in `f746b942f`, `9693f6e74`, `ceebf1bf6`, `8a864d9ce` and re-verified.
+
+2048.14 — PASS: DataTables search box filters `cf_unused` to 1 row and clearing it restores all rows. Bug #2054 (orphan `Show` label + search input without id) was filed, fixed in `8d5886e7a`, and the reloaded page has `label[for=usageTableSearch]`, no orphan label and a clean Chrome console.
+
+2048.15 — PASS: `#usage`, `#export` and `#import` deep links open the correct tab on a real reload. Bug #2053 (stale hash after tab clicks) was filed, fixed in `e04b1d856`, and clicking `Usage inventory` from `#import` now updates the URL to `#usage`.
+
+2048.16 — PASS: export form — file name accepted, `Download XML` issued the BFF fetch, returned an XML blob and showed `Download started.`; after review the navigation was replaced by a guarded `fetch` + blob download (`37a849ecf`), re-verified with the injection filename above.
+
+2048.17 — PASS: import form — selected `/tmp/opencode/cf_ui_import.xml`, clicked `Upload and import`, got `Processed 1 definitions. Created: 1 — cf_ui_import2048`, `Skipped: 0`, and Refresh raised the KPI from 5 to 6 definitions and from 4 to 5 unused.
+
+2048.18 — PASS: role-5 user in a separate browser context sees the localized `Missing permission` state card and no table/forms; the BFF had already answered 403 on the corresponding JSON calls.
+
+2048.19 — PASS: `cfieldsView.html` toolbar shows `Export`, `Upload File` and `Usage inventory`; clicking `Usage inventory` navigates to `cfieldsTransfer.html#usage`. The three buttons and `$actions->cfieldsTransfer` were wired in `74b1792ab`.
+
+2048.20 — PASS: locale switch to `Română` localized the title, KPI captions, verdict, table columns, DataTables info/pagination and state messages. Bug #2055 (54 English fallbacks in `ro.json`) was filed, fixed in `c06612bd0`, and the RO screenshot shows `DEFINIȚII`, `PROIECTE ASOCIATE`, `Caz de Testare`, `Folosit`/`Neutilizat`.
+
+2048.21 — PASS: final browser console query after the review fixes returned no error/warning messages; no new Error/Warning Event Viewer rows were generated (only AUDIT login rows).
+
+### Gates, review and documentation
+
+2048.22 — PASS: `php -l` clean for the BFF and both legacy shims; screen script syntax checked; all 10 i18n bundles parse; `bash ai/verify_i18n_coverage.sh` 9/9 PASS (13079+ keys including the new `ctrf.type.unknown`).
+
+2048.23 — PASS: first code-review subagent covered BFF + screen before commit `e517ea096`; a second, final review found 8 issues (session-expired state, filename injection, upload validation, wrong type labels, DataTables label removal, escaped CSV, export error path, unlocalized node types). All were fixed in `37a849ecf` and re-tested via browser/curl above.
+
+2048.24 — PASS: six current screenshots captured in the wiki clone: entry toolbar, usage inventory, export tab, import tab, import result and Romanian locale (`issue-2048-cfieldstransfer-*.png`).
+
+2048.25 — PASS: docs mirror + wiki page written with identical prose (wiki adds the screenshot lines), status ledger row moved to DONE with Last-updated/Summary counts bumped, and CHANGELOG entries added for #2048 and bugs #2049–#2055.
