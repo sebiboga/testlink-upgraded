@@ -372,7 +372,9 @@ function render(data) {
       order: [[0, 'desc']], pageLength: 10,
       language: {
         search: t('common.filter', 'Filter') + ':',
+        lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
         info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+        paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
         emptyTable: t('bact.noDaily'), zeroRecords: t('bact.noMatch')
       }
     });
