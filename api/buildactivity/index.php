@@ -371,7 +371,7 @@ foreach ($buildIds as $bid) {
         ? max(0, (int)floor(($now - strtotime($s['last_ts'])) / 86400)) : null;
     $verdict = 'idle';
     if ($exec > 0) {
-        $verdict = ($s['recent'] > 0 || ($idleDays !== null && $idleDays <= 14)) ? 'busy' : 'watch';
+        $verdict = $s['recent'] > 0 ? 'busy' : 'watch';
     }
     $rows[] = array(
         'build_id' => $bid,
