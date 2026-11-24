@@ -184,10 +184,6 @@ if (is_array($rsBuilds)) {
         $buildIds[] = $bid;
     }
 }
-if ($buildFilter > 0 && !isset($builds[$buildFilter])) {
-    baFail(404, 'build_not_found', 'Build does not belong to the test project');
-}
-
 $platforms = array();
 $rsPlatforms = $db->get_recordset(
     "SELECT id, name FROM {$tbl['platforms']} WHERE testproject_id = " .
@@ -269,6 +265,9 @@ if (is_array($rsBugs)) {
 
 $cutoff = $windowDays > 0 ? date('Y-m-d H:i:s', time() - $windowDays * 86400) : '';
 $allExecutions = array();
+$firstTsByBuild = array();
+$lastTsByBuild = array();
+$orphanBuildIds = array();
 $rsExec = $db->get_recordset(
     "SELECT id, build_id, tester_id, execution_ts, status, tcversion_id, " .
     "platform_id, execution_duration, notes " .
@@ -284,6 +283,17 @@ if (is_array($rsExec)) {
         if ($platformId > 0 && intval($r['platform_id']) !== $platformId) { continue; }
         if ($buildFilter > 0 && $bid !== $buildFilter) { continue; }
         if ($statusFilter !== 'all' && $status !== $statusFilter) { continue; }
+        if ($bid > 0 && !isset($builds[$bid])) { $orphanBuildIds[$bid] = true; }
+        // All-time activity drives idle/last-execution even when a window filter
+        // narrows the counters below.
+        if ($ts !== '') {
+            if (!isset($firstTsByBuild[$bid]) || strcmp($ts, $firstTsByBuild[$bid]) < 0) {
+                $firstTsByBuild[$bid] = $ts;
+            }
+            if (!isset($lastTsByBuild[$bid]) || strcmp($ts, $lastTsByBuild[$bid]) > 0) {
+                $lastTsByBuild[$bid] = $ts;
+            }
+        }
         if ($cutoff !== '' && $ts !== '' && strcmp($ts, $cutoff) < 0) { continue; }
         $allExecutions[] = array(
             'id' => intval($r['id']),
@@ -301,9 +311,22 @@ if (is_array($rsExec)) {
     }
 }
 
-// Aggregate per build. Every project build gets a row so empty builds stay visible.
+// Aggregate per build. Every project build and every build referenced by
+// in-scope history gets a row so empty/deleted builds stay visible.
+$rowBuilds = $builds;
+foreach ($orphanBuildIds as $obid => $_) {
+    if (!isset($rowBuilds[$obid])) {
+        $rowBuilds[$obid] = array('name' => '#' . intval($obid), 'active' => false, 'is_open' => false);
+    }
+}
+if ($buildFilter > 0) {
+    if (!isset($rowBuilds[$buildFilter])) {
+        baFail(404, 'build_not_found', 'Build does not belong to the test project');
+    }
+    $rowBuilds = array($buildFilter => $rowBuilds[$buildFilter]);
+}
 $stats = array();
-foreach ($buildIds as $bid) {
+foreach ($rowBuilds as $bid => $_meta) {
     $stats[$bid] = array(
         'executions' => 0, 'passed' => 0, 'failed' => 0, 'blocked' => 0,
         'cases' => array(), 'testers' => array(), 'bugs' => array(),
@@ -313,14 +336,6 @@ foreach ($buildIds as $bid) {
 }
 foreach ($allExecutions as $e) {
     $bid = $e['build_id'];
-    if (!isset($stats[$bid])) {
-        $stats[$bid] = array(
-            'executions' => 0, 'passed' => 0, 'failed' => 0, 'blocked' => 0,
-            'cases' => array(), 'testers' => array(), 'bugs' => array(),
-            'days' => array(), 'duration_sum' => 0.0, 'duration_count' => 0,
-            'first_ts' => '', 'last_ts' => '', 'recent' => 0,
-        );
-    }
     $s = &$stats[$bid];
     $s['executions']++;
     if ($e['status'] === 'p') { $s['passed']++; }
@@ -352,8 +367,10 @@ $totalBugs = array();
 $allTesters = array();
 $busiest = null;
 $lastActivity = '';
-foreach ($buildIds as $bid) {
+foreach ($rowBuilds as $bid => $buildMeta) {
     $s = $stats[$bid];
+    if (isset($firstTsByBuild[$bid])) { $s['first_ts'] = $firstTsByBuild[$bid]; }
+    if (isset($lastTsByBuild[$bid])) { $s['last_ts'] = $lastTsByBuild[$bid]; }
     $exec = intval($s['executions']);
     $totalExecutions += $exec;
     foreach ($s['bugs'] as $bug => $_) { $totalBugs[$bug] = true; }
@@ -361,7 +378,7 @@ foreach ($buildIds as $bid) {
     if ($exec > 0) {
         $activeBuilds++;
         if ($busiest === null || $exec > $busiest['executions']) {
-            $busiest = array('id' => $bid, 'name' => $builds[$bid]['name'], 'executions' => $exec);
+            $busiest = array('id' => $bid, 'name' => $buildMeta['name'], 'executions' => $exec);
         }
     }
     if ($s['last_ts'] !== '' && strcmp($s['last_ts'], $lastActivity) > 0) {
@@ -375,9 +392,9 @@ foreach ($buildIds as $bid) {
     }
     $rows[] = array(
         'build_id' => $bid,
-        'build_name' => $builds[$bid]['name'],
-        'active' => $builds[$bid]['active'],
-        'is_open' => $builds[$bid]['is_open'],
+        'build_name' => $buildMeta['name'],
+        'active' => $buildMeta['active'],
+        'is_open' => $buildMeta['is_open'],
         'executions' => $exec,
         'cases' => count($s['cases']),
         'passed' => $s['passed'],
@@ -395,37 +412,6 @@ foreach ($buildIds as $bid) {
         'last_ts' => $s['last_ts'],
         'idle_days' => $idleDays,
         'verdict' => $verdict,
-    );
-}
-
-// Deleted builds referenced by executions are appended so history is not lost.
-$orphanStats = array();
-foreach ($allExecutions as $e) {
-    $bid = $e['build_id'];
-    if (isset($stats[$bid])) { continue; }
-    if (!isset($orphanStats[$bid])) {
-        $orphanStats[$bid] = array('executions' => 0, 'passed' => 0, 'failed' => 0,
-            'blocked' => 0, 'last_ts' => '');
-    }
-    $orphanStats[$bid]['executions']++;
-    if ($e['status'] === 'p') { $orphanStats[$bid]['passed']++; }
-    elseif ($e['status'] === 'f') { $orphanStats[$bid]['failed']++; }
-    elseif ($e['status'] === 'b') { $orphanStats[$bid]['blocked']++; }
-    if (strcmp($e['execution_ts'], $orphanStats[$bid]['last_ts']) > 0) {
-        $orphanStats[$bid]['last_ts'] = $e['execution_ts'];
-    }
-}
-foreach ($orphanStats as $bid => $s) {
-    $rows[] = array(
-        'build_id' => intval($bid), 'build_name' => '#' . intval($bid),
-        'active' => false, 'is_open' => false, 'executions' => $s['executions'],
-        'cases' => 0, 'passed' => $s['passed'], 'failed' => $s['failed'],
-        'blocked' => $s['blocked'],
-        'pass_rate_pct' => baPct($s['passed'], $s['executions']),
-        'testers' => 0, 'defects' => 0, 'active_days' => 0,
-        'avg_duration' => null, 'total_duration' => 0.0, 'recent' => 0,
-        'first_ts' => '', 'last_ts' => $s['last_ts'], 'idle_days' => null,
-        'verdict' => 'watch',
     );
 }
 
@@ -474,10 +460,9 @@ $summary = array(
     'verdict' => $verdict,
 );
 
-$payload = array(
+$common = array(
     'status' => 'ok', 'code' => 200,
-    'context' => $context, 'filters' => $filters, 'filter' => $filterState,
-    'summary' => $summary, 'rows' => $rows, 'daily' => $dailyRows,
+    'context' => $context, 'filter' => $filterState,
 );
 
 if ($action === 'detail') {
@@ -497,15 +482,20 @@ if ($action === 'detail') {
             'bugs' => $e['bugs'],
         );
     }
-    if (count($detail) === 0 && !isset($stats[$buildId]) && !isset($orphanStats[$buildId])) {
+    if (count($detail) === 0 && !isset($rowBuilds[$buildId])) {
         baFail(404, 'build_not_found', 'Build has no executions in this scope');
     }
     usort($detail, function ($a, $b) {
         return strcmp($b['execution_ts'], $a['execution_ts']);
     });
-    $payload['detail'] = array_slice($detail, 0, 200);
-    $payload['detail_total'] = count($detail);
-    $payload['build_id'] = $buildId;
+    baOut($common + array(
+        'build_id' => $buildId,
+        'detail' => array_slice($detail, 0, 200),
+        'detail_total' => count($detail),
+    ));
 }
 
-baOut($payload);
+baOut($common + array(
+    'filters' => $filters,
+    'summary' => $summary, 'rows' => $rows, 'daily' => $dailyRows,
+));

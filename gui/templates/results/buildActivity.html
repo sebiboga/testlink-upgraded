@@ -335,15 +335,15 @@ function render(data) {
     dt = $('#grid').DataTable({
       order: [], pageLength: 25,
       language: {
-        search: t('common.filter', 'Filter') + ':',
-        lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
-        info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
-        paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+        search: t('common.filter') + ':',
+        lengthMenu: t('common.showEntries') + ' _MENU_ ' + t('common.entries'),
+        info: t('common.pageInfo'),
+        paginate: { previous: t('common.prev'), next: t('common.next') },
         emptyTable: t('bact.noRows'), zeroRecords: t('bact.noMatch')
       }
     });
-    $('#grid_wrapper .dataTables_length select').attr({ id:'bactLength', name:'bactLength', 'aria-label': t('common.showEntries', 'Show entries') });
-    $('#grid_wrapper .dataTables_filter input').attr({ id:'bactSearch', name:'bactSearch', 'aria-label': t('common.filter', 'Filter') });
+    $('#grid_wrapper .dataTables_length select').attr({ id:'bactLength', name:'bactLength', 'aria-label': t('common.showEntries') });
+    $('#grid_wrapper .dataTables_filter input').attr({ id:'bactSearch', name:'bactSearch', 'aria-label': t('common.filter') });
   }
   (data.rows || []).forEach(function (r) {
     var idle = r.idle_days === null || r.idle_days === undefined ? '\u2014' : r.idle_days;
@@ -371,14 +371,14 @@ function render(data) {
     dailyDt = $('#dailyGrid').DataTable({
       order: [[0, 'desc']], pageLength: 10,
       language: {
-        search: t('common.filter', 'Filter') + ':',
-        lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
-        info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
-        paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+        search: t('common.filter') + ':',
+        lengthMenu: t('common.showEntries') + ' _MENU_ ' + t('common.entries'),
+        info: t('common.pageInfo'),
+        paginate: { previous: t('common.prev'), next: t('common.next') },
         emptyTable: t('bact.noDaily'), zeroRecords: t('bact.noMatch')
       }
     });
-    $('#dailyGrid_wrapper .dataTables_filter input').attr('aria-label', t('common.filter', 'Filter'));
+    $('#dailyGrid_wrapper .dataTables_filter input').attr('aria-label', t('common.filter'));
   }
   (data.daily || []).forEach(function (d) {
     dailyDt.row.add($( '<tr><td>' + esc(d.day) + '</td><td class="num">' + esc(d.executions)
@@ -400,10 +400,21 @@ function load() {
     render(res);
   }).catch(function () { showState(stateFor('server_error', 500, t('bact.networkError'))); });
 }
+function setBackgroundInert(inert) {
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
 function closeDetail() {
   $('#detailModal').addClass('hidden');
   $('#modalBackdrop').addClass('hidden');
-  document.querySelectorAll('main > *').forEach(function (el) { el.removeAttribute('inert'); });
+  setBackgroundInert(false);
   if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
   lastFocus = null;
 }
@@ -412,10 +423,11 @@ function openDetail(buildId) {
   $('#detailBody').html('<p>' + esc(t('bact.loading')) + '</p>');
   $('#modalBackdrop').removeClass('hidden');
   $('#detailModal').removeClass('hidden');
+  setBackgroundInert(true);
   $('#btnDetailClose').focus();
   fetchJson(API + '?' + query('detail') + '&build_id=' + encodeURIComponent(buildId))
     .then(function (res) {
-      if (!res || res.status !== 'ok') { fail(res); return; }
+      if (!res || res.status !== 'ok') { closeDetail(); fail(res); return; }
       var rows = res.detail || [];
       var html = '<p>' + esc(t('bact.detailCount', { count: res.detail_total, shown: rows.length })) + '</p>'
         + '<table class="table table-striped table-bordered"><thead><tr>'
@@ -433,12 +445,11 @@ function openDetail(buildId) {
       html += '</tbody></table>';
       if (!rows.length) { html = '<p>' + esc(t('bact.noDetail')) + '</p>'; }
       $('#detailBody').html(html);
-      $('#modalBackdrop').removeClass('hidden');
-      $('#detailModal').removeClass('hidden');
-      document.querySelectorAll('main > *').forEach(function (el) { el.setAttribute('inert', ''); });
-      $('#detailModal').removeAttribute('inert');
       $('#btnDetailClose').focus();
-    }).catch(function () { showState(stateFor('server_error', 500, t('bact.networkError'))); });
+    }).catch(function () {
+      closeDetail();
+      showState(stateFor('server_error', 500, t('bact.networkError')));
+    });
 }
 function csvCell(v) {
   var s = String(v === null || v === undefined ? '' : v);
@@ -453,7 +464,7 @@ function exportCsv() {
   var lines = [head.map(csvCell).join(';')];
   currentData.rows.forEach(function (r) {
     lines.push([r.build_name, t(r.is_open ? 'bact.stateOpen' : 'bact.stateClosed'),
-      r.executions, r.cases, r.passed, r.failed, r.blocked, r.pass_rate_pct,
+      r.executions, r.cases, r.passed, r.failed, r.blocked, r.pass_rate_pct + '%',
       r.testers, r.defects, r.active_days, r.avg_duration, r.recent,
       r.idle_days, r.last_ts, t(verdictKey(r.verdict))].map(csvCell).join(';'));
   });
@@ -468,7 +479,7 @@ function exportCsv() {
   toast(t('bact.csvDone'));
 }
 $(function () {
-  $('#btnRefresh').on('click', loadInit);
+  $('#btnRefresh').on('click', load);
   $('#btnApply').on('click', load);
   $('#btnCsv').on('click', exportCsv);
   $('#btnClose').on('click', function () {

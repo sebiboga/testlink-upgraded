@@ -49463,3 +49463,59 @@ Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3
 2048.24 — PASS: six current screenshots captured in the wiki clone: entry toolbar, usage inventory, export tab, import tab, import result and Romanian locale (`issue-2048-cfieldstransfer-*.png`).
 
 2048.25 — PASS: docs mirror + wiki page written with identical prose (wiki adds the screenshot lines), status ledger row moved to DONE with Last-updated/Summary counts bumped, and CHANGELOG entries added for #2048 and bugs #2049–#2055.
+
+## Issue #2056 — Test Plan Build Execution Activity (buildActivity)
+
+2056.1 — PASS: fixture `tmp/fixtures_2056.php` recreated BAC2056 project 1, plan 2, empty plan 3, builds 1/2/3, platforms 1/2, role-3 user `bac2056norights`; all browser tests used http://localhost:8082 admin/admin unless noted.
+
+2056.2 — PASS: `api/buildactivity/index.php` and all wiring files pass `php -l`; all 10 client bundles parse; `bash ai/verify_i18n_coverage.sh` PASS 9/9 with 13173 keys after the final localization pass.
+
+2056.3 — PASS: `?action=init&tplan_id=2&tproject_id=1` returned 200 with context, one All time plus 7/30/90/365-day windows, build and platform options; bug #2057 (duplicate All time) was filed, fixed in `ccc760217` and re-verified after reload.
+
+2056.4 — PASS: default all-time report KPIs were builds 3, active builds 2, executions 8, passed 4, failed 2, blocked 2, pass rate 50%, distinct cases 4, testers 1, defects 3, active days 6, last activity 2026-11-23 10:00:00 and busiest build `BAC Build 2`.
+
+2056.5 — PASS: build rows showed Build 1 = 3 executions / 1 pass / 1 fail / 1 block / 13 idle days, Build 2 = 5 executions / 3 passes / 1 fail / 1 block / 1 idle day, Build 3 = idle; Build 1 was `watch`, not `active`; bug #2058 was filed, fixed in `797d6468a` and re-verified.
+
+2056.6 — PASS: Build, Platform, Result and Window filters re-scoped summary, daily series and rows; selecting Build 2 + Windows + Failed + Last 7 days returned the scoped rows while the detail button and CSV stayed usable.
+
+2056.7 — PASS: after review fix #2060, clicking Refresh with Build 2 and Last 7 days active kept both filter values (`build=2`, `window=7`) and reloaded the scoped report instead of resetting to all-time.
+
+2056.8 — PASS: a 7-day window with Build 1 still reported all-time `last_ts=2026-11-11 12:00:00` and `idle_days=13` for that row while `recent=0` and window executions were 0; all-time idle signals are no longer destroyed by the cutoff.
+
+2056.9 — PASS: the 17-column build DataTable displayed state, execution/case/result counts, pass-rate bar, testers, defects, active days, average duration, recent count, idle days, all-time last execution and verdict, with a working detail button per row.
+
+2056.10 — PASS: the daily DataTable displayed localized page length/pagination and search controls in EN and RO; bug #2059 was filed, fixed in `097188cad`, and the gate was re-run after the rebase.
+
+2056.11 — PASS: detail modal opened with a loading row, then listed 5 scoped execution events for Build 2 (day, tcversion, status, tester, duration, defects, notes); `inert` was applied only to `.header`, `.toolbar`, `#report` and `.footer`, so the modal itself and backdrop stayed interactive.
+
+2056.12 — PASS: clicking the modal backdrop closed it and removed both `inert` and `aria-hidden` from the shell; a simulated failed load closed the modal and showed the localized server-error state instead of leaving a dead overlay (review fix #2060).
+
+2056.13 — PASS: the detail BFF response now contains only `context`, `filter`, `build_id`, `detail` and `detail_total`, not a second full `rows`/`daily` report; the capped list remains 200 events.
+
+2056.14 — PASS: a temporary execution with orphan `build_id=999999` produced an extra history row `#999999` with 1 execution / 1 pass / 1 case / 1 tester and `active=false`; the probe row was deleted afterwards. The old unreachable orphan block was removed.
+
+2056.15 — PASS: Export CSV produced a UTF-8 BOM, semicolon-separated quoted fields and a leading apostrophe on values starting with `=`, `+`, `-` or `@`; after review the pass-rate cell explicitly carries `%`.
+
+2056.16 — PASS: empty plan 3 showed the localized empty state, disabled CSV, zero KPIs and no DataTable errors; no-right user in an isolated browser context showed `Access denied / You do not have the test plan metrics right (HTTP 403)` and `no_right`.
+
+2056.17 — PASS: anonymous curl got `401 not_authenticated`; no-right browser session got `403 no_right`; unknown plan got `404 tplan_not_found`; mismatched `tproject_id` got `404 project_mismatch`; detail without `build_id` got `400 invalid_request`; unknown action got `400 invalid_request`; POST got `405 method_not_allowed`.
+
+2056.18 — PASS: a wrong-origin GET returned 200 because `bffSameOriginGuard()` intentionally validates Origin/Referer only for non-GET/HEAD/OPTIONS; this was recorded as expected behaviour, not a bug.
+
+2056.19 — PASS: locale switch to Română localized title, subtitle, footer, DataTables controls and all state messages; banner placeholder strings interpolated with `{executions}`/`{builds}` in every bundle and no raw placeholders remained in the rendered page (review fix #2060).
+
+2056.20 — PASS: the Reports launcher entry, ASIDE entry and `api/resultsnav/index.php` `build_activity` map all target the new screen with the selected project/plan; the full entry-point matrix was re-checked after the uncommitted resultsnav edit.
+
+2056.21 — PASS: `gui/templates/results/buildActivity.html` script syntax checked; no `t('key', 'English fallback')` calls remain in the DataTable language config; all labels come from `TLi18n`.
+
+2056.22 — PASS: final Chrome console query on the admin page returned no error/warning messages; the isolated no-right page showed only the expected 403 resource error from the BFF.
+
+2056.23 — PASS: Event Viewer query for the last 2 hours with `log_level <= 8` returned no rows; only AUDIT login/permission rows were present.
+
+2056.24 — PASS: first code-review subagent found no blockers but 7 should-fix/nit items; all were fixed for #2060 (modal inert/focus, orphan build history, rolling-window all-time last/idle, slim detail, Refresh scope, platform-0 documentation wording, i18n placeholders/messages) and re-tested above.
+
+2056.25 — PASS: six current screenshots were captured in `tmp/wiki-repo/`: en, filtered, detail, empty, ro and noright.
+
+2056.26 — PASS: docs mirror and wiki page written with the same prose (wiki adds the screenshot lines), CHANGELOG and `docs/MODERNIZATION-STATUS.md` updated, and the wiki clone rebased before editing.
+
+2056.27 — PASS: second code-review gate found one blocker (orphan build IDs were rejected before `$rowBuilds` was built) and two should-fix items (build-filtered reports still emitted zeroed rows for unrelated builds; `bact.kpiDefects` / `bact.kpiLastActivity` were English in 8 bundles). Fixed by moving the build lookup after `$rowBuilds` construction, narrowing `$rowBuilds` to the selected build and translating both KPI labels in every bundle. Re-verified: `report&build_id=2` returns 1 row / `summary.builds=1`, `report&build_id=999999` returns the orphan history row, `detail&build_id=999999` returns `detail_total=1`, and the i18n gate is still 9/9.

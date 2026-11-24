@@ -205,6 +205,8 @@ $bff = function ($action) use ($db, $user) {
             'plan_portfolio' => 'gui/templates/results/planPortfolio.html',
             // Refs #1991: Test Plan Build Quality Trend (chronological).
             'build_trend' => 'gui/templates/results/buildTrend.html',
+            // Refs #2056: Test Plan Build Execution Activity (per-build events).
+            'build_activity' => 'gui/templates/results/buildActivity.html',
             // Refs #1992: Test Plan Platform Coverage Matrix.
             'platform_matrix' => 'gui/templates/results/platformMatrix.html',
             // Refs #2018: Test Plan Defect Density.
