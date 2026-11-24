@@ -273,6 +273,8 @@ foreach ($xml->custom_field as $cf) {
         $values[$key] = isset($cf->$key) ? (string)$cf->$key : '';
     }
     $values['name'] = $name;
+    $values['node_type_id'] = is_numeric($values['node_type_id'])
+        ? (int)$values['node_type_id'] : 0;
     if (!in_array($values['node_type_id'], $allowedNodeTypes, true)) {
         $failed[] = array('name' => $name, 'message' => 'Invalid node type');
         continue;
