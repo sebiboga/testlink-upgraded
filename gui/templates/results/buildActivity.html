@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Plan Build Execution Activity report of TestLink 2.0.1 (Refs #2056)">
+<title>Build Execution Activity</title>
+<!--
+  Test Plan Build Execution Activity (Refs #2056). Read-only Dashio report over
+  the execution events of one test plan grouped by build (api/buildactivity).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 190px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-linkish { background: none; border: none; color: #17756e; cursor: pointer; font-size: 12px; font-weight: 700; text-decoration: underline; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 118px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 21px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 12px; padding: 10px 12px; }
+table.dataTable tbody td { padding: 9px 12px; font-size: 13px; vertical-align: middle; }
+.bar { height: 6px; background: #eceef2; border-radius: 4px; overflow: hidden; margin-top: 4px; min-width: 68px; }
+.bar > span { display: block; height: 100%; background: #4ECDC4; }
+.bar > span.good { background: #2f9e44; }
+.bar > span.warn { background: #e6b34d; }
+.bar > span.bad { background: #e05c5c; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.info { background: #d5f4f2; color: #0d3f3c; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 3000; display: none; }
+.toast.err { background: #e05c5c; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; }
+.modal-card { position: fixed; top: 4vh; left: 50%; transform: translateX(-50%); width: min(1040px, 94vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 8px; z-index: 2100; padding: 20px 24px; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.modal-card h3 { margin: 0 0 12px; font-size: 17px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-clock-rotate-left" style="margin-right:8px;"></i>
+  <span data-i18n="bact.title">Test Plan Build Execution Activity</span>
+  <span class="sub" data-i18n="bact.subtitle">when was each build exercised, by whom and with which results?</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="bact.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="bact.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="bact.build">Build</label><select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="bact.platform">Platform</label><select id="selPlatform"></select>
+  <label for="selStatus" data-i18n="bact.status">Result</label><select id="selStatus"></select>
+  <label for="selWindow" data-i18n="bact.window">Window</label><select id="selWindow"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="bact.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="bact.close">Close</span></button>
+</div>
+
+<div id="stateBox" role="status" aria-live="polite"></div>
+<div id="bannerBox" role="status" aria-live="polite"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i> <span data-i18n="bact.context">Report context</span></h3>
+    <div class="ctx-grid" id="ctxGrid"></div>
+  </div>
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i> <span data-i18n="bact.kpis">Key indicators</span></h3>
+    <div class="cards" id="kpis"></div>
+  </div>
+  <div class="table-wrap">
+    <table id="grid" class="table table-striped table-bordered" style="width:100%" aria-label="Build execution activity">
+      <caption class="sr-only" data-i18n="bact.title">Test Plan Build Execution Activity</caption>
+      <thead><tr>
+        <th scope="col" data-i18n="bact.colBuild">Build</th>
+        <th scope="col" data-i18n="bact.colState">State</th>
+        <th scope="col" data-i18n="bact.colExecutions">Executions</th>
+        <th scope="col" data-i18n="bact.colCases">Cases</th>
+        <th scope="col" data-i18n="bact.colPassed">Passed</th>
+        <th scope="col" data-i18n="bact.colFailed">Failed</th>
+        <th scope="col" data-i18n="bact.colBlocked">Blocked</th>
+        <th scope="col" data-i18n="bact.colPassRate">Pass rate</th>
+        <th scope="col" data-i18n="bact.colTesters">Testers</th>
+        <th scope="col" data-i18n="bact.colDefects">Defects</th>
+        <th scope="col" data-i18n="bact.colDays">Active days</th>
+        <th scope="col" data-i18n="bact.colAvgDuration">Avg duration</th>
+        <th scope="col" data-i18n="bact.colRecent">Last 7 days</th>
+        <th scope="col" data-i18n="bact.colIdle">Idle days</th>
+        <th scope="col" data-i18n="bact.colLast">Last execution</th>
+        <th scope="col" data-i18n="bact.colVerdict">Verdict</th>
+        <th scope="col" data-i18n="bact.colDetail">Detail</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h3><i class="fa fa-calendar-days"></i> <span data-i18n="bact.dailyTitle">Daily activity</span></h3>
+    <div class="table-wrap" style="margin:0;">
+      <table id="dailyGrid" class="table table-striped table-bordered" style="width:100%" aria-label="Daily execution activity">
+        <thead><tr>
+          <th scope="col" data-i18n="bact.colDay">Day</th>
+          <th scope="col" data-i18n="bact.colExecutions">Executions</th>
+          <th scope="col" data-i18n="bact.colPassed">Passed</th>
+          <th scope="col" data-i18n="bact.colFailed">Failed</th>
+          <th scope="col" data-i18n="bact.colBlocked">Blocked</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="modalBackdrop" class="modal-backdrop hidden"></div>
+<div id="detailModal" class="modal-card hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <h3 id="detailTitle"><span data-i18n="bact.detailTitle">Build execution detail</span>
+    <button class="btn-dark" id="btnDetailClose" style="float:right;" data-i18n="bact.close">Close</button>
+  </h3>
+  <div id="detailBody"></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.buildActivity"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/buildactivity/index.php';
+var currentData = null;
+var dt = null;
+var dailyDt = null;
+var lastFocus = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+function t(key, params) { return TLi18n.t(key, params || {}); }
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls:'deny', title:'bact.deniedTitle', body:'bact.deniedBody' },
+    session_expired: { cls:'deny', title:'bact.deniedTitle', body:'bact.expiredBody' },
+    no_right: { cls:'deny', title:'bact.deniedTitle', body:'bact.noRightBody' },
+    tplan_not_found: { cls:'warn', title:'bact.notFoundTitle', body:'bact.notFoundBody' },
+    build_not_found: { cls:'warn', title:'bact.notFoundTitle', body:'bact.buildNotFoundBody' },
+    project_mismatch: { cls:'warn', title:'bact.notFoundTitle', body:'bact.mismatchBody' },
+    invalid_request: { cls:'warn', title:'bact.badRequestTitle', body:'bact.badRequestBody' },
+    method_not_allowed: { cls:'warn', title:'bact.badRequestTitle', body:'bact.badRequestBody' }
+  };
+  var m = map[code] || { cls:'warn', title:'bact.serverErrorTitle', body:'bact.serverErrorBody' };
+  var detail = (!map[code] && rawMessage) ? '<div class="code">' + esc(rawMessage) + '</div>' : '';
+  return '<div class="state ' + m.cls + '"><h4>' + esc(t(m.title)) + '</h4><div>'
+    + esc(t(m.body, { status: httpStatus })) + '</div>' + detail
+    + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function isAuthError(code) { return code === 'session_expired' || code === 'not_authenticated'; }
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(t('bact.loading')) + '</div>');
+}
+function toast(msg, isErr) {
+  var $el = $('#toast');
+  $el.text(msg).toggleClass('err', !!isErr).fadeIn(120);
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(function () { $el.fadeOut(160); }, 2600);
+}
+function kpi(label, value, unit, cls) {
+  return '<div class="card ' + (cls || 'info') + '"><div class="k">' + esc(label) + '</div>'
+    + '<div class="v">' + esc(value) + (unit ? '<span class="u">' + esc(unit) + '</span>' : '') + '</div></div>';
+}
+function bar(pct, cls) {
+  return '<div class="bar"><span class="' + (cls || '') + '" style="width:'
+    + Math.max(0, Math.min(100, Number(pct))) + '%"></span></div>';
+}
+function rateCls(v) { return Number(v) >= 80 ? 'good' : (Number(v) >= 50 ? 'warn' : 'bad'); }
+function verdictKey(v) {
+  if (v === 'busy' || v === 'active') { return 'bact.verdictBusy'; }
+  if (v === 'watch') { return 'bact.verdictWatch'; }
+  if (v === 'idle') { return 'bact.verdictIdle'; }
+  return 'bact.verdictNa';
+}
+function verdictCls(v) {
+  if (v === 'busy' || v === 'active') { return 'good'; }
+  if (v === 'watch') { return 'warn'; }
+  if (v === 'idle') { return 'info'; }
+  return '';
+}
+function query(action) {
+  var p = new URLSearchParams();
+  p.set('action', action || 'report');
+  if (q('tplan_id')) { p.set('tplan_id', q('tplan_id')); }
+  if (q('tproject_id')) { p.set('tproject_id', q('tproject_id')); }
+  var b = $('#selBuild').val() || '0';
+  var pl = $('#selPlatform').val() || '0';
+  var st = $('#selStatus').val() || 'all';
+  var w = $('#selWindow').val() || '0';
+  if (Number(b) > 0) { p.set('build_id', b); }
+  if (Number(pl) > 0) { p.set('platform_id', pl); }
+  if (st !== 'all') { p.set('status', st); }
+  if (Number(w) > 0) { p.set('window_days', w); }
+  return p.toString();
+}
+function fail(res) {
+  var code = (res && res.code) || '';
+  if (isAuthError(code)) {
+    showState('<div class="state deny"><h4>' + esc(t('bact.deniedTitle')) + '</h4><div>'
+      + esc(t('bact.expiredBody')) + '</div><div class="code">' + esc(code) + '</div></div>');
+    window.setTimeout(redirectToLogin, 1600);
+    return;
+  }
+  showState(stateFor(code, (res && res.httpStatus) || 400, (res && res.message) || ''));
+}
+function fetchJson(url) {
+  return fetch(url, { credentials:'same-origin', headers:{ 'Accept':'application/json' } })
+    .then(function (r) { return r.json().then(function (j) { j.httpStatus = r.status; return j; }); });
+}
+function optionList(items, valueKey, labelFn, allKey) {
+  var allLabels = { build:'bact.allBuild', platform:'bact.allPlatform', days:'bact.allWindow' };
+  var html = '<option value="0">' + esc(t(allLabels[allKey] || 'bact.statusAll')) + '</option>';
+  (items || []).forEach(function (item) {
+    html += '<option value="' + esc(item[valueKey]) + '">' + esc(labelFn(item)) + '</option>';
+  });
+  return html;
+}
+function loadInit() {
+  showLoading();
+  var url = API + '?action=init&tplan_id=' + encodeURIComponent(q('tplan_id') || '');
+  if (q('tproject_id')) { url += '&tproject_id=' + encodeURIComponent(q('tproject_id')); }
+  fetchJson(url).then(function (res) {
+    if (!res || res.status !== 'ok') { fail(res); return; }
+    var f = res.filters || {};
+    $('#selBuild').html(optionList(f.builds, 'id', function (b) { return b.name; }, 'build'));
+    $('#selPlatform').html(optionList(f.platforms, 'id', function (p) { return p.name; }, 'platform'));
+    $('#selStatus').html('<option value="all">' + esc(t('bact.statusAll')) + '</option>'
+      + ['p','f','b'].map(function (s) {
+          return '<option value="' + s + '">' + esc(t('bact.status' + ({ p:'Passed', f:'Failed', b:'Blocked' })[s])) + '</option>';
+        }).join(''));
+    $('#selWindow').html(optionList(f.windows, 'days', function (w) { return t(w.label_key); }, 'days'));
+    var st = res.filter || {};
+    if (st.build_id) { $('#selBuild').val(String(st.build_id)); }
+    if (st.platform_id) { $('#selPlatform').val(String(st.platform_id)); }
+    if (st.status && st.status !== 'all') { $('#selStatus').val(st.status); }
+    if (st.window_days) { $('#selWindow').val(String(st.window_days)); }
+    load();
+  }).catch(function () { showState(stateFor('server_error', 500, t('bact.networkError'))); });
+}
+function render(data) {
+  currentData = data;
+  $('#stateBox').html('');
+  $('#report').show();
+  var c = data.context || {};
+  var s = data.summary || {};
+  $('#ctxGrid').html(
+    '<div class="ctx-item"><span class="k">' + esc(t('bact.project')) + '</span><span class="v">' + esc(c.tproject_name) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(t('bact.plan')) + '</span><span class="v">' + esc(c.tplan_name) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(t('bact.contextScope')) + '</span><span class="v">' + esc(scopeLabel()) + '</span></div>'
+  );
+  var v = s.verdict || 'idle';
+  $('#bannerBox').html('<div class="banner ' + verdictCls(v) + '"><i class="fa fa-clock-rotate-left"></i> '
+    + esc(t(verdictKey(v), { executions: s.executions, builds: s.active_builds })) + '</div>');
+  $('#kpis').html(
+    kpi(t('bact.kpiBuilds'), s.builds, '', 'info')
+    + kpi(t('bact.kpiActiveBuilds'), s.active_builds, '', 'info')
+    + kpi(t('bact.kpiExecutions'), s.executions, '', 'info')
+    + kpi(t('bact.kpiCases'), s.distinct_cases, '', 'info')
+    + kpi(t('bact.kpiPassed'), s.passed, '', 'good')
+    + kpi(t('bact.kpiFailed'), s.failed, '', 'bad')
+    + kpi(t('bact.kpiBlocked'), s.blocked, '', 'warn')
+    + kpi(t('bact.kpiPassRate'), s.pass_rate_pct, '%', rateCls(s.pass_rate_pct))
+    + kpi(t('bact.kpiTesters'), s.testers, '', 'info')
+    + kpi(t('bact.kpiDefects'), s.defects, '', s.defects > 0 ? 'warn' : 'info')
+    + kpi(t('bact.kpiActiveDays'), s.active_days, '', 'info')
+    + kpi(t('bact.kpiLastActivity'), s.last_activity || '\u2014', '', 'info')
+  );
+  if (dt) { dt.clear(); }
+  else {
+    dt = $('#grid').DataTable({
+      order: [], pageLength: 25,
+      language: {
+        search: t('common.filter', 'Filter') + ':',
+        lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+        info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+        paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+        emptyTable: t('bact.noRows'), zeroRecords: t('bact.noMatch')
+      }
+    });
+    $('#grid_wrapper .dataTables_length select').attr({ id:'bactLength', name:'bactLength', 'aria-label': t('common.showEntries', 'Show entries') });
+    $('#grid_wrapper .dataTables_filter input').attr({ id:'bactSearch', name:'bactSearch', 'aria-label': t('common.filter', 'Filter') });
+  }
+  (data.rows || []).forEach(function (r) {
+    var idle = r.idle_days === null || r.idle_days === undefined ? '\u2014' : r.idle_days;
+    dt.row.add($(
+      '<tr><td><strong>' + esc(r.build_name) + '</strong></td>'
+      + '<td><span class="pill ' + (r.is_open ? 'info' : '') + '">' + esc(t(r.is_open ? 'bact.stateOpen' : 'bact.stateClosed')) + '</span></td>'
+      + '<td class="num">' + esc(r.executions) + '</td><td class="num">' + esc(r.cases) + '</td>'
+      + '<td class="num"><span class="pill good">' + esc(r.passed) + '</span></td>'
+      + '<td class="num"><span class="pill ' + (r.failed > 0 ? 'bad' : '') + '">' + esc(r.failed) + '</span></td>'
+      + '<td class="num"><span class="pill ' + (r.blocked > 0 ? 'warn' : '') + '">' + esc(r.blocked) + '</span></td>'
+      + '<td class="num">' + esc(r.pass_rate_pct) + '%' + bar(r.pass_rate_pct, rateCls(r.pass_rate_pct)) + '</td>'
+      + '<td class="num">' + esc(r.testers) + '</td>'
+      + '<td class="num"><span class="pill ' + (r.defects > 0 ? 'warn' : '') + '">' + esc(r.defects) + '</span></td>'
+      + '<td class="num">' + esc(r.active_days) + '</td>'
+      + '<td class="num">' + esc(r.avg_duration === null ? '\u2014' : r.avg_duration) + '</td>'
+      + '<td class="num">' + esc(r.recent) + '</td><td class="num">' + esc(idle) + '</td>'
+      + '<td>' + esc(r.last_ts || '\u2014') + '</td>'
+      + '<td><span class="pill ' + verdictCls(r.verdict) + '">' + esc(t(verdictKey(r.verdict))) + '</span></td>'
+      + '<td><button type="button" class="btn-linkish detail-btn" data-build="' + esc(r.build_id) + '">' + esc(t('bact.showDetail')) + '</button></td></tr>'
+    ));
+  });
+  dt.draw();
+  if (dailyDt) { dailyDt.clear(); }
+  else {
+    dailyDt = $('#dailyGrid').DataTable({
+      order: [[0, 'desc']], pageLength: 10,
+      language: {
+        search: t('common.filter', 'Filter') + ':',
+        info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+        emptyTable: t('bact.noDaily'), zeroRecords: t('bact.noMatch')
+      }
+    });
+    $('#dailyGrid_wrapper .dataTables_filter input').attr('aria-label', t('common.filter', 'Filter'));
+  }
+  (data.daily || []).forEach(function (d) {
+    dailyDt.row.add($( '<tr><td>' + esc(d.day) + '</td><td class="num">' + esc(d.executions)
+      + '</td><td class="num">' + esc(d.passed) + '</td><td class="num">' + esc(d.failed)
+      + '</td><td class="num">' + esc(d.blocked) + '</td></tr>' ));
+  });
+  dailyDt.draw();
+  $('#btnCsv').prop('disabled', (data.rows || []).length === 0);
+}
+function scopeLabel() {
+  var b = $('#selBuild option:selected').text();
+  var p = $('#selPlatform option:selected').text();
+  return b + ' / ' + p;
+}
+function load() {
+  showLoading();
+  fetchJson(API + '?' + query('report')).then(function (res) {
+    if (!res || res.status !== 'ok') { fail(res); return; }
+    render(res);
+  }).catch(function () { showState(stateFor('server_error', 500, t('bact.networkError'))); });
+}
+function closeDetail() {
+  $('#detailModal').addClass('hidden');
+  $('#modalBackdrop').addClass('hidden');
+  document.querySelectorAll('main > *').forEach(function (el) { el.removeAttribute('inert'); });
+  if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+  lastFocus = null;
+}
+function openDetail(buildId) {
+  lastFocus = document.activeElement;
+  $('#detailBody').html('<p>' + esc(t('bact.loading')) + '</p>');
+  $('#modalBackdrop').removeClass('hidden');
+  $('#detailModal').removeClass('hidden');
+  $('#btnDetailClose').focus();
+  fetchJson(API + '?' + query('detail') + '&build_id=' + encodeURIComponent(buildId))
+    .then(function (res) {
+      if (!res || res.status !== 'ok') { fail(res); return; }
+      var rows = res.detail || [];
+      var html = '<p>' + esc(t('bact.detailCount', { count: res.detail_total, shown: rows.length })) + '</p>'
+        + '<table class="table table-striped table-bordered"><thead><tr>'
+        + '<th>' + esc(t('bact.colDay')) + '</th><th>' + esc(t('bact.colCase')) + '</th>'
+        + '<th>' + esc(t('bact.status')) + '</th><th>' + esc(t('bact.colTesters')) + '</th>'
+        + '<th>' + esc(t('bact.colAvgDuration')) + '</th><th>' + esc(t('bact.colDefects')) + '</th>'
+        + '<th>' + esc(t('bact.notes')) + '</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        html += '<tr><td>' + esc(r.execution_ts) + '</td><td>#' + esc(r.tcversion_id) + '</td>'
+          + '<td><span class="pill ' + (r.status === 'p' ? 'good' : (r.status === 'f' ? 'bad' : 'warn')) + '">'
+          + esc(t('bact.status' + ({ p:'Passed', f:'Failed', b:'Blocked', n:'NotRun' })[r.status])) + '</span></td>'
+          + '<td>#' + esc(r.tester_id || '\u2014') + '</td><td>' + esc(r.duration) + '</td>'
+          + '<td>' + esc(r.bugs.join(', ') || '\u2014') + '</td><td>' + esc(r.notes || '\u2014') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      if (!rows.length) { html = '<p>' + esc(t('bact.noDetail')) + '</p>'; }
+      $('#detailBody').html(html);
+      $('#modalBackdrop').removeClass('hidden');
+      $('#detailModal').removeClass('hidden');
+      document.querySelectorAll('main > *').forEach(function (el) { el.setAttribute('inert', ''); });
+      $('#detailModal').removeAttribute('inert');
+      $('#btnDetailClose').focus();
+    }).catch(function () { showState(stateFor('server_error', 500, t('bact.networkError'))); });
+}
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  if (!currentData || !currentData.rows || !currentData.rows.length) { return; }
+  var head = ['colBuild','colState','colExecutions','colCases','colPassed','colFailed',
+    'colBlocked','colPassRate','colTesters','colDefects','colDays','colAvgDuration',
+    'colRecent','colIdle','colLast','colVerdict'].map(function (k) { return t('bact.' + k); });
+  var lines = [head.map(csvCell).join(';')];
+  currentData.rows.forEach(function (r) {
+    lines.push([r.build_name, t(r.is_open ? 'bact.stateOpen' : 'bact.stateClosed'),
+      r.executions, r.cases, r.passed, r.failed, r.blocked, r.pass_rate_pct,
+      r.testers, r.defects, r.active_days, r.avg_duration, r.recent,
+      r.idle_days, r.last_ts, t(verdictKey(r.verdict))].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'build-activity-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(t('bact.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', loadInit);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  $('#grid').on('click', '.detail-btn', function () { openDetail($(this).data('build')); });
+  $('#btnDetailClose').on('click', closeDetail);
+  $('#modalBackdrop').on('click', closeDetail);
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && !$('#detailModal').hasClass('hidden')) { closeDetail(); }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = t('bact.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
