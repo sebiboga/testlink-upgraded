@@ -16,6 +16,7 @@
  *
  * Routes:
  *   GET|HEAD ?action=info   — context, rights, limits, import/export field spec
+ *   GET|HEAD ?action=usage  — net-new per-definition usage inventory
  *   GET|HEAD ?action=export[&filename=customFields.xml] — XML download
  *   POST    ?action=import  (multipart targetFilename=<XML file>)
  *
@@ -91,7 +92,7 @@ $action = (string)ctcfScalar($_GET['action'] ?? $_POST['action'] ?? '', '');
 if ($action === '') {
     ctcfFail(400, 'missing_action', 'No action requested');
 }
-if (!in_array($action, array('info', 'export', 'import'), true)) {
+if (!in_array($action, array('info', 'usage', 'export', 'import'), true)) {
     ctcfFail(400, 'unknown_action', 'Unknown action: ' . $action);
 }
 if ($action === 'import' && $method !== 'POST') {
@@ -108,10 +109,9 @@ $allowed = ($action === 'import') ? $canManage : $canView;
 if (!$allowed) {
     ctcfFail(403, 'no_right', 'The ' . $needed . ' right is required');
 }
-if ($action === 'import') {
-    // This endpoint WRITES: an expired tab must not keep importing definitions.
-    bffEnforceSession($db);
-}
+// Every route is a live session operation: an expired tab must not keep
+// reading/exporting/importing definitions (legacy testlinkInitPage parity).
+bffEnforceSession($db);
 
 if ($action === 'info') {
     ctcfOut(array(
@@ -129,6 +129,63 @@ if ($action === 'info') {
         'fields' => ctcfFieldNames(),
         'filename' => 'customFields.xml',
     ));
+}
+
+if ($action === 'usage') {
+    $tables = tlObjectWithDB::getDBTables(array('custom_fields', 'cfield_node_types',
+        'cfield_testprojects', 'cfield_design_values', 'cfield_execution_values',
+        'cfield_testplan_design_values', 'cfield_build_design_values', 'node_types'));
+    $sql = " SELECT CF.id, CF.name, CF.label, CF.type, " .
+           "        GROUP_CONCAT(DISTINCT NT.description ORDER BY NT.description SEPARATOR ', ') AS node_types, " .
+           "        (SELECT COUNT(*) FROM {$tables['cfield_testprojects']} TP " .
+           "          WHERE TP.field_id = CF.id) AS projects, " .
+           "        (SELECT COUNT(*) FROM {$tables['cfield_design_values']} DV " .
+           "          WHERE DV.field_id = CF.id) AS design_values, " .
+           "        (SELECT COUNT(*) FROM {$tables['cfield_execution_values']} EV " .
+           "          WHERE EV.field_id = CF.id) AS execution_values, " .
+           "        (SELECT COUNT(*) FROM {$tables['cfield_testplan_design_values']} TV " .
+           "          WHERE TV.field_id = CF.id) AS plan_values, " .
+           "        (SELECT COUNT(*) FROM {$tables['cfield_build_design_values']} BV " .
+           "          WHERE BV.field_id = CF.id) AS build_values " .
+           " FROM {$tables['custom_fields']} CF " .
+           " LEFT JOIN {$tables['cfield_node_types']} CNT ON CNT.field_id = CF.id " .
+           " LEFT JOIN {$tables['node_types']} NT ON NT.id = CNT.node_type_id " .
+           " GROUP BY CF.id, CF.name, CF.label, CF.type " .
+           " ORDER BY CF.name ";
+    $rs = $db->get_recordset($sql);
+    $rows = array();
+    $totals = array('fields' => 0, 'linked_projects' => 0, 'design_values' => 0,
+                    'execution_values' => 0, 'plan_values' => 0, 'build_values' => 0,
+                    'unused' => 0);
+    if ($rs) {
+        while ($row = $rs->FetchRow()) {
+            $values = (int)$row['design_values'] + (int)$row['execution_values'] +
+                      (int)$row['plan_values'] + (int)$row['build_values'];
+            $item = array(
+                'id' => (int)$row['id'],
+                'name' => (string)$row['name'],
+                'label' => (string)$row['label'],
+                'type' => (int)$row['type'],
+                'node_types' => (string)($row['node_types'] ?? ''),
+                'projects' => (int)$row['projects'],
+                'design_values' => (int)$row['design_values'],
+                'execution_values' => (int)$row['execution_values'],
+                'plan_values' => (int)$row['plan_values'],
+                'build_values' => (int)$row['build_values'],
+                'values_total' => $values,
+                'verdict' => ($values > 0) ? 'used' : 'unused',
+            );
+            $rows[] = $item;
+            $totals['fields']++;
+            $totals['linked_projects'] += $item['projects'];
+            $totals['design_values'] += $item['design_values'];
+            $totals['execution_values'] += $item['execution_values'];
+            $totals['plan_values'] += $item['plan_values'];
+            $totals['build_values'] += $item['build_values'];
+            if ($values === 0) { $totals['unused']++; }
+        }
+    }
+    ctcfOut(array('status' => 'ok', 'rows' => $rows, 'totals' => $totals));
 }
 
 if ($action === 'export') {
@@ -180,7 +237,6 @@ if ($raw === false || $raw === '') {
 // LIBXML_NONET + no entity loader: the legacy wrapper called die() on parse
 // errors and documented XXE as a risk; this route always answers JSON.
 $previous = libxml_use_internal_errors(true);
-libxml_disable_entity_loader(true);
 $xml = simplexml_load_string($raw, 'SimpleXMLElement', LIBXML_NONET | LIBXML_NOCDATA);
 libxml_clear_errors();
 libxml_use_internal_errors($previous);
@@ -189,6 +245,7 @@ if ($xml === false || !isset($xml->custom_field)) {
 }
 
 $cfieldMgr = new cfield_mgr($db);
+$allowedNodeTypes = array_map('intval', array_values($cfieldMgr->get_allowed_nodes()));
 $writable = ctcfWritableNames();
 $created = array();
 $skipped = array();
@@ -216,6 +273,10 @@ foreach ($xml->custom_field as $cf) {
         $values[$key] = isset($cf->$key) ? (string)$cf->$key : '';
     }
     $values['name'] = $name;
+    if (!in_array($values['node_type_id'], $allowedNodeTypes, true)) {
+        $failed[] = array('name' => $name, 'message' => 'Invalid node type');
+        continue;
+    }
     if ($values['label'] === '') { $values['label'] = $name; }
     foreach (array('type', 'node_type_id', 'show_on_design', 'enable_on_design',
                    'show_on_execution', 'enable_on_execution',
