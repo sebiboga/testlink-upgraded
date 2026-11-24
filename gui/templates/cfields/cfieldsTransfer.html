@@ -171,6 +171,8 @@ function setMode(mode) {
   $('#exportSection').toggle(mode === 'export');
   $('#importSection').toggle(mode === 'import');
   if (mode === 'usage' && table) { table.columns.adjust().draw(); }
+  if (history.replaceState) { history.replaceState(null, '', '#' + mode); }
+  else { location.hash = mode; }
 }
 function showState(code, message) {
   $('#usageSection,#exportSection,#importSection').hide();
