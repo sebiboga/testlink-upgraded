@@ -275,3 +275,4 @@ $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect a
 
 $TLS_link_report_execution_flakiness = "Instabilitatea execuției"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
+$TLS_link_report_build_activity = "Activitatea execuțiilor pe builduri"; // Build execution activity report (Refs #2056)

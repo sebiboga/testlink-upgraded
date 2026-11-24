@@ -2987,3 +2987,4 @@ $TLS_link_report_defect_arrival_rate = "Tingkat kemunculan cacat"; // Defect arr
 
 $TLS_link_report_execution_flakiness = "Ketidakstabilan Eksekusi"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
+$TLS_link_report_build_activity = "Aktivitas eksekusi build"; // Build execution activity report (Refs #2056)

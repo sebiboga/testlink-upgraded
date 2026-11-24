@@ -2881,6 +2881,12 @@ function getActions(&$gui,$baseURL) {
   $actions->buildTrend =
     "/gui/templates/results/buildTrend.html?{$ctx}";
 
+  // Refs #2056: Build Execution Activity (net-new per-build activity report).
+  // buildTrend shows the latest-status snapshot; this report groups all
+  // execution events of the plan by build (result mix, testers, duration).
+  $actions->buildActivity =
+    "/gui/templates/results/buildActivity.html?{$ctx}";
+
   // Refs #1992: Test Plan Platform Coverage Matrix (net-new cross-platform
   // report). platformComparison diffs two platforms and resultsByBuild shows
   // per-build snapshots; neither answers "which assigned test cases pass on

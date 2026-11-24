@@ -425,6 +425,11 @@ if ($tplan_id > 0) {
                 // per-build snapshot + delta against the previous active build).
                 $hrefR = '/gui/templates/results/buildTrend.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_build_activity') {
+                // Refs #2056: Build Execution Activity (per-build execution
+                // events: result mix, testers, duration and idle gap).
+                $hrefR = '/gui/templates/results/buildActivity.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_platform_matrix') {
                 // Refs #1992: Test Plan Platform Coverage Matrix (platforms as
                 // columns, assigned test cases as rows, latest result per cell).

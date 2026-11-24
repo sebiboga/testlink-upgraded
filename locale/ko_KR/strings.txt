@@ -2539,3 +2539,4 @@ $TLS_link_report_defect_arrival_rate = "결함 발생률"; // Defect arrival rat
 
 $TLS_link_report_execution_flakiness = "실행 불안정성"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
+$TLS_link_report_build_activity = "빌드 실행 활동"; // Build execution activity report (Refs #2056)
