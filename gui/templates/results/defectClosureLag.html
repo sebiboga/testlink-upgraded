@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Defect Closure Lag</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select, .toolbar input { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 190px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 120px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.clear { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.at_risk { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { margin-left: auto; font-size: 12px; font-weight: 400; color: #667; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.bug a, td.bug span.link { color: #259b93; font-weight: 700; text-decoration: none; cursor: pointer; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-escaped, .badge-failed, .badge-blocked { background: #f5c6cb; color: #b94a48; }
+.badge-unverified, .badge-watch { background: #ffecb5; color: #856404; }
+.badge-verified, .badge-passed, .badge-clear { background: #d4edda; color: #155724; }
+.badge-no_data, .badge-not_run { background: #e9ecef; color: #555; }
+.empty, .state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i, .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.modal-header { background: #22242a; color: #fff; border-bottom: none; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 16px; }
+.modal-body { padding: 16px 20px; }
+.detail-meta { font-size: 12px; color: #667; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="header"><i class="fa fa-clock-rotate-left" style="margin-right:8px;"></i>
+  <span data-i18n="dcl.header">Test Plan Defect Closure Lag</span>
+  <span class="sub" data-i18n="dcl.subtitle">time from linked defect to later passing evidence</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+<div class="toolbar">
+  <span class="ctx" data-i18n="dcl.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="dcl.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="buildFilter" data-i18n="dcl.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="dcl.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="dcl.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="dcl.allPlatforms">All platforms</option></select>
+  <label for="verdictFilter" data-i18n="dcl.verdictFilter">Verdict</label>
+  <select id="verdictFilter">
+    <option value="all" data-i18n="dcl.verdictAll">All defects</option>
+    <option value="verified" data-i18n="dcl.verdictVerified">Verified only</option>
+    <option value="unverified" data-i18n="dcl.verdictUnverified">Unverified only</option>
+    <option value="escaped" data-i18n="dcl.verdictEscaped">Escaped only</option>
+  </select>
+  <label for="bugFilter" data-i18n="dcl.bugId">Defect ID</label>
+  <input id="bugFilter" type="text" maxlength="64" size="12">
+  <label for="agedFilter" data-i18n="dcl.agedOnly">Aged open only</label>
+  <select id="agedFilter">
+    <option value="0" data-i18n="dcl.no">No</option>
+    <option value="1" data-i18n="dcl.yes">Yes</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="dcl.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="dcl.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="dcl.close">Close</span></button>
+</div>
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiDefects">0</div><div class="l" data-i18n="dcl.kpiDefects">Linked defects</div></div>
+  <div class="kpi teal"><div class="v" id="kpiLinks">0</div><div class="l" data-i18n="dcl.kpiLinks">Bug links</div></div>
+  <div class="kpi teal"><div class="v" id="kpiVerified">0</div><div class="l" data-i18n="dcl.kpiVerified">Verified links</div></div>
+  <div class="kpi alert"><div class="v" id="kpiUnverified">0</div><div class="l" data-i18n="dcl.kpiUnverified">Open links</div></div>
+  <div class="kpi alert"><div class="v" id="kpiEscaped">0</div><div class="l" data-i18n="dcl.kpiEscaped">Escaped links</div></div>
+  <div class="kpi teal"><div class="v" id="kpiAvgLag">-</div><div class="l" data-i18n="dcl.kpiAvgLag">Avg closure days</div></div>
+  <div class="kpi"><div class="v" id="kpiMaxLag">0</div><div class="l" data-i18n="dcl.kpiMaxLag">Max closure days</div></div>
+  <div class="kpi alert"><div class="v" id="kpiAged">0</div><div class="l" data-i18n="dcl.kpiAged">Aged open defects</div></div>
+  <div class="kpi"><div class="v" id="kpiRate">0%</div><div class="l" data-i18n="dcl.kpiRate">Verification rate</div></div>
+  <div class="kpi"><div class="v" id="kpiCases">0</div><div class="l" data-i18n="dcl.kpiCases">Affected cases</div></div>
+  <div class="kpi"><div class="v" id="kpiBuilds">0</div><div class="l" data-i18n="dcl.kpiBuilds">Builds in scope</div></div>
+  <div class="kpi"><div class="v" id="kpiPlatforms">0</div><div class="l" data-i18n="dcl.kpiPlatforms">Platforms in scope</div></div>
+</div>
+<div class="verdict" id="verdictBox" role="status" aria-live="polite"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox" aria-live="polite"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" role="status" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.defectClosureLag">TestLink 2.0.1 - Test Plan Defect Closure Lag</span></div>
+<div class="toast" id="toast" role="alert"></div>
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header"><h4 class="modal-title" id="detailTitle" data-i18n="dcl.detailTitle">Defect closure evidence</h4>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>
+    <div class="modal-body" id="detailBody"></div>
+  </div></div>
+</div>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id')) || 0;
+var tproject_id = parseInt(params.get('tproject_id')) || 0;
+var STATE = { rows: [], kpi: {}, context: {}, dt: null, seq: 0, detailSeq: 0 };
+var API = '/api/defectclosurelag/index.php';
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) { var v = TLi18n.t(key); return (v && v !== key) ? v : (fallback || key); }
+function days(value) { return (value === null || value === undefined || value === '') ? '-' : value + ' ' + t('dcl.days','days'); }
+function toast(msg, isErr) {
+  var $el = $('#toast').text(msg).show();
+  $el.toggleClass('err', !!isErr);
+  setTimeout(function() { $el.fadeOut(300); }, 3000);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty().removeClass('clear watch at_risk');
+  $('#kpis').hide(); $('#footerInfo').empty(); $('#btnExport').prop('disabled', true);
+}
+function showState(code) {
+  $('#loadingBox').hide();
+  if (code === 'session_expired' || code === 'not_authenticated') {
+    window.location.assign('/login.php?note=expired'); return;
+  }
+  resetView();
+  var map = {
+    invalid_request: ['dcl.errBadRequest', 'Invalid request', 'dcl.errBadRequestBody', 'The report parameters are not valid.'],
+    no_right: ['dcl.errNoRight', 'No permission', 'dcl.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
+    tplan_not_found: ['dcl.errNotFound', 'Test plan not found', 'dcl.errNotFoundBody', 'The requested test plan does not exist.'],
+    defect_not_found: ['dcl.errDefectNotFound', 'Defect not found', 'dcl.errDefectNotFoundBody', 'This defect is not linked in the selected scope.'],
+    project_mismatch: ['dcl.errMismatch', 'Wrong test project', 'dcl.errMismatchBody', 'This test plan belongs to another test project.'],
+    method_not_allowed: ['dcl.errMethod', 'Method not allowed', 'dcl.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['dcl.errGeneric', 'Could not load the report', 'dcl.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+    esc(t(m[0],m[1])) + '</h4><p>' + esc(t(m[2],m[3])) + '</p><p>' +
+    esc(t('dcl.code','Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function filterParams(action) {
+  return { action: action || 'report', tplan_id: tplan_id, tproject_id: tproject_id,
+    build_id: parseInt($('#buildFilter').val(),10) || 0,
+    platform_id: parseInt($('#platformFilter').val(),10) || 0,
+    verdict: $('#verdictFilter').val() || 'all',
+    bug_id: $.trim($('#bugFilter').val() || ''),
+    aged: $('#agedFilter').val() || '0' };
+}
+function fillSelect($sel, items, allKey, fallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, fallback)));
+  (items || []).forEach(function(x) { $sel.append($('<option>').val(x.id).text(x.name)); });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  var initData = { action:'init', tplan_id:tplan_id, tproject_id:tproject_id,
+    build_id: parseInt(params.get('build_id'),10) || 0,
+    platform_id: parseInt(params.get('platform_id'),10) || 0,
+    verdict: params.get('verdict') || 'all',
+    bug_id: (params.get('bug_id') || '').substring(0,64),
+    aged: params.get('aged') === '1' ? '1' : '0' };
+  $.ajax({ url: API, data: initData, dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      if (d.status === 'error') { $('#loadingBox').hide(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      fillSelect($('#buildFilter'), (d.filters||{}).builds, 'dcl.allBuilds', 'All builds');
+      fillSelect($('#platformFilter'), (d.filters||{}).platforms, 'dcl.allPlatforms', 'All platforms');
+      var fe = d.filter || {};
+      if (fe.build_id) { $('#buildFilter').val(String(fe.build_id)); }
+      if (fe.platform_id) { $('#platformFilter').val(String(fe.platform_id)); }
+      if (fe.verdict) { $('#verdictFilter').val(fe.verdict); }
+      if (fe.bug_id) { $('#bugFilter').val(fe.bug_id); }
+      if (fe.aged) { $('#agedFilter').val(fe.aged); }
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      loadReport();
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); }
+  });
+}
+function loadReport() {
+  var seq = ++STATE.seq;
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({ url: API, data: filterParams('report'), dataType:'json',
+    success: function(d) {
+      if (seq !== STATE.seq) return;
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || []; STATE.kpi = d.kpi || {};
+      var s = STATE.kpi;
+      $('#kpiDefects').text(s.defects || 0); $('#kpiLinks').text(s.links || 0);
+      $('#kpiVerified').text(s.verified || 0); $('#kpiUnverified').text(s.unverified || 0);
+      $('#kpiEscaped').text(s.escaped || 0); $('#kpiAvgLag').text(days(s.avg_lag_days));
+      $('#kpiMaxLag').text(s.max_lag_days || 0); $('#kpiAged').text(s.aged_open || 0);
+      $('#kpiRate').text((s.verification_rate || 0) + '%'); $('#kpiCases').text(s.affected_cases || 0);
+      $('#kpiBuilds').text(s.builds || 0); $('#kpiPlatforms').text(s.platforms || 0);
+      $('#kpis').show();
+      var vmap = {
+        no_data: ['dcl.verdictNoData', 'No defect links are available in this scope.', ''],
+        at_risk: ['dcl.verdictRisk', 'Escaped defects or aged open defects need attention.', 'at_risk'],
+        watch: ['dcl.verdictWatch', 'Some linked defects still have no later passing execution.', 'watch'],
+        clear: ['dcl.verdictClear', 'Every linked defect has later passing evidence.', 'clear']
+      };
+      var v = vmap[s.verdict] || vmap.no_data;
+      $('#verdictBox').addClass(v[2] || '').html('<i class="fa fa-circle-info"></i> ' + esc(t(v[0],v[1]))).show();
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i>' + esc(t('dcl.empty','No defects match this filter.'))).show();
+        return;
+      }
+      renderTable();
+      $('#btnExport').prop('disabled', false);
+      $('#footerInfo').text(t('dcl.generatedOn','Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) { if (seq !== STATE.seq) return; $('#loadingBox').hide(); showState((xhr.responseJSON||{}).code || 'error'); toast(t('dcl.toastError','Error loading data'), true); }
+  });
+}
+function badge(value) {
+  return '<span class="badge badge-' + esc(value) + '">' + esc(t('dcl.v.' + value, value)) + '</span>';
+}
+function renderTable() {
+  $('#reportArea').html('<div class="section"><div class="section-head"><i class="fa fa-stopwatch"></i> ' +
+    esc(t('dcl.tableTitle','Defect closure timing')) + '<span class="bmeta">' +
+    esc(t('dcl.rowCount','Defects')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('dcl.colBug','Defect ID'), data: 'bug_id', className:'bug',
+        render: function(data,type) { return type === 'display' ? '<span class="link" role="button" tabindex="0" data-bug="' + esc(data) + '">' + esc(data) + '</span>' : data; } },
+      { title: t('dcl.colVerdict','Verdict'), data: 'verdict', render: function(data,type) { return type === 'display' ? badge(data) : data; } },
+      { title: t('dcl.colLinks','Links'), data: 'links' },
+      { title: t('dcl.colVerified','Verified'), data: 'verified' },
+      { title: t('dcl.colUnverified','Open'), data: 'unverified' },
+      { title: t('dcl.colEscaped','Escaped'), data: 'escaped' },
+      { title: t('dcl.colAvgLag','Avg days'), data: 'avg_lag_days', render: function(data,type) { return type === 'display' ? days(data) : (data === null ? '' : data); } },
+      { title: t('dcl.colMaxLag','Max days'), data: 'max_lag_days', render: function(data,type) { return type === 'display' ? days(data) : (data === null ? '' : data); } },
+      { title: t('dcl.colOpenDays','Open days'), data: 'open_days', render: function(data,type) { return type === 'display' ? days(data) : data; } },
+      { title: t('dcl.colAged','Aged'), data: 'aged_open', render: function(data,type) { return type === 'display' ? badge(data ? 'watch' : 'clear') : data; } },
+      { title: t('dcl.colCases','Cases'), data: 'case_count' },
+      { title: t('dcl.colBuilds','Builds'), data: 'builds', render: function(data,type) { return type === 'display' ? esc((data||[]).join(', ')) : (data||[]).join(', '); } },
+      { title: t('dcl.colPlatforms','Platforms'), data: 'platforms', render: function(data,type) { return type === 'display' ? esc((data||[]).join(', ')) : (data||[]).join(', '); } }
+    ],
+    order: [],
+    pageLength: 25,
+    language: {
+      search: t('common.filter','Filter') + ':',
+      lengthMenu: t('common.showEntries','Show') + ' _MENU_ ' + t('common.entries','entries'),
+      info: t('common.pageInfo','Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('dcl.infoEmpty','No entries'),
+      zeroRecords: t('dcl.zeroRecords','No matching defects'),
+      paginate: { previous: t('common.prev','Previous'), next: t('common.next','Next') },
+      aria: {
+        sortAscending: ' ' + t('dt.aria.sortAscending','activate to sort column ascending'),
+        sortDescending: ' ' + t('dt.aria.sortDescending','activate to sort column descending')
+      },
+      emptyTable: t('dcl.empty','No defects match this filter.')
+    }
+  });
+  $('#dtResults').on('click', '.link', function() { showDetails($(this).attr('data-bug'), this); });
+  $('#dtResults').on('keydown', '.link', function(e) {
+    if (e.which === 13 || e.which === 32) { e.preventDefault(); showDetails($(this).attr('data-bug'), this); }
+  });
+}
+var detailTrigger = null;
+function dclBackgroundInert(on) {
+  $('.header, .toolbar, #loadingBox, #stateBox, #kpis, #verdictBox, #reportArea, #emptyBox, .footer, #toast').each(function () {
+    if (on) { this.setAttribute('inert', 'inert'); this.setAttribute('aria-hidden', 'true'); }
+    else { this.removeAttribute('inert'); this.removeAttribute('aria-hidden'); }
+  });
+}
+function showDetails(bugId, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  var p = filterParams('detail'); p.bug_id = bugId;
+  var dseq = ++STATE.detailSeq;
+  $('#detailBody').html('<i class="fa fa-circle-notch"></i> ' + esc(t('common.loading','Loading...')));
+  $('#detailModal').modal('show');
+  $.ajax({ url: API, data: p, dataType:'json',
+    success: function(d) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if (d.status === 'error') {
+        $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+          esc(t('dcl.toastError','Error loading data')) + '</h4><p><code>' + esc(d.code) + '</code></p></div>');
+        return;
+      }
+      var b = d.defect || {};
+      var html = '<div class="detail-meta">' + esc(b.bug_id || '') + ' &mdash; ' + badge(b.verdict) +
+        ' &mdash; ' + esc(t('dcl.colRate','Verification rate')) + ': ' + esc(b.verification_rate) + '%</div>' +
+        '<table class="flat"><tbody>' +
+        '<tr><th>' + esc(t('dcl.colLinks','Links')) + '</th><td>' + esc(b.links) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colVerified','Verified')) + '</th><td>' + esc(b.verified) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colUnverified','Open')) + '</th><td>' + esc(b.unverified) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colEscaped','Escaped')) + '</th><td>' + esc(b.escaped) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colAvgLag','Avg days')) + '</th><td>' + esc(days(b.avg_lag_days)) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colOpenDays','Open days')) + '</th><td>' + esc(days(b.open_days)) + '</td></tr>' +
+        '<tr><th>' + esc(t('dcl.colCases','Cases')) + '</th><td>' + esc((b.cases||[]).join(', ')) + '</td></tr>' +
+        '</tbody></table>';
+      var ev = b.evidence || [];
+      if (!ev.length) {
+        html += '<div class="empty">' + esc(t('dcl.emptyEvidence','No link evidence recorded in this scope.')) + '</div>';
+      } else {
+        html += '<table class="flat"><thead><tr><th>' + esc(t('dcl.colCase','Test case')) + '</th><th>' +
+          esc(t('dcl.colLinkResult','Link result')) + '</th><th>' + esc(t('dcl.colVerification','Verification')) + '</th><th>' +
+          esc(t('dcl.colTs','Link time')) + '</th><th>' + esc(t('dcl.colBuild','Build')) + '</th><th>' +
+          esc(t('dcl.colPlatform','Platform')) + '</th><th>' + esc(t('dcl.colLag','Closure days')) + '</th><th>' +
+          esc(t('dcl.colFollowup','Later pass')) + '</th><th>' + esc(t('dcl.colNotes','Notes')) + '</th></tr></thead><tbody>';
+        ev.forEach(function(e) {
+          html += '<tr><td>' + esc(e.external_id) + ' ' + esc(e.tcase) + '</td><td>' + badge(e.status) +
+            '</td><td>' + badge(e.verification) + '</td><td>' + esc(e.ts) + '</td><td>' + esc(e.build) +
+            '</td><td>' + esc(e.platform) + '</td><td>' + esc(days(e.lag_days !== null ? e.lag_days : e.open_days)) +
+            '</td><td>' + esc([e.followup_ts,e.followup_build,e.followup_platform,e.followup_tester].filter(Boolean).join(' / ')) +
+            '</td><td>' + esc(e.notes) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+      }
+      $('#detailBody').html(html);
+      TLi18n.apply($('#detailBody')[0]);
+    },
+    error: function(xhr) {
+      if (dseq !== STATE.detailSeq) { return; }
+      if ((xhr.status || 0) === 401) { $('#detailModal').modal('hide'); showState('not_authenticated'); return; }
+      $('#detailBody').html('<div class="state"><i class="fa fa-triangle-exclamation"></i><h4>' +
+        esc(t('dcl.toastError','Error loading data')) + '</h4><p><code>' +
+        esc((xhr.responseJSON||{}).code || 'error') + '</code></p></div>');
+    }
+  });
+}
+function exportCsv() {
+  $.ajax({ url: API, data: filterParams('csv'), dataType:'json',
+    success: function(d) {
+      if (d.status !== 'ok' || !d.csv) { toast(t('dcl.toastError','Error loading data'), true); return; }
+      var url = URL.createObjectURL(new Blob([d.csv], { type:'text/csv;charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = 'defect-closure-lag-' + tplan_id + '.csv';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    },
+    error: function(xhr) { toast(t('dcl.toastError','Error loading data') + ': ' + ((xhr.responseJSON||{}).code || 'error'), true); }
+  });
+}
+$(function() {
+  $('#btnRefresh').on('click', loadReport);
+  $('#btnExport').on('click', exportCsv);
+  $('#detailModal').on('shown.bs.modal', function () {
+    dclBackgroundInert(true);
+    $(this).trigger('focus');
+  }).on('hidden.bs.modal', function () {
+    dclBackgroundInert(false);
+    var trigger = detailTrigger;
+    detailTrigger = null;
+    setTimeout(function () { if (trigger && trigger.length) { trigger.trigger('focus'); } }, 0);
+  }).on('keydown', function (e) {
+    if (e.which !== 9) { return; }
+    var sel = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    var f = $(this).find(sel).filter(':visible');
+    if (!f.length) { e.preventDefault(); return; }
+    var first = f.first()[0], last = f.last()[0], outside = !this.contains(document.activeElement);
+    if (e.shiftKey && (outside || document.activeElement === first || document.activeElement === this)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (outside || document.activeElement === last || document.activeElement === this)) { e.preventDefault(); first.focus(); }
+  });
+  $('#buildFilter, #platformFilter, #verdictFilter, #bugFilter, #agedFilter').on('change', loadReport);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action:'close' }, window.location.origin); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    $('#detailModal .close').attr('aria-label', t('dcl.close', 'Close'));
+    document.title = t('footers.defectClosureLag', 'TestLink 2.0.1 - Test Plan Defect Closure Lag');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
