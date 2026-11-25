@@ -49554,3 +49554,36 @@ Environment: branch `sebiboga`, app http://localhost:8082 (admin/admin), DB `tes
 | 26 | Lower-privilege user path | BFF right check before project lookup + AUDIT logging reviewed in code review; not exercised with a second browser user in this run | REVIEWED |
 
 Summary: 25 PASS, 1 REVIEWED. No open bugs from this suite (#2062 fixed and closed). Screenshots: normal state, detail modal and German locale captured for wiki.
+
+## Issue #2063 — Test Plan Defect Closure Lag (`defectClosureLag`) — net-new BFF `api/defectclosurelag` + Dashio screen
+
+Fixture: `tmp/fixtures_2044.php` re-imported into the fresh DB (`tproject_id=1` DVG2044, `tplan_id=2` DVG Plan, 4 defects / 5 links / 2 verified / 2 unverified / 1 escaped, blank plan id 3).
+
+| # | Test case | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=init&tplan_id=2&tproject_id=1` | 200 `ok`, plan/build/platform context and default filters | PASS |
+| 2 | `GET ?action=report&tplan_id=2&tproject_id=1` | 200 `ok`, KPI 4 defects / 5 links / 2 verified / 2 unverified / 1 escaped / 4 avg days / 3 affected cases / verdict `at_risk` | PASS |
+| 3 | Browser deep link `?tproject_id=1&tplan_id=2` | 12 KPI cards, verdict banner, 13-column DataTable with 4 defect rows, no raw i18n keys | PASS |
+| 4 | Click `BUG-1` row | Evidence modal with verified verdict, 100% rate, failed link and later pass timestamp/build/tester | PASS |
+| 5 | Close evidence modal | Modal closes and focus returns to trigger button | PASS |
+| 6 | Verdict filter = `Verified only` | 2 rows, all Verdict=Verified, `Defects: 2`, no stale rows | PASS |
+| 7 | API `?verdict=verified` | 2 rows, all `verdict=="verified"` | PASS |
+| 8 | API `?aged=1` | 0 aged-open rows on this fixture (23/21-day open links are below default 30-day threshold) | PASS |
+| 9 | `GET ?action=detail&tplan_id=2&bug_id=BUG-2` | 200 `ok`, defect verdict `verified`, avg 4 days, evidence rows | PASS |
+| 10 | `GET ?action=csv&tplan_id=2` | 200 `ok`, 4 rows, CSV starts with UTF-8 BOM + `bug_id` header | PASS |
+| 11 | Browser Export CSV | Blob download named `defect-closure-lag-*.csv`, BOM + `;` header | PASS |
+| 12 | Browser Refresh with active filter | Same filters retained, filtered KPIs/table repainted | PASS |
+| 13 | Build/platform/defect-id filters | Build and platform dropdowns populated; defect-id input + aged select present and trigger re-query | PASS |
+| 14 | No session cookie | HTTP 401 `not_authenticated` | PASS |
+| 15 | Invalid `action=nope` | HTTP 400 `invalid_request` | PASS |
+| 16 | Unknown `tplan_id=999` | HTTP 404 `tplan_not_found` | PASS |
+| 17 | Cross-project `tproject_id=999` | HTTP 404 `project_mismatch` | PASS |
+| 18 | Invalid `build_id=x` | HTTP 400 `invalid_request` | PASS |
+| 19 | `POST ?action=report` with same-origin header | HTTP 405 `method_not_allowed` (without Origin header the same-origin guard returns 403 first) | PASS |
+| 20 | Lower-privilege user path | `testplan_metrics` checked on owning project before client assertion and denials logged; second user login failed in this run, so browser 403 not exercised | REVIEWED |
+| 21 | Server/client i18n | Gate `bash ai/verify_i18n_coverage.sh` 9/9 (13357 keys); `$TLS_link_report_defect_closure_lag` present in all 19 locale files; no raw `dcl.*` in bundles | PASS |
+| 22 | PHP/JS syntax | `php -l` clean on all touched PHP files; `node --check` clean on extracted screen script | PASS |
+| 23 | Console messages on loaded screen/filter/modal | No new errors/warnings | PASS |
+| 24 | Event Viewer / `events` table after test | No Error/Warning rows in last 30 minutes | PASS |
+
+Summary: 23 PASS, 1 REVIEWED. Screenshots: normal state, evidence modal, Verified-only filter (`docs/screenshots/issue-2063-defectclosurelag-*.png`). No bugs filed from this suite.
