@@ -217,6 +217,7 @@ $bff = function ($action) use ($db, $user) {
             'step_execution_results' => 'gui/templates/results/stepExecutionResults.html',
             'step_failure_hotspots' => 'gui/templates/results/stepFailureHotspots.html',
             'defect_verification' => 'gui/templates/results/defectVerification.html',
+            'defect_closure_lag' => 'gui/templates/results/defectClosureLag.html',
             // Refs #2047: Requirement Traceability Gaps.
             'requirement_traceability_gaps' => 'gui/templates/results/reqTraceabilityGaps.html',
             // Refs #2031: Test Plan Defect Arrival Rate.

@@ -872,6 +872,13 @@ $tlCfg->reports_list['defect_verification'] = array(
 	'format' => 'format_html'
 );
 
+$tlCfg->reports_list['defect_closure_lag'] = array(
+	'title' => 'link_report_defect_closure_lag',
+	'url' => 'gui/templates/results/defectClosureLag.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
 // defects referenced by one plan's executions, grouped by day.
 $tlCfg->reports_list['defect_arrival_rate'] = array(

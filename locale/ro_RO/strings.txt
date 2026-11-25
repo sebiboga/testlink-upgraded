@@ -270,6 +270,7 @@ $TLS_link_report_defect_severity = "Distribuția severității defectelor"; // D
 $TLS_link_report_step_execution_results = "Rezultatele execuției pașilor"; // Step execution results report (Refs #2024)
 $TLS_link_report_step_failure_hotspots = "Step Failure Hotspots"; // Step failure hotspots report (Refs #2042)
 $TLS_link_report_defect_verification = "Defect Verification Gap"; // Defect verification gap report (Refs #2044)
+$TLS_link_report_defect_closure_lag = "Întârzierea închiderii defectelor";
 
 $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect arrival rate report (Refs #2031)
 

@@ -2785,6 +2785,8 @@ function getActions(&$gui,$baseURL) {
   // Linked defects with missing, later or contradictory execution evidence.
   $actions->defectVerification =
     "/gui/templates/results/defectVerification.html?{$ctx}";
+  $actions->defectClosureLag =
+    "/gui/templates/results/defectClosureLag.html?{$ctx}";
 
   // Refs #2047: Requirement Traceability Gaps (net-new screen).
   // Open, stale and closed requirement-to-test-case links.
