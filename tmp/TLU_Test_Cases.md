@@ -49519,3 +49519,38 @@ Fixture: `php tmp/fixtures_2044.php` (project DVG2044 id 1, plan 2, empty plan 3
 2056.26 — PASS: docs mirror and wiki page written with the same prose (wiki adds the screenshot lines), CHANGELOG and `docs/MODERNIZATION-STATUS.md` updated, and the wiki clone rebased before editing.
 
 2056.27 — PASS: second code-review gate found one blocker (orphan build IDs were rejected before `$rowBuilds` was built) and two should-fix items (build-filtered reports still emitted zeroed rows for unrelated builds; `bact.kpiDefects` / `bact.kpiLastActivity` were English in 8 bundles). Fixed by moving the build lookup after `$rowBuilds` construction, narrowing `$rowBuilds` to the selected build and translating both KPI labels in every bundle. Re-verified: `report&build_id=2` returns 1 row / `summary.builds=1`, `report&build_id=999999` returns the orphan history row, `detail&build_id=999999` returns `detail_total=1`, and the i18n gate is still 9/9.
+
+## Issue #2061 — Project Build Inventory (`buildInventory`) — net-new BFF `api/buildinventory` + Dashio screen
+
+Environment: branch `sebiboga`, app http://localhost:8082 (admin/admin), DB `testlink`. Fixtures: project `INV:Inventory Demo` (id 1001), plan `Release 2.0` (1002), builds `v2.0-beta` (2001, active/open), `v2.0-rc1` (2002, active/closed), `v1.9-legacy` (2003, inactive/closed); 5 executions (3 pass, 1 fail, 1 blocked) and 2 distinct linked defect IDs (BUG-42 duplicated on 2 steps, BUG-43). Bug #2062 found during testing and fixed in `81b50229b` (closed after verification).
+
+| # | Test case | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=projects` with admin session | 200 `ok`, project 1001 listed once | PASS |
+| 2 | `GET ?action=init&tproject_id=1001` | 200 `ok`, one plan named `Release 2.0` | PASS |
+| 3 | `GET ?action=report&tproject_id=1001` | 200 `ok`, 3 rows, KPI builds=3, executions=5, passed=3, failed=1, blocked=1, defects=2, pass rate=60%, verdict `at_risk` | PASS |
+| 4 | `?state=active` | 2 rows (beta, rc1), executions=4, verdict `at_risk` | PASS |
+| 5 | `?open=closed` | 2 rows (rc1, legacy), executions=3, verdict `watch` | PASS |
+| 6 | `?state=active&open=open&plan_id=1002` | 1 row (beta), executions=2, pass rate 50%, defects=1 | PASS |
+| 7 | `?plan_id=999999` | HTTP 404 `plan_not_found` | PASS |
+| 8 | `?tproject_id=999999` | HTTP 404 `tproject_not_found` (right checked before existence lookup) | PASS |
+| 9 | `?action=detail&tproject_id=1001&build_id=2001` | 200 `ok`, 2 executions newest-first; duplicate BUG-42 rows count once | PASS |
+| 10 | `?action=detail&build_id=2003` when report filtered to `state=active` | 200 `ok`, 1 execution returned (filtered-out build detail still resolves) | PASS |
+| 11 | `?action=detail&build_id=999999` | HTTP 404 `build_not_found` | PASS |
+| 12 | `?state=bogus`, `?action=bogus` | HTTP 400 `invalid_request` | PASS |
+| 13 | `POST ?action=projects` | HTTP 405 `method_not_allowed`, `Allow: GET, HEAD` | PASS |
+| 14 | No session cookie | HTTP 401 `not_authenticated` | PASS |
+| 15 | Cross-origin `Origin: http://evil.example` | Rejected by same-origin guard (no data) | PASS |
+| 16 | Screen deep link `?tproject_id=1001&tplan_id=1002` | 18-column DataTable, 3 build rows, 11 KPI cards, localized banner `At risk: 1 failed executions` with no raw `{failed}` placeholder, no raw i18n keys | PASS |
+| 17 | Plan/state/availability selects + Apply | Inactive filter reduces table to `v1.9-legacy`, KPIs builds=1/pass rate=100%; plan `All plans` resets scope | PASS |
+| 18 | Detail button in filtered row | Bootstrap modal opens with `1 latest executions`, plan/test case/status columns, focus on Close; Close restores focus to trigger | PASS |
+| 19 | Refresh button | Report reloads with same filters and KPI values | PASS |
+| 20 | Export CSV button | Toast `CSV exported.`; CSV includes translated headers and resolved verdict text | PASS |
+| 21 | Language switch to German | All labels switch (title, filters, table headers, KPI cards, verdicts, footer); no untranslated `binv.*` keys | PASS |
+| 22 | Invalid deep link `?tproject_id=999999` | Error card `Not found` / `The requested test project does not exist.` with code `tproject_not_found`; CSV disabled | PASS |
+| 23 | Toolbar link from `buildsView.html` | Link opens `buildInventory.html?tplan_id=1002&tproject_id=1001`; plan preselected as `Release 2.0` | PASS |
+| 24 | Console messages on loaded screen | No new errors/warnings (intentional 404 error-state call logged only as expected) | PASS |
+| 25 | Event Viewer / `events` table after fix | No Error/Warning rows; two pre-fix DB errors from test case 1 were removed after fix | PASS |
+| 26 | Lower-privilege user path | BFF right check before project lookup + AUDIT logging reviewed in code review; not exercised with a second browser user in this run | REVIEWED |
+
+Summary: 25 PASS, 1 REVIEWED. No open bugs from this suite (#2062 fixed and closed). Screenshots: normal state, detail modal and German locale captured for wiki.
