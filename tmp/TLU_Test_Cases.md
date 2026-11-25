@@ -49587,3 +49587,53 @@ Fixture: `tmp/fixtures_2044.php` re-imported into the fresh DB (`tproject_id=1` 
 | 24 | Event Viewer / `events` table after test | No Error/Warning rows in last 30 minutes | PASS |
 
 Summary: 23 PASS, 1 REVIEWED. Screenshots: normal state, evidence modal, Verified-only filter (`docs/screenshots/issue-2063-defectclosurelag-*.png`). No bugs filed from this suite.
+
+## Issue #1960 — Resumption pass: Mantis requirement import bug fixes (2026-11-25)
+Refs #1960. Re-verification of the already-committed screen/BFF plus the three defects found in this run (#2064 302 shim, #2065 idle-session guard, #2066 Romanian labels). Fixture `tmp/fixtures_1960.php` recreated project RQMI1960 / spec RS-MANTIS-1960 and the role-3 user `rqmi1960norights`; sample export `tmp/fixtures_1960_mantis.xml`.
+
+### Test Case 1960r.1: Init and context
+- Open `reqMantisImport.html?req_spec_id=2&tproject_id=1&locale=en_GB` as admin.
+- Context shows `RQMI1960 / Mantis Import Spec`, max upload 10240 KB and the mapping note; the BFF `init` payload is 200 with `grants.mgt_view_req=1`, `grants.mgt_modify_req=1`.
+- Result: PASS
+
+### Test Case 1960r.2: First import
+- Upload the two-issue Mantis XML and click Import issues.
+- Result table has 2 rows: `Issue/Task:196001 - ...` / `Issue/Task:196002 - ...` with `Created`; toast "Requirements imported successfully"; DB contains requirements with docids `Mantis Task ID:196001/196002`.
+- Result: PASS
+
+### Test Case 1960r.3: Duplicate / FROZEN behaviour
+- Re-import the same file.
+- Both rows now report `Skipped ... is FROZEN`; no duplicate requirements are created; the success toast and result card remain visible.
+- Result: PASS
+
+### Test Case 1960r.4: EN/RO locale and interpolated labels
+- Open with `locale=ro` and re-import after the #2066 fix.
+- Header/footer/buttons are Romanian with no raw keys; result text reads `Problemă/Sarcină:196001 - ...` and `Ignorat - Cerință - ID document:Mantis Task ID:196001 - este ÎNGHEȚATĂ` (placeholders intact).
+- Result: PASS
+
+### Test Case 1960r.5: Permission and authentication paths
+- Role-3 user `rqmi1960norights`: screen shows "You do not have permission to modify requirements in this project." and `init` returns 403.
+- Anonymous: `init` returns 401 `Not authenticated`.
+- Result: PASS
+
+### Test Case 1960r.6: BFF error contract
+- `req_spec_id=0` → 400, unknown id → 404, unknown action → 400, POST without file → 400, legacy shim POST → 405 `modern_endpoint_only`; invalid spec deep link shows the "Requirement spec not found" state card and hides the form.
+- Result: PASS
+
+### Test Case 1960r.7: Legacy shim HTTP 302 (Fixes #2064)
+- Authenticated `GET /lib/requirements/reqCreateFromIssueMantisXML.php?req_spec_id=2&tproject_id=1` → DevTools redirect chain records 302 → `reqMantisImport.html?req_spec_id=2&tproject_id=1&locale=en_GB`.
+- Anonymous GET → 302 → `login.php?note=expired&destination=%2Flib%2Frequirements%2FreqCreateFromIssueMantisXML.php%3Freq_spec_id%3D2` (curl verified); base path is root-relative, no JS-only fallback on a clean response.
+- Result: PASS
+
+### Test Case 1960r.8: Idle-session enforcement (Fixes #2065)
+- Age the browser session `lastActivity` beyond `sessionInactivityTimeout`; `GET /api/reqmantisimport/index.php?action=init&req_spec_id=2` → 401 `{"code":"session_expired"}`.
+- Restore the timestamp; the same request returns 200 with the init context.
+- Result: PASS
+
+### Test Case 1960r.9: Event Viewer / console
+- After all import, duplicate, RO and shim paths: zero new Error/Warning/L18N rows in `events` (max id 20 → 20 on the final clean pass); browser console has no errors attributable to the screen.
+- Result: PASS
+
+### Test Case 1960r.10: Gates
+- `bash ai/verify_i18n_coverage.sh` → 9 bundles PASS; `TLU_REQUIRE_SUITE="Issue #1960" bash ai/verify_test_suites.sh` → no suite lost / own suite present.
+- Result: PASS
