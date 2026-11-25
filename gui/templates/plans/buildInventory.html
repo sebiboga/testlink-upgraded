@@ -160,6 +160,7 @@ var currentData = null;
 var dt = null;
 var lastFocus = null;
 var forcedProjectId = null;
+var initialPlanId = '';
 
 function esc(v) {
   return String(v === null || v === undefined ? '' : v)
@@ -283,7 +284,8 @@ function loadInit() {
   showLoading();
   var pid = forcedProjectId || $('#selProject').val() || '0';
   var url = API + '?action=init&tproject_id=' + encodeURIComponent(pid);
-  if (q('plan_id')) { url += '&plan_id=' + encodeURIComponent(q('plan_id')); }
+  initialPlanId = q('plan_id') || q('tplan_id') || '';
+  if (initialPlanId && Number(initialPlanId) > 0) { url += '&plan_id=' + encodeURIComponent(initialPlanId); }
   if (q('state')) { url += '&state=' + encodeURIComponent(q('state')); }
   if (q('open')) { url += '&open=' + encodeURIComponent(q('open')); }
   fetchJson(url).then(function (res) {
@@ -297,6 +299,7 @@ function loadInit() {
       + '<option value="open">' + esc(t('binv.availabilityOpen')) + '</option>'
       + '<option value="closed">' + esc(t('binv.availabilityClosed')) + '</option>');
     if (ctx.plan_id) { $('#selPlan').val(String(ctx.plan_id)); }
+    else if (initialPlanId && Number(initialPlanId) > 0) { $('#selPlan').val(initialPlanId); }
     if (ctx.filters) {
       $('#selState').val(ctx.filters.state || 'all');
       $('#selOpen').val(ctx.filters.open || 'all');
@@ -329,7 +332,7 @@ function render(data) {
   );
   var v = data.project_verdict || 'no_data';
   $('#bannerBox').html('<div class="banner ' + verdictCls(v) + '"><i class="fa fa-cubes"></i> '
-    + esc(t(verdictKey(v), { builds: s.builds, executions: s.executions })) + '</div>');
+    + esc(t(verdictKey(v), { builds: s.builds, executions: s.executions, failed: s.failed })) + '</div>');
   $('#kpis').html(
     kpi(t('binv.kpiBuilds'), s.builds, '', 'info')
     + kpi(t('binv.kpiActive'), s.active, '', 'good')
@@ -375,7 +378,8 @@ function render(data) {
       + '<td class="num">' + esc(r.testers) + '</td>'
       + '<td class="num"><span class="pill ' + (r.defects > 0 ? 'warn' : '') + '">' + esc(r.defects) + '</span></td>'
       + '<td>' + esc(r.last_execution_ts || '\u2014') + '</td>'
-      + '<td><span class="pill ' + verdictCls(r.verdict) + '">' + esc(t(verdictKey(r.verdict))) + '</span></td>'
+       + '<td><span class="pill ' + verdictCls(r.verdict) + '">' + esc(t(verdictKey(r.verdict), { failed: r.failed })) + '</span></td>'
+
       + '<td><button type="button" class="btn-linkish detail-btn" data-build="' + esc(r.id) + '">' + esc(t('binv.showDetail')) + '</button></td></tr>'
     ));
   });
@@ -459,7 +463,7 @@ function exportCsv() {
       (r.plans || []).join(', ') || '', r.creation_ts, r.release_date || '',
       r.closed_on_date || '', r.executions, r.cases, r.passed, r.failed,
       r.blocked, r.pass_rate + '%', r.testers, r.defects,
-      r.last_execution_ts || '', t(verdictKey(r.verdict))].map(csvCell).join(';'));
+      r.last_execution_ts || '', t(verdictKey(r.verdict), { failed: r.failed })].map(csvCell).join(';'));
   });
   var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
   var a = document.createElement('a');

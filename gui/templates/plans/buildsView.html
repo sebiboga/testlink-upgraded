@@ -68,6 +68,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <span style="flex:1"></span>
   <button class="btn-teal" id="btnCreate"><i class="fa fa-plus"></i> <span data-i18n="bv.createBuild">Create Build</span></button>
   <button class="btn-teal" id="btnCreateFull" style="background:#3dbdb5;"><i class="fa fa-file-lines"></i> <span data-i18n="bv.createBuildFullScreen">Create Build (full screen)</span></button>
+  <a class="btn-teal" id="btnBuildInventory" style="background:#4b6cb7;" href="buildInventory.html" target="mainframe"><i class="fa fa-clipboard-list"></i> <span data-i18n="bv.buildInventory">Build Inventory</span></a>
 </div>
 
 <div class="section">
@@ -220,6 +221,9 @@ var closedOnDate = '';
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  $('#btnBuildInventory').attr('href', 'buildInventory.html?tplan_id=' +
+    encodeURIComponent(tplanId) + '&tproject_id=' +
+    encodeURIComponent(p.get('tproject_id') || '0'));
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

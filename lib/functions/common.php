@@ -3007,6 +3007,10 @@ function getActions(&$gui,$baseURL) {
   $actions->planEdit = "/gui/templates/plans/planEdit.html?{$ctx}";
 
   $actions->buildView = null;
+  // Project Build Inventory modernized screen (Dashio standalone page) - Refs #2061
+  // (project-scoped report, works with tplan_id=0; the BFF re-checks
+  // testplan_metrics on every route). Kept OUTSIDE the tplan_id guard below.
+  $actions->buildInventory = null;
   $actions->mileView = null;
   $actions->platformAssign = null;
   $actions->milestonesView = null;
@@ -3033,6 +3037,8 @@ function getActions(&$gui,$baseURL) {
   // every route (Refs #503).
   $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
   $actions->buildNew = "/gui/templates/plans/buildsView.html?{$ctx}";
+  $actions->buildInventory =
+    "/gui/templates/plans/buildInventory.html?{$ctx}";
 
   if ($tplan_id >0) {
     // Build Create/Edit modernized screen (Dashio standalone page) - Refs #1787.
