@@ -107,8 +107,7 @@ $tbl = tlObjectWithDB::getDBTables(array(
 ));
 
 if ($action === 'projects') {
-    $rs = $db->get_recordset(
-        "SELECT id, name FROM {$tbl['testprojects']} ORDER BY name, id");
+    $rs = $db->get_recordset("SELECT id FROM {$tbl['testprojects']} ORDER BY id");
     $projects = array();
     if (is_array($rs)) {
         foreach ($rs as $row) {
@@ -116,12 +115,17 @@ if ($action === 'projects') {
             if (!$user->hasRight($db, 'testplan_metrics', $pid, null, true)) {
                 continue;
             }
+            $name = testproject::getName($db, $pid);
             $projects[] = array(
                 'id' => $pid,
-                'name' => biDecode($row['name']),
+                'name' => biDecode(is_null($name) ? ('#' . $pid) : $name),
             );
         }
     }
+    usort($projects, function ($a, $b) {
+        $cmp = strcasecmp($a['name'], $b['name']);
+        return $cmp !== 0 ? $cmp : ($a['id'] - $b['id']);
+    });
     biOut(array('status' => 'ok', 'projects' => $projects));
 }
 
@@ -148,12 +152,16 @@ if (!$user->hasRight($db, 'testplan_metrics', $projectId, null, true)) {
          ' has no testplan_metrics right on tproject ' . $projectId, 'AUDIT');
     biFail(403, 'no_right', 'testplan_metrics right required');
 }
-$prj = $db->get_recordset(
-    "SELECT id, name FROM {$tbl['testprojects']} WHERE id = " . intval($projectId));
-if (!is_array($prj) || count($prj) === 0) {
+$exists = $db->get_recordset(
+    "SELECT id FROM {$tbl['testprojects']} WHERE id = " . intval($projectId));
+if (!is_array($exists) || count($exists) === 0) {
     biFail(404, 'tproject_not_found', 'Test project not found');
 }
-$projectName = biDecode($prj[0]['name']);
+$prjName = testproject::getName($db, $projectId);
+if (is_null($prjName)) {
+    biFail(404, 'tproject_not_found', 'Test project not found');
+}
+$projectName = biDecode($prjName);
 
 $plans = array();
 $rsPlans = $db->get_recordset(
