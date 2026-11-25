@@ -47,6 +47,10 @@ header('X-Content-Type-Options: nosniff');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
+// Refs #1960 / Fixes #2065: the other BFFs enforce the inactivity timeout
+// after the DB is connected; without it an idle-expired session can still
+// import requirements. bffEnforceSession() answers 401 session_expired.
+bffEnforceSession($db);
 
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || intval($userId) <= 0) {
