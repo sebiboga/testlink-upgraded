@@ -201,8 +201,7 @@ function doUpload() {
       } else {
         $('#emptyResult').hide();
         rows.forEach(function (row) {
-          var isWarn = (row.message || '').indexOf('Created') !== 0 &&
-            !/^(Created|Updated)/.test(row.message);
+          var isWarn = !row.ok;
           var tr = $('<tr>').addClass(isWarn ? 'warn' : 'ok');
           $('<td>').append($('<b>').text(row.doc_id)).appendTo(tr);
           $('<td>').append($('<b>').text(row.name)).appendTo(tr);

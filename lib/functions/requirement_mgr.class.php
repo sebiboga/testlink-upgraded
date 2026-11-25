@@ -1587,7 +1587,8 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
   {
     $msgID = 'import_req_skipped_plain';
     $user_feedback[] = array('doc_id' => $req['docid'],'title' => $req['title'], 
-                             'import_status' => sprintf($labels[$msgID],$what2add));
+                             'import_status' => sprintf($labels[$msgID],$what2add),
+                             'status_ok' => 0);
 
     return $user_feedback;
   }  
@@ -1711,7 +1712,8 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
   $what2add = is_null($result) ? $req['docid'] : $req['docid'] . ':' . $result['msg'];
   
   $user_feedback[] = array('doc_id' => $req['docid'],'title' => $req['title'], 
-                           'import_status' => sprintf($labels[$msgID],$what2add));
+                           'import_status' => sprintf($labels[$msgID],$what2add),
+                           'status_ok' => $status_ok ? 1 : 0);
 
   $hasAttachments = array_key_exists('attachments',$req);
   // process attachements for creation and update
@@ -1725,7 +1727,8 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
   	  $user_feedback[] = 
         array('doc_id' => $req['docid'],
               'title' => $req['title'],
-  						'import_status' => sprintf(lang_get('import_req_attachment_skipped'),$att_name));
+  						'import_status' => sprintf(lang_get('import_req_attachment_skipped'),$att_name),
+              'status_ok' => 0);
   	}
   }
   
@@ -1748,7 +1751,8 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
             $missingCfMsg[$cfname] = sprintf($messages['cfield'],$cfname,$labels['requirement']);
         }
         $user_feedback[] = array('doc_id' => $req['docid'],'title' => $req['title'], 
-                                 'import_status' => $missingCfMsg[$cfname]);
+                                 'import_status' => $missingCfMsg[$cfname],
+                                 'status_ok' => 0);
       }
     }  
    if( !is_null($cf2insert) )

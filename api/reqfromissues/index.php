@@ -407,6 +407,7 @@ if ($action === 'import') {
                             'doc_id' => strval($fb['doc_id'] ?? ''),
                             'name' => strval($fb['title'] ?? ''),
                             'message' => strval($fb['import_status'] ?? ''),
+                            'ok' => intval($fb['status_ok'] ?? 0),
                         ];
                     }
                 }

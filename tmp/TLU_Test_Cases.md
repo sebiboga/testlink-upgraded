@@ -49637,3 +49637,9 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 ### Test Case 1960r.10: Gates
 - `bash ai/verify_i18n_coverage.sh` → 9 bundles PASS; `TLU_REQUIRE_SUITE="Issue #1960" bash ai/verify_test_suites.sh` → no suite lost / own suite present.
 - Result: PASS
+
+### Test Case 1960r.11: Locale-independent result styling (Fixes #2067)
+- With the RO locale, import `tmp/fixtures_1960_mantis.xml` into a fresh spec: both result rows read `Creat - Cerință - ID document:...` and the DOM classes are `ok`, not `warn`.
+- Re-import the same XML: both rows read `Ignorat - Cerință - ID document:... - este ÎNGHEȚATĂ` and the classes are `warn`.
+- EN duplicate import still reports `Skipped ... is FROZEN` with `warn` classes; no styling depends on the translated `Created`/`Updated` prefix.
+- Result: PASS
