@@ -19,6 +19,8 @@ Every screen of the application was ported one-by-one in a screen-compare
 
 - [BUGFIX] - #2064: **Legacy Mantis requirement-import shim answered 200 with a JS redirect** (`lib/requirements/reqCreateFromIssueMantisXML.php`) — both the modern-screen and login bounces now send real HTTP 302 Location headers with sanitized sub-directory base paths, with a meta-refresh/link fallback only when output was already flushed. (Fixes #2064, Refs #1960)
 
+- [BUGFIX] - #2066: **Romanian locale lacked the Mantis import result labels** (`locale/ro_RO/strings.txt`) — added the six `issue_*` labels, `TestProject` and the requirement import result templates so the RO screen shows localized, correctly interpolated messages without new L18N events. (Fixes #2066, Refs #1960)
+
 - [BUGFIX] - #2065: **Mantis requirement-import BFF skipped the idle-session check** (`api/reqfromissues/index.php`, used by `api/reqmantisimport/index.php`) — added `bffEnforceSession($db)` so an expired idle session gets 401 `session_expired` before init/import. (Fixes #2065, Refs #1960)
 
 - [SCREEN] - #2063: **Test Plan Defect Closure Lag** (`api/defectclosurelag/index.php` + `gui/templates/results/defectClosureLag.html`) — net-new read-only plan report measuring time from defect-linked failed execution to the first later pass of the same version/platform, with open-defect ageing, KPIs, detail modal, filters and guarded CSV. Suite #2063 23 PASS + 1 REVIEWED, i18n gate 9/9, docs/wiki and 3 screenshots. (Refs #2063)

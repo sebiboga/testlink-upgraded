@@ -277,3 +277,24 @@ $TLS_link_report_defect_arrival_rate = "Rata apariției defectelor"; // Defect a
 $TLS_link_report_execution_flakiness = "Instabilitatea execuției"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Activitatea execuțiilor pe builduri"; // Build execution activity report (Refs #2056)
+
+// Mantis issue import labels (Fixes #2066, Refs #1960)
+$TLS_issue_issue = "Problemă/Sarcină";
+$TLS_issue_summary = "Rezumat";
+$TLS_issue_description = "Descriere";
+$TLS_issue_steps_to_reproduce = "Pași de reproducere";
+$TLS_issue_additional_information = "Informații suplimentare";
+$TLS_issue_target_version = "Versiune țintă";
+$TLS_TestProject = "Proiect de test";
+
+// Requirement import result labels (Fixes #2066, Refs #1960)
+$TLS_no_cf_defined_can_not_import = "Valorile câmpurilor personalizate există în fișierul de import, dar nu pot fi importate deoarece nu există câmpuri personalizate cu domeniu Specificație test în acest proiect";
+$TLS_cf_value_not_imported_missing_cf_on_testproject = "Valoarea câmpului personalizat '%s' nu poate fi importată deoarece nu există un câmp personalizat cu acest nume și disponibil pentru %s în acest proiect";
+$TLS_import_req_created = "Creat - Cerință - ID document:%s";
+$TLS_import_req_skipped = "Ignorat - Cerință - ID document:%s - Există deja în altă ramură";
+$TLS_import_req_skipped_plain = "Ignorat - Motiv: %s";
+$TLS_import_req_updated = "Actualizat - Cerință - ID document:%s";
+$TLS_import_req_new_version_created = "Versiune nouă creată - Cerință - ID document:%s";
+$TLS_import_req_new_version_failed = "Cererea de creare a unei versiuni noi a eșuat - %s";
+$TLS_import_req_update_last_version_failed = "Cererea de actualizare a ultimei versiuni a eșuat - %s";
+$TLS_frozen_req_unable_to_import = "Ignorat - Cerință - ID document:%s - este ÎNGHEȚATĂ";
