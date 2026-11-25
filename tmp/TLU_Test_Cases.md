@@ -49643,3 +49643,7 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 - Re-import the same XML: both rows read `Ignorat - Cerință - ID document:... - este ÎNGHEȚATĂ` and the classes are `warn`.
 - EN duplicate import still reports `Skipped ... is FROZEN` with `warn` classes; no styling depends on the translated `Created`/`Updated` prefix.
 - Result: PASS
+
+### Test Case 1960r.12: Romanian audit labels (Refs #1960)
+- After a fresh RO import into a new spec, the Event Viewer has no new L18N rows for `req_spec_short`, `tcversion_indicator` or `req_created_automatic_log`, and no ERROR/WARNING rows at all.
+- Result: PASS

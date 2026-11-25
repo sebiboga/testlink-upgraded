@@ -298,3 +298,8 @@ $TLS_import_req_new_version_created = "Versiune nouă creată - Cerință - ID d
 $TLS_import_req_new_version_failed = "Cererea de creare a unei versiuni noi a eșuat - %s";
 $TLS_import_req_update_last_version_failed = "Cererea de actualizare a ultimei versiuni a eșuat - %s";
 $TLS_frozen_req_unable_to_import = "Ignorat - Cerință - ID document:%s - este ÎNGHEȚATĂ";
+
+// Requirement creation audit labels (Refs #1960)
+$TLS_req_spec_short = "Spec. cerințe";
+$TLS_req_created_automatic_log = "Cerință creată";
+$TLS_tcversion_indicator = ' [v%s]';
