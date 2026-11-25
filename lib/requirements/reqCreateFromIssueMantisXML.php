@@ -35,7 +35,6 @@
  */
 require_once('../../config.inc.php');
 require_once('common.php');
-testlinkInitPage($db, false, false);
 
 if (isset($_SERVER['REQUEST_METHOD'])
     && !in_array(strtoupper($_SERVER['REQUEST_METHOD']), array('GET', 'HEAD'), true)) {
@@ -47,11 +46,44 @@ if (isset($_SERVER['REQUEST_METHOD'])
     exit;
 }
 
-if (empty($_SESSION['userID'])) {
-    $dest = 'lib/requirements/reqCreateFromIssueMantisXML.php'
+/**
+ * Send a real HTTP 302 (Fixes #2064). The legacy redirect() helper only emits
+ * a JavaScript location.href assignment, so non-JS callers get a blank 200;
+ * sibling shims such as reqSpecListTree.php and planMilestonesView.php already
+ * use a Location header. If something already flushed output, emit both a
+ * meta refresh and a plain link so non-JS callers can still continue.
+ */
+$sendRedirect = function ($url) {
+    if (!headers_sent()) {
+        header('Location: ' . $url, true, 302);
+        exit;
+    }
+    $safe = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+    echo '<html><head><meta http-equiv="refresh" content="0;url=' . $safe . '">'
+        . '</head><body><a href="' . $safe . '">' . $safe . '</a></body></html>';
+    exit;
+};
+
+// Initialise the session/database but defer checkSessionValid's JavaScript
+// login bounce (its redirect() would emit output before a Location header can
+// be sent). The non-redirecting check below keeps the legacy session contract.
+testlinkInitPage($db, false, true);
+
+// A sub-directory installation must stay inside its own base path; reject a
+// poisoned session base (CRLF / foreign scheme / protocol-relative URL).
+$base = str_replace(array("\r", "\n"), '', strval($_SESSION['basehref'] ?? ''));
+if (preg_match('~^https?://[^/]+(/.+)$~i', $base, $m)) {
+    $base = rtrim($m[1], '/') . '/';
+}
+if ($base === '' || $base[0] !== '/' || strpos($base, '//') === 0) {
+    $base = '/';
+}
+
+if (!checkSessionValid($db, false)) {
+    $dest = rtrim($base, '/') . '/lib/requirements/reqCreateFromIssueMantisXML.php'
         . (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== ''
             ? '?' . $_SERVER['QUERY_STRING'] : '');
-    redirect('login.php?note=expired&destination=' . urlencode($dest));
+    $sendRedirect($base . 'login.php?note=expired&destination=' . urlencode($dest));
 }
 
 $specId = isset($_REQUEST['req_spec_id']) && is_scalar($_REQUEST['req_spec_id'])
@@ -65,7 +97,7 @@ if ($tprojectId <= 0 && isset($_SESSION['testprojectID'])) {
     $tprojectId = intval($_SESSION['testprojectID']);
 }
 
-$target = '/gui/templates/requirements/reqMantisImport.html?req_spec_id=' . $specId;
+$target = $base . 'gui/templates/requirements/reqMantisImport.html?req_spec_id=' . $specId;
 if ($tprojectId > 0) {
     $target .= '&tproject_id=' . $tprojectId;
 }
@@ -73,4 +105,4 @@ if (isset($_SESSION['locale']) && $_SESSION['locale'] !== '') {
     $target .= '&locale=' . rawurlencode($_SESSION['locale']);
 }
 
-redirect($target);
+$sendRedirect($target);
