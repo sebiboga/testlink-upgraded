@@ -424,6 +424,17 @@ if ($action === 'detail') {
         biFail(404, 'build_not_found', 'Build not found in this project');
     }
     $detailRows = isset($execByBuild[$buildId]) ? array_reverse($execByBuild[$buildId]) : array();
+    if (!isset($builds[$buildId])) {
+        // The report filter hid this build; a direct detail link still shows
+        // its evidence, newest first, under the same plan scope.
+        $sqlOne = "SELECT id, build_id, testplan_id, tcversion_id, status, tester_id, " .
+                  "execution_ts, execution_duration, platform_id FROM {$tbl['executions']} " .
+                  "WHERE build_id = " . intval($buildId);
+        if ($planId > 0) { $sqlOne .= " AND testplan_id = " . intval($planId); }
+        $sqlOne .= " ORDER BY execution_ts DESC, id DESC";
+        $rsOne = $db->get_recordset($sqlOne);
+        $detailRows = is_array($rsOne) ? $rsOne : array();
+    }
     $details = array();
     foreach ($detailRows as $row) {
         $tcName = '#';

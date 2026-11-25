@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Project Build Inventory of TestLink 2.0.1 (Refs #2061)">
+<title>Project Build Inventory</title>
+<!--
+  Project Build Inventory (Refs #2061). Read-only Dashio report over the
+  project-wide build registry (api/buildinventory).
+-->
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-linkish { background: none; border: none; color: #17756e; cursor: pointer; font-size: 12px; font-weight: 700; text-decoration: underline; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 112px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 21px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 12px; padding: 10px 12px; }
+table.dataTable tbody td { padding: 9px 12px; font-size: 13px; vertical-align: middle; }
+.bar { height: 6px; background: #eceef2; border-radius: 4px; overflow: hidden; margin-top: 4px; min-width: 68px; }
+.bar > span { display: block; height: 100%; background: #4ECDC4; }
+.bar > span.good { background: #2f9e44; }
+.bar > span.warn { background: #e6b34d; }
+.bar > span.bad { background: #e05c5c; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #eceef2; color: #33363f; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.info { background: #d5f4f2; color: #0d3f3c; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 3000; display: none; }
+.toast.err { background: #e05c5c; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 2000; }
+.modal-card { position: fixed; top: 4vh; left: 50%; transform: translateX(-50%); width: min(1040px, 94vw); max-height: 90vh; overflow: auto; background: #fff; border-radius: 8px; z-index: 2100; padding: 20px 24px; box-shadow: 0 8px 30px rgba(0,0,0,.3); }
+.modal-card h3 { margin: 0 0 12px; font-size: 17px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-cubes" style="margin-right:8px;"></i>
+  <span data-i18n="binv.title">Project Build Inventory</span>
+  <span class="sub" data-i18n="binv.subtitle">every build of a project and where its evidence is</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="binv.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="binv.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selProject" data-i18n="binv.project">Project</label><select id="selProject"></select>
+  <label for="selPlan" data-i18n="binv.plan">Plan</label><select id="selPlan"></select>
+  <label for="selState" data-i18n="binv.state">State</label><select id="selState"></select>
+  <label for="selOpen" data-i18n="binv.availability">Availability</label><select id="selOpen"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="binv.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="binv.close">Close</span></button>
+</div>
+
+<div id="stateBox" role="status" aria-live="polite"></div>
+<div id="bannerBox" role="status" aria-live="polite"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i> <span data-i18n="binv.context">Report context</span></h3>
+    <div class="ctx-grid" id="ctxGrid"></div>
+  </div>
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i> <span data-i18n="binv.kpis">Key indicators</span></h3>
+    <div class="cards" id="kpis"></div>
+  </div>
+  <div class="table-wrap">
+    <table id="grid" class="table table-striped table-bordered" style="width:100%" aria-label="Project build inventory">
+      <caption class="sr-only" data-i18n="binv.title">Project Build Inventory</caption>
+      <thead><tr>
+        <th scope="col" data-i18n="binv.colBuild">Build</th>
+        <th scope="col" data-i18n="binv.colActive">Active</th>
+        <th scope="col" data-i18n="binv.colAvailability">Availability</th>
+        <th scope="col" data-i18n="binv.colPlans">Plans with evidence</th>
+        <th scope="col" data-i18n="binv.colCreated">Created</th>
+        <th scope="col" data-i18n="binv.colRelease">Release date</th>
+        <th scope="col" data-i18n="binv.colClosed">Closed on</th>
+        <th scope="col" data-i18n="binv.colExecutions">Executions</th>
+        <th scope="col" data-i18n="binv.colCases">Cases</th>
+        <th scope="col" data-i18n="binv.colPassed">Passed</th>
+        <th scope="col" data-i18n="binv.colFailed">Failed</th>
+        <th scope="col" data-i18n="binv.colBlocked">Blocked</th>
+        <th scope="col" data-i18n="binv.colPassRate">Pass rate</th>
+        <th scope="col" data-i18n="binv.colTesters">Testers</th>
+        <th scope="col" data-i18n="binv.colDefects">Defects</th>
+        <th scope="col" data-i18n="binv.colLast">Last execution</th>
+        <th scope="col" data-i18n="binv.colVerdict">Verdict</th>
+        <th scope="col" data-i18n="binv.colDetail">Detail</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="modalBackdrop" class="modal-backdrop hidden"></div>
+<div id="detailModal" class="modal-card hidden" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+  <h3 id="detailTitle"><span data-i18n="binv.detailTitle">Build execution detail</span>
+    <button class="btn-dark" id="btnDetailClose" style="float:right;" data-i18n="binv.close">Close</button>
+  </h3>
+  <div id="detailBody"></div>
+</div>
+
+<div class="footer"><span data-i18n="footers.buildInventory"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/buildinventory/index.php';
+var currentData = null;
+var dt = null;
+var lastFocus = null;
+var forcedProjectId = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+function t(key, params) { return TLi18n.t(key, params || {}); }
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls:'deny', title:'binv.deniedTitle', body:'binv.deniedBody' },
+    session_expired: { cls:'deny', title:'binv.deniedTitle', body:'binv.expiredBody' },
+    no_right: { cls:'deny', title:'binv.deniedTitle', body:'binv.noRightBody' },
+    tproject_not_found: { cls:'warn', title:'binv.notFoundTitle', body:'binv.notFoundBody' },
+    plan_not_found: { cls:'warn', title:'binv.notFoundTitle', body:'binv.planNotFoundBody' },
+    build_not_found: { cls:'warn', title:'binv.notFoundTitle', body:'binv.buildNotFoundBody' },
+    invalid_request: { cls:'warn', title:'binv.badRequestTitle', body:'binv.badRequestBody' },
+    method_not_allowed: { cls:'warn', title:'binv.badRequestTitle', body:'binv.badRequestBody' }
+  };
+  var m = map[code] || { cls:'warn', title:'binv.serverErrorTitle', body:'binv.serverErrorBody' };
+  var detail = (!map[code] && rawMessage) ? '<div class="code">' + esc(rawMessage) + '</div>' : '';
+  return '<div class="state ' + m.cls + '"><h4>' + esc(t(m.title)) + '</h4><div>'
+    + esc(t(m.body, { status: httpStatus })) + '</div>' + detail
+    + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function isAuthError(code) { return code === 'session_expired' || code === 'not_authenticated'; }
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(t('binv.loading')) + '</div>');
+}
+function toast(msg, isErr) {
+  var $el = $('#toast');
+  $el.text(msg).toggleClass('err', !!isErr).fadeIn(120);
+  window.clearTimeout(toast._t);
+  toast._t = window.setTimeout(function () { $el.fadeOut(160); }, 2600);
+}
+function kpi(label, value, unit, cls) {
+  return '<div class="card ' + (cls || 'info') + '"><div class="k">' + esc(label) + '</div>'
+    + '<div class="v">' + esc(value) + (unit ? '<span class="u">' + esc(unit) + '</span>' : '') + '</div></div>';
+}
+function bar(pct, cls) {
+  return '<div class="bar"><span class="' + (cls || '') + '" style="width:'
+    + Math.max(0, Math.min(100, Number(pct))) + '%"></span></div>';
+}
+function rateCls(v) { return Number(v) >= 80 ? 'good' : (Number(v) >= 50 ? 'warn' : 'bad'); }
+function verdictKey(v) {
+  if (v === 'ready') { return 'binv.verdictReady'; }
+  if (v === 'at_risk') { return 'binv.verdictAtRisk'; }
+  if (v === 'watch') { return 'binv.verdictWatch'; }
+  if (v === 'in_progress') { return 'binv.verdictInProgress'; }
+  if (v === 'not_started') { return 'binv.verdictNotStarted'; }
+  return 'binv.verdictNoData';
+}
+function verdictCls(v) {
+  if (v === 'ready') { return 'good'; }
+  if (v === 'at_risk') { return 'bad'; }
+  if (v === 'watch' || v === 'in_progress') { return 'warn'; }
+  return 'info';
+}
+function statusKey(v) {
+  if (v === 'p') { return 'binv.statusPassed'; }
+  if (v === 'f') { return 'binv.statusFailed'; }
+  if (v === 'b') { return 'binv.statusBlocked'; }
+  return 'binv.statusNotRun';
+}
+function statusCls(v) { return v === 'p' ? 'good' : (v === 'f' ? 'bad' : (v === 'b' ? 'warn' : '')); }
+function fetchJson(url) {
+  return fetch(url, { credentials:'same-origin', headers:{ 'Accept':'application/json' } })
+    .then(function (r) { return r.json().then(function (j) { j.httpStatus = r.status; return j; }); });
+}
+function fail(res) {
+  var code = (res && res.code) || '';
+  if (isAuthError(code)) {
+    showState('<div class="state deny"><h4>' + esc(t('binv.deniedTitle')) + '</h4><div>'
+      + esc(t('binv.expiredBody')) + '</div><div class="code">' + esc(code) + '</div></div>');
+    window.setTimeout(redirectToLogin, 1600);
+    return;
+  }
+  showState(stateFor(code, (res && res.httpStatus) || 400, (res && res.message) || ''));
+}
+function selectOptions(items, allKey, selected) {
+  var html = '<option value="0">' + esc(t(allKey)) + '</option>';
+  (items || []).forEach(function (item) {
+    html += '<option value="' + esc(item.id) + '">' + esc(item.name) + '</option>';
+  });
+  return html;
+}
+function loadProjects() {
+  showLoading();
+  fetchJson(API + '?action=projects').then(function (res) {
+    if (!res || res.status !== 'ok') { fail(res); return; }
+    var projects = res.projects || [];
+    $('#selProject').html(projects.map(function (p) {
+      return '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+    }).join(''));
+    if (!projects.length) {
+      showState('<div class="state warn"><h4>' + esc(t('binv.noProjectsTitle')) + '</h4>'
+        + '<div>' + esc(t('binv.noProjectsBody')) + '</div></div>');
+      return;
+    }
+    forcedProjectId = null;
+    if (q('tproject_id')) {
+      $('#selProject').val(q('tproject_id'));
+      if (!$('#selProject').val()) { forcedProjectId = q('tproject_id'); }
+    }
+    loadInit();
+  }).catch(function () { showState(stateFor('server_error', 500, t('binv.networkError'))); });
+}
+function loadInit() {
+  showLoading();
+  var pid = forcedProjectId || $('#selProject').val() || '0';
+  var url = API + '?action=init&tproject_id=' + encodeURIComponent(pid);
+  if (q('plan_id')) { url += '&plan_id=' + encodeURIComponent(q('plan_id')); }
+  if (q('state')) { url += '&state=' + encodeURIComponent(q('state')); }
+  if (q('open')) { url += '&open=' + encodeURIComponent(q('open')); }
+  fetchJson(url).then(function (res) {
+    if (!res || res.status !== 'ok') { fail(res); return; }
+    var ctx = res.context || {};
+    $('#selPlan').html(selectOptions(res.plans, 'binv.allPlans', ctx.plan_id));
+    $('#selState').html('<option value="all">' + esc(t('binv.allStates')) + '</option>'
+      + '<option value="active">' + esc(t('binv.stateActive')) + '</option>'
+      + '<option value="inactive">' + esc(t('binv.stateInactive')) + '</option>');
+    $('#selOpen').html('<option value="all">' + esc(t('binv.allAvailability')) + '</option>'
+      + '<option value="open">' + esc(t('binv.availabilityOpen')) + '</option>'
+      + '<option value="closed">' + esc(t('binv.availabilityClosed')) + '</option>');
+    if (ctx.plan_id) { $('#selPlan').val(String(ctx.plan_id)); }
+    if (ctx.filters) {
+      $('#selState').val(ctx.filters.state || 'all');
+      $('#selOpen').val(ctx.filters.open || 'all');
+    }
+    load();
+  }).catch(function () { showState(stateFor('server_error', 500, t('binv.networkError'))); });
+}
+function query(action) {
+  var p = new URLSearchParams();
+  p.set('action', action || 'report');
+  p.set('tproject_id', forcedProjectId || $('#selProject').val() || '0');
+  var pl = $('#selPlan').val() || '0';
+  var st = $('#selState').val() || 'all';
+  var op = $('#selOpen').val() || 'all';
+  if (Number(pl) > 0) { p.set('plan_id', pl); }
+  if (st !== 'all') { p.set('state', st); }
+  if (op !== 'all') { p.set('open', op); }
+  return p.toString();
+}
+function render(data) {
+  currentData = data;
+  $('#stateBox').html('');
+  $('#report').show();
+  var c = data.context || {};
+  var s = data.kpi || {};
+  $('#ctxGrid').html(
+    '<div class="ctx-item"><span class="k">' + esc(t('binv.project')) + '</span><span class="v">' + esc(c.tproject_name) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(t('binv.plan')) + '</span><span class="v">' + esc(c.plan_name || t('binv.allPlans')) + '</span></div>'
+    + '<div class="ctx-item"><span class="k">' + esc(t('binv.assignedTotal')) + '</span><span class="v">' + esc(data.assigned_total) + '</span></div>'
+  );
+  var v = data.project_verdict || 'no_data';
+  $('#bannerBox').html('<div class="banner ' + verdictCls(v) + '"><i class="fa fa-cubes"></i> '
+    + esc(t(verdictKey(v), { builds: s.builds, executions: s.executions })) + '</div>');
+  $('#kpis').html(
+    kpi(t('binv.kpiBuilds'), s.builds, '', 'info')
+    + kpi(t('binv.kpiActive'), s.active, '', 'good')
+    + kpi(t('binv.kpiOpen'), s.open, '', 'info')
+    + kpi(t('binv.kpiWithExecutions'), s.with_executions, '', 'info')
+    + kpi(t('binv.kpiExecutions'), s.executions, '', 'info')
+    + kpi(t('binv.kpiPassed'), s.passed, '', 'good')
+    + kpi(t('binv.kpiFailed'), s.failed, '', 'bad')
+    + kpi(t('binv.kpiBlocked'), s.blocked, '', 'warn')
+    + kpi(t('binv.kpiPassRate'), s.pass_rate, '%', rateCls(s.pass_rate))
+    + kpi(t('binv.kpiDefects'), s.defects, '', s.defects > 0 ? 'warn' : 'info')
+    + kpi(t('binv.kpiLastActivity'), s.last_activity || '\u2014', '', 'info')
+  );
+  if (dt) { dt.clear(); }
+  else {
+    dt = $('#grid').DataTable({
+      order: [], pageLength: 25,
+      language: {
+        search: t('common.filter') + ':',
+        lengthMenu: t('common.showEntries') + ' _MENU_ ' + t('common.entries'),
+        info: t('common.pageInfo'),
+        paginate: { previous: t('common.prev'), next: t('common.next') },
+        emptyTable: t('binv.noRows'), zeroRecords: t('binv.noMatch')
+      }
+    });
+    $('#grid_wrapper .dataTables_length select').attr({ id:'binvLength', name:'binvLength', 'aria-label': t('common.showEntries') });
+    $('#grid_wrapper .dataTables_filter input').attr({ id:'binvSearch', name:'binvSearch', 'aria-label': t('common.filter') });
+  }
+  (data.rows || []).forEach(function (r) {
+    dt.row.add($(
+      '<tr><td><strong>' + esc(r.name) + '</strong><div style="font-size:11px;color:#777;">' + esc(r.notes || '') + '</div></td>'
+      + '<td><span class="pill ' + (r.active ? 'good' : '') + '">' + esc(t(r.active ? 'binv.yes' : 'binv.no')) + '</span></td>'
+      + '<td><span class="pill ' + (r.is_open ? 'info' : '') + '">' + esc(t(r.is_open ? 'binv.availabilityOpen' : 'binv.availabilityClosed')) + '</span></td>'
+      + '<td>' + esc((r.plans || []).join(', ') || '\u2014') + '</td>'
+      + '<td>' + esc(r.creation_ts || '\u2014') + '</td>'
+      + '<td>' + esc(r.release_date || '\u2014') + '</td>'
+      + '<td>' + esc(r.closed_on_date || '\u2014') + '</td>'
+      + '<td class="num">' + esc(r.executions) + '</td><td class="num">' + esc(r.cases) + '</td>'
+      + '<td class="num"><span class="pill good">' + esc(r.passed) + '</span></td>'
+      + '<td class="num"><span class="pill ' + (r.failed > 0 ? 'bad' : '') + '">' + esc(r.failed) + '</span></td>'
+      + '<td class="num"><span class="pill ' + (r.blocked > 0 ? 'warn' : '') + '">' + esc(r.blocked) + '</span></td>'
+      + '<td class="num">' + esc(r.pass_rate) + '%' + bar(r.pass_rate, rateCls(r.pass_rate)) + '</td>'
+      + '<td class="num">' + esc(r.testers) + '</td>'
+      + '<td class="num"><span class="pill ' + (r.defects > 0 ? 'warn' : '') + '">' + esc(r.defects) + '</span></td>'
+      + '<td>' + esc(r.last_execution_ts || '\u2014') + '</td>'
+      + '<td><span class="pill ' + verdictCls(r.verdict) + '">' + esc(t(verdictKey(r.verdict))) + '</span></td>'
+      + '<td><button type="button" class="btn-linkish detail-btn" data-build="' + esc(r.id) + '">' + esc(t('binv.showDetail')) + '</button></td></tr>'
+    ));
+  });
+  dt.draw();
+  $('#btnCsv').prop('disabled', (data.rows || []).length === 0);
+}
+function load() {
+  showLoading();
+  fetchJson(API + '?' + query('report')).then(function (res) {
+    if (!res || res.status !== 'ok') { fail(res); return; }
+    render(res);
+  }).catch(function () { showState(stateFor('server_error', 500, t('binv.networkError'))); });
+}
+function setBackgroundInert(inert) {
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
+function closeDetail() {
+  $('#detailModal').addClass('hidden');
+  $('#modalBackdrop').addClass('hidden');
+  setBackgroundInert(false);
+  if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+  lastFocus = null;
+}
+function openDetail(buildId) {
+  lastFocus = document.activeElement;
+  $('#detailBody').html('<p>' + esc(t('binv.loading')) + '</p>');
+  $('#modalBackdrop').removeClass('hidden');
+  $('#detailModal').removeClass('hidden');
+  setBackgroundInert(true);
+  $('#btnDetailClose').focus();
+  fetchJson(API + '?' + query('detail') + '&build_id=' + encodeURIComponent(buildId))
+    .then(function (res) {
+      if (!res || res.status !== 'ok') { closeDetail(); fail(res); return; }
+      var rows = res.executions || [];
+      var b = res.build || {};
+      var html = '<p>' + esc(t('binv.detailCount', { count: rows.length }))
+        + '</p><table class="table table-striped table-bordered"><thead><tr>'
+        + '<th>' + esc(t('binv.colLast')) + '</th><th>' + esc(t('binv.colCase')) + '</th>'
+        + '<th>' + esc(t('binv.plan')) + '</th><th>' + esc(t('binv.colAvailability')) + '</th>'
+        + '<th>' + esc(t('binv.status')) + '</th><th>' + esc(t('binv.colTesters')) + '</th>'
+        + '<th>' + esc(t('binv.colExecutions')) + '</th></tr></thead><tbody>';
+      rows.forEach(function (r) {
+        html += '<tr><td>' + esc(r.execution_ts) + '</td><td>' + esc(r.case_name) + '</td>'
+          + '<td>' + esc(r.plan_name) + '</td><td>' + esc(r.platform_name || '\u2014') + '</td>'
+          + '<td><span class="pill ' + statusCls(r.status) + '">' + esc(t(statusKey(r.status))) + '</span></td>'
+          + '<td>#' + esc(r.tester_id || '\u2014') + '</td><td class="num">' + esc(r.duration) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      if (!rows.length) { html = '<p>' + esc(t('binv.noDetail')) + '</p>'; }
+      else if (res.truncated) { html += '<p>' + esc(t('binv.detailTruncated')) + '</p>'; }
+      $('#detailBody').html(html);
+      $('#btnDetailClose').focus();
+    }).catch(function () {
+      closeDetail();
+      showState(stateFor('server_error', 500, t('binv.networkError')));
+    });
+}
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  if (!currentData || !currentData.rows || !currentData.rows.length) { return; }
+  var head = ['colBuild','colActive','colAvailability','colPlans','colCreated','colRelease',
+    'colClosed','colExecutions','colCases','colPassed','colFailed','colBlocked',
+    'colPassRate','colTesters','colDefects','colLast','colVerdict']
+    .map(function (k) { return t('binv.' + k); });
+  var lines = [head.map(csvCell).join(';')];
+  currentData.rows.forEach(function (r) {
+    lines.push([r.name, t(r.active ? 'binv.yes' : 'binv.no'),
+      t(r.is_open ? 'binv.availabilityOpen' : 'binv.availabilityClosed'),
+      (r.plans || []).join(', ') || '', r.creation_ts, r.release_date || '',
+      r.closed_on_date || '', r.executions, r.cases, r.passed, r.failed,
+      r.blocked, r.pass_rate + '%', r.testers, r.defects,
+      r.last_execution_ts || '', t(verdictKey(r.verdict))].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'build-inventory-' + ($('#selProject').val() || 'project') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(t('binv.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  $('#grid').on('click', '.detail-btn', function () { openDetail($(this).data('build')); });
+  $('#btnDetailClose').on('click', closeDetail);
+  $('#modalBackdrop').on('click', closeDetail);
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && !$('#detailModal').hasClass('hidden')) { closeDetail(); }
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = t('binv.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadProjects();
+  });
+});
+</script>
+</body>
+</html>
