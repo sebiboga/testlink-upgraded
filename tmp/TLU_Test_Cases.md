@@ -49647,3 +49647,53 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 ### Test Case 1960r.12: Romanian audit labels (Refs #1960)
 - After a fresh RO import into a new spec, the Event Viewer has no new L18N rows for `req_spec_short`, `tcversion_indicator` or `req_created_automatic_log`, and no ERROR/WARNING rows at all.
 - Result: PASS
+
+## Issue #2068 — Test Plan Execution Ownership Gap (`executionOwnership`) — net-new BFF `api/executionownership` + Dashio screen
+
+### Test Case 2068.1: Fixture and normal report
+- `php tmp/fixtures_2068.php` creates project `EOWN2068`, plans `EOWN Plan`/`EOWN Empty`, 2 builds, 2 platforms, 3 users and 5 cases with owned/mismatch/unowned/never/buildscope patterns.
+- Browser deep link `?tproject_id=1&tplan_id=2` renders localized header, plan/project context, 9 KPIs (assigned 5, executed 4, owned 1, different tester 2, no active assignee 1, never executed 1, gap 75%, suites 3, testers 2), verdict `At risk` and a 4-row gap DataTable.
+- Result: PASS (normal-state screenshot saved)
+
+### Test Case 2068.2: BFF report/filter contract
+- `init` returns context, builds, platforms and `filter={build_id:0,platform_id:0,scope:all}`.
+- `report` returns 5 rows, counts above and every row has feature/tcase/tcversion/suite/owners/tester/gap/last result/run/build fields.
+- `build_id=1` yields 2 owned and 2 no-execution assignments; `platform_id=1` and `scope=gap` (4 rows) are accepted; `scope=gaps` is rejected 400.
+- Result: PASS (curl/BFF; UI filter clicking skipped after MCP failures)
+
+### Test Case 2068.3: Detail modal data
+- `detail?tcversion_id=10` returns the mismatch case history (failed, EOWN Bob, Build 2, Platform A, 2026-11-21 11:00:00) and 200 status.
+- `tcversion_id=999999` → 404 `tcversion_not_found`; `platform_id=999` → 400 `invalid_request`.
+- Result: PASS (curl/BFF; browser modal interaction skipped after MCP failures)
+
+### Test Case 2068.4: Empty plan
+- Plan `EOWN Empty` returns 200 with `verdict=no_data`, zero rows and localized empty-state card.
+- Result: PASS
+
+### Test Case 2068.5: Rights, authentication and HTTP contract
+- Role-3 user `eown2068no` → 403 `no_right`; anonymous → 401; `tproject_id=999` → 404 `project_mismatch`; `tplan_id=999` → 404 `tplan_not_found`; unknown action/bad scope → 400.
+- POST with same-origin proof → 405; POST without proof → 403 CSRF; HEAD → 200; GET/HEAD-only contract holds.
+- Result: PASS
+
+### Test Case 2068.6: Localization and syntax gates
+- 85 `eown.*` keys + footer added to all 10 client bundles; `bash ai/verify_i18n_coverage.sh` → 9/9 PASS, 13442 keys, 0 missing; all `python3 -m json.tool` checks pass.
+- `$TLS_link_report_execution_ownership` added to 19 server locales; `php -l` passes for 19 locales, 4 wiring files and the BFF; extracted screen JS `node --check` clean.
+- Result: PASS
+
+### Test Case 2068.7: Bug #2069 (server locale semicolon)
+- First fixture run failed with `PHP Parse error: unexpected end of file in locale/en_GB/strings.txt`; all 19 locale files failed `php -l` because the appended label lacked `;`.
+- Filed bug #2069 with `bug` label, terminated all 19 lines, re-ran `php -l` and fixture creation successfully.
+- Result: PASS
+
+### Test Case 2068.8: Event Viewer / console
+- Events after all fixture/login/denial/BFF paths are log level 16 (AUDIT) only; no ERROR/WARNING/L18N rows. Browser console had no screen-attributable errors on the normal render.
+- Result: PASS
+
+### Test Case 2068.9: Browser limitation / TODO
+- Two consecutive Chrome MCP interaction failures occurred (password fill, then filter select); browser was reset to `index.php` and re-authenticated, and interaction testing was skipped per the failure rule.
+- TODO: browser-verify modal, Refresh, CSV, build/platform/scope filters, RO locale and low-privilege login in a later run; screenshot only the normal state was captured.
+- Result: TODO (non-browser BFF paths all PASS)
+
+### Test Case 2068.10: Suite gate
+- `TLU_REQUIRE_SUITE="Issue #2068" bash ai/verify_test_suites.sh` passes with no suite lost and this suite present.
+- Result: PASS
