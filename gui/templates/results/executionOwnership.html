@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Execution Ownership Gap</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 190px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 140px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.alert .v { color: #e6605e; }
+.kpi.teal .v { color: #259b93; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.clear { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.watch { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.at_risk { background: #fdecea; color: #b94a48; border-color: #f5c6cb; }
+.verdict.no_data { background: #e9ecef; color: #495057; border-color: #ced4da; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.case a { color: #259b93; font-weight: 600; text-decoration: none; }
+td.case a:hover { text-decoration: underline; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-none { background: #f5c6cb; color: #b94a48; }
+.badge-yes, .badge-owned, .badge-passed { background: #d4edda; color: #155724; }
+.badge-mismatch { background: #ffecb5; color: #856404; }
+.badge-unowned, .badge-failed { background: #f5c6cb; color: #b94a48; }
+.badge-no_execution, .badge-blocked, .badge-not_run { background: #e9ecef; color: #555; }
+.badge-high { background: #f5c6cb; color: #b94a48; }
+.badge-medium { background: #ffecb5; color: #856404; }
+.badge-low { background: #d1ecf1; color: #0c5460; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+.modal-body { max-height: 60vh; overflow-y: auto; font-size: 13px; }
+.modal-body table { width: 100%; font-size: 12px; }
+.modal-body th { background: #f4f6f7; padding: 6px 8px; text-align: left; }
+.modal-body td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-user-clock" style="margin-right:8px;"></i>
+  <span data-i18n="eown.header">Test Plan Execution Ownership Gap</span>
+  <span class="sub" data-i18n="eown.subtitle">executions recorded outside the active assignment</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx" data-i18n="eown.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="eown.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="buildFilter" data-i18n="eown.build">Build</label>
+  <select id="buildFilter"><option value="0" data-i18n="eown.allBuilds">All builds</option></select>
+  <label for="platformFilter" data-i18n="eown.platform">Platform</label>
+  <select id="platformFilter"><option value="0" data-i18n="eown.allPlatforms">All platforms</option></select>
+  <label for="scopeFilter" data-i18n="eown.scope">Scope</label>
+  <select id="scopeFilter">
+    <option value="gap" data-i18n="eown.scopeGap">Ownership gaps only</option>
+    <option value="all" data-i18n="eown.scopeAll">All assigned tests</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="eown.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="eown.exportCsv">Export CSV</span></button>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="eown.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="eown.kpiAssigned">Assigned versions</div></div>
+  <div class="kpi teal"><div class="v" id="kpiExecuted">0</div><div class="l" data-i18n="eown.kpiExecuted">Executed versions</div></div>
+  <div class="kpi teal"><div class="v" id="kpiOwned">0</div><div class="l" data-i18n="eown.kpiOwned">Executed by assignee</div></div>
+  <div class="kpi alert"><div class="v" id="kpiMismatch">0</div><div class="l" data-i18n="eown.kpiMismatch">Different tester</div></div>
+  <div class="kpi alert"><div class="v" id="kpiUnowned">0</div><div class="l" data-i18n="eown.kpiUnowned">No active assignee</div></div>
+  <div class="kpi alert"><div class="v" id="kpiMismatchPct">0%</div><div class="l" data-i18n="eown.kpiMismatchPct">Gap % of executed</div></div>
+  <div class="kpi"><div class="v" id="kpiNoExecution">0</div><div class="l" data-i18n="eown.kpiNoExecution">Never executed</div></div>
+  <div class="kpi"><div class="v" id="kpiSuites">0</div><div class="l" data-i18n="eown.kpiSuites">Suites affected</div></div>
+  <div class="kpi"><div class="v" id="kpiTesters">0</div><div class="l" data-i18n="eown.kpiTesters">Distinct testers</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.executionOwnership">TestLink 2.0.1 - Test Plan Execution Ownership Gap</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="detailTitle"><span data-i18n="eown.detailTitle">Execution history</span></h4>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal" id="btnDetailClose"><span data-i18n="eown.close">Close</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id'), 10) || 0;
+var tproject_id = parseInt(params.get('tproject_id'), 10) || 0;
+var STATE = { rows: [], summary: {}, context: {}, filter: {}, dt: null, focus: null };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  if (isErr) { $t.addClass('err'); } else { $t.removeClass('err'); }
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function showState(code) {
+  var map = {
+    invalid_request: ['eown.errBadRequest', 'Invalid request', 'eown.errBadRequestBody', 'The report parameters are not valid.'],
+    not_authenticated: ['eown.errSession', 'Session expired', 'eown.errSessionBody', 'Please sign in again.'],
+    no_right: ['eown.errNoRight', 'No permission', 'eown.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
+    tplan_not_found: ['eown.errNotFound', 'Test plan not found', 'eown.errNotFoundBody', 'The requested test plan does not exist.'],
+    tcversion_not_found: ['eown.errTcNotFound', 'Test case version not found', 'eown.errTcNotFoundBody', 'The requested version is not assigned to this test plan.'],
+    project_not_found: ['eown.errNotFound', 'Test plan not found', 'eown.errNotFoundBody', 'The requested test plan does not exist.'],
+    project_mismatch: ['eown.errMismatch', 'Wrong test project', 'eown.errMismatchBody', 'This test plan belongs to another test project.'],
+    method_not_allowed: ['eown.errMethod', 'Method not allowed', 'eown.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['eown.errGeneric', 'Could not load the report', 'eown.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(m[0], m[1])) + '</h4><p>' + esc(t(m[2], m[3])) + '</p>' +
+    '<p>' + esc(t('eown.code', 'Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty();
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+}
+function filterParams(action) {
+  return {
+    action: action || 'report',
+    tplan_id: tplan_id,
+    tproject_id: tproject_id,
+    build_id: parseInt($('#buildFilter').val(), 10) || 0,
+    platform_id: parseInt($('#platformFilter').val(), 10) || 0,
+    scope: $('#scopeFilter').val() || 'gap'
+  };
+}
+function fillSelect($sel, items, allKey, allFallback) {
+  var current = $sel.val() || '0';
+  $sel.empty().append($('<option>').val('0').text(t(allKey, allFallback)));
+  (items || []).forEach(function(item) {
+    $sel.append($('<option>').val(item.id).text(item.name));
+  });
+  $sel.val(current);
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function loadInit() {
+  $.ajax({
+    url: '/api/executionownership/index.php',
+    data: { action: 'init', tplan_id: tplan_id, tproject_id: tproject_id },
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') { $('#loadingBox').hide(); resetView(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      $('#loadingBox').hide();
+      fillSelect($('#buildFilter'), (d.filters || {}).builds, 'eown.allBuilds', 'All builds');
+      fillSelect($('#platformFilter'), (d.filters || {}).platforms, 'eown.allPlatforms', 'All platforms');
+      loadReport();
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      resetView();
+      showState((xhr.responseJSON || {}).code || 'error');
+    }
+  });
+}
+function loadReport() {
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/executionownership/index.php',
+    data: filterParams('report'),
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || [];
+      STATE.summary = d.summary || {};
+      STATE.filter = d.filter || {};
+      STATE.context = d.context || {};
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+
+      var s = STATE.summary;
+      $('#kpiAssigned').text(s.assigned || 0);
+      $('#kpiExecuted').text(s.executed || 0);
+      $('#kpiOwned').text(s.owned || 0);
+      $('#kpiMismatch').text(s.mismatch || 0);
+      $('#kpiUnowned').text(s.unowned || 0);
+      $('#kpiMismatchPct').text((s.mismatch_pct || 0) + '%');
+      $('#kpiNoExecution').text(s.no_execution || 0);
+      $('#kpiSuites').text(s.suites || 0);
+      $('#kpiTesters').text(s.testers || 0);
+      $('#kpis').show();
+
+      var vmap = {
+        no_data: ['eown.verdictNoData', 'No data', 'eown.verdictNoDataBody', 'No executed assignments in this scope.'],
+        clear: ['eown.verdictClear', 'clear', 'eown.verdictClearBody', 'Every latest execution was recorded by an active assignee.'],
+        watch: ['eown.verdictWatch', 'watch', 'eown.verdictWatchBody', 'A small share of executions has an ownership gap.'],
+        at_risk: ['eown.verdictRisk', 'at_risk', 'eown.verdictRiskBody', 'Many executions have no matching active assignee.']
+      };
+      var vm = vmap[d.verdict] || vmap.no_data;
+      $('#verdictBox').removeClass('clear watch at_risk no_data').addClass(vm[1])
+        .html('<i class="fa fa-circle-info"></i> <b>' + esc(t(vm[0], vm[0])) + '</b> ' + esc(t(vm[2], vm[3])))
+        .show();
+
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-inbox"></i>' +
+          esc(t('eown.empty', 'No assigned test versions match this filter.'))).show();
+      } else {
+        renderTable();
+      }
+      $('#btnExport').prop('disabled', STATE.rows.length === 0);
+      $('#footerInfo').text(t('eown.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+function statusBadge(st) {
+  var key = 'eown.status' + st.charAt(0).toUpperCase() + st.slice(1);
+  return '<span class="badge badge-' + esc(st) + '">' + esc(t(key, st)) + '</span>';
+}
+function priorityBadge(p) {
+  var key = 'eown.priority' + p.charAt(0).toUpperCase() + p.slice(1);
+  return '<span class="badge badge-' + esc(p) + '">' + esc(t(key, p)) + '</span>';
+}
+function gapBadge(gap) {
+  var key = 'eown.gap' + gap.charAt(0).toUpperCase() + gap.slice(1);
+  return '<span class="badge badge-' + esc(gap) + '">' + esc(t(key, gap)) + '</span>';
+}
+function renderTable() {
+  $('#reportArea').html('<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table"></i> ' + esc(t('eown.tableTitle', 'Assigned test versions')) +
+    '<span class="bmeta">' + esc(t('eown.rowCount', 'Rows')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: [
+      { title: t('eown.colCase', 'Test case'), data: 'tcase_name', className: 'case',
+        render: function(data, type, row) {
+          if (type !== 'display') { return data; }
+          var url = '/gui/templates/execute/execTest.html?tproject_id=' + encodeURIComponent(STATE.context.tproject_id) +
+                    '&tplan_id=' + encodeURIComponent(STATE.context.tplan_id) +
+                    '&tcase_id=' + encodeURIComponent(row.tcase_id);
+          return '<a href="' + url + '" target="_blank" rel="noopener">' + esc(data) + '</a>' +
+                 ' <span class="badge badge-not_run">v' + esc(row.version) + '</span>';
+        } },
+      { title: t('eown.colSuite', 'Test suite'), data: 'suite_name', render: $.fn.dataTable.render.text() },
+      { title: t('eown.colPlatform', 'Platform'), data: 'platform_name',
+        render: function(data) { return data ? esc(data) : '<span class="badge badge-not_run">' + esc(t('eown.anyPlatform', 'Any')) + '</span>'; } },
+      { title: t('eown.colPriority', 'Priority'), data: 'priority',
+        render: function(data, type) { return type === 'display' ? priorityBadge(data) : data; } },
+      { title: t('eown.colOwners', 'Active assignees'), data: 'owner_names',
+        render: function(data, type) { return type === 'display' ? (data.length ? esc(data.join(', ')) : '<span class="badge badge-unowned">' + esc(t('eown.none', 'none')) + '</span>') : data.join(', '); } },
+      { title: t('eown.colTester', 'Last execution tester'), data: 'tester',
+        render: function(data) { return data ? esc(data) : '<span class="badge badge-no_execution">' + esc(t('eown.none', 'none')) + '</span>'; } },
+      { title: t('eown.colGap', 'Ownership gap'), data: 'gap',
+        render: function(data, type) { return type === 'display' ? gapBadge(data) : data; } },
+      { title: t('eown.colLastResult', 'Last result'), data: 'last_status',
+        render: function(data, type) { return type === 'display' ? statusBadge(data) : data; } },
+      { title: t('eown.colLastRun', 'Last run'), data: 'last_run', render: $.fn.dataTable.render.text() },
+      { title: t('eown.colBuild', 'Build'), data: 'last_build', render: $.fn.dataTable.render.text() },
+      { title: t('eown.colHistory', 'History'), data: 'tcversion_id', orderable: false,
+        render: function(data, type, row) {
+          if (type !== 'display') { return ''; }
+          return '<button class="btn-ghost btn-history" data-tcv="' + esc(row.tcversion_id) +
+                 '" data-plat="' + esc(row.platform_id) + '"><i class="fa fa-clock-rotate-left"></i> ' +
+                 esc(t('eown.history', 'History')) + '</button>';
+        } }
+    ],
+    order: [[6, 'asc'], [1, 'asc'], [0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('eown.infoEmpty', 'No entries'),
+      zeroRecords: t('eown.zeroRecords', 'No matching test cases'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('eown.empty', 'No assigned test versions match this filter.')
+    }
+  });
+}
+function openDetail(tcv, plat) {
+  var data = filterParams('detail');
+  data.tcversion_id = tcv;
+  data.platform_id = plat;
+  $.ajax({
+    url: '/api/executionownership/index.php',
+    data: data,
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'error') { toast(t('eown.errHistory', 'Could not load history'), true); return; }
+      var html = '<table><thead><tr><th>' + esc(t('eown.colLastRun', 'Last run')) + '</th><th>' +
+        esc(t('eown.colTester', 'Last execution tester')) + '</th><th>' + esc(t('eown.colLastResult', 'Last result')) +
+        '</th><th>' + esc(t('eown.colBuild', 'Build')) + '</th><th>' + esc(t('eown.colPlatform', 'Platform')) +
+        '</th><th>' + esc(t('eown.colNotes', 'Notes')) + '</th></tr></thead><tbody>';
+      (d.history || []).forEach(function(h) {
+        html += '<tr><td>' + esc(h.execution_ts) + '</td><td>' + esc(h.tester) + '</td><td>' +
+          statusBadge(h.status) + '</td><td>' + esc(h.build_name) + '</td><td>' +
+          esc(h.platform_name) + '</td><td>' + esc(h.notes) + '</td></tr>';
+      });
+      if (!d.history || !d.history.length) {
+        html += '<tr><td colspan="6">' + esc(t('eown.historyEmpty', 'No executions recorded for this version.')) + '</td></tr>';
+      }
+      $('#detailBody').html(html + '</tbody></table>');
+      $('#detailModal').modal('show');
+    },
+    error: function() { toast(t('eown.errHistory', 'Could not load history'), true); }
+  });
+}
+function csvGuard(v) {
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
+  if (!rows.length) { return; }
+  var header = [
+    t('eown.colCase', 'Test case'), t('eown.colSuite', 'Test suite'), t('eown.colPlatform', 'Platform'),
+    t('eown.colPriority', 'Priority'), t('eown.colOwners', 'Active assignees'),
+    t('eown.colTester', 'Last execution tester'), t('eown.colGap', 'Ownership gap'),
+    t('eown.colLastResult', 'Last result'), t('eown.colLastRun', 'Last run'), t('eown.colBuild', 'Build')
+  ];
+  var lines = [header.map(csvGuard).join(';')];
+  rows.forEach(function(r) {
+    lines.push([
+      r.tcase_name + ' v' + r.version, r.suite_name, r.platform_name, r.priority,
+      r.owner_names.join(', '), r.tester, t('eown.gap' + r.gap.charAt(0).toUpperCase() + r.gap.slice(1), r.gap),
+      r.last_status, r.last_run, r.last_build
+    ].map(csvGuard).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'execution-ownership-' + (tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(t('eown.toastExported', 'CSV exported'));
+}
+$(function() {
+  $('#btnRefresh').on('click', function() { loadInit(); });
+  $('#buildFilter, #platformFilter, #scopeFilter').on('change', loadReport);
+  $('#btnExport').on('click', exportCsv);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    window.close();
+  });
+  $(document).on('click', '.btn-history', function() {
+    STATE.focus = this;
+    openDetail($(this).data('tcv'), $(this).data('plat') || 0);
+  });
+  $('#detailModal').on('shown.bs.modal', function() { $('#btnDetailClose').focus(); });
+  $('#detailModal').on('hidden.bs.modal', function() {
+    if (STATE.focus && STATE.focus.focus) { STATE.focus.focus(); }
+    STATE.focus = null;
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = 'TestLink 2.0.1 - ' + t('eown.header', 'Test Plan Execution Ownership Gap');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
