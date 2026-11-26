@@ -2542,3 +2542,4 @@ $TLS_link_report_execution_flakiness = "실행 불안정성"; // Execution flaki
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "빌드 실행 활동"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "실행 담당자 차이";
+$TLS_link_report_execution_bottleneck = "실행 병목 현상"; // Execution bottleneck report (Refs #2070)

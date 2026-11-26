@@ -886,6 +886,13 @@ $tlCfg->reports_list['execution_ownership'] = array(
 	'format' => 'format_html'
 );
 
+$tlCfg->reports_list['execution_bottleneck'] = array(
+	'title' => 'link_report_execution_bottleneck',
+	'url' => 'gui/templates/results/executionBottleneck.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
 // defects referenced by one plan's executions, grouped by day.
 $tlCfg->reports_list['defect_arrival_rate'] = array(

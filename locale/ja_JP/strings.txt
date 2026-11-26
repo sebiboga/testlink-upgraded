@@ -4652,3 +4652,4 @@ $TLS_link_report_execution_flakiness = "実行の不安定性"; // Execution fla
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "ビルド実行アクティビティ"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "実行担当者の差異";
+$TLS_link_report_execution_bottleneck = "実行のボトルネック"; // Execution bottleneck report (Refs #2070)

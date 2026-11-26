@@ -3945,3 +3945,4 @@ $TLS_link_report_execution_flakiness = "Inestabilidad de ejecuciones"; // Execut
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Actividad de ejecución por build"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "Diferencias de responsabilidad en la ejecución";
+$TLS_link_report_execution_bottleneck = "Cuellos de botella de ejecución"; // Execution bottleneck report (Refs #2070)

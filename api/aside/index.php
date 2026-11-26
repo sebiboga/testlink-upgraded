@@ -378,6 +378,9 @@ if ($tplan_id > 0) {
             } else if ($rptItem['title'] == 'link_report_execution_ownership') {
                 $hrefR = '/gui/templates/results/executionOwnership.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_execution_bottleneck') {
+                $hrefR = '/gui/templates/results/executionBottleneck.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_requirement_traceability_gaps') {
                 // Refs #2047: requirement link hygiene (open/stale/closed links).
                 $hrefR = '/gui/templates/results/reqTraceabilityGaps.html' .

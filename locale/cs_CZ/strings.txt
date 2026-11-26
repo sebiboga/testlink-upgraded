@@ -4045,3 +4045,4 @@ $TLS_link_report_execution_flakiness = "Nestabilita provádění"; // Execution 
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Test Plan Build Execution Activity"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "Odchylky v odpovědnosti za provedení";
+$TLS_link_report_execution_bottleneck = "Exekuční úzká hrdla"; // Execution bottleneck report (Refs #2070)

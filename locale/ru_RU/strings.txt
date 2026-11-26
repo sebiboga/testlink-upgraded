@@ -2914,3 +2914,4 @@ $TLS_link_report_execution_flakiness = "Нестабильность выпол�
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Активность выполнений по сборкам"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "Несоответствия ответственности при выполнении";
+$TLS_link_report_execution_bottleneck = "Узкие места выполнения"; // Execution bottleneck report (Refs #2070)

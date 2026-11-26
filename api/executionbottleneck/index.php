@@ -82,8 +82,8 @@ function ebnDuration($raw)
     if ($raw === null || $raw === '') {
         return null;
     }
-    $value = round((float)$raw, 2);
-    return ($value >= 0 && $value <= 359999) ? $value : null;
+    $value = round((float)$raw * 60, 2);
+    return ($value > 0 && $value <= 359999) ? $value : null;
 }
 
 function ebnUserName($row)
@@ -225,15 +225,17 @@ if ($buildId > 0) {
 $allExecRs = $db->get_recordset($execSelect . " ORDER BY e.execution_ts ASC, e.id ASC");
 if (!is_array($allExecRs)) { $allExecRs = array(); }
 
+$testerNames = array();
 $testers = array();
 foreach ($allExecRs as $e) {
     $tid = intval($e['tester_id']);
-    if ($tid > 0 && !isset($testers[$tid])) {
-        $testers[$tid] = ebnUserName($e);
+    if ($tid > 0 && !isset($testerNames[$tid])) {
+        $testerNames[$tid] = ebnUserName($e);
+        $testers[] = array('id' => $tid, 'name' => $testerNames[$tid]);
     }
 }
-ksort($testers);
-if ($testerId > 0 && !isset($testers[$testerId])) {
+ksort($testerNames);
+if ($testerId > 0 && !isset($testerNames[$testerId])) {
     ebnFail(400, 'invalid_request');
 }
 
@@ -362,7 +364,7 @@ $summary = array(
     'avg_seconds' => 0.0,
     'max_seconds' => 0.0,
     'suites' => 0,
-    'testers' => count($testers),
+    'testers' => count($testerNames),
     'builds' => count($builds),
     'threshold' => $threshold,
 );
