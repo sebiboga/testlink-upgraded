@@ -2913,4 +2913,4 @@ $TLS_link_report_defect_arrival_rate = "Частота появления деф
 $TLS_link_report_execution_flakiness = "Нестабильность выполнения"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Активность выполнений по сборкам"; // Build execution activity report (Refs #2056)
-$TLS_link_report_execution_ownership = "Несоответствия ответственности при выполнении"
+$TLS_link_report_execution_ownership = "Несоответствия ответственности при выполнении";

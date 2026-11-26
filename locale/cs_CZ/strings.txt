@@ -4044,4 +4044,4 @@ $TLS_link_report_defect_arrival_rate = "Míra výskytu vad"; // Defect arrival r
 $TLS_link_report_execution_flakiness = "Nestabilita provádění"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Test Plan Build Execution Activity"; // Build execution activity report (Refs #2056)
-$TLS_link_report_execution_ownership = "Odchylky v odpovědnosti za provedení"
+$TLS_link_report_execution_ownership = "Odchylky v odpovědnosti za provedení";

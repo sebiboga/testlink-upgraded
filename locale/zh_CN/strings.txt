@@ -4249,4 +4249,4 @@ $TLS_link_report_defect_arrival_rate = "缺陷出现率"; // Defect arrival rate
 $TLS_link_report_execution_flakiness = "执行不稳定性"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "构建执行活动"; // Build execution activity report (Refs #2056)
-$TLS_link_report_execution_ownership = "执行责任人差异"
+$TLS_link_report_execution_ownership = "执行责任人差异";

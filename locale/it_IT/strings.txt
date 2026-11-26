@@ -2517,4 +2517,4 @@ $TLS_link_report_defect_arrival_rate = "Tasso di comparsa dei difetti"; // Defec
 $TLS_link_report_execution_flakiness = "Instabilità delle esecuzioni"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Attività di esecuzione per build"; // Build execution activity report (Refs #2056)
-$TLS_link_report_execution_ownership = "Differenze di responsabilità nell’esecuzione"
+$TLS_link_report_execution_ownership = "Differenze di responsabilità nell’esecuzione";

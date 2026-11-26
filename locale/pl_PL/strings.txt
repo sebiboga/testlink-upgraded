@@ -3939,4 +3939,4 @@ $TLS_link_report_defect_arrival_rate = "Wskaźnik pojawiania się defektów"; //
 $TLS_link_report_execution_flakiness = "Niestabilność wykonania"; // Execution flakiness report (Refs #2036)
 $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"; // Requirement traceability gap report (Refs #2047)
 $TLS_link_report_build_activity = "Aktywność wykonań buildów"; // Build execution activity report (Refs #2056)
-$TLS_link_report_execution_ownership = "Różnice w odpowiedzialności za wykonanie"
+$TLS_link_report_execution_ownership = "Różnice w odpowiedzialności za wykonanie";
