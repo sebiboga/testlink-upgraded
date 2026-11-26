@@ -303,3 +303,4 @@ $TLS_frozen_req_unable_to_import = "Ignorat - Cerință - ID document:%s - este 
 $TLS_req_spec_short = "Spec. cerințe";
 $TLS_req_created_automatic_log = "Cerință creată";
 $TLS_tcversion_indicator = ' [v%s]';
+$TLS_link_report_execution_ownership = "Diferențe de responsabilitate la execuție"

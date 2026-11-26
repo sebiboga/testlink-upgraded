@@ -2750,6 +2750,9 @@ function getActions(&$gui,$baseURL) {
   $actions->unassignedTests =
     "/gui/templates/results/unassignedTests.html?{$ctx}";
 
+  $actions->executionOwnership =
+    "/gui/templates/results/executionOwnership.html?{$ctx}";
+
   // Refs #2011: Test Plan Linked Defects report (net-new screen).
   // Defects linked to this plan's executions, grouped by defect with
   // build/platform/result re-scoping. Backed by api/linkeddefects.
