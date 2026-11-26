@@ -135,7 +135,7 @@ td.case a:hover { text-decoration: underline; }
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="close" id="btnDetailCloseX" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         <h4 class="modal-title" id="detailTitle"><span data-i18n="ebn.detailTitle">Execution durations</span></h4>
       </div>
       <div class="modal-body" id="detailBody"></div>
@@ -173,6 +173,7 @@ function showState(code) {
   var map = {
     invalid_request: ['ebn.errBadRequest', 'Invalid request', 'ebn.errBadRequestBody', 'The report parameters are not valid.'],
     not_authenticated: ['ebn.errSession', 'Session expired', 'ebn.errSessionBody', 'Please sign in again.'],
+    session_expired: ['ebn.errSession', 'Session expired', 'ebn.errSessionBody', 'Please sign in again.'],
     no_right: ['ebn.errNoRight', 'No permission', 'ebn.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
     tplan_not_found: ['ebn.errNotFound', 'Test plan not found', 'ebn.errNotFoundBody', 'The requested test plan does not exist.'],
     tcversion_not_found: ['ebn.errTcNotFound', 'Test case version not found', 'ebn.errTcNotFoundBody', 'The requested version is not assigned to this test plan.'],
@@ -278,7 +279,7 @@ function loadReport() {
         no_data: ['ebn.verdictNoData', 'no_data', 'ebn.verdictNoDataBody', 'No usable execution durations in this scope.', 'no_data'],
         clear: ['ebn.verdictClear', 'clear', 'ebn.verdictClearBody', 'No slow cases and no re-runs were recorded.', 'clear'],
         watch: ['ebn.verdictWatch', 'watch', 'ebn.verdictWatchBody', 'Some cases are slow or were re-run.', 'watch'],
-        at_risk: ['ebn.verdictRisk', 'at_risk', 'ebn.verdictRiskBody', 'Many cases are slow or were re-run.']
+        at_risk: ['ebn.verdictRisk', 'at_risk', 'ebn.verdictRiskBody', 'Many cases are slow or were re-run.', 'at_risk']
       };
       var vm = vmap[d.verdict] || vmap.no_data;
       $('#verdictBox').removeClass('clear watch at_risk no_data').addClass(vm[4])
@@ -460,6 +461,7 @@ $(function() {
   });
   TLi18n.load(function() {
     TLi18n.apply();
+    $('#btnDetailCloseX').attr('aria-label', t('ebn.close', 'Close'));
     document.title = 'TestLink 2.0.1 - ' + t('ebn.header', 'Test Plan Execution Bottleneck');
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadInit();

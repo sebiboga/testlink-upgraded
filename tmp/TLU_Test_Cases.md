@@ -49697,3 +49697,69 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 ### Test Case 2068.10: Suite gate
 - `TLU_REQUIRE_SUITE="Issue #2068" bash ai/verify_test_suites.sh` passes with no suite lost and this suite present.
 - Result: PASS
+
+## Issue #2070 — Test Plan Execution Bottleneck (`executionBottleneck`) — net-new BFF `api/executionbottleneck` + Dashio screen
+
+### Test Case 2070.1: Fixture and normal report
+- `php tmp/fixtures_2070.php` creates projects `EBN2070`/`EBN2070 EMPTY`, plan `EBN Bottleneck Plan`, plans 2/4, builds 1/2, platforms 1/2, users 1/2 and 6 assigned cases with slow, re-run, untimed, never-run and second-tester execution patterns.
+- Browser deep link `?tproject_id=1&tplan_id=2` renders the localized header, plan/project context, 12 KPIs (assigned 6, executed 5, never 1, timed 7, untimed 1, re-runs 2, slow 3, avg 7m56s, max 18m, total 55m30s, suites 1, testers 2), verdict `At risk` and a 6-row duration DataTable.
+- Result: PASS (normal-state screenshot saved)
+
+### Test Case 2070.2: BFF report contract
+- `action=init` returns context, builds, platforms and the default filter; `action=report` returns 6 rows with tcversion/suite/platform/priority/runs/timed/avg/max/total/slow/last result/last run/build fields and the expected summary.
+- Every execution duration is converted from the legacy minutes column to seconds; the zero/null untimed case contributes `timed_runs=0` and no duration to the aggregates.
+- Result: PASS
+
+### Test Case 2070.3: Filters, scope and threshold
+- `tester_id=2` returns only `EBN other tester case` (1 run, avg 420s); `scope=slow` returns the 3 slow cases; `scope=rerun` returns 2 re-run cases; `scope=never` returns the never-executed case.
+- `threshold=600` leaves only `EBN slow case three runs`; `build_id=1` yields `total_seconds=1230`; `platform_id=2` yields runs `[3,1,2,1,0,1]`.
+- Result: PASS (browser `evaluate_script` + BFF payloads)
+
+### Test Case 2070.4: Detail modal
+- The row `EBN slow case three runs` History button opens the detail modal with the execution-history table (3 timed executions, build/platform/tester/result/duration); the modal Close button dismisses it.
+- Result: PASS (modal screenshot saved)
+
+### Test Case 2070.5: CSV export
+- `Export CSV` produces a 7-line semicolon-delimited file (header + 6 rows), preserves localized headers, and the blob begins with UTF-8 BOM bytes `EF BB BF`; the toast reads `CSV exported`.
+- The export button is disabled on the empty plan.
+- Result: PASS
+
+### Test Case 2070.6: Empty plan
+- Plan 4 returns 200 with `verdict=no_data`, zero rows and a localized `No assigned test versions match this filter.` empty-state card; all KPIs are zero.
+- Result: PASS (empty-state snapshot verified)
+
+### Test Case 2070.7: Authentication, rights and HTTP contract
+- Anonymous `report` → 401 `not_authenticated`; role-3 user `ebn2070norights` → 403 `no_right` in both curl and browser state card; audit row written.
+- `tplan_id=999999` → 404 `tplan_not_found`; `tproject_id=999999` with plan 2 → 404 `project_mismatch`; `tcversion_id=999999` → 404 `tcversion_not_found`.
+- `threshold=0`, `scope=bogus`, `build_id=9999`, `tester_id=9999` → 400 `invalid_request`; POST → 405 `method_not_allowed`; HEAD → 200.
+- Result: PASS
+
+### Test Case 2070.8: State cards and deep links
+- Deep link `?tplan_id=999999` renders the `Test plan not found` card with code `tplan_not_found`; the no-right login renders `No permission` with code `no_right`; both cards hide the DataTable and disable export.
+- Result: PASS
+
+### Test Case 2070.9: Localization and bug fixes #2071/#2072
+- Header, subtitle, toolbar, scope options, KPIs, table headers and verdict switch correctly with `?locale=ro` after fixes #2071 and #2072; RO banner reads `Risc`, EN reads `At risk` (no machine codes).
+- All 10 bundles contain the `ebn.*` keys plus `footers.executionBottleneck`; all 19 server locales contain `$TLS_link_report_execution_bottleneck`.
+- Result: PASS (RO screenshot saved)
+
+### Test Case 2070.10: Menu wiring
+- The new report appears in the Reports list/aside with `tproject_id`/`tplan_id` propagated; `api/resultsnav` maps `execution_bottleneck` to the modern HTML screen; `lib/functions/common.php` exposes `$actions->executionBottleneck`.
+- Result: PASS
+
+### Test Case 2070.11: Syntax and i18n gates
+- `php -l` passes for `api/executionbottleneck/index.php` and all touched wiring/locale files; extracted screen JS passes `node --check`; every touched i18n bundle passes `python3 -m json.tool`.
+- `bash ai/verify_i18n_coverage.sh` → PASS 9 bundles, 13551 keys; `TLU_REQUIRE_SUITE="Issue #2070" bash ai/verify_test_suites.sh` → no suite lost and this suite present.
+- Result: PASS
+
+### Test Case 2070.12: Event Viewer / console
+- After all fixture, login, denial, filter, modal, CSV and locale paths, the Event Viewer shows 7 events, all AUDIT (0 ERROR/WARNING/INFO/DEBUG/L18N); intentional 400/401/403/404/405 probes are the only browser-console errors.
+- Result: PASS
+
+### Test Case 2070.13: Code-review hardening (Refs #2070)
+- Multi-platform assignments are now keyed by `(tcversion_id, platform_id)`: a platform-0 assignment excludes executions belonging to an explicitly assigned platform, so durations are not duplicated across assignment rows; named-platform rows include their own and wildcard executions.
+- KPIs, affected suites, distinct testers, builds and the verdict are now computed from scoped rows: `scope=slow` → 3 assigned/3 executed/3300s/`at_risk`, `scope=rerun` → 2/2/2880s/`at_risk`, `scope=never` → 1/0/0s/`no_data` (previously plan-wide counters leaked into every scope).
+- `tester_id=2` now limits the assignment rows to the one case executed by that tester (1 row, 1 run, 420s, 1 tester, 1 build); the full report still has 6 rows.
+- `last_tester` reads the tester-name map (`Testlink Administrator` / `No Rights` instead of an empty value); `session_expired` now maps to the localized session state card; the modal close button has a localized `aria-label`; `at_risk` now carries the CSS class element; the slow threshold uses strict `>` to match the "Slow above (s)" label.
+- Bug #2073 filed (`bug`) for the remaining untranslated `ebn.*` values in the 8 non-English bundles, with header/subtitle/verdict/toolbar already translated and the RO bundle complete.
+- Result: PASS (PHP lint + `node --check` + i18n gate + browser BFF probes)

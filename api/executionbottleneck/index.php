@@ -351,6 +351,14 @@ $assignSql .= " ORDER BY nh_ts.name, nh_tc.name, tpt.platform_id, tv.id";
 $assignRs = $db->get_recordset($assignSql);
 if (!is_array($assignRs)) { $assignRs = array(); }
 
+$namedPlatforms = array();
+foreach ($assignRs as $r) {
+    $assignedPlatform = intval($r['platform_id']);
+    if ($assignedPlatform > 0) {
+        $namedPlatforms[intval($r['tcversion_id'])][$assignedPlatform] = true;
+    }
+}
+
 $rows = array();
 $summary = array(
     'assigned' => 0,
@@ -364,15 +372,27 @@ $summary = array(
     'avg_seconds' => 0.0,
     'max_seconds' => 0.0,
     'suites' => 0,
-    'testers' => count($testerNames),
-    'builds' => count($builds),
+    'testers' => 0,
+    'builds' => 0,
     'threshold' => $threshold,
 );
 $suiteSet = array();
+$testerSet = array();
+$buildSet = array();
 
 foreach ($assignRs as $r) {
     $tcv = intval($r['tcversion_id']);
-    $runs = isset($execByTcversion[$tcv]) ? $execByTcversion[$tcv] : array();
+    $assignedPlatform = intval($r['platform_id']);
+    $runs = array();
+    foreach (isset($execByTcversion[$tcv]) ? $execByTcversion[$tcv] : array() as $e) {
+        $execPlatform = intval($e['platform_id']);
+        if ($assignedPlatform > 0) {
+            if ($execPlatform !== 0 && $execPlatform !== $assignedPlatform) { continue; }
+        } elseif ($execPlatform > 0 && isset($namedPlatforms[$tcv][$execPlatform])) {
+            continue;
+        }
+        $runs[] = $e;
+    }
     $runCount = count($runs);
     $timedCount = 0;
     $total = 0.0;
@@ -387,13 +407,18 @@ foreach ($assignRs as $r) {
         }
         $last = $e;
     }
+    if ($testerId > 0 && $runCount === 0) { continue; }
     $avg = ($timedCount > 0) ? round($total / $timedCount, 2) : 0.0;
-    $isSlow = ($timedCount > 0 && $avg >= $threshold);
+    $isSlow = ($timedCount > 0 && $avg > $threshold);
     $isRerun = ($runCount > 1);
     $level = function_exists('priority_to_level')
         ? intval(priority_to_level(intval($r['urgency']))) : MEDIUM;
     $priority = $level >= HIGH ? 'high' : ($level >= MEDIUM ? 'medium' : 'low');
     $suiteId = intval($r['suite_id']);
+
+    if ($scope === 'slow' && !$isSlow) { continue; }
+    if ($scope === 'rerun' && !$isRerun) { continue; }
+    if ($scope === 'never' && $runCount > 0) { continue; }
 
     $summary['assigned']++;
     if ($runCount > 0) { $summary['executed']++; } else { $summary['never_run']++; }
@@ -404,10 +429,12 @@ foreach ($assignRs as $r) {
     $summary['total_seconds'] += $total;
     if ($max > $summary['max_seconds']) { $summary['max_seconds'] = $max; }
     if ($suiteId > 0 && ($isSlow || $isRerun)) { $suiteSet[$suiteId] = true; }
-
-    if ($scope === 'slow' && !$isSlow) { continue; }
-    if ($scope === 'rerun' && !$isRerun) { continue; }
-    if ($scope === 'never' && $runCount > 0) { continue; }
+    foreach ($runs as $e) {
+        $testerIdForRun = intval($e['tester_id']);
+        $buildIdForRun = intval($e['build_id']);
+        if ($testerIdForRun > 0) { $testerSet[$testerIdForRun] = true; }
+        if ($buildIdForRun > 0) { $buildSet[$buildIdForRun] = true; }
+    }
 
     $lastTesterId = $last ? intval($last['tester_id']) : 0;
     $rows[] = array(
@@ -431,8 +458,8 @@ foreach ($assignRs as $r) {
         'last_build' => ($last && isset($buildNames[intval($last['build_id'])]))
             ? $buildNames[intval($last['build_id'])] : '',
         'last_run' => $last ? (string)($last['execution_ts'] ?? '') : '',
-        'last_tester' => ($lastTesterId > 0 && isset($testers[$lastTesterId]))
-            ? $testers[$lastTesterId] : '',
+        'last_tester' => ($lastTesterId > 0 && isset($testerNames[$lastTesterId]))
+            ? $testerNames[$lastTesterId] : '',
         'is_slow' => $isSlow,
         'is_rerun' => $isRerun,
     );
@@ -443,6 +470,8 @@ $summary['avg_seconds'] = ($summary['timed'] > 0)
     ? round($summary['total_seconds'] / $summary['timed'], 2) : 0.0;
 $summary['max_seconds'] = round($summary['max_seconds'], 2);
 $summary['suites'] = count($suiteSet);
+$summary['testers'] = count($testerSet);
+$summary['builds'] = count($buildSet);
 
 if ($summary['assigned'] === 0) {
     $verdict = 'no_data';
