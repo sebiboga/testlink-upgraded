@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="tpwg.title">Test Plan Custom Field Value Gaps</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select, .toolbar input { background: #2e3138; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 12px; max-width: 220px; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost[disabled] { opacity: .5; cursor: not-allowed; }
+.kpis { display: flex; gap: 14px; flex-wrap: wrap; margin: 16px 24px 0; }
+.kpi { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 18px; min-width: 140px; flex: 1; }
+.kpi .v { font-size: 24px; font-weight: 700; color: #22242a; line-height: 1.1; }
+.kpi .l { font-size: 11.5px; color: #667; margin-top: 3px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi.teal .v { color: #259b93; }
+.kpi.alert .v { color: #e6605e; }
+.verdict { margin: 12px 24px 0; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; border: 1px solid transparent; }
+.verdict.complete { background: #d4edda; color: #155724; border-color: #b7dfc0; }
+.verdict.partial { background: #fff8e1; color: #7a5b00; border-color: #ffe08a; }
+.verdict.empty { background: #e9ecef; color: #495057; border-color: #ced4da; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; }
+table.flat td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.case a { color: #259b93; font-weight: 600; text-decoration: none; }
+td.case a:hover { text-decoration: underline; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.badge-filled { background: #d4edda; color: #155724; }
+.badge-missing { background: #f5c6cb; color: #b94a48; }
+.badge-version { background: #e9ecef; color: #555; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.state { background: #fff; border-radius: 8px; padding: 30px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.state i { font-size: 36px; color: #e6605e; display: block; margin-bottom: 10px; }
+.state h4 { margin: 0 0 6px; color: #22242a; }
+.state p { color: #667; margin: 0 0 6px; }
+.state code { color: #b94a48; background: #fdecea; padding: 2px 6px; border-radius: 3px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-clipboard-check" style="margin-right:8px;"></i>
+  <span data-i18n="tpwg.title">Test Plan Custom Field Value Gaps</span>
+  <span class="sub" data-i18n="tpwg.subtitle">which assigned test cases are missing plan-design field values?</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx" data-i18n="tpwg.testPlan">Test Plan</span>: <b id="tplanName">-</b>
+  <span class="ctx" data-i18n="tpwg.testProject">Project</span>: <b id="tprojectName">-</b>
+  <label for="cfFilter" data-i18n="tpwg.customField">Custom field</label>
+  <select id="cfFilter"><option value="0" data-i18n="tpwg.allFields">All fields</option></select>
+  <label for="scopeFilter" data-i18n="tpwg.scope">Scope</label>
+  <select id="scopeFilter">
+    <option value="all" data-i18n="tpwg.scopeAll">All assigned tests</option>
+    <option value="filled" data-i18n="tpwg.scopeFilled">With values</option>
+    <option value="missing" data-i18n="tpwg.scopeMissing">Missing values</option>
+  </select>
+  <label for="searchInput" data-i18n="tpwg.search">Search</label>
+  <input type="search" id="searchInput" data-i18n="[placeholder]tpwg.searchPlaceholder">
+  <span style="flex:1"></span>
+  <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="tpwg.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="tpwg.exportCsv">Export CSV</span></button>
+  <a class="btn-ghost" id="btnRawValues"><i class="fa fa-table"></i> <span data-i18n="tpwg.openValues">Open raw values</span></a>
+  <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="tpwg.close">Close</span></button>
+</div>
+
+<div class="kpis" id="kpis" style="display:none;">
+  <div class="kpi"><div class="v" id="kpiAssigned">0</div><div class="l" data-i18n="tpwg.kpiAssigned">Assigned versions</div></div>
+  <div class="kpi teal"><div class="v" id="kpiWithValues">0</div><div class="l" data-i18n="tpwg.kpiWithValues">With values</div></div>
+  <div class="kpi alert"><div class="v" id="kpiWithoutValues">0</div><div class="l" data-i18n="tpwg.kpiWithoutValues">Without values</div></div>
+  <div class="kpi teal"><div class="v" id="kpiCoverage">0%</div><div class="l" data-i18n="tpwg.kpiCoverage">Value coverage</div></div>
+  <div class="kpi"><div class="v" id="kpiFields">0</div><div class="l" data-i18n="tpwg.kpiFields">Design custom fields</div></div>
+  <div class="kpi"><div class="v" id="kpiFilledCells">0</div><div class="l" data-i18n="tpwg.kpiFilledCells">Filled cells</div></div>
+  <div class="kpi"><div class="v" id="kpiShown">0</div><div class="l" data-i18n="tpwg.kpiShown">Rows in scope</div></div>
+</div>
+
+<div class="verdict" id="verdictBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="stateBox"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.tpwcGaps">TestLink 2.0.1 - Test Plan Custom Field Value Gaps</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var params = new URLSearchParams(window.location.search);
+var tplan_id = parseInt(params.get('tplan_id'), 10) || 0;
+var tproject_id = parseInt(params.get('tproject_id'), 10) || 0;
+var STATE = { rows: [], kpis: {}, context: {}, fields: [], dt: null };
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  $t.toggleClass('err', !!isErr);
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function showState(code) {
+  var map = {
+    invalid_request: ['tpwg.errBadRequest', 'Invalid request', 'tpwg.errBadRequestBody', 'The report parameters are not valid.'],
+    not_authenticated: ['tpwg.errSession', 'Session expired', 'tpwg.errSessionBody', 'Please sign in again.'],
+    no_right: ['tpwg.errNoRight', 'No permission', 'tpwg.errNoRightBody', 'You need the testplan_metrics right on this test project.'],
+    tplan_not_found: ['tpwg.errNotFound', 'Test plan not found', 'tpwg.errNotFoundBody', 'The requested test plan does not exist.'],
+    project_mismatch: ['tpwg.errMismatch', 'Wrong test project', 'tpwg.errMismatchBody', 'This test plan belongs to another test project.'],
+    custom_fields_not_found: ['tpwg.errNoFields', 'Custom field type not found', 'tpwg.errNoFieldsBody', 'The TestLink test-case node type is missing.'],
+    method_not_allowed: ['tpwg.errMethod', 'Method not allowed', 'tpwg.errMethodBody', 'This report is read-only.']
+  };
+  var m = map[code] || ['tpwg.errGeneric', 'Could not load the report', 'tpwg.errGenericBody', 'Unexpected server error.'];
+  $('#stateBox').html('<div class="state" role="alert" aria-live="assertive"><i class="fa fa-triangle-exclamation"></i>' +
+    '<h4>' + esc(t(m[0], m[1])) + '</h4><p>' + esc(t(m[2], m[3])) + '</p>' +
+    '<p>' + esc(t('tpwg.code', 'Code')) + ': <code>' + esc(code) + '</code></p></div>').show();
+  TLi18n.apply($('#stateBox')[0]);
+}
+function resetView() {
+  $('#stateBox').empty().hide();
+  $('#reportArea').empty();
+  $('#emptyBox').hide().empty();
+  $('#verdictBox').hide().empty().removeClass('complete partial empty');
+  $('#kpis').hide();
+  $('#footerInfo').empty();
+  $('#btnExport').prop('disabled', true);
+  if (STATE.dt) { try { STATE.dt.destroy(); } catch (e) {} STATE.dt = null; }
+}
+function reportParams(action) {
+  return {
+    action: action || 'report',
+    tplan_id: tplan_id,
+    tproject_id: tproject_id,
+    cf_id: parseInt($('#cfFilter').val(), 10) || 0,
+    scope: $('#scopeFilter').val() || 'all',
+    q: $('#searchInput').val() || ''
+  };
+}
+function fillFields(fields, selected) {
+  var $sel = $('#cfFilter');
+  $sel.empty().append($('<option>').val('0').text(t('tpwg.allFields', 'All fields')));
+  (fields || []).forEach(function(f) {
+    $sel.append($('<option>').val(f.id).text(f.label || f.name));
+  });
+  $sel.val(selected && parseInt(selected, 10) > 0 ? selected : '0');
+  if (!$sel.val()) { $sel.val('0'); }
+}
+function updateContextUrl() {
+  $('#btnRawValues').attr('href', '/gui/templates/results/tplanWithCF.html?tproject_id=' +
+    encodeURIComponent(tproject_id || 0) + '&tplan_id=' + encodeURIComponent(tplan_id || 0));
+}
+function loadInit() {
+  $('#loadingBox').show();
+  $.ajax({
+    url: '/api/tplanwithcf/index.php',
+    data: { action: 'init', tplan_id: tplan_id, tproject_id: tproject_id },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { resetView(); showState(d.code); return; }
+      STATE.context = d.context || {};
+      STATE.fields = d.custom_fields || [];
+      tplan_id = STATE.context.tplan_id || tplan_id;
+      tproject_id = STATE.context.tproject_id || tproject_id;
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      updateContextUrl();
+      fillFields(STATE.fields, (d.filter || {}).cf_id || $('#cfFilter').val());
+      loadReport();
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      resetView();
+      showState((xhr.responseJSON || {}).code || 'error');
+    }
+  });
+}
+function loadReport() {
+  $('#loadingBox').show();
+  resetView();
+  $.ajax({
+    url: '/api/tplanwithcf/index.php',
+    data: reportParams('report'),
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { showState(d.code); return; }
+      STATE.rows = d.rows || [];
+      STATE.kpis = d.kpis || {};
+      STATE.context = d.context || {};
+      STATE.fields = d.custom_fields || STATE.fields;
+      $('#tplanName').text(STATE.context.tplan_name || '-');
+      $('#tprojectName').text(STATE.context.tproject_name || '-');
+      updateContextUrl();
+      fillFields(STATE.fields, (d.filter || {}).cf_id || $('#cfFilter').val());
+
+      var s = STATE.kpis;
+      $('#kpiAssigned').text(s.assigned || 0);
+      $('#kpiWithValues').text(s.with_values || 0);
+      $('#kpiWithoutValues').text(s.without_values || 0);
+      $('#kpiCoverage').text((s.coverage_pct || 0) + '%');
+      $('#kpiFields').text(s.custom_fields || 0);
+      $('#kpiFilledCells').text(s.filled_cells || 0);
+      $('#kpiShown').text(s.shown || 0);
+      $('#kpis').show();
+
+      var verdict = s.custom_fields === 0 ? 'empty'
+        : (s.without_values === 0 ? 'complete' : (s.with_values === 0 ? 'empty' : 'partial'));
+      var vm = {
+        complete: ['tpwg.verdictComplete', 'All assigned tests have values', 'tpwg.verdictCompleteBody', 'Every design custom field is filled for every assigned test case version.'],
+        partial: ['tpwg.verdictPartial', 'Values incomplete', 'tpwg.verdictPartialBody', 'Some assigned test case versions are missing design custom field values.'],
+        empty: ['tpwg.verdictEmpty', 'No values to show', 'tpwg.verdictEmptyBody', 'No design custom fields are linked or no assigned version carries a value.']
+      }[verdict];
+      $('#verdictBox').removeClass('complete partial empty').addClass(verdict)
+        .html('<i class="fa fa-circle-info"></i> <b>' + esc(t(vm[0], vm[1])) + '</b> ' + esc(t(vm[2], vm[3])))
+        .show();
+
+      if (!STATE.rows.length) {
+        $('#emptyBox').html('<i class="fa fa-inbox"></i>' +
+          esc(t('tpwg.empty', 'No test cases match this filter.'))).show();
+      } else {
+        renderTable();
+      }
+      $('#btnExport').prop('disabled', STATE.rows.length === 0);
+      $('#footerInfo').text(t('tpwg.generatedOn', 'Generated on') + ': ' + new Date().toLocaleString());
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      showState((xhr.responseJSON || {}).code || 'error');
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+function valueBadge(value) {
+  if (value) { return '<span class="badge badge-filled">' + esc(t('tpwg.filled', 'filled')) + '</span>'; }
+  return '<span class="badge badge-missing">' + esc(t('tpwg.missing', 'missing')) + '</span>';
+}
+function renderTable() {
+  var columns = [
+    { title: t('tpwg.colCase', 'Test case'), data: 'name', className: 'case',
+      render: function(data, type, row) {
+        if (type !== 'display') { return data; }
+        var url = '/gui/templates/testcases/tcEdit.html?tproject_id=' + encodeURIComponent(STATE.context.tproject_id) +
+                  '&tcase_id=' + encodeURIComponent(row.tcase_id);
+        return '<a href="' + url + '" target="_blank" rel="noopener">' + esc(data) + '</a>' +
+               ' <span class="badge badge-version">v' + esc(row.version) + '</span>';
+      } },
+    { title: t('tpwg.colSuite', 'Test suite'), data: 'suite_path', render: $.fn.dataTable.render.text() },
+    { title: t('tpwg.colFilled', 'Filled fields'), data: 'filled',
+      render: function(data, type, row) {
+        if (type !== 'display') { return data; }
+        var total = STATE.fields.length;
+        var cls = data === total ? 'filled' : 'missing';
+        return '<span class="badge badge-' + cls + '">' + esc(data + ' / ' + total) + '</span>';
+      } }
+  ];
+  STATE.fields.forEach(function(f, idx) {
+    columns.push({ title: f.label || f.name, data: function(row) { return row.cells[idx] || ''; },
+      render: function(data, type) {
+        if (type !== 'display') { return data; }
+        return valueBadge(data) + (data ? ' ' + esc(data) : '');
+      } });
+  });
+  $('#reportArea').html('<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table"></i> ' + esc(t('tpwg.tableTitle', 'Design custom field value gaps')) +
+    '<span class="bmeta">' + esc(t('tpwg.rowCount', 'Rows')) + ': ' + STATE.rows.length +
+    '</span></div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>');
+  STATE.dt = $('#dtResults').DataTable({
+    data: STATE.rows,
+    columns: columns,
+    order: [[1, 'asc'], [0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: t('common.filter', 'Filter') + ':',
+      lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+      info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+      infoEmpty: t('tpwg.infoEmpty', 'No entries'),
+      zeroRecords: t('tpwg.zeroRecords', 'No matching test cases'),
+      paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+      emptyTable: t('tpwg.empty', 'No test cases match this filter.')
+    }
+  });
+}
+function csvGuard(v) {
+  var s = (v === null || v === undefined) ? '' : String(v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  var rows = STATE.dt ? STATE.dt.rows({ search: 'applied' }).data().toArray() : STATE.rows;
+  if (!rows.length) { return; }
+  var header = [t('tpwg.colCase', 'Test case'), t('tpwg.colSuite', 'Test suite'), t('tpwg.colFilled', 'Filled fields')];
+  STATE.fields.forEach(function(f) {
+    header.push(f.label || f.name);
+    header.push((f.label || f.name) + ' — ' + t('tpwg.status', 'status'));
+  });
+  var lines = [header.map(csvGuard).join(';')];
+  rows.forEach(function(r) {
+    var cells = [r.name + ' v' + r.version, r.suite_path, r.filled + '/' + STATE.fields.length];
+    (r.cells || []).forEach(function(value) {
+      cells.push(value);
+      cells.push(value ? t('tpwg.filled', 'filled') : t('tpwg.missing', 'missing'));
+    });
+    lines.push(cells.map(csvGuard).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'tplan-cf-gaps-' + (tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast(t('tpwg.toastExported', 'CSV exported'));
+}
+$(function() {
+  $('#btnRefresh').on('click', loadInit);
+  $('#cfFilter, #scopeFilter').on('change', loadReport);
+  $('#searchInput').on('change', loadReport);
+  $('#btnExport').on('click', exportCsv);
+  $('#btnClose').on('click', function() {
+    if (window.parent && window.parent !== window) { window.parent.postMessage({ action: 'close' }, '*'); }
+    window.close();
+  });
+  TLi18n.load(function() {
+    TLi18n.apply();
+    document.title = 'TestLink 2.0.1 - ' + t('tpwg.title', 'Test Plan Custom Field Value Gaps');
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
