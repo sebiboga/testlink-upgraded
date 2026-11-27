@@ -49774,10 +49774,13 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 ### Test Case 2074.2: BFF init/report contract
 - `api/tplanwithcf/index.php?action=init` returns context, plan and design custom fields; `action=report` returns per-version rows with test case/version/suite, completed count, raw values, scope/search metadata and the KPI summary described in 2074.1.
 - `action=report&scope=missing` returns the one version without values; `scope=filled` returns the three with values; `cf_id=20772` restricts values to Risk Level; `search=Login` leaves only `GAP-1`.
+- Correction (#2078): the BFF query parameter is `q`, not `search`; `q=Login` leaves only `GAP-1`.
+- With the #2078 fix, `cf_id=20772&scope=missing` returns the 2 assignments whose Risk Level is empty (`GAP-2`, `GAP-3`) and `cf_id=20772&scope=filled` returns the 2 assignments whose Risk Level is filled (`GAP-1`, `GAP-4`).
 - Result: PASS
 
 ### Test Case 2074.3: Filters and responsive table
 - Scope `missing` and `filled`, custom-field combination (`cf_id=20772`, `scope=filled`, `search=Login`) and text search (applied on `change`, matching the sibling screen) all update the DataTable and KPI `shown` count; the RO bundled DataTable language is used.
+- Correction (#2078): the query parameter used by the screen and BFF is `q`; `cf_id=20772&scope=missing` now narrows to that field's empty values.
 - Result: PASS (`docs/screenshots/tpwcGaps-missing.png`, `docs/screenshots/tpwcGaps-filtered.png`)
 
 ### Test Case 2074.4: Refresh, raw values link and Close
@@ -49790,6 +49793,7 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 
 ### Test Case 2074.6: Complete and empty verdicts
 - Filling both design fields on all four links changes the report to `assigned=4`, `with_values=4`, `without_values=0`, `coverage_pct=100` with the green complete verdict; the fixture was restored afterwards.
+- Correction (#2078): the earlier implementation marked 4/8 cells complete; the fix requires `filled_cells === assigned * custom_fields`, so the restored 4/8 fixture now shows the amber partial verdict and the 8/8 screenshot was regenerated.
 - Empty plan 20742 shows `assigned=0`, `with_values=0`, `filled_cells=0`, `shown=0` and the yellow `empty` verdict. Bug #2076 (`bug`) was filed because the first implementation showed the green complete verdict on zero assignments; the fix treats `assigned === 0` as empty and the partial verdict was re-verified after the fix.
 - Result: PASS (`docs/screenshots/tpwcGaps-complete.png`, `docs/screenshots/tpwcGaps-empty.png`)
 
@@ -49801,11 +49805,13 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 
 ### Test Case 2074.8: Error state card and deep link
 - `?tproject_id=2074&tplan_id=999999&locale=ro` renders the localized `Planul de test nu a fost găsit` card with code `tplan_not_found`; the DataTable is hidden and export disabled.
+- With the #2078 state-map fix, `session_expired` and `invalid_parameter` render the localized session/invalid-request cards rather than the generic card.
 - Result: PASS (`docs/screenshots/tpwcGaps-error-notfound.png`)
 
 ### Test Case 2074.9: Localization
 - Header, subtitle, toolbar, scope options, KPI captions, verdict, table headers, footer and error card switch with `?locale=ro`; English and Romanian were browser-verified.
 - All 10 `gui/templates/i18n/*.json` bundles contain `footers.tpwcGaps` plus the 58 `tpwg.*` keys; all 19 `locale/*/strings.txt` contain `$TLS_link_report_tpwc_gaps`.
+- Correction (#2078): the correct count is 59 `tpwg.*` keys in all bundles and the 19 server-locale entries have no trailing comments.
 - Result: PASS (`docs/screenshots/tpwcGaps-locale-ro.png`)
 
 ### Test Case 2074.10: Menu, action and coverage launcher wiring
@@ -49827,3 +49833,10 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 - `tplanCfCoverage.html` still renders 2 plans, 4 assigned, 3 rows with values, 75% coverage and status filters after the new final column was appended (existing DataTables indexes remain stable); its raw-values plan links are unchanged.
 - `tplanWithCF.html` still opens from both the report toolbar and the coverage plan column.
 - Result: PASS
+
+### Test Case 2074.14: Code-review regression (#2078)
+- Injecting `<img src=x onerror=alert(1)>` as custom field 20771's name renders escaped text in the DataTables header; no image or JS error is produced. The field name was restored from `tmp/fixtures_2074.sql` afterwards.
+- `cf_id=20772&scope=missing` returns 2 rows (`GAP-2`, `GAP-3`) and `cf_id=20772&scope=filled` returns 2 rows (`GAP-1`, `GAP-4`); 4/8 filled cells now render the partial verdict, 8/8 renders complete, 0 cells renders empty.
+- `session_expired` and `invalid_parameter` render localized error cards; the search placeholder resolves through `data-i18n-placeholder`; Close posts `action=close` with `window.location.origin` and closes the launcher tab.
+- All 19 server locale entries have no trailing comments; `ja.json` and `ro.json` typo fixes render correctly; the key count is 59 in every bundle.
+- Result: PASS (screenshots `docs/screenshots/tpwcGaps-filtered.png`, `docs/screenshots/tpwcGaps-complete.png`)

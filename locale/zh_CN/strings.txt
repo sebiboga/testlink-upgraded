@@ -4251,4 +4251,4 @@ $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"
 $TLS_link_report_build_activity = "构建执行活动"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "执行责任人差异";
 $TLS_link_report_execution_bottleneck = "执行瓶颈"; // Execution bottleneck report (Refs #2070)
-$TLS_link_report_tpwc_gaps = "测试计划自定义字段值缺口"; // Custom field value gaps report (Refs #2074)
+$TLS_link_report_tpwc_gaps = "测试计划自定义字段值缺口";

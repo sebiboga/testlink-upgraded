@@ -259,19 +259,29 @@ if (is_array($assignedRs)) {
             $filledCount++;
             $filledCells += $filled;
         }
-        if ($scope === 'filled' && $filled === 0) {
-            continue;
-        }
-        if ($scope === 'missing' && $filled > 0) {
-            continue;
+        if ($cfId > 0) {
+            $selectedValue = isset($values[$cfId]) ? $values[$cfId] : '';
+            if ($scope === 'all' && $selectedValue === '') {
+                continue;
+            }
+            if ($scope === 'filled' && $selectedValue === '') {
+                continue;
+            }
+            if ($scope === 'missing' && $selectedValue !== '') {
+                continue;
+            }
+        } else {
+            if ($scope === 'filled' && $filled === 0) {
+                continue;
+            }
+            if ($scope === 'missing' && $filled > 0) {
+                continue;
+            }
         }
         $tcaseId = intval($a['tcase_id']);
         $name = $prefix . '-' . intval($a['tc_external_id']) .
                 ' — ' . tpwcDecode($a['tcase_name'] ?? '');
         if ($q !== '' && stripos(tpwcSuitePath($db, $tbl, $tcaseId, $pathCache) . ' ' . $name, $q) === false) {
-            continue;
-        }
-        if ($cfId > 0 && (!isset($values[$cfId]) || $values[$cfId] === '')) {
             continue;
         }
         $cells = array();
