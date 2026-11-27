@@ -49873,3 +49873,7 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 - `docs/Test-Plan-Milestone-Delivery-Modernized.md` and the wiki mirror now state the actual 89 `mdlv.*` keys, 13,701 total `en.json` keys, 19 server locale files, the real `at_risk` rule (≤ 7 days), the capped completion and the precise rights-check semantics. Latest screenshots were recaptured after the pass-rate changes.
 - Final gates: `php -l` on all touched PHP, extracted `node --check`, JSON validation, `bash ai/verify_i18n_coverage.sh` (9/9, 0 failed), `TLU_REQUIRE_SUITE="Issue #2079" bash ai/verify_test_suites.sh` (34 PASS / 0 FAIL / 0 SKIP). Event Viewer remains AUDIT-only with 0 Error/Warning entries.
 - Result: PASS (bug #2085 fixed, verified and closed)
+
+### Test Case 2079.19: Final review corrections
+- Clarified that suite `Issue #2079` contains 14 bullet checks under the suite heading plus numbered review cases 2079.15–2079.18 (18 checks total); corrected the stale early i18n facts to 89 `mdlv.*` keys, 13,701 `en.json` keys and 19 server locales; documented the actual verdict precedence (`complete` when every assigned link is executed, before `overdue`/`at_risk`/`on_track`); synced the wiki text and recaptured the Romanian screenshot after the pass-rate fix.
+- Result: PASS (final gates re-run: `34 PASS / 0 FAIL / 0 SKIP`, i18n 9/9)
