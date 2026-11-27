@@ -300,6 +300,7 @@ foreach ($statusTotals as $st => $cnt) {
 ksort($statusRows);
 
 mdOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
+    'filters' => array('builds' => $builds, 'platforms' => $platforms),
     'filter' => $filter, 'today' => $today,
     'kpi' => array('milestones' => count($rows), 'assigned' => $totalAssigned,
         'executed' => $totalExecuted, 'not_run' => max(0, $totalAssigned - $totalExecuted),
