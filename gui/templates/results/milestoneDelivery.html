@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test plan milestone delivery report: expected priority mix versus executed evidence before each milestone deadline (TestLink 2.0.1)">
+<title>Test Plan Milestone Delivery</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 115px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.complete { background: #1e7a34; }
+.badge-v.on_track { background: #2a5fb8; }
+.badge-v.at_risk { background: #b98a1c; }
+.badge-v.overdue { background: #c0392b; }
+.badge-v.no_data { background: #6b7280; }
+.badge-v.no_milestones { background: #6b7280; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modal-header { background: #22242a; color: #fff; }
+.modal-header .close { color: #fff; }
+.modal-body h5 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
+.bar { height: 8px; background: #eceef2; border-radius: 4px; overflow: hidden; min-width: 70px; }
+.bar > div { height: 100%; background: #4ECDC4; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-flag-checkered" style="margin-right:8px;"></i>
+  <span data-i18n="mdlv.title">Test Plan Milestone Delivery</span>
+  <span class="sub" data-i18n="mdlv.subtitle">expected priority mix versus executed evidence before each deadline</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="mdlv.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="mdlv.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="mdlv.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="mdlv.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="mdlv.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="mdlv.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="mdlv.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="mdlv.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="mdlv.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="mdlv.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="mdlv.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="mdlv.ctxToday">Report date</span><span class="v" id="ctxToday">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="mdlv.summaryTitle">Delivery summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="mdlv.kpiMilestones">Milestones</div><div class="v" id="sMilestones">0</div></div>
+      <div class="card"><div class="k" data-i18n="mdlv.kpiAssigned">Assigned links</div><div class="v" id="sAssigned">0</div></div>
+      <div class="card good"><div class="k" data-i18n="mdlv.kpiExecuted">Executed in window</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="mdlv.kpiNotRun">Not run</div><div class="v" id="sNotRun">0</div></div>
+      <div class="card info"><div class="k" data-i18n="mdlv.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card good"><div class="k" data-i18n="mdlv.kpiComplete">Complete</div><div class="v" id="sComplete">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="mdlv.kpiOverdue">Overdue</div><div class="v" id="sOverdue">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="mdlv.kpiAtRisk">At risk</div><div class="v" id="sAtRisk">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblMd" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="mdlv.tableCaption">Milestone delivery evidence of the addressed test plan</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="mdlv.colName">Milestone</th>
+          <th scope="col" data-i18n="mdlv.colWindow">Window</th>
+          <th scope="col" data-i18n="mdlv.colExpected">Expected H/M/L</th>
+          <th scope="col" data-i18n="mdlv.colAssigned">Assigned</th>
+          <th scope="col" data-i18n="mdlv.colExecuted">Executed</th>
+          <th scope="col" data-i18n="mdlv.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="mdlv.colCompletion">Weighted completion</th>
+          <th scope="col" data-i18n="mdlv.colDaysLeft">Days left</th>
+          <th scope="col" data-i18n="mdlv.colVerdict">Verdict</th>
+          <th scope="col" data-i18n="mdlv.colDetail">Detail</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+</main>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="detailTitle" data-i18n="mdlv.detailTitle">Milestone detail</h4>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer"><button type="button" class="btn-teal" data-dismiss="modal" data-i18n="mdlv.close">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.milestoneDelivery"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/milestonedelivery/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'mdlv.deniedTitle', body: 'mdlv.deniedBody' },
+    session_expired: { cls: 'deny', title: 'mdlv.deniedTitle', body: 'mdlv.expiredBody' },
+    no_right: { cls: 'deny', title: 'mdlv.deniedTitle', body: 'mdlv.noRightBody' },
+    tplan_not_found: { cls: 'warn', title: 'mdlv.notFoundTitle', body: 'mdlv.notFoundBody' },
+    project_mismatch: { cls: 'warn', title: 'mdlv.notFoundTitle', body: 'mdlv.mismatchBody' },
+    invalid_request: { cls: 'warn', title: 'mdlv.badRequestTitle', body: 'mdlv.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'mdlv.badRequestTitle', body: 'mdlv.badRequestBody' }
+  };
+  var m = map[code] || { cls: 'warn', title: 'mdlv.serverErrorTitle', body: 'mdlv.serverErrorBody' };
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+       + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div><div class="code">'
+       + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function isAuthError(code) { return code === 'session_expired' || code === 'not_authenticated'; }
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('mdlv.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+function dtLang() {
+  return {
+    search: TLi18n.t('common.filter', 'Filter') + ':',
+    zeroRecords: TLi18n.t('common.noRecords', 'No matching records'),
+    emptyTable: TLi18n.t('mdlv.emptyTable'),
+    info: TLi18n.t('common.info', 'Showing _START_ to _END_ of _TOTAL_'),
+    infoEmpty: TLi18n.t('common.infoEmpty', 'Showing 0 to 0 of 0'),
+    infoFiltered: TLi18n.t('common.infoFiltered', '(filtered from _MAX_)'),
+    paginate: { previous: TLi18n.t('common.previous', 'Previous'), next: TLi18n.t('common.next', 'Next') }
+  };
+}
+function verdictLabel(v) { return esc(TLi18n.t('mdlv.verdict.' + v, v)); }
+function verdictBadge(v) { return '<span class="badge-v ' + esc(v) + '">' + verdictLabel(v) + '</span>'; }
+function labelFor(list, id) {
+  var name = String(id || '0');
+  $.each(list || [], function (i, x) { if (String(x.id) === String(id)) { name = x.name; return false; } });
+  return esc(name);
+}
+function fillFilters(filters, filter) {
+  var builds = '<option value="0">' + esc(TLi18n.t('mdlv.allBuilds')) + '</option>';
+  $.each((filters && filters.builds) || [], function (i, b) {
+    builds += '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(builds).val(String(filter && filter.build_id ? filter.build_id : 0));
+  var plats = '<option value="0">' + esc(TLi18n.t('mdlv.allPlatforms')) + '</option>';
+  $.each((filters && filters.platforms) || [], function (i, p) {
+    plats += '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plats).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+}
+function renderSummary(data) {
+  var k = data.kpi || {};
+  $('#sMilestones').text(k.milestones || 0);
+  $('#sAssigned').text(k.assigned || 0);
+  $('#sExecuted').text(k.executed || 0);
+  $('#sNotRun').text(k.not_run || 0);
+  $('#sCoverage').text(k.coverage_pct || 0);
+  $('#sComplete').text(k.complete || 0);
+  $('#sOverdue').text(k.overdue || 0);
+  $('#sAtRisk').text(k.at_risk || 0);
+  var c = data.context || {};
+  $('#ctxProject').text(c.tproject_name || '-');
+  $('#ctxPlan').text(c.tplan_name || '-');
+  $('#ctxBuild').text(labelFor(data.filters && data.filters.builds, data.filter && data.filter.build_id));
+  $('#ctxPlatform').text(labelFor(data.filters && data.filters.platforms, data.filter && data.filter.platform_id));
+  $('#ctxToday').text(data.today || '-');
+  var v = data.verdict || 'no_data';
+  var cls = { complete: 'good', on_track: 'info', at_risk: 'warn', overdue: 'bad',
+              no_data: 'warn', no_milestones: 'warn' }[v] || 'info';
+  $('#bannerBox').html('<div class="banner ' + cls + '"><i class="fa fa-flag-checkered"></i><div>'
+    + esc(TLi18n.t('mdlv.banner.' + v, v)) + '</div></div>');
+}
+function renderTable(data) {
+  var rows = data.rows || [];
+  if (dt) { dt.destroy(); dt = null; }
+  $('#tblMd tbody').empty();
+  $.each(rows, function (i, r) {
+    var exp = r.expected || {};
+    var window = (r.start_date ? esc(r.start_date) : '')
+      + (r.start_date ? ' &ndash; ' : '') + esc(r.target_date);
+    var cov = Number(r.coverage_pct || 0);
+    var covClass = cov >= 90 ? 'good' : (cov >= 50 ? 'warn' : 'bad');
+    $('#tblMd tbody').append('<tr>'
+      + '<td>' + esc(r.name) + '</td>'
+      + '<td>' + window + '</td>'
+      + '<td class="num">' + esc(exp['3']) + ' / ' + esc(exp['2']) + ' / ' + esc(exp['1']) + '</td>'
+      + '<td class="num">' + esc(r.assigned_total) + '</td>'
+      + '<td class="num">' + esc(r.executed_total) + '</td>'
+      + '<td class="num"><span class="pill ' + covClass + '">' + esc(cov) + '%</span></td>'
+      + '<td class="num"><div class="bar"><div style="width:' + Math.min(100, Math.max(0, Number(r.completion_pct || 0))) + '%"></div></div>'
+        + esc(r.completion_pct) + '%</td>'
+      + '<td class="num">' + esc(r.days_left) + '</td>'
+      + '<td>' + verdictBadge(r.verdict) + '</td>'
+      + '<td><button type="button" class="btn-dark btn-xs btn-detail" data-idx="' + i + '">'
+        + esc(TLi18n.t('mdlv.detailButton')) + '</button></td></tr>');
+  });
+  dt = $('#tblMd').DataTable({ language: dtLang(), order: [[1, 'asc']],
+    pageLength: 25, columnDefs: [{ targets: [2, 3, 4, 5, 6, 7], className: 'dt-body-right' }] });
+}
+function showDetail(idx) {
+  var r = (currentData && currentData.rows) ? currentData.rows[idx] : null;
+  if (!r) { return; }
+  $('#detailTitle').text(r.name);
+  var html = '<h5>' + esc(TLi18n.t('mdlv.detailWindow')) + ': '
+    + esc(r.start_date || TLi18n.t('mdlv.noStart')) + ' &ndash; ' + esc(r.target_date) + '</h5>'
+    + '<table class="table table-condensed"><thead><tr><th>' + esc(TLi18n.t('mdlv.colPriority'))
+    + '</th><th>' + esc(TLi18n.t('mdlv.colExpectedPct')) + '</th><th>' + esc(TLi18n.t('mdlv.colAssigned'))
+    + '</th><th>' + esc(TLi18n.t('mdlv.colExecuted')) + '</th><th>' + esc(TLi18n.t('mdlv.colCoverage'))
+    + '</th></tr></thead><tbody>';
+  $.each(r.per_priority || [], function (i, p) {
+    html += '<tr><td>' + esc(TLi18n.t('mdlv.priority.' + p.importance)) + '</td><td class="num">'
+      + esc(p.expected_pct) + '%</td><td class="num">' + esc(p.assigned)
+      + '</td><td class="num">' + esc(p.executed) + '</td><td class="num">'
+      + esc(p.coverage_pct) + '%</td></tr>';
+  });
+  html += '</tbody></table><h5>' + esc(TLi18n.t('mdlv.detailStatus')) + '</h5><ul>';
+  var any = false;
+  $.each(r.status || {}, function (imp, counts) {
+    $.each(counts, function (st, cnt) {
+      any = true;
+      html += '<li>' + esc(TLi18n.t('mdlv.priority.' + imp)) + ' &ndash; '
+        + esc(TLi18n.t('mdlv.status.' + st, st)) + ': ' + esc(cnt) + '</li>';
+    });
+  });
+  if (!any) { html += '<li>' + esc(TLi18n.t('mdlv.emptyTable')) + '</li>'; }
+  html += '</ul>';
+  $('#detailBody').html(html);
+  $('#detailModal').modal('show');
+}
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('mdlv.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('mdlv.badRequestBody', { status: 400 })) + '</div>'
+      + '<div class="code">missing_tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = { action: 'report', tplan_id: tplanId };
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
+  var b = $('#selBuild').val(), p = $('#selPlatform').val();
+  if (b && b !== '0') { params.build_id = b; }
+  if (p && p !== '0') { params.platform_id = p; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      currentData = data;
+      $('#stateBox').html('');
+      $('#report').show();
+      fillFilters(data.filters, data.filter);
+      renderSummary(data);
+      renderTable(data);
+      $('#btnCsv').prop('disabled', !(data.rows && data.rows.length));
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+function loadInit() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) { load(); return; }
+  showLoading();
+  var params = { action: 'init', tplan_id: tplanId };
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200, data && data.message));
+        return;
+      }
+      fillFilters(data.filters, data.filter);
+      load();
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status, payload && payload.message));
+    });
+}
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  if (!currentData) { return; }
+  var lines = [];
+  lines.push(csvCell(TLi18n.t('mdlv.title')));
+  lines.push(csvCell(TLi18n.t('mdlv.ctxPlan')) + ';' + csvCell(currentData.context.tplan_name));
+  lines.push(csvCell(TLi18n.t('mdlv.ctxToday')) + ';' + csvCell(currentData.today));
+  lines.push('');
+  lines.push(['mdlv.colName', 'mdlv.colWindow', 'mdlv.colExpected', 'mdlv.colAssigned',
+    'mdlv.colExecuted', 'mdlv.colCoverage', 'mdlv.colCompletion', 'mdlv.colDaysLeft',
+    'mdlv.colVerdict'].map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  $.each(currentData.rows || [], function (i, r) {
+    var e = r.expected || {};
+    lines.push([r.name, (r.start_date || '') + ' - ' + r.target_date,
+      e['3'] + '/' + e['2'] + '/' + e['1'], r.assigned_total, r.executed_total,
+      r.coverage_pct, r.completion_pct, r.days_left, TLi18n.t('mdlv.verdict.' + r.verdict, r.verdict)]
+      .map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'milestone-delivery-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('mdlv.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  $('#tblMd').on('click', '.btn-detail', function () { showDetail(Number($(this).data('idx'))); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('mdlv.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
