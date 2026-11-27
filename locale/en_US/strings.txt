@@ -3986,3 +3986,4 @@ $TLS_link_report_execution_ownership = "Execution Ownership Gap";
 $TLS_link_report_execution_bottleneck = "Execution Bottleneck"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Test Plan Custom Field Value Gaps";
 $TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";
+$TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)

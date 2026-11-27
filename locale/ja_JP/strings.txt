@@ -4655,3 +4655,4 @@ $TLS_link_report_execution_ownership = "実行担当者の差異";
 $TLS_link_report_execution_bottleneck = "実行のボトルネック"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "テスト計画カスタムフィールド値の欠損";
 $TLS_link_report_milestone_delivery = "テスト計画のマイルストーン進捗";
+$TLS_link_report_build_release_readiness = "ビルドリリース準備状況"; // Build release readiness report (Refs #2087)

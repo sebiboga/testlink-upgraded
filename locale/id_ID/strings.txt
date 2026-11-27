@@ -2993,3 +2993,4 @@ $TLS_link_report_execution_ownership = "Perbedaan kepemilikan eksekusi";
 $TLS_link_report_execution_bottleneck = "Bottleneck Eksekusi"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Kesenjangan nilai kolom khusus rencana pengujian";
 $TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";
+$TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)

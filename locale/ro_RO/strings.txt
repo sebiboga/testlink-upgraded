@@ -307,3 +307,4 @@ $TLS_link_report_execution_ownership = "Diferențe de responsabilitate la execu�
 $TLS_link_report_execution_bottleneck = "Blocaje în execuția planului de teste"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Lacunele valorilor câmpurilor personalizate ale planului de test";
 $TLS_link_report_milestone_delivery = "Livrarea pe repere a planului de testare";
+$TLS_link_report_build_release_readiness = "Pregătirea lansării pe builduri"; // Build release readiness report (Refs #2087)

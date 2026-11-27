@@ -410,6 +410,10 @@ if ($tplan_id > 0) {
             } else if ($rptItem['title'] == 'link_report_milestone_delivery') {
                 $hrefR = '/gui/templates/results/milestoneDelivery.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_build_release_readiness') {
+                // Refs #2087: per-build release readiness of the addressed plan.
+                $hrefR = '/gui/templates/results/buildReleaseReadiness.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_effort') {
                 // Refs #1984: Test Plan Estimated vs Actual Execution Effort
                 // (which tests run over budget, and how far off the estimate).

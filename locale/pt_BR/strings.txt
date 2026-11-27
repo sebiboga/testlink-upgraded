@@ -4340,3 +4340,4 @@ $TLS_link_report_execution_ownership = "Divergências de responsável na execuç
 $TLS_link_report_execution_bottleneck = "Gargalos de execução"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Lacunas dos campos personalizados do plano de testes";
 $TLS_link_report_milestone_delivery = "Entrega por marcos do plano de testes";
+$TLS_link_report_build_release_readiness = "Prontidão de lançamento por build"; // Build release readiness report (Refs #2087)

@@ -934,6 +934,15 @@ $tlCfg->reports_list['milestone_delivery'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2087: Test Plan Build Release Readiness (net-new). Per-build release
+// verdict from the latest execution of the plan's assigned versions.
+$tlCfg->reports_list['build_release_readiness'] = array(
+	'title' => 'link_report_build_release_readiness',
+	'url' => 'gui/templates/results/buildReleaseReadiness.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

@@ -3948,3 +3948,4 @@ $TLS_link_report_execution_ownership = "Diferencias de responsabilidad en la eje
 $TLS_link_report_execution_bottleneck = "Cuellos de botella de ejecución"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Brechas de campos personalizados del plan de pruebas";
 $TLS_link_report_milestone_delivery = "Entrega por hitos del plan de pruebas";
+$TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)
