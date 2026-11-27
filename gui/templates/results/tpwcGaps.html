@@ -239,8 +239,8 @@ function loadReport() {
       $('#kpiShown').text(s.shown || 0);
       $('#kpis').show();
 
-      var verdict = s.custom_fields === 0 ? 'empty'
-        : (s.without_values === 0 ? 'complete' : (s.with_values === 0 ? 'empty' : 'partial'));
+      var verdict = (s.custom_fields === 0 || s.assigned === 0 || s.with_values === 0) ? 'empty'
+        : (s.without_values === 0 ? 'complete' : 'partial');
       var vm = {
         complete: ['tpwg.verdictComplete', 'All assigned tests have values', 'tpwg.verdictCompleteBody', 'Every design custom field is filled for every assigned test case version.'],
         partial: ['tpwg.verdictPartial', 'Values incomplete', 'tpwg.verdictPartialBody', 'Some assigned test case versions are missing design custom field values.'],

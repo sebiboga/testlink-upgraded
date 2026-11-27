@@ -17,6 +17,8 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #2076: **Empty-plan verdict said all values were present** (`gui/templates/results/tpwcGaps.html`) — zero assigned versions now render the localized `empty` verdict instead of `complete`; verified with an empty plan fixture. (Fixes #2076, Refs #2074)
+
 - [BUGFIX] - #2075: **tplanwithcf init returned a DB error instead of JSON** (`api/tplanwithcf/index.php`) — `display_order` was selected from `custom_fields` although it lives on `cfield_testprojects`; verified init/report with linked plan-design fields. (Fixes #2075, Refs #2074)
 
 - [SCREEN] - #2070: **Test Plan Execution Bottleneck** (`gui/templates/results/executionBottleneck.html` + `api/executionbottleneck/index.php`) — net-new read-only plan report ranking assigned test-case versions by summed execution duration with slow/re-run/never-executed classes, 12 KPIs, verdict banner, 13-column DataTable, history modal, build/platform/tester/scope/threshold filters and UTF-8 CSV; `testplan_metrics` on the owning project, AUDIT denials, 400/401/403/404/405 contract; wired into ASIDE/Reports/resultsnav, `ebn.*` keys × 10 bundles + server label × 19 locales. Suite #2070 12/12 PASS; docs/wiki and 4 screenshots; Event Viewer AUDIT only. (Refs #2070)
