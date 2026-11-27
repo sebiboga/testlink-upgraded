@@ -17,6 +17,8 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
+- [BUGFIX] - #2077: **Coverage-report gap launcher opened an invalid URL** (`gui/templates/results/tplanCfCoverage.html`) — the global toolbar launcher was replaced with a per-plan row link carrying both `tproject_id` and `tplan_id`; verified the target report loads with the selected plan. (Fixes #2077, Refs #2074)
+
 - [BUGFIX] - #2076: **Empty-plan verdict said all values were present** (`gui/templates/results/tpwcGaps.html`) — zero assigned versions now render the localized `empty` verdict instead of `complete`; verified with an empty plan fixture. (Fixes #2076, Refs #2074)
 
 - [BUGFIX] - #2075: **tplanwithcf init returned a DB error instead of JSON** (`api/tplanwithcf/index.php`) — `display_order` was selected from `custom_fields` although it lives on `cfield_testprojects`; verified init/report with linked plan-design fields. (Fixes #2075, Refs #2074)

@@ -87,7 +87,6 @@ td.planlink a:hover { text-decoration: underline; }
     <option value="not_filled" data-i18n="tpcc.statusNotFilled">Not filled only</option>
   </select>
   <span style="flex:1"></span>
-  <a class="btn-ghost" id="btnGaps" href="#" target="_blank" rel="noopener"><i class="fa fa-circle-exclamation"></i> <span data-i18n="tpwg.title">Test Plan Custom Field Value Gaps</span></a>
   <button class="btn-ghost" id="btnRefresh"><i class="fa fa-rotate"></i> <span data-i18n="tpcc.refresh">Refresh</span></button>
   <button class="btn-ghost" id="btnExport" disabled><i class="fa fa-file-csv"></i> <span data-i18n="tpcc.exportCsv">Export CSV</span></button>
   <button class="btn-ghost" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="tpcc.close">Close</span></button>
@@ -273,7 +272,16 @@ function renderTable() {
         return statusBadge(data);
       } },
     { title: t('tpcc.colFilled', 'Filled values'), data: 'filled_values' },
-    { title: t('tpcc.colSuites', 'Suites'), data: 'suites' }
+    { title: t('tpcc.colSuites', 'Suites'), data: 'suites' },
+    { title: t('tpwg.title', 'Test Plan Custom Field Value Gaps'), data: null, className: 'planlink',
+      render: function(data, type, row) {
+        if (type === 'sort' || type === 'filter') { return ''; }
+        var url = '/gui/templates/results/tpwcGaps.html?tproject_id=' + encodeURIComponent(tproject_id) +
+                  '&tplan_id=' + encodeURIComponent(row.tplan_id);
+        return '<a href="' + url + '" target="_blank" rel="noopener">' +
+               '<i class="fa fa-circle-exclamation"></i> ' +
+               esc(t('tpwg.title', 'Test Plan Custom Field Value Gaps')) + '</a>';
+      } }
   ];
 
   STATE.dt = $('#dtResults').DataTable({
@@ -343,7 +351,6 @@ function exportCsv() {
 }
 
 $(function() {
-  $('#btnGaps').attr('href', '/gui/templates/results/tpwcGaps.html?tproject_id=' + encodeURIComponent(tproject_id));
   $('#btnRefresh').on('click', loadReport);
   $('#btnExport').on('click', exportCsv);
   $('#statusFilter').on('change', applyFilter);
