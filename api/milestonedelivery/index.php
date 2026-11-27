@@ -183,7 +183,7 @@ if (is_array($linkRows)) {
 
 $execSql = "SELECT tcversion_id, platform_id, status, DATE(execution_ts) AS day " .
     "FROM {$tbl['executions']} WHERE testplan_id = " . intval($tplanId) .
-    " AND execution_ts IS NOT NULL";
+    " AND execution_ts IS NOT NULL AND LOWER(TRIM(status)) <> 'n'";
 if ($buildId > 0) {
     $execSql .= " AND build_id = " . intval($buildId);
 }
