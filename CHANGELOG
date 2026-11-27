@@ -17,7 +17,7 @@ Every screen of the application was ported one-by-one in a screen-compare
   kept for backward compatibility and is progressively retired as each modern
   screen reaches full parity.
 
-- [SCREEN] - #2087: **Test Plan Build Release Readiness Report** (`api/buildreleasereadiness/index.php` + `gui/templates/results/buildReleaseReadiness.html`) — net-new read-only plan report judging every build from the latest execution of its assigned versions: coverage/pass rate/defect evidence, readiness verdicts, KPIs, filters, detail modal and guarded CSV; session + same-origin BFF, `testplan_metrics` on the owning project with AUDIT denials, 400/401/403/404/405 contract. (Refs #2087)
+- [SCREEN] - #2087: **Test Plan Build Release Readiness Report** (`api/buildreleasereadiness/index.php` + `gui/templates/results/buildReleaseReadiness.html`) — net-new read-only plan report judging every build from the latest execution of its assigned versions: coverage/pass rate/defect evidence, readiness verdicts, KPIs, filters, detail modal and guarded CSV; session + same-origin BFF, `testplan_metrics` on the owning project with AUDIT denials, 400/401/403/404/405 contract; wired into Reports/ASIDE/`common.php`, `brr.*` (88, including `brr.banner.mixed`) + footer key × 10 bundles and server label × 19 locales. Suite #2087 / gate 34 PASS; docs/wiki and 5 screenshots; bugs #2088–#2091 fixed and closed. (Refs #2087)
 
 - [BUGFIX] - #2088: **Build Release Readiness Detail modal cleared the loaded report** — the detail request no longer calls the state helper that nulled `currentData` / hid the table; verified the modal opens and closes with report + CSV intact. (Fixes #2088, Refs #2087)
 
