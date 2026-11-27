@@ -49855,3 +49855,21 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 - Syntax/gates PASS: `php -l` on `api/milestonedelivery/index.php`, `api/aside/index.php`, `cfg/reports.cfg.php` and `lib/functions/common.php`; extracted screen JS passes `node --check`; every touched i18n bundle passes `python3 -m json.tool`.
 - Event Viewer PASS: after fixture creation, admin/no-right logins, all error paths, filter/modal/CSV/locale passes and the fix commits, `events` contains 8 rows, all `log_level = 16` (AUDIT), with 0 ERROR (1) and 0 WARNING (2) entries. The no-right denial was deliberately recorded as AUDIT by the BFF.
 - Result: PASS (screenshots `docs/screenshots/issue-2079-report.png`, `issue-2079-detail.png`, `issue-2079-filtered.png`, `issue-2079-ro.png`, `issue-2079-403.png`)
+
+### Test Case 2079.15: Code review — not_run evidence (#2083)
+- Added an execution with status `n` at 25 days ago for assigned medium tcversion 35 inside `MDV Overdue Gate`. After reload the BFF still reports 4 executed / 2 not run (not 5 / 1), matching legacy `tlTestPlanMetrics`, which excludes `not_run`.
+- Result: PASS (bug #2083 fixed, verified and closed)
+
+### Test Case 2079.16: Code review — pass rate and status split (#2084)
+- The KPI strip now has a localized `Rată de succes` / Pass rate card; the DataTable has 12 columns including `P / E / B / NEx` and pass rate. Verified row values: Overdue `4 / 3 / 1 / 0 / 2 / 66.7% / 75%`, Near Deadline `2 / 1 / 0 / 1 / 4 / 33.3% / 50%`, Future Gate `0 / 0 / 0 / 0 / 6 / 0% / 0%`.
+- Re-verified CSV by intercepting the Blob: header and cells include the new Results and Pass rate columns, with all values quoted and negative days-left still formula-guarded.
+- Result: PASS (bug #2084 fixed, verified and closed)
+
+### Test Case 2079.17: Code review — plan pass rate denominator (#2086)
+- After #2084 the plan pass-rate KPI incorrectly read 100% because it divided 4 passed by `max(executed_total) = 4`. The fix divides by the sum of status totals (6 evidence rows), so the KPI now reads 66.7% while the coverage KPI remains 66.7% from 4/6 assigned links.
+- Result: PASS (bug #2086 fixed, verified and closed)
+
+### Test Case 2079.18: Code review — docs and gates (#2085)
+- `docs/Test-Plan-Milestone-Delivery-Modernized.md` and the wiki mirror now state the actual 89 `mdlv.*` keys, 13,701 total `en.json` keys, 19 server locale files, the real `at_risk` rule (≤ 7 days), the capped completion and the precise rights-check semantics. Latest screenshots were recaptured after the pass-rate changes.
+- Final gates: `php -l` on all touched PHP, extracted `node --check`, JSON validation, `bash ai/verify_i18n_coverage.sh` (9/9, 0 failed), `TLU_REQUIRE_SUITE="Issue #2079" bash ai/verify_test_suites.sh` (34 PASS / 0 FAIL / 0 SKIP). Event Viewer remains AUDIT-only with 0 Error/Warning entries.
+- Result: PASS (bug #2085 fixed, verified and closed)
