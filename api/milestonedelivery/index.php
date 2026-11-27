@@ -305,6 +305,7 @@ foreach (array('overdue', 'at_risk', 'on_track', 'complete') as $v) {
 if (count($rows) === 0) { $planVerdict = 'no_milestones'; }
 
 ksort($statusTotals);
+$execEvidence = array_sum($statusTotals);
 $statusRows = array();
 foreach ($statusTotals as $st => $cnt) {
     $statusRows[] = array('status' => $st, 'count' => $cnt);
@@ -316,7 +317,7 @@ mdOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
     'kpi' => array('milestones' => count($rows), 'assigned' => $totalAssigned,
         'executed' => $totalExecuted, 'not_run' => max(0, $totalAssigned - $totalExecuted),
         'coverage_pct' => mdPct($totalExecuted, $totalAssigned),
-        'pass_rate' => mdPct(isset($statusTotals['p']) ? $statusTotals['p'] : 0, $totalExecuted),
+        'pass_rate' => mdPct(isset($statusTotals['p']) ? $statusTotals['p'] : 0, $execEvidence),
         'complete' => $verdictCounts['complete'], 'overdue' => $verdictCounts['overdue'],
         'at_risk' => $verdictCounts['at_risk'], 'on_track' => $verdictCounts['on_track']),
     'verdict' => $planVerdict, 'status_totals' => $statusRows, 'rows' => $rows));
