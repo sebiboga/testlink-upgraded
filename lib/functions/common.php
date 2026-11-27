@@ -2877,6 +2877,9 @@ function getActions(&$gui,$baseURL) {
   $actions->tplanCfCoverage =
     "/gui/templates/results/tplanCfCoverage.html?{$ctx}";
 
+  $actions->tpwcGaps =
+    "/gui/templates/results/tpwcGaps.html?{$ctx}";
+
   // Refs #1995: Test Plan Keyword Coverage (net-new per-keyword report).
   // keywordBarChart charts status counts only; this screen adds coverage,
   // pass rate, keyword gaps and untagged assigned versions.
