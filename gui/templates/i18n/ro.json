@@ -13790,5 +13790,6 @@
   "brr.banner.at_risk": "Cel puțin un build este aproape de criteriile de lansare.",
   "brr.banner.not_ready": "Cel puțin un build nu îndeplinește criteriile de lansare.",
   "brr.banner.no_data": "Niciun build nu are dovezi de execuție în acest domeniu.",
-  "footers.buildReleaseReadiness": "TestLink 2.0.1 - Raportul de pregătire a lansării pe builduri"
+  "footers.buildReleaseReadiness": "TestLink 2.0.1 - Raportul de pregătire a lansării pe builduri",
+  "brr.banner.mixed": "Unele builduri au dovezi, altele nu."
 }

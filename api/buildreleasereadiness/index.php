@@ -244,7 +244,7 @@ $execRows = $db->get_recordset($execSql);
 $execById = array();
 $exact = array();
 $globalLatest = array();
-$bugByCase = array();
+$bugByExec = array();
 if (is_array($execRows)) {
     foreach ($execRows as $e) {
         $id = intval($e['id']);
@@ -271,9 +271,9 @@ if (count($ids) > 0) {
         foreach ($rs as $r) {
             $eid = intval($r['execution_id']);
             if (!isset($execById[$eid])) { continue; }
-            $key = $execById[$eid]['build_id'] . '/' . $execById[$eid]['tcversion_id'];
             $bug = brrText($r['bug_id']);
-            $bugByCase[$key][$bug] = true;
+            if ($bug === '') { continue; }
+            $bugByExec[$eid][$bug] = true;
         }
     }
 }
@@ -289,6 +289,7 @@ function brrLatestExec($execById, $exact, $globalLatest, $buildId, $tcversionId,
 }
 
 $allRows = array();
+$allDefects = array();
 foreach ($builds as $build) {
     $counts = array('p' => 0, 'f' => 0, 'b' => 0, 'n' => 0);
     $bugIds = array();
@@ -298,8 +299,10 @@ foreach ($builds as $build) {
             $build['id'], $link['tcversion_id'], $link['link_platform_id']);
         $status = $exec === null ? 'n' : $exec['status'];
         $counts[$status]++;
-        $caseKey = $build['id'] . '/' . $link['tcversion_id'];
-        $execBugs = isset($bugByCase[$caseKey]) ? array_keys($bugByCase[$caseKey]) : array();
+        $execBugs = array();
+        if ($exec !== null && isset($bugByExec[$exec['id']])) {
+            $execBugs = array_keys($bugByExec[$exec['id']]);
+        }
         foreach ($execBugs as $bug) {
             $bugIds[$bug] = true;
         }
@@ -354,15 +357,16 @@ $kpi = array('builds' => count($rows), 'assigned' => 0, 'executed' => 0, 'passed
     'coverage_pct' => 0.0, 'pass_rate' => 0.0, 'ready' => 0,
     'at_risk' => 0, 'not_ready' => 0, 'no_data' => 0);
 foreach ($rows as $r) {
+    foreach ($r['bug_ids'] as $bug) { $allDefects[$bug] = true; }
     $kpi['assigned'] += $r['assigned'];
     $kpi['executed'] += $r['executed'];
     $kpi['passed'] += $r['counts']['p'];
     $kpi['failed'] += $r['counts']['f'];
     $kpi['blocked'] += $r['counts']['b'];
     $kpi['not_run'] += $r['counts']['n'];
-    $kpi['defects'] += $r['defects'];
     $kpi[$r['verdict']]++;
 }
+$kpi['defects'] = count($allDefects);
 $kpi['coverage_pct'] = brrPct($kpi['executed'], $kpi['assigned']);
 $kpi['pass_rate'] = brrPct($kpi['passed'], $kpi['executed']);
 $payload['kpi'] = $kpi;

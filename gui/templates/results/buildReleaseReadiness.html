@@ -160,7 +160,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <button type="button" class="close" id="detailCloseX" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
         <h4 class="modal-title" id="detailTitle" data-i18n="brr.detailTitle">Build detail</h4>
       </div>
       <div class="modal-body" id="detailBody"></div>
@@ -219,6 +219,10 @@ function showState(html) {
 }
 function showLoading() {
   showState('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('brr.loading')) + '</div>');
+}
+function showDetailLoading() {
+  $('#stateBox').html('<div class="state"><div class="spinner"></div>'
+    + esc(TLi18n.t('brr.loading')) + '</div>');
 }
 function toast(msg, kind) {
   var $t = $('#toast');
@@ -294,8 +298,12 @@ function renderSummary(data) {
   $('#ctxBuild').html(labelFor(data.filters && data.filters.builds, data.filter && data.filter.build_id, 'brr.allBuilds'));
   $('#ctxPlatform').html(labelFor(data.filters && data.filters.platforms, data.filter && data.filter.platform_id, 'brr.allPlatforms'));
   $('#ctxToday').text(data.today || '-');
-  var v = (k.builds || 0) === 0 ? 'no_data' : (k.not_ready > 0 ? 'not_ready' : (k.at_risk > 0 ? 'at_risk' : 'ready'));
-  var cls = { ready: 'good', at_risk: 'warn', not_ready: 'bad', no_data: 'warn' }[v];
+  var withEvidence = (k.ready || 0) + (k.at_risk || 0) + (k.not_ready || 0);
+  var v = (k.builds || 0) === 0 ? 'no_data'
+    : ((k.no_data || 0) === k.builds ? 'no_data'
+    : ((k.no_data || 0) > 0 && withEvidence > 0 ? 'mixed'
+    : (k.not_ready > 0 ? 'not_ready' : (k.at_risk > 0 ? 'at_risk' : 'ready'))));
+  var cls = { ready: 'good', at_risk: 'warn', not_ready: 'bad', no_data: 'warn', mixed: 'warn' }[v];
   $('#bannerBox').html('<div class="banner ' + cls + '"><i class="fa fa-clipboard-check"></i><div>'
     + esc(TLi18n.t('brr.banner.' + v, v)) + '</div></div>');
 }
@@ -326,16 +334,17 @@ function renderTable(data) {
     pageLength: 25, columnDefs: [{ targets: [2, 3, 4, 5, 6, 7], className: 'dt-body-right' }] });
 }
 function showDetail(buildId) {
-  showLoading();
+  var hadReport = !!currentData;
+  if (hadReport) { showDetailLoading(); } else { showLoading(); }
   var params = { action: 'detail', tplan_id: q('tplan_id'), build_id: buildId };
   var tp = q('tproject_id');
   if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
-  var p = $('#selPlatform').val();
+  var p = currentData && currentData.filter ? currentData.filter.platform_id : 0;
   if (p && p !== '0') { params.platform_id = p; }
   $.ajax({ url: API, data: params, dataType: 'json', cache: false,
     headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .done(function (data) {
-      if (currentData) { $('#stateBox').html(''); $('#report').show(); }
+      if (hadReport) { $('#stateBox').html(''); $('#report').show(); }
       if (!data || data.status !== 'ok') {
         toast(TLi18n.t('brr.detailFailed'), 'err');
         return;
@@ -362,7 +371,7 @@ function showDetail(buildId) {
       $('#detailModal').modal('show');
     })
     .fail(function (xhr) {
-      if (currentData) { $('#stateBox').html(''); $('#report').show(); }
+      if (hadReport) { $('#stateBox').html(''); $('#report').show(); }
       var payload = null;
       try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
       if (isAuthError(payload && payload.code) || xhr.status === 401) { redirectToLogin(); return; }
@@ -478,6 +487,7 @@ $(function () {
   $('#tblBrr').on('click', '.btn-detail', function () { showDetail($(this).data('id')); });
   TLi18n.load(function () {
     TLi18n.apply();
+    $('#detailCloseX').attr('aria-label', TLi18n.t('brr.close'));
     document.title = TLi18n.t('brr.title') + ' - TestLink 2.0.1';
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadInit();

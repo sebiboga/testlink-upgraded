@@ -13790,5 +13790,6 @@
   "brr.banner.at_risk": "At least one build is close to its release criteria.",
   "brr.banner.not_ready": "At least one build failed its release criteria.",
   "brr.banner.no_data": "No build has execution evidence in this scope.",
-  "footers.buildReleaseReadiness": "TestLink 2.0.1 - Bericht zur Build-Release-Bereitschaft"
+  "footers.buildReleaseReadiness": "TestLink 2.0.1 - Bericht zur Build-Release-Bereitschaft",
+  "brr.banner.mixed": "Einige Builds haben Nachweise, andere nicht."
 }
