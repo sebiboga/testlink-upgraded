@@ -49763,3 +49763,67 @@ Refs #1960. Re-verification of the already-committed screen/BFF plus the three d
 - `last_tester` reads the tester-name map (`Testlink Administrator` / `No Rights` instead of an empty value); `session_expired` now maps to the localized session state card; the modal close button has a localized `aria-label`; `at_risk` now carries the CSS class element; the slow threshold uses strict `>` to match the "Slow above (s)" label.
 - Bug #2073 filed (`bug`) for the remaining untranslated `ebn.*` values in the 8 non-English bundles, with header/subtitle/verdict/toolbar already translated and the RO bundle complete.
 - Result: PASS (PHP lint + `node --check` + i18n gate + browser BFF probes)
+
+## Issue #2074 — Test Plan Custom Field Value Gaps (`tpwcGaps`) — net-new BFF `api/tplanwithcf` + Dashio screen
+
+### Test Case 2074.1: Fixture and normal report
+- `tmp/fixtures_2074.sql` creates project 2074 (`GAP`, `Gap Report Project`), plan 20740 (`Gap Plan`), empty plan 20742 (`Empty Gap Plan`), suite 20741, cases 20751-20754, versions 20761-20764, links 20801-20804, custom fields 20771 (`tpwg_release_tag`) / 20772 (`tpwg_risk_level`), and user `norights` (2075, role 3, password `norights`). Both plans need explicit `api_key` values because the column is UNIQUE with a constant default.
+- Browser deep link `?tproject_id=2074&tplan_id=20740` renders the localized header, plan/project context, 2 field options, `assigned=4`, `with_values=3`, `without_values=1`, `coverage_pct=50`, `filled_cells=4`, `shown=4`, partial verdict and a 4-row DataTable.
+- Result: PASS (`docs/screenshots/tpwcGaps-normal.png`)
+
+### Test Case 2074.2: BFF init/report contract
+- `api/tplanwithcf/index.php?action=init` returns context, plan and design custom fields; `action=report` returns per-version rows with test case/version/suite, completed count, raw values, scope/search metadata and the KPI summary described in 2074.1.
+- `action=report&scope=missing` returns the one version without values; `scope=filled` returns the three with values; `cf_id=20772` restricts values to Risk Level; `search=Login` leaves only `GAP-1`.
+- Result: PASS
+
+### Test Case 2074.3: Filters and responsive table
+- Scope `missing` and `filled`, custom-field combination (`cf_id=20772`, `scope=filled`, `search=Login`) and text search (applied on `change`, matching the sibling screen) all update the DataTable and KPI `shown` count; the RO bundled DataTable language is used.
+- Result: PASS (`docs/screenshots/tpwcGaps-missing.png`, `docs/screenshots/tpwcGaps-filtered.png`)
+
+### Test Case 2074.4: Refresh, raw values link and Close
+- `Refresh` re-runs the report with the current filters. `Deschide valorile brute` navigates to `tplanWithCF.html?tproject_id=2074&tplan_id=20740`, which loads the same plan with Gold/Low, Silver and High values. `Închide` closes the report tab opened from the coverage screen.
+- Result: PASS
+
+### Test Case 2074.5: CSV export
+- `Exportă CSV` produces a UTF-8 BOM semicolon-delimited blob with localized headers and formula-guarded values; the toast reads `CSV exported`. Export is disabled on the empty plan and on error/empty states.
+- Result: PASS
+
+### Test Case 2074.6: Complete and empty verdicts
+- Filling both design fields on all four links changes the report to `assigned=4`, `with_values=4`, `without_values=0`, `coverage_pct=100` with the green complete verdict; the fixture was restored afterwards.
+- Empty plan 20742 shows `assigned=0`, `with_values=0`, `filled_cells=0`, `shown=0` and the yellow `empty` verdict. Bug #2076 (`bug`) was filed because the first implementation showed the green complete verdict on zero assignments; the fix treats `assigned === 0` as empty and the partial verdict was re-verified after the fix.
+- Result: PASS (`docs/screenshots/tpwcGaps-complete.png`, `docs/screenshots/tpwcGaps-empty.png`)
+
+### Test Case 2074.7: Authentication, rights and HTTP contract
+- Anonymous `report` → 401 `not_authenticated`; role-3 user `norights` → 403 `no_right` via BFF and ASIDE menu (the report item is absent from that user's menu); an AUDIT event records the denial.
+- `tplan_id=999999` → 404 `tplan_not_found`; `tproject_id=999999` with plan 20740 → 404 `project_mismatch`; POST → 405 `method_not_allowed`.
+- `tplan_id=0` and `scope=bogus` and `cf_id=999999` → 400 `invalid_request`; HEAD → 200.
+- Result: PASS
+
+### Test Case 2074.8: Error state card and deep link
+- `?tproject_id=2074&tplan_id=999999&locale=ro` renders the localized `Planul de test nu a fost găsit` card with code `tplan_not_found`; the DataTable is hidden and export disabled.
+- Result: PASS (`docs/screenshots/tpwcGaps-error-notfound.png`)
+
+### Test Case 2074.9: Localization
+- Header, subtitle, toolbar, scope options, KPI captions, verdict, table headers, footer and error card switch with `?locale=ro`; English and Romanian were browser-verified.
+- All 10 `gui/templates/i18n/*.json` bundles contain `footers.tpwcGaps` plus the 58 `tpwg.*` keys; all 19 `locale/*/strings.txt` contain `$TLS_link_report_tpwc_gaps`.
+- Result: PASS (`docs/screenshots/tpwcGaps-locale-ro.png`)
+
+### Test Case 2074.10: Menu, action and coverage launcher wiring
+- `api/aside/index.php?action=init` exposes the Reports item `Test Plan Custom Field Value Gaps` with `tproject_id=2074&tplan_id=20740`; the item is absent for the no-right user. `lib/functions/common.php` exposes `$actions->tpwcGaps`.
+- Bug #2077 (`bug`) was filed because the first global toolbar launcher on `tplanCfCoverage.html` omitted `tplan_id` and opened `invalid_request`. It was replaced with a per-plan row link carrying both IDs; the `Gap Plan` row was browser-verified to open the populated gap report in a new tab, and the empty plan row opens the empty verdict.
+- Result: PASS (`docs/screenshots/tpwcGaps-launcher.png`)
+
+### Test Case 2074.11: Syntax and i18n gates
+- `php -l` passes for `api/tplanwithcf/index.php`, `api/aside/index.php`, `cfg/reports.cfg.php`, `lib/functions/common.php` and all touched locale files; extracted screen JS passes `node --check`; every touched i18n bundle passes `python3 -m json.tool`.
+- `bash ai/verify_i18n_coverage.sh` → PASS (13611 keys, 9 bundles, 0 missing).
+- Bug #2075 (`bug`) was filed and fixed for `CF.display_order` being selected from `custom_fields` instead of `cfield_testprojects`; the BFF now selects `CFTP.display_order` and all endpoints return JSON.
+- Result: PASS
+
+### Test Case 2074.12: Event Viewer
+- After all fixture, login, denial, filter, modal/raw-values, CSV, locale, menu and bug-fix paths, Event Viewer stats show 0 WARNING, 0 INFO, 0 DEBUG, 0 L18N and 4 AUDIT entries. The only 2 ERROR entries are the pre-fix `Unknown column 'CF.display_order'` events from bug #2075; no Error/Warning was generated after that fix.
+- Result: PASS (historical #2075 errors handled and closed)
+
+### Test Case 2074.13: Cross-screen regression
+- `tplanCfCoverage.html` still renders 2 plans, 4 assigned, 3 rows with values, 75% coverage and status filters after the new final column was appended (existing DataTables indexes remain stable); its raw-values plan links are unchanged.
+- `tplanWithCF.html` still opens from both the report toolbar and the coverage plan column.
+- Result: PASS
