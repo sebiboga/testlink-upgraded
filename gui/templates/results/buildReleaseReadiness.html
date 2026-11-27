@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test plan build release readiness report: per-build coverage, pass rate and defect evidence (TestLink 2.0.1)">
+<title>Build Release Readiness</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1 1 auto; }
+.toolbar label { color: #bbb; font-size: 12px; margin: 0 4px 0 8px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 115px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.state .spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-v { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-v.ready { background: #1e7a34; }
+.badge-v.at_risk { background: #b98a1c; }
+.badge-v.not_ready { background: #c0392b; }
+.badge-v.no_data { background: #6b7280; }
+.pill { display: inline-block; min-width: 22px; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; text-align: center; background: #eceef2; color: #33363f; }
+.pill.good { background: #d4edda; color: #1e5d34; }
+.pill.warn { background: #ffe8ad; color: #7a5611; }
+.pill.bad { background: #f5c6cb; color: #8a2b28; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modal-header { background: #22242a; color: #fff; }
+.modal-header .close { color: #fff; }
+.modal-body h5 { font-size: 14px; font-weight: 700; margin: 0 0 10px; }
+.bar { height: 8px; background: #eceef2; border-radius: 4px; overflow: hidden; min-width: 70px; }
+.bar > div { height: 100%; background: #4ECDC4; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-clipboard-check" style="margin-right:8px;"></i>
+  <span data-i18n="brr.title">Test Plan Build Release Readiness</span>
+  <span class="sub" data-i18n="brr.subtitle">coverage, pass rate and defect evidence for every build</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="brr.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="brr.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="brr.build">Build</label>
+  <select id="selBuild"></select>
+  <label for="selState" data-i18n="brr.state">State</label>
+  <select id="selState"></select>
+  <label for="selPlatform" data-i18n="brr.platform">Platform</label>
+  <select id="selPlatform"></select>
+  <label for="selVerdict" data-i18n="brr.verdict">Verdict</label>
+  <select id="selVerdict"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="brr.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="brr.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="brr.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="brr.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="brr.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="brr.ctxBuild">Build</span><span class="v" id="ctxBuild">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="brr.ctxPlatform">Platform</span><span class="v" id="ctxPlatform">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="brr.ctxToday">Report date</span><span class="v" id="ctxToday">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="brr.summaryTitle">Release summary</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="brr.kpiBuilds">Builds</div><div class="v" id="sBuilds">0</div></div>
+      <div class="card"><div class="k" data-i18n="brr.kpiAssigned">Assigned</div><div class="v" id="sAssigned">0</div></div>
+      <div class="card good"><div class="k" data-i18n="brr.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card good"><div class="k" data-i18n="brr.kpiPassed">Passed</div><div class="v" id="sPassed">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="brr.kpiFailed">Failed</div><div class="v" id="sFailed">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="brr.kpiBlocked">Blocked</div><div class="v" id="sBlocked">0</div></div>
+      <div class="card info"><div class="k" data-i18n="brr.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card good"><div class="k" data-i18n="brr.kpiPassRate">Pass rate</div><div class="v"><span id="sPassRate">0</span><span class="u">%</span></div></div>
+      <div class="card bad"><div class="k" data-i18n="brr.kpiDefects">Linked defects</div><div class="v" id="sDefects">0</div></div>
+      <div class="card good"><div class="k" data-i18n="brr.kpiReady">Ready</div><div class="v" id="sReady">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="brr.kpiAtRisk">At risk</div><div class="v" id="sAtRisk">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="brr.kpiNotReady">Not ready</div><div class="v" id="sNotReady">0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tblBrr" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="brr.tableCaption">Build readiness evidence of the addressed test plan</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="brr.colBuild">Build</th>
+          <th scope="col" data-i18n="brr.colState">State</th>
+          <th scope="col" data-i18n="brr.colAssigned">Assigned</th>
+          <th scope="col" data-i18n="brr.colExecuted">Executed</th>
+          <th scope="col" data-i18n="brr.colResults">P / F / B / NR</th>
+          <th scope="col" data-i18n="brr.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="brr.colPassRate">Pass rate</th>
+          <th scope="col" data-i18n="brr.colDefects">Defects</th>
+          <th scope="col" data-i18n="brr.colVerdict">Verdict</th>
+          <th scope="col" data-i18n="brr.colDetail">Detail</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+</main>
+
+<div class="modal fade" id="detailModal" tabindex="-1" role="dialog" aria-labelledby="detailTitle">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="detailTitle" data-i18n="brr.detailTitle">Build detail</h4>
+      </div>
+      <div class="modal-body" id="detailBody"></div>
+      <div class="modal-footer"><button type="button" class="btn-teal" data-dismiss="modal" data-i18n="brr.close">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.buildReleaseReadiness"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/buildreleasereadiness/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+
+function stateFor(code, httpStatus) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'brr.deniedTitle', body: 'brr.deniedBody' },
+    session_expired: { cls: 'deny', title: 'brr.deniedTitle', body: 'brr.expiredBody' },
+    no_right: { cls: 'deny', title: 'brr.deniedTitle', body: 'brr.noRightBody' },
+    tplan_not_found: { cls: 'warn', title: 'brr.notFoundTitle', body: 'brr.notFoundBody' },
+    project_mismatch: { cls: 'warn', title: 'brr.notFoundTitle', body: 'brr.mismatchBody' },
+    build_not_found: { cls: 'warn', title: 'brr.notFoundTitle', body: 'brr.buildNotFoundBody' },
+    invalid_request: { cls: 'warn', title: 'brr.badRequestTitle', body: 'brr.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'brr.badRequestTitle', body: 'brr.badRequestBody' }
+  };
+  var m = map[code] || { cls: 'warn', title: 'brr.serverErrorTitle', body: 'brr.serverErrorBody' };
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+    + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div><div class="code">'
+    + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function isAuthError(code) { return code === 'session_expired' || code === 'not_authenticated'; }
+function redirectToLogin() {
+  window.location.href = '/login.php?note=expired&destination='
+    + encodeURIComponent(window.location.pathname + window.location.search);
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('brr.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+function dtLang() {
+  return {
+    search: TLi18n.t('brr.dtSearch') + ':',
+    zeroRecords: TLi18n.t('brr.dtZeroRecords'),
+    emptyTable: TLi18n.t('brr.emptyTable'),
+    info: TLi18n.t('brr.dtInfo'),
+    infoEmpty: TLi18n.t('brr.dtInfoEmpty'),
+    infoFiltered: TLi18n.t('brr.dtInfoFiltered'),
+    lengthMenu: '_MENU_ ' + TLi18n.t('brr.dtEntries'),
+    paginate: { previous: TLi18n.t('brr.dtPrevious'), next: TLi18n.t('brr.dtNext') }
+  };
+}
+function verdictLabel(v) { return esc(TLi18n.t('brr.verdict.' + v, v)); }
+function verdictBadge(v) { return '<span class="badge-v ' + esc(v) + '">' + verdictLabel(v) + '</span>'; }
+function labelFor(list, id, allKey) {
+  if (!id || String(id) === '0') { return esc(TLi18n.t(allKey)); }
+  var name = String(id);
+  $.each(list || [], function (i, x) { if (String(x.id) === String(id)) { name = x.name; return false; } });
+  return esc(name);
+}
+function fillFilters(filters, filter) {
+  var builds = '<option value="0">' + esc(TLi18n.t('brr.allBuilds')) + '</option>';
+  $.each((filters && filters.builds) || [], function (i, b) {
+    builds += '<option value="' + esc(b.id) + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(builds).val(String(filter && filter.build_id ? filter.build_id : 0));
+  var states = '<option value="all">' + esc(TLi18n.t('brr.allStates')) + '</option>';
+  $.each(['active', 'closed'], function (i, s) {
+    states += '<option value="' + s + '">' + esc(TLi18n.t('brr.state.' + s, s)) + '</option>';
+  });
+  $('#selState').html(states).val(filter && filter.state !== 'all' ? filter.state : 'all');
+  var plats = '<option value="0">' + esc(TLi18n.t('brr.allPlatforms')) + '</option>';
+  $.each((filters && filters.platforms) || [], function (i, p) {
+    plats += '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plats).val(String(filter && filter.platform_id ? filter.platform_id : 0));
+  var verdicts = '<option value="all">' + esc(TLi18n.t('brr.allVerdicts')) + '</option>';
+  $.each((filters && filters.verdicts) || [], function (i, v) {
+    if (v === 'all') { return; }
+    verdicts += '<option value="' + v + '">' + verdictLabel(v) + '</option>';
+  });
+  $('#selVerdict').html(verdicts).val(filter && filter.verdict !== 'all' ? filter.verdict : 'all');
+}
+function pillPct(value) {
+  var v = Number(value || 0);
+  var cls = v >= 90 ? 'good' : (v >= 50 ? 'warn' : 'bad');
+  return '<span class="pill ' + cls + '">' + esc(v) + '%</span>';
+}
+function renderSummary(data) {
+  var k = data.kpi || {};
+  $('#sBuilds').text(k.builds || 0);
+  $('#sAssigned').text(k.assigned || 0);
+  $('#sExecuted').text(k.executed || 0);
+  $('#sPassed').text(k.passed || 0);
+  $('#sFailed').text(k.failed || 0);
+  $('#sBlocked').text(k.blocked || 0);
+  $('#sCoverage').text(k.coverage_pct || 0);
+  $('#sPassRate').text(k.pass_rate || 0);
+  $('#sDefects').text(k.defects || 0);
+  $('#sReady').text(k.ready || 0);
+  $('#sAtRisk').text(k.at_risk || 0);
+  $('#sNotReady').text(k.not_ready || 0);
+  var c = data.context || {};
+  $('#ctxProject').text(c.tproject_name || '-');
+  $('#ctxPlan').text(c.tplan_name || '-');
+  $('#ctxBuild').html(labelFor(data.filters && data.filters.builds, data.filter && data.filter.build_id, 'brr.allBuilds'));
+  $('#ctxPlatform').html(labelFor(data.filters && data.filters.platforms, data.filter && data.filter.platform_id, 'brr.allPlatforms'));
+  $('#ctxToday').text(data.today || '-');
+  var v = (k.builds || 0) === 0 ? 'no_data' : (k.not_ready > 0 ? 'not_ready' : (k.at_risk > 0 ? 'at_risk' : 'ready'));
+  var cls = { ready: 'good', at_risk: 'warn', not_ready: 'bad', no_data: 'warn' }[v];
+  $('#bannerBox').html('<div class="banner ' + cls + '"><i class="fa fa-clipboard-check"></i><div>'
+    + esc(TLi18n.t('brr.banner.' + v, v)) + '</div></div>');
+}
+function renderTable(data) {
+  var rows = data.rows || [];
+  if (dt) { dt.destroy(); dt = null; }
+  $('#tblBrr tbody').empty();
+  $.each(rows, function (i, r) {
+    var sc = r.counts || {};
+    var split = esc(TLi18n.t('brr.resultSplit', {
+      p: sc.p || 0, f: sc.f || 0, b: sc.b || 0, n: sc.n || 0
+    }));
+    $('#tblBrr tbody').append('<tr>'
+      + '<td>' + esc(r.name) + '</td>'
+      + '<td>' + esc(TLi18n.t('brr.state.' + r.state, r.state)) + '</td>'
+      + '<td class="num">' + esc(r.assigned) + '</td>'
+      + '<td class="num">' + esc(r.executed) + '</td>'
+      + '<td class="num">' + split + '</td>'
+      + '<td class="num">' + pillPct(r.coverage_pct) + '</td>'
+      + '<td class="num">' + pillPct(r.pass_rate) + '</td>'
+      + '<td class="num">' + esc(r.defects) + '</td>'
+      + '<td>' + verdictBadge(r.verdict) + '</td>'
+      + '<td><button type="button" class="btn-dark btn-xs btn-detail" data-id="' + esc(r.build_id) + '">'
+        + esc(TLi18n.t('brr.detailButton')) + '</button></td></tr>');
+  });
+  $('#tblBrr thead th').removeAttr('aria-label aria-sort');
+  dt = $('#tblBrr').DataTable({ language: dtLang(), order: [[0, 'asc']],
+    pageLength: 25, columnDefs: [{ targets: [2, 3, 4, 5, 6, 7], className: 'dt-body-right' }] });
+}
+function showDetail(buildId) {
+  showLoading();
+  var params = { action: 'detail', tplan_id: q('tplan_id'), build_id: buildId };
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
+  var p = $('#selPlatform').val();
+  if (p && p !== '0') { params.platform_id = p; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (currentData) { $('#stateBox').html(''); $('#report').show(); }
+      if (!data || data.status !== 'ok') {
+        toast(TLi18n.t('brr.detailFailed'), 'err');
+        return;
+      }
+      var r = data.detail || {};
+      $('#detailTitle').text(r.name || TLi18n.t('brr.detailTitle'));
+      var html = '<h5>' + esc(TLi18n.t('brr.detailBuild')) + ': ' + esc(r.name)
+        + ' &ndash; ' + verdictLabel(r.verdict) + '</h5>'
+        + '<table class="table table-condensed"><thead><tr><th>' + esc(TLi18n.t('brr.colBuild'))
+        + '</th><th>' + esc(TLi18n.t('brr.colSuite')) + '</th><th>' + esc(TLi18n.t('brr.colAssigned'))
+        + '</th><th>' + esc(TLi18n.t('brr.colResults')) + '</th><th>' + esc(TLi18n.t('brr.colDefects'))
+        + '</th></tr></thead><tbody>';
+      html += '<tr><td>' + esc(TLi18n.t('brr.summaryTitle')) + '</td><td>&mdash;</td><td class="num">'
+        + esc(r.assigned) + '</td><td class="num">' + esc(r.executed) + '</td><td class="num">'
+        + esc(r.defects) + '</td></tr>';
+      $.each(r.cases || [], function (i, c) {
+        html += '<tr><td>' + esc(c.name) + ' v' + esc(c.version) + '</td><td>' + esc(c.suite)
+          + '</td><td class="num">&mdash;</td><td class="num">'
+          + esc(TLi18n.t('brr.status.' + c.status, c.status)) + '</td><td class="num">'
+          + esc((c.bugs || []).join(', ')) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      $('#detailBody').html(html);
+      $('#detailModal').modal('show');
+    })
+    .fail(function (xhr) {
+      if (currentData) { $('#stateBox').html(''); $('#report').show(); }
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      if (isAuthError(payload && payload.code) || xhr.status === 401) { redirectToLogin(); return; }
+      toast(TLi18n.t('brr.detailFailed'), 'err');
+    });
+}
+function load() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('brr.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('brr.badRequestBody', { status: 400 })) + '</div>'
+      + '<div class="code">missing_tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = { action: 'report', tplan_id: tplanId };
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
+  var b = $('#selBuild').val(), p = $('#selPlatform').val();
+  var s = $('#selState').val(), v = $('#selVerdict').val();
+  if (b && b !== '0') { params.build_id = b; }
+  if (p && p !== '0') { params.platform_id = p; }
+  if (s && s !== 'all') { params.state = s; }
+  if (v && v !== 'all') { params.verdict = v; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200));
+        return;
+      }
+      currentData = data;
+      $('#stateBox').html('');
+      $('#report').show();
+      fillFilters(data.filters, data.filter);
+      renderSummary(data);
+      renderTable(data);
+      $('#btnCsv').prop('disabled', !(data.rows && data.rows.length));
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status));
+    });
+}
+function loadInit() {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) { load(); return; }
+  showLoading();
+  var params = { action: 'init', tplan_id: tplanId };
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.tproject_id = tp; }
+  $.ajax({ url: API, data: params, dataType: 'json', cache: false,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    .done(function (data) {
+      if (!data || data.status !== 'ok') {
+        showState(stateFor(data && data.code, 200));
+        return;
+      }
+      fillFilters(data.filters, data.filter);
+      load();
+    })
+    .fail(function (xhr) {
+      var payload = null;
+      try { payload = JSON.parse(xhr.responseText); } catch (e) { payload = null; }
+      var code = payload && payload.code;
+      if (isAuthError(code) || xhr.status === 401) { redirectToLogin(); return; }
+      showState(stateFor(code, xhr.status));
+    });
+}
+function csvCell(v) {
+  var s = String(v === null || v === undefined ? '' : v);
+  if (/^[\s\u0009\u000D\u000A]*[=+\-@]/.test(s)) { s = "'" + s; }
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+function exportCsv() {
+  if (!currentData) { return; }
+  var lines = [];
+  lines.push(csvCell(TLi18n.t('brr.title')));
+  lines.push(csvCell(TLi18n.t('brr.ctxPlan')) + ';' + csvCell(currentData.context.tplan_name));
+  lines.push(csvCell(TLi18n.t('brr.ctxToday')) + ';' + csvCell(currentData.today));
+  lines.push('');
+  lines.push(['brr.colBuild', 'brr.colState', 'brr.colAssigned', 'brr.colExecuted',
+    'brr.colResults', 'brr.colCoverage', 'brr.colPassRate', 'brr.colDefects', 'brr.colVerdict']
+    .map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+  $.each(currentData.rows || [], function (i, r) {
+    var sc = r.counts || {};
+    lines.push([r.name, TLi18n.t('brr.state.' + r.state, r.state), r.assigned, r.executed,
+      (sc.p || 0) + '/' + (sc.f || 0) + '/' + (sc.b || 0) + '/' + (sc.n || 0),
+      r.coverage_pct, r.pass_rate, r.defects,
+      TLi18n.t('brr.verdict.' + r.verdict, r.verdict)].map(csvCell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'build-release-readiness-' + (q('tplan_id') || 'plan') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('brr.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); }
+    else { window.location.href = '/index.php'; }
+  });
+  $('#tblBrr').on('click', '.btn-detail', function () { showDetail($(this).data('id')); });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('brr.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
