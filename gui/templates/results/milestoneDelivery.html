@@ -121,6 +121,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
       <div class="card good"><div class="k" data-i18n="mdlv.kpiExecuted">Executed in window</div><div class="v" id="sExecuted">0</div></div>
       <div class="card warn"><div class="k" data-i18n="mdlv.kpiNotRun">Not run</div><div class="v" id="sNotRun">0</div></div>
       <div class="card info"><div class="k" data-i18n="mdlv.kpiCoverage">Coverage</div><div class="v"><span id="sCoverage">0</span><span class="u">%</span></div></div>
+      <div class="card good"><div class="k" data-i18n="mdlv.kpiPassRate">Pass rate</div><div class="v"><span id="sPassRate">0</span><span class="u">%</span></div></div>
       <div class="card good"><div class="k" data-i18n="mdlv.kpiComplete">Complete</div><div class="v" id="sComplete">0</div></div>
       <div class="card bad"><div class="k" data-i18n="mdlv.kpiOverdue">Overdue</div><div class="v" id="sOverdue">0</div></div>
       <div class="card warn"><div class="k" data-i18n="mdlv.kpiAtRisk">At risk</div><div class="v" id="sAtRisk">0</div></div>
@@ -137,7 +138,9 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
           <th scope="col" data-i18n="mdlv.colExpected">Expected H/M/L</th>
           <th scope="col" data-i18n="mdlv.colAssigned">Assigned</th>
           <th scope="col" data-i18n="mdlv.colExecuted">Executed</th>
+          <th scope="col" data-i18n="mdlv.colResults">P / F / B / NR</th>
           <th scope="col" data-i18n="mdlv.colCoverage">Coverage</th>
+          <th scope="col" data-i18n="mdlv.colPassRate">Pass rate</th>
           <th scope="col" data-i18n="mdlv.colCompletion">Weighted completion</th>
           <th scope="col" data-i18n="mdlv.colDaysLeft">Days left</th>
           <th scope="col" data-i18n="mdlv.colVerdict">Verdict</th>
@@ -258,6 +261,7 @@ function renderSummary(data) {
   $('#sExecuted').text(k.executed || 0);
   $('#sNotRun').text(k.not_run || 0);
   $('#sCoverage').text(k.coverage_pct || 0);
+  $('#sPassRate').text(k.pass_rate || 0);
   $('#sComplete').text(k.complete || 0);
   $('#sOverdue').text(k.overdue || 0);
   $('#sAtRisk').text(k.at_risk || 0);
@@ -283,13 +287,21 @@ function renderTable(data) {
       + (r.start_date ? ' &ndash; ' : '') + esc(r.target_date);
     var cov = Number(r.coverage_pct || 0);
     var covClass = cov >= 90 ? 'good' : (cov >= 50 ? 'warn' : 'bad');
+    var sc = r.status_counts || {};
+    var pass = Number(r.pass_rate || 0);
+    var passClass = pass >= 90 ? 'good' : (pass >= 50 ? 'warn' : 'bad');
+    var split = esc(TLi18n.t('mdlv.resultSplit', {
+      p: sc.p || 0, f: sc.f || 0, b: sc.b || 0, n: sc.n || 0
+    }));
     $('#tblMd tbody').append('<tr>'
       + '<td>' + esc(r.name) + '</td>'
       + '<td>' + window + '</td>'
       + '<td class="num">' + esc(exp['3']) + ' / ' + esc(exp['2']) + ' / ' + esc(exp['1']) + '</td>'
       + '<td class="num">' + esc(r.assigned_total) + '</td>'
       + '<td class="num">' + esc(r.executed_total) + '</td>'
+      + '<td class="num">' + split + '</td>'
       + '<td class="num"><span class="pill ' + covClass + '">' + esc(cov) + '%</span></td>'
+      + '<td class="num"><span class="pill ' + passClass + '">' + esc(pass) + '%</span></td>'
       + '<td class="num"><div class="bar"><div style="width:' + Math.min(100, Math.max(0, Number(r.completion_pct || 0))) + '%"></div></div>'
         + esc(r.completion_pct) + '%</td>'
       + '<td class="num">' + esc(r.days_left) + '</td>'
@@ -299,7 +311,7 @@ function renderTable(data) {
   });
   $('#tblMd thead th').removeAttr('aria-label aria-sort');
   dt = $('#tblMd').DataTable({ language: dtLang(), order: [[1, 'asc']],
-    pageLength: 25, columnDefs: [{ targets: [2, 3, 4, 5, 6, 7], className: 'dt-body-right' }] });
+    pageLength: 25, columnDefs: [{ targets: [2, 3, 4, 5, 6, 7, 8, 9], className: 'dt-body-right' }] });
 }
 function showDetail(idx) {
   var r = (currentData && currentData.rows) ? currentData.rows[idx] : null;
@@ -407,13 +419,17 @@ function exportCsv() {
   lines.push(csvCell(TLi18n.t('mdlv.ctxToday')) + ';' + csvCell(currentData.today));
   lines.push('');
   lines.push(['mdlv.colName', 'mdlv.colWindow', 'mdlv.colExpected', 'mdlv.colAssigned',
-    'mdlv.colExecuted', 'mdlv.colCoverage', 'mdlv.colCompletion', 'mdlv.colDaysLeft',
-    'mdlv.colVerdict'].map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
+    'mdlv.colExecuted', 'mdlv.colResults', 'mdlv.colCoverage', 'mdlv.colPassRate',
+    'mdlv.colCompletion', 'mdlv.colDaysLeft', 'mdlv.colVerdict']
+    .map(function (k) { return csvCell(TLi18n.t(k)); }).join(';'));
   $.each(currentData.rows || [], function (i, r) {
     var e = r.expected || {};
+    var sc = r.status_counts || {};
     lines.push([r.name, (r.start_date || '') + ' - ' + r.target_date,
       e['3'] + '/' + e['2'] + '/' + e['1'], r.assigned_total, r.executed_total,
-      r.coverage_pct, r.completion_pct, r.days_left, TLi18n.t('mdlv.verdict.' + r.verdict, r.verdict)]
+      (sc.p || 0) + '/' + (sc.f || 0) + '/' + (sc.b || 0) + '/' + (sc.n || 0),
+      r.coverage_pct, r.pass_rate, r.completion_pct, r.days_left,
+      TLi18n.t('mdlv.verdict.' + r.verdict, r.verdict)]
       .map(csvCell).join(';'));
   });
   var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });

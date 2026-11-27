@@ -13698,5 +13698,9 @@
   "mdlv.dtInfoFiltered": "(filtrat din _MAX_ repere)",
   "mdlv.dtPrevious": "Anterior",
   "mdlv.dtNext": "Următor",
-  "mdlv.dtEntries": "înregistrări"
+  "mdlv.dtEntries": "înregistrări",
+  "mdlv.kpiPassRate": "Rată de succes",
+  "mdlv.colResults": "P / E / B / NEx",
+  "mdlv.colPassRate": "Rată de succes",
+  "mdlv.resultSplit": "{p} / {f} / {b} / {n}"
 }

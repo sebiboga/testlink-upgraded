@@ -13698,5 +13698,9 @@
   "mdlv.dtInfoFiltered": "(filtered from _MAX_ total milestones)",
   "mdlv.dtPrevious": "Previous",
   "mdlv.dtNext": "Next",
-  "mdlv.dtEntries": "entries"
+  "mdlv.dtEntries": "entries",
+  "mdlv.kpiPassRate": "Pass rate",
+  "mdlv.colResults": "P / F / B / NR",
+  "mdlv.colPassRate": "Pass rate",
+  "mdlv.resultSplit": "{p} / {f} / {b} / {n}"
 }

@@ -254,6 +254,15 @@ foreach ($milestones as $m) {
     foreach ($expected as $imp => $pct) {
         $weighted += mdPct($execByPriority[$imp], $assigned[$imp]) * intval($pct) / 100.0;
     }
+    $statusCounts = array('p' => 0, 'f' => 0, 'b' => 0, 'n' => 0);
+    foreach ($statusByPriority as $counts) {
+        foreach ($counts as $st => $cnt) {
+            if (!isset($statusCounts[$st])) { $statusCounts[$st] = 0; }
+            $statusCounts[$st] += $cnt;
+        }
+    }
+    $statusCounts['n'] = max(0, $totalAssigned - $executed);
+    $passRate = mdPct($statusCounts['p'], $executed);
     $daysLeft = (int)((strtotime($target) - strtotime($today)) / 86400);
     if ($totalAssigned === 0) { $verdict = 'no_data'; }
     elseif ($executed === $totalAssigned) { $verdict = 'complete'; }
@@ -267,7 +276,9 @@ foreach ($milestones as $m) {
         'per_priority' => $perPriority,
         'assigned_total' => $totalAssigned, 'executed_total' => $executed,
         'coverage_pct' => mdPct($executed, $totalAssigned),
-        'completion_pct' => round($weighted, 1), 'verdict' => $verdict);
+        'completion_pct' => round(min(100.0, $weighted), 1),
+        'status_counts' => $statusCounts, 'pass_rate' => $passRate,
+        'verdict' => $verdict);
 }
 
 $totalAssigned = count($links);
@@ -293,11 +304,11 @@ foreach (array('overdue', 'at_risk', 'on_track', 'complete') as $v) {
 }
 if (count($rows) === 0) { $planVerdict = 'no_milestones'; }
 
+ksort($statusTotals);
 $statusRows = array();
 foreach ($statusTotals as $st => $cnt) {
     $statusRows[] = array('status' => $st, 'count' => $cnt);
 }
-ksort($statusRows);
 
 mdOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
     'filters' => array('builds' => $builds, 'platforms' => $platforms),
@@ -305,6 +316,7 @@ mdOut(array('status' => 'ok', 'code' => 200, 'context' => $context,
     'kpi' => array('milestones' => count($rows), 'assigned' => $totalAssigned,
         'executed' => $totalExecuted, 'not_run' => max(0, $totalAssigned - $totalExecuted),
         'coverage_pct' => mdPct($totalExecuted, $totalAssigned),
+        'pass_rate' => mdPct(isset($statusTotals['p']) ? $statusTotals['p'] : 0, $totalExecuted),
         'complete' => $verdictCounts['complete'], 'overdue' => $verdictCounts['overdue'],
         'at_risk' => $verdictCounts['at_risk'], 'on_track' => $verdictCounts['on_track']),
     'verdict' => $planVerdict, 'status_totals' => $statusRows, 'rows' => $rows));
