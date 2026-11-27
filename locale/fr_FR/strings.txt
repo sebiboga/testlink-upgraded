@@ -4311,3 +4311,4 @@ $TLS_link_report_build_activity = "Activité des exécutions par build"; // Buil
 $TLS_link_report_execution_ownership = "Écarts de responsabilité lors de l’exécution";
 $TLS_link_report_execution_bottleneck = "Goulots d’étranglement des exécutions"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Écarts de champs personnalisés du plan de tests";
+$TLS_link_report_milestone_delivery = "Livraison par jalons du plan de test";

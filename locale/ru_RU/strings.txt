@@ -2916,3 +2916,4 @@ $TLS_link_report_build_activity = "Активность выполнений п�
 $TLS_link_report_execution_ownership = "Несоответствия ответственности при выполнении";
 $TLS_link_report_execution_bottleneck = "Узкие места выполнения"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Пробелы значений полей плана тестирования";
+$TLS_link_report_milestone_delivery = "Поставка по контрольным точкам плана тестирования";

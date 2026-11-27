@@ -927,6 +927,13 @@ $tlCfg->reports_list['requirement_traceability_gaps'] = array(
 	'format' => 'format_html'
 );
 
+$tlCfg->reports_list['milestone_delivery'] = array(
+	'title' => 'link_report_milestone_delivery',
+	'url' => 'gui/templates/results/milestoneDelivery.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

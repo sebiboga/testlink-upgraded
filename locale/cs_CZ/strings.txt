@@ -4047,3 +4047,4 @@ $TLS_link_report_build_activity = "Test Plan Build Execution Activity"; // Build
 $TLS_link_report_execution_ownership = "Odchylky v odpovědnosti za provedení";
 $TLS_link_report_execution_bottleneck = "Exekuční úzká hrdla"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Mezery hodnot vlastních polí testovacího plánu";
+$TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";

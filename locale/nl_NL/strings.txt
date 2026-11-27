@@ -4169,3 +4169,4 @@ $TLS_link_report_build_activity = "Build-uitvoeractiviteit"; // Build execution 
 $TLS_link_report_execution_ownership = "Afwijkingen in uitvoeringsverantwoordelijkheid";
 $TLS_link_report_execution_bottleneck = "Uitvoeringsknelpunten"; // Execution bottleneck report (Refs #2070)
 $TLS_link_report_tpwc_gaps = "Gaps in aangepaste velden van het testplan";
+$TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";

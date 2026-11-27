@@ -2827,6 +2827,9 @@ function getActions(&$gui,$baseURL) {
   $actions->planForecast =
     "/gui/templates/results/planForecast.html?{$ctx}";
 
+  $actions->milestoneDelivery =
+    "/gui/templates/results/milestoneDelivery.html?{$ctx}";
+
   // Refs #1984: Test Plan Estimated vs Actual Execution Effort report
   // (net-new screen). TestLink stores the per-version estimate and the actual
   // run duration but no screen ever compares them; this answers "which

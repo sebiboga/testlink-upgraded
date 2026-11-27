@@ -407,6 +407,9 @@ if ($tplan_id > 0) {
                 // comparison - will the plan make its deadline?).
                 $hrefR = '/gui/templates/results/planForecast.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_milestone_delivery') {
+                $hrefR = '/gui/templates/results/milestoneDelivery.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_effort') {
                 // Refs #1984: Test Plan Estimated vs Actual Execution Effort
                 // (which tests run over budget, and how far off the estimate).
