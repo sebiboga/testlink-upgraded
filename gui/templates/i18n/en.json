@@ -13690,5 +13690,13 @@
   "mdlv.status.b": "Blocked",
   "mdlv.status.n": "Not run",
   "mdlv.status.r": "Not run",
-  "footers.milestoneDelivery": "TestLink 2.0.1 - Test Plan Milestone Delivery report"
+  "footers.milestoneDelivery": "TestLink 2.0.1 - Test Plan Milestone Delivery report",
+  "mdlv.dtSearch": "Search",
+  "mdlv.dtZeroRecords": "No matching milestones",
+  "mdlv.dtInfo": "Showing _START_ to _END_ of _TOTAL_ milestones",
+  "mdlv.dtInfoEmpty": "Showing 0 to 0 of 0 milestones",
+  "mdlv.dtInfoFiltered": "(filtered from _MAX_ total milestones)",
+  "mdlv.dtPrevious": "Previous",
+  "mdlv.dtNext": "Next",
+  "mdlv.dtEntries": "entries"
 }

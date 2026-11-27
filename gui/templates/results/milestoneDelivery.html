@@ -221,19 +221,21 @@ function toast(msg, kind) {
 }
 function dtLang() {
   return {
-    search: TLi18n.t('common.filter', 'Filter') + ':',
-    zeroRecords: TLi18n.t('common.noRecords', 'No matching records'),
+    search: TLi18n.t('mdlv.dtSearch') + ':',
+    zeroRecords: TLi18n.t('mdlv.dtZeroRecords'),
     emptyTable: TLi18n.t('mdlv.emptyTable'),
-    info: TLi18n.t('common.info', 'Showing _START_ to _END_ of _TOTAL_'),
-    infoEmpty: TLi18n.t('common.infoEmpty', 'Showing 0 to 0 of 0'),
-    infoFiltered: TLi18n.t('common.infoFiltered', '(filtered from _MAX_)'),
-    paginate: { previous: TLi18n.t('common.previous', 'Previous'), next: TLi18n.t('common.next', 'Next') }
+    info: TLi18n.t('mdlv.dtInfo'),
+    infoEmpty: TLi18n.t('mdlv.dtInfoEmpty'),
+    infoFiltered: TLi18n.t('mdlv.dtInfoFiltered'),
+    lengthMenu: '_MENU_ ' + TLi18n.t('mdlv.dtEntries'),
+    paginate: { previous: TLi18n.t('mdlv.dtPrevious'), next: TLi18n.t('mdlv.dtNext') }
   };
 }
 function verdictLabel(v) { return esc(TLi18n.t('mdlv.verdict.' + v, v)); }
 function verdictBadge(v) { return '<span class="badge-v ' + esc(v) + '">' + verdictLabel(v) + '</span>'; }
-function labelFor(list, id) {
-  var name = String(id || '0');
+function labelFor(list, id, allKey) {
+  if (!id || String(id) === '0') { return esc(TLi18n.t(allKey)); }
+  var name = String(id);
   $.each(list || [], function (i, x) { if (String(x.id) === String(id)) { name = x.name; return false; } });
   return esc(name);
 }
@@ -262,8 +264,8 @@ function renderSummary(data) {
   var c = data.context || {};
   $('#ctxProject').text(c.tproject_name || '-');
   $('#ctxPlan').text(c.tplan_name || '-');
-  $('#ctxBuild').text(labelFor(data.filters && data.filters.builds, data.filter && data.filter.build_id));
-  $('#ctxPlatform').text(labelFor(data.filters && data.filters.platforms, data.filter && data.filter.platform_id));
+  $('#ctxBuild').html(labelFor(data.filters && data.filters.builds, data.filter && data.filter.build_id, 'mdlv.allBuilds'));
+  $('#ctxPlatform').html(labelFor(data.filters && data.filters.platforms, data.filter && data.filter.platform_id, 'mdlv.allPlatforms'));
   $('#ctxToday').text(data.today || '-');
   var v = data.verdict || 'no_data';
   var cls = { complete: 'good', on_track: 'info', at_risk: 'warn', overdue: 'bad',

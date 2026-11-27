@@ -13690,5 +13690,13 @@
   "mdlv.status.b": "Blocat",
   "mdlv.status.n": "Neexecutat",
   "mdlv.status.r": "Neexecutat",
-  "footers.milestoneDelivery": "TestLink 2.0.1 - Raportul de livrare pe repere"
+  "footers.milestoneDelivery": "TestLink 2.0.1 - Raportul de livrare pe repere",
+  "mdlv.dtSearch": "Caută",
+  "mdlv.dtZeroRecords": "Niciun reper corespunzător",
+  "mdlv.dtInfo": "Se afișează _START_–_END_ din _TOTAL_ repere",
+  "mdlv.dtInfoEmpty": "Se afișează 0–0 din 0 repere",
+  "mdlv.dtInfoFiltered": "(filtrat din _MAX_ repere)",
+  "mdlv.dtPrevious": "Anterior",
+  "mdlv.dtNext": "Următor",
+  "mdlv.dtEntries": "înregistrări"
 }
