@@ -305,3 +305,4 @@ $TLS_req_created_automatic_log = "Cerință creată";
 $TLS_tcversion_indicator = ' [v%s]';
 $TLS_link_report_execution_ownership = "Diferențe de responsabilitate la execuție";
 $TLS_link_report_execution_bottleneck = "Blocaje în execuția planului de teste"; // Execution bottleneck report (Refs #2070)
+$TLS_link_report_tpwc_gaps = "Lacunele valorilor câmpurilor personalizate ale planului de test"; // Custom field value gaps report (Refs #2074)

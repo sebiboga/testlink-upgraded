@@ -2249,3 +2249,4 @@ $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"
 $TLS_link_report_build_activity = "Build-suoritustoiminta"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "Suorituksen vastuuerot";
 $TLS_link_report_execution_bottleneck = "Suorituksen pullonkaulat"; // Execution bottleneck report (Refs #2070)
+$TLS_link_report_tpwc_gaps = "Testisuunnitelman mukautettujen kenttien arvovajeet"; // Custom field value gaps report (Refs #2074)

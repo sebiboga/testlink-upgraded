@@ -2543,3 +2543,4 @@ $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"
 $TLS_link_report_build_activity = "빌드 실행 활동"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "실행 담당자 차이";
 $TLS_link_report_execution_bottleneck = "실행 병목 현상"; // Execution bottleneck report (Refs #2070)
+$TLS_link_report_tpwc_gaps = "테스트 계획 사용자 정의 필드 값 격차"; // Custom field value gaps report (Refs #2074)

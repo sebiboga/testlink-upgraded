@@ -3941,3 +3941,4 @@ $TLS_link_report_requirement_traceability_gaps = "Requirement Traceability Gaps"
 $TLS_link_report_build_activity = "Aktywność wykonań buildów"; // Build execution activity report (Refs #2056)
 $TLS_link_report_execution_ownership = "Różnice w odpowiedzialności za wykonanie";
 $TLS_link_report_execution_bottleneck = "Wąskie gardła wykonania"; // Execution bottleneck report (Refs #2070)
+$TLS_link_report_tpwc_gaps = "Luki wartości pól niestandardowych planu testów"; // Custom field value gaps report (Refs #2074)

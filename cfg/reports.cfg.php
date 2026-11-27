@@ -893,6 +893,13 @@ $tlCfg->reports_list['execution_bottleneck'] = array(
 	'format' => 'format_html'
 );
 
+$tlCfg->reports_list['tpwc_gaps'] = array(
+	'title' => 'link_report_tpwc_gaps',
+	'url' => 'gui/templates/results/tpwcGaps.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Refs #2031: Defect Arrival Rate (net-new). First appearance of distinct
 // defects referenced by one plan's executions, grouped by day.
 $tlCfg->reports_list['defect_arrival_rate'] = array(
