@@ -143,7 +143,7 @@ if ($testcaseNodeTypeId <= 0) {
 }
 
 $fieldRs = $db->get_recordset(
-    "SELECT CF.id, CF.name, CF.label, CF.type, CF.display_order " .
+    "SELECT CF.id, CF.name, CF.label, CF.type, CFTP.display_order " .
     "FROM {$tbl['custom_fields']} CF " .
     "JOIN {$tbl['cfield_testprojects']} CFTP ON CFTP.field_id = CF.id " .
     "JOIN {$tbl['cfield_node_types']} CFNT ON CFNT.field_id = CF.id " .
