@@ -196,6 +196,11 @@ if (is_array($testerRs)) {
     }
 }
 
+$testerNames = array();
+foreach ($testers as $u) {
+    $testerNames[$u['id']] = $u['name'];
+}
+
 $buildId = aagPositiveInt($_GET['build_id'] ?? null);
 $platformId = aagPositiveInt($_GET['platform_id'] ?? null);
 $testerId = aagPositiveInt($_GET['tester_id'] ?? null);
@@ -351,6 +356,8 @@ if (is_array($execRs)) {
             'id' => intval($e['id']),
             'build_id' => intval($e['build_id']),
             'tester_id' => intval($e['tester_id']),
+            'tester_name' => isset($testerNames[intval($e['tester_id'])])
+                ? $testerNames[intval($e['tester_id'])] : '',
             'status' => aagResult($e['status']),
             'execution_ts' => (string)$e['execution_ts'],
             'notes' => aagDecode((string)$e['notes']),
@@ -362,9 +369,6 @@ $buildNames = array();
 foreach ($builds as $b) { $buildNames[$b['id']] = $b['name']; }
 $platformNames = array();
 foreach ($platforms as $p) { $platformNames[$p['id']] = $p['name']; }
-$testerNames = array();
-foreach ($testers as $u) { $testerNames[$u['id']] = $u['name']; }
-
 // ---------------------------------------------------------------------------
 // Assignment rows.
 // ---------------------------------------------------------------------------
@@ -552,18 +556,31 @@ if ($action === 'detail') {
     if (is_null($found)) {
         aagFail(404, 'assignment_not_found');
     }
-    $key = $found['tcversion_id'] . '|' . $found['platform_id'];
-    $events = array();
-    if (isset($history[$key])) {
-        $events = array_slice(array_reverse($history[$key]), 0, 100);
+    $keys = array($found['tcversion_id'] . '|' . $found['platform_id']);
+    if (intval($found['platform_id']) === 0) {
+        foreach ($platformNames as $pid => $unused) {
+            $keys[] = $found['tcversion_id'] . '|' . intval($pid);
+        }
     }
+    $events = array();
+    $fullHistory = array();
+    foreach ($keys as $key) {
+        if (isset($history[$key])) {
+            $fullHistory = array_merge($fullHistory, $history[$key]);
+        }
+    }
+    usort($fullHistory, function ($a, $b) {
+        return strcmp($a['execution_ts'], $b['execution_ts']);
+    });
+    $fullHistory = array_reverse($fullHistory);
+    $events = array_slice($fullHistory, 0, 100);
     aagOut(array(
         'status' => 'ok',
         'code' => 200,
         'context' => $context,
         'assignment' => $found,
         'history' => $events,
-        'history_truncated' => isset($history[$key]) && count($history[$key]) > 100,
+        'history_truncated' => count($fullHistory) > 100,
     ));
 }
 

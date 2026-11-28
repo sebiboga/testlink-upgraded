@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="aag.title">Test Plan Assignment Ageing</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 200px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal, .btn-dark { border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid, .detail-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item .k, .detail-grid .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v, .detail-grid .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 106px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.spinner { display: inline-block; width: 18px; height: 18px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -3px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge { display: inline-block; min-width: 22px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge.never { background: #7a3db8; }
+.badge.fresh { background: #2f9e44; }
+.badge.watch { background: #e6b34d; color: #3d2c05; }
+.badge.stale { background: #d97920; }
+.badge.dormant { background: #c0392b; }
+.badge.passed { background: #2f9e44; }
+.badge.failed { background: #c0392b; }
+.badge.blocked { background: #e6b34d; color: #3d2c05; }
+.badge.not_run { background: #6c757d; }
+.btn-detail { background: #4ECDC4; color: #0d3f3c; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 780px; max-width: 94vw; max-height: 88vh; overflow: hidden; display: flex; flex-direction: column; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; overflow: auto; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.detail-h { font-size: 13px; font-weight: 700; color: #22242a; margin: 16px 0 6px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { background: #f2f4f7; text-align: left; padding: 7px 9px; font-size: 11px; text-transform: uppercase; }
+.data-table td { border-bottom: 1px solid #eee; padding: 7px 9px; vertical-align: top; }
+.detail-empty { color: #5c6470; padding: 10px 0; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header"><i class="fa fa-hourglass-half" style="margin-right:8px;"></i>
+  <span data-i18n="aag.title">Test Plan Assignment Ageing</span>
+  <span class="sub" data-i18n="aag.subtitle">assigned work, age and overdue evidence</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="aag.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="aag.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selBuild" data-i18n="aag.build">Build</label><select id="selBuild"></select>
+  <label for="selPlatform" data-i18n="aag.platform">Platform</label><select id="selPlatform"></select>
+  <label for="selTester" data-i18n="aag.tester">Tester</label><select id="selTester"></select>
+  <label for="selBucket" data-i18n="aag.ageBucket">Age bucket</label><select id="selBucket"></select>
+  <label for="selScope" data-i18n="aag.scope">Scope</label><select id="selScope"></select>
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="aag.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="aag.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="aag.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="aag.ctxPlan">Test plan</span><span class="v" id="ctxPlan">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="aag.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="aag.ctxScope">Scope</span><span class="v" id="ctxScope">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="aag.ctxBucket">Age bucket</span><span class="v" id="ctxBucket">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="aag.summaryTitle">Assignment ageing</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="aag.kpiAssignments">Assignments</div><div class="v" id="sAssignments">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="aag.kpiNever">Never executed</div><div class="v" id="sNever">0</div></div>
+      <div class="card good"><div class="k" data-i18n="aag.kpiExecuted">Executed</div><div class="v" id="sExecuted">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="aag.kpiOverdue">Overdue</div><div class="v" id="sOverdue">0</div></div>
+      <div class="card good"><div class="k" data-i18n="aag.bucketFresh">Fresh</div><div class="v" id="sFresh">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="aag.bucketWatch">Watch</div><div class="v" id="sWatch">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="aag.bucketStale">Stale</div><div class="v" id="sStale">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="aag.bucketDormant">Dormant</div><div class="v" id="sDormant">0</div></div>
+      <div class="card info"><div class="k" data-i18n="aag.kpiAvgAge">Average age (days)</div><div class="v" id="sAvg">0</div></div>
+      <div class="card info"><div class="k" data-i18n="aag.kpiOldest">Oldest (days)</div><div class="v" id="sOldest">0</div></div>
+      <div class="card info"><div class="k" data-i18n="aag.kpiCompletion">Executed %</div><div class="v" id="sCompletion">0%</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="aag.tableCaption">Ageing of tester assignments in this test plan</caption>
+      <thead><tr>
+        <th scope="col" data-i18n="aag.colCase">Test case</th>
+        <th scope="col" data-i18n="aag.colSuite">Suite</th>
+        <th scope="col" data-i18n="aag.colVersion">Version</th>
+        <th scope="col" data-i18n="aag.tester">Tester</th>
+        <th scope="col" data-i18n="aag.build">Build</th>
+        <th scope="col" data-i18n="aag.platform">Platform</th>
+        <th scope="col" data-i18n="aag.colAssigned">Assigned</th>
+        <th scope="col" data-i18n="aag.colAge">Age (days)</th>
+        <th scope="col" data-i18n="aag.colDeadline">Deadline</th>
+        <th scope="col" data-i18n="aag.ageBucket">Age bucket</th>
+        <th scope="col" data-i18n="aag.colResult">Latest result</th>
+        <th scope="col" data-i18n="aag.colLastExecution">Last execution</th>
+        <th scope="col" data-i18n="aag.colActions">Details</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+</main>
+
+<div class="footer"><span data-i18n="footers.assignmentAgeing"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="detailModal">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" tabindex="-1">
+    <div class="modalhead"><i class="fa fa-circle-info"></i> <span id="detailModalTitle" data-i18n="aag.detailsTitle">Assignment evidence</span></div>
+    <div class="modalbody" id="detailModalBody"></div>
+    <div class="modalfoot"><button id="detailModalClose"><span data-i18n="aag.closeModal">Close</span></button></div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/assignmentageing/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+function bucketKey(v) {
+  return { never: 'aag.bucketNever', fresh: 'aag.bucketFresh', watch: 'aag.bucketWatch',
+    stale: 'aag.bucketStale', dormant: 'aag.bucketDormant' }[v] || 'aag.bucketNever';
+}
+function resultKey(v) {
+  return { passed: 'aag.resultPassed', failed: 'aag.resultFailed',
+    blocked: 'aag.resultBlocked' }[v] || 'aag.resultNotRun';
+}
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'aag.deniedTitle', body: 'aag.deniedBody' },
+    session_expired: { cls: 'deny', title: 'aag.deniedTitle', body: 'aag.expiredBody' },
+    no_right: { cls: 'deny', title: 'aag.deniedTitle', body: 'aag.noRightBody' },
+    tplan_not_found: { cls: 'warn', title: 'aag.notFoundTitle', body: 'aag.notFoundBody' },
+    project_mismatch: { cls: 'warn', title: 'aag.notFoundTitle', body: 'aag.notFoundBody' },
+    assignment_not_found: { cls: 'warn', title: 'aag.notFoundTitle', body: 'aag.notFoundBody' },
+    invalid_request: { cls: 'warn', title: 'aag.badRequestTitle', body: 'aag.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'aag.badRequestTitle', body: 'aag.badRequestBody' }
+  };
+  var m = map[code] || { cls: 'warn', title: 'aag.serverErrorTitle', body: 'aag.serverErrorBody' };
+  var detail = (!map[code] && rawMessage) ? '<div class="code">' + esc(rawMessage) + '</div>' : '';
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+    + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+    + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('aag.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+function renderBanner(data) {
+  var s = data.summary;
+  var html = '';
+  if (data.verdict === 'no_data') {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>' + esc(TLi18n.t('aag.bannerNone')) + '</span></div>';
+  } else if (data.verdict === 'at_risk') {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+      + esc(TLi18n.t('aag.bannerRisk', { count: s.dormant, overdue: s.overdue })) + '</span></div>';
+  } else if (data.verdict === 'watch') {
+    html = '<div class="banner warn"><i class="fa fa-circle-info"></i><span>'
+      + esc(TLi18n.t('aag.bannerWatch', { count: s.stale, overdue: s.overdue })) + '</span></div>';
+  } else {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+      + esc(TLi18n.t('aag.bannerHealthy', { count: s.assignments })) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+function renderSummary(data) {
+  var s = data.summary;
+  var f = data.filter || {};
+  $('#ctxPlan').text(data.context.tplan_name || '-');
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxScope').text(f.scope === 'all' ? TLi18n.t('aag.scopeAll') : TLi18n.t('aag.scopeActive'));
+  $('#ctxBucket').text(f.bucket ? TLi18n.t(bucketKey(f.bucket)) : TLi18n.t('aag.allBuckets'));
+  $('#sAssignments').text(s.assignments);
+  $('#sNever').text(s.never_executed);
+  $('#sExecuted').text(s.executed);
+  $('#sOverdue').text(s.overdue);
+  $('#sFresh').text(s.fresh);
+  $('#sWatch').text(s.watch);
+  $('#sStale').text(s.stale);
+  $('#sDormant').text(s.dormant);
+  $('#sAvg').text(String(s.avg_age_days || 0));
+  $('#sOldest').text(String(s.oldest_days || 0));
+  $('#sCompletion').text(String(s.completion_pct || 0) + '%');
+}
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows || [], function (i, r) {
+    var deadline = r.deadline_ts || '-';
+    if (r.deadline_state === 'overdue') {
+      deadline += ' <span class="badge dormant">' + esc(TLi18n.t('aag.overdueDays', { days: r.overdue_days })) + '</span>';
+    } else if (r.days_left !== null) {
+      deadline += ' <span class="badge fresh">' + esc(TLi18n.t('aag.daysLeft', { days: r.days_left })) + '</span>';
+    }
+    rows += '<tr>'
+      + '<td><strong>' + esc(r.external_id) + '</strong> ' + esc(r.tcase_name) + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td>' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td>' + esc(r.tester || '-') + '</td>'
+      + '<td>' + esc(r.build || TLi18n.t('aag.anyBuild')) + '</td>'
+      + '<td>' + esc(r.platform || TLi18n.t('aag.anyPlatform')) + '</td>'
+      + '<td>' + esc(r.creation_ts || '-') + '</td>'
+      + '<td>' + (parseInt(r.age_days, 10) || 0) + '</td>'
+      + '<td>' + deadline + '</td>'
+      + '<td><span class="badge ' + esc(r.bucket) + '">' + esc(TLi18n.t(bucketKey(r.bucket))) + '</span></td>'
+      + '<td><span class="badge ' + esc(r.result) + '">' + esc(TLi18n.t(resultKey(r.result))) + '</span></td>'
+      + '<td>' + esc(r.last_execution_ts || TLi18n.t('aag.never')) + '</td>'
+      + '<td><button type="button" class="btn-detail" data-id="' + parseInt(r.id, 10) + '"><i class="fa fa-circle-info"></i> '
+      + esc(TLi18n.t('aag.details')) + '</button></td></tr>';
+  });
+  if (dt) { dt.destroy(); dt = null; }
+  if (rows === '') {
+    $('#tbl tbody').html('<tr><td colspan="13" style="color:#5c6470;text-align:center;">'
+      + esc(TLi18n.t('aag.noRows')) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true,
+    order: [[7, 'desc']], columnDefs: [{ targets: [12], orderable: false }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'assignmentAgeingTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'assignmentAgeingTableSearch'); }
+    }
+  }, 0);
+}
+function fillFilters(filters, filter) {
+  var f = filter || {};
+  var build = '<option value="0">' + esc(TLi18n.t('aag.allBuilds')) + '</option>';
+  $.each(filters.builds || [], function (i, b) {
+    build += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  $('#selBuild').html(build).val(String(f.build_id || 0));
+  var plat = '<option value="0">' + esc(TLi18n.t('aag.allPlatforms')) + '</option>';
+  $.each(filters.platforms || [], function (i, p) {
+    plat += '<option value="' + p.id + '">' + esc(p.name) + '</option>';
+  });
+  $('#selPlatform').html(plat).val(String(f.platform_id || 0));
+  var tester = '<option value="0">' + esc(TLi18n.t('aag.allTesters')) + '</option>';
+  $.each(filters.testers || [], function (i, u) {
+    tester += '<option value="' + u.id + '">' + esc(u.name) + '</option>';
+  });
+  $('#selTester').html(tester).val(String(f.tester_id || 0));
+  var bucket = '<option value="">' + esc(TLi18n.t('aag.allBuckets')) + '</option>';
+  $.each(filters.buckets || [], function (i, b) {
+    bucket += '<option value="' + esc(b) + '">' + esc(TLi18n.t(bucketKey(b))) + '</option>';
+  });
+  $('#selBucket').html(bucket).val(String(f.bucket || ''));
+  var scope = '<option value="active">' + esc(TLi18n.t('aag.scopeActive')) + '</option>'
+    + '<option value="all">' + esc(TLi18n.t('aag.scopeAll')) + '</option>';
+  $('#selScope').html(scope).val(String(f.scope || 'active'));
+}
+function load(keepFilters) {
+  var tplanId = q('tplan_id');
+  if (!tplanId || !/^[0-9]+$/.test(String(tplanId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('aag.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('aag.missingContext')) + '</div><div class="code">tplan_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tplan_id: tplanId });
+  var tp = q('tproject_id');
+  if (tp && /^[0-9]+$/.test(String(tp))) { params.set('tproject_id', tp); }
+  if (!keepFilters) {
+    params.set('build_id', q('build_id') || '0');
+    params.set('platform_id', q('platform_id') || '0');
+    params.set('tester_id', q('tester_id') || '0');
+    params.set('bucket', q('bucket') || '');
+    params.set('scope', q('scope') || 'active');
+  } else {
+    params.set('build_id', $('#selBuild').val() || '0');
+    params.set('platform_id', $('#selPlatform').val() || '0');
+    params.set('tester_id', $('#selTester').val() || '0');
+    params.set('bucket', $('#selBucket').val() || '');
+    params.set('scope', $('#selScope').val() || 'active');
+  }
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderBanner(data);
+    $('#stateBox').html('');
+    $('#report').show();
+    renderTable(data);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+var detailTrigger = null;
+function setBackgroundInert(inert) {
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
+function closeDetailModal() {
+  $('#detailModal').removeClass('show');
+  setBackgroundInert(false);
+  if (detailTrigger && detailTrigger.length) { detailTrigger.trigger('focus'); }
+  detailTrigger = null;
+}
+function openDetailModal(id, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  $('#detailModal').addClass('show');
+  setBackgroundInert(true);
+  $('.modalwin').trigger('focus');
+  $('#detailModalBody').html('<div class="detail-empty"><span class="spinner"></span>'
+    + esc(TLi18n.t('aag.loading')) + '</div>');
+  var params = new URLSearchParams({ action: 'detail', tplan_id: q('tplan_id'), assignment_id: String(id) });
+  var f = (currentData && currentData.filter) || {};
+  params.set('build_id', String(f.build_id || 0));
+  params.set('platform_id', String(f.platform_id || 0));
+  params.set('tester_id', String(f.tester_id || 0));
+  params.set('bucket', f.bucket || '');
+  params.set('scope', f.scope || 'active');
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok' || !data.assignment) {
+      $('#detailModalBody').html('<div class="detail-empty">' + esc(TLi18n.t('aag.detailsError')) + '</div>');
+      return;
+    }
+    var a = data.assignment;
+    var html = '<div class="detail-grid">'
+      + '<div><span class="k" data-i18n="aag.colCase">Test case</span><span class="v">' + esc(a.external_id) + ' ' + esc(a.tcase_name) + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.colSuite">Suite</span><span class="v">' + esc(a.suite_path || '-') + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.tester">Tester</span><span class="v">' + esc(a.tester) + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.colAssigned">Assigned</span><span class="v">' + esc(a.creation_ts) + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.ageBucket">Age bucket</span><span class="v">' + esc(TLi18n.t(bucketKey(a.bucket))) + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.colDeadline">Deadline</span><span class="v">' + esc(a.deadline_ts || '-') + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.build">Build</span><span class="v">' + esc(a.build || TLi18n.t('aag.anyBuild')) + '</span></div>'
+      + '<div><span class="k" data-i18n="aag.platform">Platform</span><span class="v">' + esc(a.platform || TLi18n.t('aag.anyPlatform')) + '</span></div>'
+      + '</div>';
+    html += '<div class="detail-h" data-i18n="aag.historyTitle">Execution history in scope</div>';
+    if (!data.history || !data.history.length) {
+      html += '<div class="detail-empty" data-i18n="aag.noHistory">No executions in this scope</div>';
+    } else {
+      html += '<table class="data-table"><thead><tr>'
+        + '<th data-i18n="aag.colLastExecution">When</th><th data-i18n="aag.colResult">Result</th>'
+        + '<th data-i18n="aag.tester">Tester</th><th data-i18n="aag.historyNotes">Notes</th></tr></thead><tbody>';
+      $.each(data.history, function (i, h) {
+        html += '<tr><td>' + esc(h.execution_ts) + '</td>'
+          + '<td><span class="badge ' + esc(h.status) + '">' + esc(TLi18n.t(resultKey(h.status))) + '</span></td>'
+          + '<td>' + esc(h.tester_id ? (h.tester_name || '') : '') + '</td>'
+          + '<td>' + esc(h.notes || '') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      if (data.history_truncated) {
+        html += '<div class="detail-empty" data-i18n="aag.historyTruncated">Only the newest 100 executions are shown</div>';
+      }
+    }
+    $('#detailModalBody').html(html);
+    TLi18n.apply($('#detailModalBody'));
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    $('#detailModalBody').html('<div class="detail-empty">' + esc(TLi18n.t('aag.detailsError'))
+      + ' <span class="code">' + esc((body && body.code) || ('http_' + xhr.status)) + '</span></div>');
+  });
+}
+function exportCsv() {
+  if (!currentData || !currentData.rows || !currentData.rows.length) {
+    toast(TLi18n.t('aag.nothingToExport'), 'err');
+    return;
+  }
+  var head = ['colCase', 'colSuite', 'colVersion', 'tester', 'build', 'platform', 'colAssigned',
+    'colAge', 'colDeadline', 'ageBucket', 'colResult', 'colLastExecution'];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, function (k) { return cell(TLi18n.t(k.indexOf('.') === -1 ? 'aag.' + k : k)); }).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    lines.push($.map([r.external_id + ' ' + r.tcase_name, r.suite_path, r.version, r.tester,
+      r.build, r.platform, r.creation_ts, r.age_days, r.deadline_ts,
+      TLi18n.t(bucketKey(r.bucket)), TLi18n.t(resultKey(r.result)),
+      r.last_execution_ts], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'assignment-ageing-plan-' + (currentData.context.tplan_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  toast(TLi18n.t('aag.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', function () { load(currentData ? true : false); });
+  $('#btnApply').on('click', function () { load(true); });
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#detailModal').on('click', function (e) { if (e.target === this) { closeDetailModal(); } });
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $('#detailModal').hasClass('show')) { closeDetailModal(); }
+  });
+  $('#detailModalClose').on('click', closeDetailModal);
+  $('#tbl tbody').on('click', '.btn-detail', function () {
+    openDetailModal(parseInt($(this).attr('data-id'), 10), this);
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('aag.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load(false);
+  });
+});
+</script>
+</body>
+</html>
