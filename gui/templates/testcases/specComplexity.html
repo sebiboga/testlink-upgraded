@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Test Specification Complexity Profile of TestLink 2.0.1 (Refs #2092)">
+<title>Test Specification Complexity Profile</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #0d3f3c; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #cfd3da; font-size: 12px; margin-right: 4px; }
+.toolbar select { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 10px; font-size: 13px; max-width: 220px; }
+.toolbar input[type=number] { background: #2f323a; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 6px 8px; font-size: 13px; width: 84px; }
+.toolbar .spacer { flex: 1 1 auto; }
+.btn-teal { background: #4ECDC4; color: #0d3f3c; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2f323a; color: #eee; border: 1px solid #444; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark:hover { background: #3a3e48; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.panel { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.panel h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 14px 0; }
+.panel h3 i { color: #4ECDC4; margin-right: 8px; }
+.ctx-grid { display: flex; flex-wrap: wrap; gap: 10px 26px; }
+.ctx-item { min-width: 150px; }
+.ctx-item .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.ctx-item .v { font-size: 14px; color: #22242a; font-weight: 600; }
+.cards { display: flex; flex-wrap: wrap; gap: 14px; }
+.card { flex: 1 1 116px; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 6px; padding: 12px 14px; }
+.card .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; }
+.card .v { font-size: 22px; font-weight: 700; color: #22242a; margin-top: 4px; }
+.card.good { border-left: 4px solid #2f9e44; }
+.card.bad { border-left: 4px solid #e05c5c; }
+.card.warn { border-left: 4px solid #e6b34d; }
+.card.info { border-left: 4px solid #4ECDC4; }
+.banner { margin: 20px 24px 0 24px; border-radius: 8px; padding: 14px 18px; font-size: 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.banner i { font-size: 18px; }
+.banner.bad { background: #fdecea; color: #8a2b28; border-left: 5px solid #e05c5c; }
+.banner.good { background: #eaf7ee; color: #23633a; border-left: 5px solid #2f9e44; }
+.banner.warn { background: #fff6e5; color: #8a6216; border-left: 5px solid #e6b34d; }
+.banner.info { background: #eef7f7; color: #17756e; border-left: 5px solid #4ECDC4; }
+.state { margin: 20px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 34px 20px; text-align: center; color: #777; font-size: 14px; }
+.state h4 { font-size: 16px; color: #22242a; margin: 0 0 8px 0; }
+.state.warn { border-left: 5px solid #e6b34d; }
+.state.deny { border-left: 5px solid #e05c5c; color: #7a2b2b; }
+.state .code { font-size: 11px; color: #6b7280; margin-top: 10px; font-family: monospace; }
+.spinner { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; border: 3px solid #4ECDC4; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { margin: 0 24px 24px 24px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.badge-band { display: inline-block; min-width: 22px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; text-align: center; }
+.badge-band.high { background: #c0392b; }
+.badge-band.medium { background: #e6b34d; color: #3d2c05; }
+.badge-band.low { background: #2f9e44; }
+.btn-detail { background: #4ECDC4; color: #0d3f3c; border: none; border-radius: 4px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+.btn-detail:hover { background: #3dbdb5; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #0d3f3c !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.footer { padding: 12px 24px; color: #5c6470; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 2000; display: none; }
+.toast.err { background: #e05c5c; }
+.modalbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 9998; align-items: center; justify-content: center; }
+.modalbox.show { display: flex; }
+.modalwin { background: #fff; border-radius: 8px; width: 760px; max-width: 94vw; max-height: 88vh; overflow: hidden; display: flex; flex-direction: column; }
+.modalhead { background: #22242a; color: #fff; padding: 12px 18px; font-size: 15px; font-weight: 700; }
+.modalbody { padding: 18px; font-size: 13px; overflow: auto; }
+.modalfoot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; background: #fafafa; }
+.modalfoot button { border-radius: 4px; padding: 6px 16px; font-size: 13px; cursor: pointer; border: 1px solid #ccc; background: #fff; }
+.detail-grid { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-bottom: 14px; }
+.detail-grid .k { font-size: 11px; color: #5c6470; text-transform: uppercase; letter-spacing: .5px; display: block; }
+.detail-grid .v { font-size: 13px; color: #22242a; font-weight: 600; }
+.detail-h { font-size: 13px; font-weight: 700; color: #22242a; margin: 16px 0 6px 0; }
+.detail-text { font-size: 13px; color: #333; white-space: pre-wrap; background: #f8f9fb; border: 1px solid #eceef2; border-radius: 5px; padding: 9px 11px; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { background: #f2f4f7; color: #445; text-align: left; padding: 7px 9px; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+.data-table td { border-bottom: 1px solid #eee; padding: 7px 9px; vertical-align: top; }
+.data-table td.n { width: 34px; color: #5c6470; }
+.detail-empty { color: #5c6470; padding: 10px 0; font-size: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+</style>
+</head>
+<body>
+<main id="mainContent">
+<div class="header">
+  <i class="fa fa-diagram-project" style="margin-right:8px;"></i>
+  <span data-i18n="scx.title">Test Specification Complexity Profile</span>
+  <span class="sub" data-i18n="scx.subtitle">design complexity by test case</span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="scx.refresh">Refresh</span></button>
+  <button class="btn-dark" id="btnCsv" disabled><i class="fa fa-download"></i> <span data-i18n="scx.exportCsv">Export CSV</span></button>
+  <span class="spacer"></span>
+  <label for="selSuite" data-i18n="scx.suite">Suite</label>
+  <select id="selSuite"></select>
+  <label for="selBand" data-i18n="scx.band">Complexity band</label>
+  <select id="selBand"></select>
+  <label for="inpMinSteps" data-i18n="scx.minSteps">Min. steps</label>
+  <input type="number" id="inpMinSteps" min="1" max="100" step="1" value="1">
+  <button class="btn-dark" id="btnApply"><i class="fa fa-filter"></i> <span data-i18n="scx.apply">Apply</span></button>
+  <button class="btn-dark" id="btnClose"><i class="fa fa-times"></i> <span data-i18n="scx.close">Close</span></button>
+</div>
+
+<div id="stateBox"></div>
+<div id="bannerBox"></div>
+
+<div id="report" style="display:none;">
+  <div class="panel">
+    <h3><i class="fa fa-info-circle"></i><span data-i18n="scx.contextTitle">Report context</span></h3>
+    <div class="ctx-grid">
+      <div class="ctx-item"><span class="k" data-i18n="scx.ctxProject">Test project</span><span class="v" id="ctxProject">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="scx.ctxScope">Scope</span><span class="v" id="ctxScope">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="scx.ctxBand">Complexity band</span><span class="v" id="ctxBand">&mdash;</span></div>
+      <div class="ctx-item"><span class="k" data-i18n="scx.ctxMinSteps">Min. steps</span><span class="v" id="ctxMinSteps">&mdash;</span></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3><i class="fa fa-gauge-high"></i><span data-i18n="scx.summaryTitle">Specification complexity</span></h3>
+    <div class="cards">
+      <div class="card info"><div class="k" data-i18n="scx.kpiTotalCases">Test cases</div><div class="v" id="sTotal">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="scx.kpiHigh">High complexity</div><div class="v" id="sHigh">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="scx.kpiMedium">Medium complexity</div><div class="v" id="sMedium">0</div></div>
+      <div class="card good"><div class="k" data-i18n="scx.kpiLow">Low complexity</div><div class="v" id="sLow">0</div></div>
+      <div class="card info"><div class="k" data-i18n="scx.kpiAvgScore">Average score</div><div class="v" id="sAvg">0</div></div>
+      <div class="card info"><div class="k" data-i18n="scx.kpiSteps">Steps</div><div class="v" id="sSteps">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="scx.kpiMissingExpected">Steps without expected result</div><div class="v" id="sMissingExpected">0</div></div>
+      <div class="card bad"><div class="k" data-i18n="scx.kpiNoRequirements">Without requirement</div><div class="v" id="sNoReq">0</div></div>
+      <div class="card warn"><div class="k" data-i18n="scx.kpiNoKeywords">Without keyword</div><div class="v" id="sNoKw">0</div></div>
+      <div class="card info"><div class="k" data-i18n="scx.kpiCfields">Design custom fields</div><div class="v" id="sCfields">0/0</div></div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="tbl" class="display" style="width:100%;">
+      <caption class="sr-only" data-i18n="scx.tableCaption">Design complexity of every test case in the project</caption>
+      <thead>
+        <tr>
+          <th scope="col" data-i18n="scx.colCase">Test case</th>
+          <th scope="col" data-i18n="scx.colExternalId">ID</th>
+          <th scope="col" data-i18n="scx.colSuite">Suite</th>
+          <th scope="col" data-i18n="scx.colVersion">Version</th>
+          <th scope="col" data-i18n="scx.colSteps">Steps</th>
+          <th scope="col" data-i18n="scx.colExpected">Expected %</th>
+          <th scope="col" data-i18n="scx.colRequirements">Requirements</th>
+          <th scope="col" data-i18n="scx.colKeywords">Keywords</th>
+          <th scope="col" data-i18n="scx.colCfields">Custom fields</th>
+          <th scope="col" data-i18n="scx.colSummaryChars">Summary chars</th>
+          <th scope="col" data-i18n="scx.colScore">Score</th>
+          <th scope="col" data-i18n="scx.colBand">Band</th>
+          <th scope="col" data-i18n="scx.colActions">Details</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+</main>
+
+<div class="footer"><span data-i18n="footers.specComplexity"></span><span id="localeSwitcher"></span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modalbox" id="detailModal">
+  <div class="modalwin" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle" tabindex="-1">
+    <div class="modalhead"><i class="fa fa-circle-info"></i> <span id="detailModalTitle" data-i18n="scx.detailsTitle">Test case design details</span></div>
+    <div class="modalbody" id="detailModalBody"></div>
+    <div class="modalfoot"><button id="detailModalClose"><span data-i18n="scx.closeModal">Close</span></button></div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/speccomplexity/index.php';
+var currentData = null;
+var dt = null;
+
+function esc(v) {
+  return String(v === null || v === undefined ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function q(name) { return new URLSearchParams(window.location.search).get(name); }
+function bandKey(v) {
+  if (v === 'high') { return 'scx.bandHigh'; }
+  if (v === 'medium') { return 'scx.bandMedium'; }
+  return 'scx.bandLow';
+}
+function stateFor(code, httpStatus, rawMessage) {
+  var map = {
+    not_authenticated: { cls: 'deny', title: 'scx.deniedTitle', body: 'scx.deniedBody' },
+    session_expired: { cls: 'deny', title: 'scx.deniedTitle', body: 'scx.expiredBody' },
+    no_right: { cls: 'deny', title: 'scx.deniedTitle', body: 'scx.noRightBody' },
+    tproject_not_found: { cls: 'warn', title: 'scx.notFoundTitle', body: 'scx.notFoundBody' },
+    tcase_not_found: { cls: 'warn', title: 'scx.notFoundTitle', body: 'scx.notFoundBody' },
+    invalid_request: { cls: 'warn', title: 'scx.badRequestTitle', body: 'scx.badRequestBody' },
+    method_not_allowed: { cls: 'warn', title: 'scx.badRequestTitle', body: 'scx.badRequestBody' }
+  };
+  var m = map[code] || { cls: 'warn', title: 'scx.serverErrorTitle', body: 'scx.serverErrorBody' };
+  var detail = (!map[code] && rawMessage) ? '<div class="code">' + esc(rawMessage) + '</div>' : '';
+  return '<div class="state ' + m.cls + '"><h4>' + esc(TLi18n.t(m.title)) + '</h4><div>'
+    + esc(TLi18n.t(m.body, { status: httpStatus })) + '</div>' + detail
+    + '<div class="code">' + esc(code || ('http_' + httpStatus)) + '</div></div>';
+}
+function showState(html) {
+  currentData = null;
+  $('#btnCsv').prop('disabled', true);
+  $('#report').hide();
+  $('#bannerBox').html('');
+  $('#stateBox').html(html);
+}
+function showLoading() {
+  showState('<div class="state"><div class="spinner"></div>' + esc(TLi18n.t('scx.loading')) + '</div>');
+}
+function toast(msg, kind) {
+  var $t = $('#toast');
+  $t.attr('class', 'toast' + (kind ? ' ' + kind : '')).text(msg).fadeIn(180);
+  window.clearTimeout(toast._h);
+  toast._h = window.setTimeout(function () { $t.fadeOut(220); }, 3200);
+}
+function renderBanner(s) {
+  var html = '';
+  if (s.total_cases === 0) {
+    html = '<div class="banner info"><i class="fa fa-info-circle"></i><span>' + esc(TLi18n.t('scx.bannerNone')) + '</span></div>';
+  } else if (s.high > 0) {
+    html = '<div class="banner bad"><i class="fa fa-exclamation-triangle"></i><span>'
+      + esc(TLi18n.t('scx.bannerHigh', { count: s.high, total: s.total_cases })) + '</span></div>';
+  } else if (s.medium > 0) {
+    html = '<div class="banner warn"><i class="fa fa-circle-info"></i><span>'
+      + esc(TLi18n.t('scx.bannerMedium', { count: s.medium })) + '</span></div>';
+  } else {
+    html = '<div class="banner good"><i class="fa fa-check-circle"></i><span>'
+      + esc(TLi18n.t('scx.bannerClear', { total: s.total_cases })) + '</span></div>';
+  }
+  $('#bannerBox').html(html);
+}
+function scopeLabel(suiteId) {
+  if (!suiteId) { return TLi18n.t('scx.allSuites'); }
+  var found = '-';
+  $.each(currentData && currentData.filters ? currentData.filters.suites : [], function (i, s) {
+    if (String(s.id) === String(suiteId)) { found = s.path; }
+  });
+  return found;
+}
+function renderSummary(data) {
+  var s = data.summary;
+  var f = data.filter || {};
+  $('#ctxProject').text(data.context.tproject_name || '-');
+  $('#ctxScope').text(scopeLabel(f.suite_id));
+  $('#ctxBand').text(f.band ? TLi18n.t(bandKey(f.band)) : TLi18n.t('scx.allBands'));
+  $('#ctxMinSteps').text(String(f.min_steps || 1));
+  $('#sTotal').text(s.total_cases);
+  $('#sHigh').text(s.high);
+  $('#sMedium').text(s.medium);
+  $('#sLow').text(s.low);
+  $('#sAvg').text(String(s.avg_score || 0));
+  $('#sSteps').text(s.total_steps);
+  $('#sMissingExpected').text(s.missing_expected);
+  $('#sNoReq').text(s.no_requirements);
+  $('#sNoKw').text(s.no_keywords);
+  $('#sCfields').text((s.cfields_filled || 0) + '/' + (s.cfields_total || 0));
+}
+function renderTable(data) {
+  var rows = '';
+  $.each(data.rows, function (i, r) {
+    rows += '<tr>'
+      + '<td><strong>' + esc(r.tcase_name) + '</strong></td>'
+      + '<td>' + esc(r.external_id) + '</td>'
+      + '<td>' + esc(r.suite_path || '-') + '</td>'
+      + '<td>' + (parseInt(r.version, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.steps, 10) || 0) + '</td>'
+      + '<td>' + (parseFloat(r.expected_pct) || 0) + '%</td>'
+      + '<td>' + (parseInt(r.requirements, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.keywords, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.cfields_filled, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.summary_chars, 10) || 0) + '</td>'
+      + '<td>' + (parseInt(r.score, 10) || 0) + '</td>'
+      + '<td><span class="badge-band ' + esc(r.band) + '">' + esc(TLi18n.t(bandKey(r.band))) + '</span></td>'
+      + '<td><button type="button" class="btn-detail" data-tc="' + parseInt(r.tcase_id, 10) + '" '
+      + 'data-name="' + esc(r.tcase_name) + '"><i class="fa fa-circle-info"></i> '
+      + esc(TLi18n.t('scx.details')) + '</button></td>'
+      + '</tr>';
+  });
+  if (dt) { dt.destroy(); dt = null; }
+  if (rows === '') {
+    var emptyMsg = (parseInt(data.summary.total_cases, 10) || 0) === 0
+      ? TLi18n.t('scx.bannerNone') : TLi18n.t('scx.noRows');
+    $('#tbl tbody').html('<tr><td colspan="13" style="color:#5c6470;text-align:center;">'
+      + esc(emptyMsg) + '</td></tr>');
+    return;
+  }
+  $('#tbl tbody').html(rows);
+  dt = $('#tbl').DataTable({
+    paging: true, pageLength: 25, searching: true, info: true,
+    order: [[10, 'desc']], columnDefs: [{ targets: [12], orderable: false }]
+  });
+  setTimeout(function () {
+    var $inp = $('#tbl').closest('.dataTables_wrapper').find('.dataTables_filter input[type=search]');
+    if ($inp.length) {
+      if (!$inp.attr('id')) { $inp.attr('id', 'specComplexityTableSearch'); }
+      if (!$inp.attr('name')) { $inp.attr('name', 'specComplexityTableSearch'); }
+    }
+  }, 0);
+}
+function fillFilters(filters, filter) {
+  var suite = '<option value="0">' + esc(TLi18n.t('scx.allSuites')) + '</option>';
+  $.each(filters.suites || [], function (i, s) {
+    suite += '<option value="' + s.id + '">' + esc(s.path) + '</option>';
+  });
+  $('#selSuite').html(suite).val(String(filter && filter.suite_id ? filter.suite_id : 0));
+  var band = '<option value="">' + esc(TLi18n.t('scx.allBands')) + '</option>';
+  $.each(filters.bands || [], function (i, b) {
+    band += '<option value="' + esc(b) + '">' + esc(TLi18n.t(bandKey(b))) + '</option>';
+  });
+  $('#selBand').html(band).val(String(filter && filter.band ? filter.band : ''));
+  $('#inpMinSteps').val(String(filter && filter.min_steps ? filter.min_steps : 1));
+}
+function load() {
+  var tprojectId = q('tproject_id');
+  if (!tprojectId || !/^[0-9]+$/.test(String(tprojectId))) {
+    showState('<div class="state warn"><h4>' + esc(TLi18n.t('scx.badRequestTitle')) + '</h4><div>'
+      + esc(TLi18n.t('scx.missingContext')) + '</div><div class="code">tproject_id</div></div>');
+    return;
+  }
+  showLoading();
+  var params = new URLSearchParams({ action: 'report', tproject_id: tprojectId });
+  var suite = $('#selSuite').val();
+  if (suite && suite !== '0') { params.set('suite_id', suite); }
+  var band = $('#selBand').val();
+  if (band) { params.set('band', band); }
+  var raw = $('#inpMinSteps').val();
+  var steps = parseInt(raw, 10);
+  if (isNaN(steps) || steps < 1) { steps = 1; }
+  if (steps > 100) { steps = 100; }
+  $('#inpMinSteps').val(String(steps));
+  params.set('min_steps', String(steps));
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok') {
+      showState(stateFor(data && data.code, 200, data && data.message));
+      return;
+    }
+    currentData = data;
+    $('#btnCsv').prop('disabled', false);
+    fillFilters(data.filters, data.filter);
+    renderSummary(data);
+    renderBanner(data.summary);
+    $('#stateBox').html('');
+    $('#report').show();
+    renderTable(data);
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    if (xhr.status === 401) {
+      var code = (body && body.code) || 'not_authenticated';
+      if (code === 'session_expired' || code === 'not_authenticated') {
+        window.location.href = '/login.php?note=expired&destination='
+          + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+      }
+    }
+    showState(stateFor(body && body.code, xhr.status, (body && body.message) || null));
+  });
+}
+
+var detailTrigger = null;
+function setBackgroundInert(inert) {
+  $('.header, .toolbar, #report, .footer').each(function () {
+    if (inert) {
+      this.setAttribute('inert', 'inert');
+      this.setAttribute('aria-hidden', 'true');
+    } else {
+      this.removeAttribute('inert');
+      this.removeAttribute('aria-hidden');
+    }
+  });
+}
+function closeDetailModal() {
+  $('#detailModal').removeClass('show');
+  setBackgroundInert(false);
+  if (detailTrigger && detailTrigger.length) { detailTrigger.trigger('focus'); }
+  detailTrigger = null;
+}
+function listBlock(titleKey, items, emptyKey) {
+  var html = '<div class="detail-h" data-i18n="' + titleKey + '">' + esc(TLi18n.t(titleKey)) + '</div>';
+  if (!items || !items.length) {
+    return html + '<div class="detail-empty" data-i18n="' + emptyKey + '">' + esc(TLi18n.t(emptyKey)) + '</div>';
+  }
+  html += '<div class="detail-text">' + $.map(items, function (v) { return esc(v); }).join(', ') + '</div>';
+  return html;
+}
+function openDetailModal(tcaseId, name, trigger) {
+  detailTrigger = trigger ? $(trigger) : null;
+  $('#detailModal').addClass('show');
+  setBackgroundInert(true);
+  $('.modalwin').trigger('focus');
+  $('#detailModalBody').html('<div class="detail-empty"><span class="spinner"></span>'
+    + esc(TLi18n.t('scx.loading')) + '</div>');
+  var params = new URLSearchParams({ action: 'case', tproject_id: q('tproject_id'), tcase_id: tcaseId });
+  $.ajax({
+    url: API, method: 'GET', data: params.toString(), dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (data) {
+    if (!data || data.status !== 'ok' || !data.case) {
+      $('#detailModalBody').html('<div class="detail-empty">' + esc(TLi18n.t('scx.detailsError')) + '</div>');
+      return;
+    }
+    var c = data.case;
+    var html = '<div class="detail-grid">'
+      + '<div><span class="k" data-i18n="scx.detailsName">Test case</span><span class="v">' + esc(c.tcase_name) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colExternalId">ID</span><span class="v">' + esc(c.external_id) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colSuite">Suite</span><span class="v">' + esc(c.suite_path || '-') + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colVersion">Version</span><span class="v">' + (parseInt(c.version, 10) || 0) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colScore">Score</span><span class="v">' + (parseInt(c.score, 10) || 0) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colBand">Band</span><span class="v">' + esc(TLi18n.t(bandKey(c.band))) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colSteps">Steps</span><span class="v">' + (parseInt(c.steps, 10) || 0) + '</span></div>'
+      + '<div><span class="k" data-i18n="scx.colExpected">Expected %</span><span class="v">' + (parseFloat(c.expected_pct) || 0) + '%</span></div>'
+      + '</div>';
+    html += '<div class="detail-h" data-i18n="scx.detailsSummary">Summary</div>';
+    html += '<div class="detail-text">' + esc(c.summary || TLi18n.t('scx.noSummary')) + '</div>';
+    html += '<div class="detail-h" data-i18n="scx.detailsSteps">Steps</div>';
+    if (!c.steps_list || !c.steps_list.length) {
+      html += '<div class="detail-empty" data-i18n="scx.noSteps">No steps</div>';
+    } else {
+      html += '<table class="data-table"><thead><tr>'
+        + '<th data-i18n="scx.detailsStepNo">#</th>'
+        + '<th data-i18n="scx.detailsActions">Actions</th>'
+        + '<th data-i18n="scx.detailsExpected">Expected result</th></tr></thead><tbody>';
+      $.each(c.steps_list, function (i, s) {
+        html += '<tr><td class="n">' + (parseInt(s.number, 10) || 0) + '</td>'
+          + '<td>' + esc(s.actions || '') + '</td><td>' + esc(s.expected || '') + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += listBlock('scx.detailsKeywords', c.keywords_list, 'scx.noKeywords');
+    var reqNames = $.map(c.requirements_list || [], function (r) { return r.title || ('#' + r.req_id); });
+    html += listBlock('scx.detailsRequirements', reqNames, 'scx.noRequirements');
+    var cfNames = $.map(c.cfields_list || [], function (f) { return f.label + ': ' + f.value; });
+    html += listBlock('scx.detailsCfields', cfNames, 'scx.noCfields');
+    $('#detailModalBody').html(html);
+    TLi18n.apply($('#detailModalBody'));
+  }).fail(function (xhr) {
+    var body = null;
+    try { body = JSON.parse(xhr.responseText); } catch (e) { body = null; }
+    $('#detailModalBody').html('<div class="detail-empty">' + esc(TLi18n.t('scx.detailsError'))
+      + ' <span class="code">' + esc((body && body.code) || ('http_' + xhr.status)) + '</span></div>');
+  });
+}
+function exportCsv() {
+  if (!currentData || !currentData.rows || !currentData.rows.length) {
+    toast(TLi18n.t('scx.nothingToExport'), 'err');
+    return;
+  }
+  var head = ['colCase', 'colExternalId', 'colSuite', 'colVersion', 'colSteps', 'colExpected',
+    'colRequirements', 'colKeywords', 'colCfields', 'colSummaryChars', 'colScore', 'colBand'];
+  var cell = function (v) {
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[\s\u0009\u000D]*[=+\-@]/.test(t)) { t = "'" + t; }
+    return /[;"\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  var lines = [$.map(head, function (k) { return cell(TLi18n.t('scx.' + k)); }).join(';')];
+  $.each(currentData.rows, function (i, r) {
+    lines.push($.map([r.tcase_name, r.external_id, r.suite_path, r.version, r.steps,
+      r.expected_pct, r.requirements, r.keywords, r.cfields_filled, r.summary_chars,
+      r.score, TLi18n.t(bandKey(r.band))], cell).join(';'));
+  });
+  var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'spec-complexity-tproject-' + (currentData.context.tproject_id || 0) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  toast(TLi18n.t('scx.csvDone'));
+}
+$(function () {
+  $('#btnRefresh').on('click', load);
+  $('#btnApply').on('click', load);
+  $('#btnCsv').on('click', exportCsv);
+  $('#btnClose').on('click', function () {
+    if (window.opener && !window.opener.closed) { window.close(); return; }
+    window.location.href = '/index.php';
+  });
+  $('#detailModal').on('click', function (e) { if (e.target === this) { closeDetailModal(); } });
+  $(document).on('keydown', function (e) {
+    if (e.key === 'Escape' && $('#detailModal').hasClass('show')) { closeDetailModal(); }
+  });
+  $('#detailModal').on('keydown', function (e) {
+    if (e.key !== 'Tab') { return; }
+    var $f = $('.modalwin').find('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!$f.length) { return; }
+    var first = $f.first().get(0);
+    var last = $f.last().get(0);
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  $('#detailModalClose').on('click', closeDetailModal);
+  $('#tbl tbody').on('click', '.btn-detail', function () {
+    openDetailModal(parseInt($(this).attr('data-tc'), 10), $(this).attr('data-name'), this);
+  });
+  TLi18n.load(function () {
+    TLi18n.apply();
+    document.title = TLi18n.t('scx.title') + ' - TestLink 2.0.1';
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+</script>
+</body>
+</html>
