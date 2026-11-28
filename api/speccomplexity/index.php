@@ -110,6 +110,7 @@ if (!is_array($projRs) || count($projRs) === 0) {
     scxFail(404, 'tproject_not_found');
 }
 $project = $projRs[0];
+$projectPrefix = (string)$project['prefix'];
 $context = array(
     'tproject_id' => intval($tprojectId),
     'tproject_name' => scxDecode($project['project_name']),
