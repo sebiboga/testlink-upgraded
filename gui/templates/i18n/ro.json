@@ -13820,7 +13820,7 @@
   "scx.kpiMissingExpected": "Pași fără rezultat așteptat",
   "scx.kpiNoRequirements": "Fără cerință",
   "scx.kpiNoKeywords": "Fără cuvânt cheie",
-  "scx.kpiCfields": "Câmpuri personalizate de proiectare",
+  "scx.kpiCfields": "Cazuri cu câmpuri de proiectare",
   "scx.tableCaption": "Complexitatea proiectării fiecărui caz de test din proiect",
   "scx.colCase": "Caz de test",
   "scx.colExternalId": "ID",

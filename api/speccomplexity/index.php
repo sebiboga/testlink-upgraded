@@ -418,7 +418,9 @@ foreach ($scope as $id => $c) {
     if ($e['keywords'] <= 0) {
         $summary['no_keywords']++;
     }
-    $summary['cfields_filled'] += $e['cfields_filled'];
+    if ($e['cfields_filled'] > 0) {
+        $summary['cfields_filled']++;
+    }
 }
 $scoreSum = 0;
 foreach ($evaluated as $e) {

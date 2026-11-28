@@ -268,7 +268,7 @@ function renderSummary(data) {
   $('#sMissingExpected').text(s.missing_expected);
   $('#sNoReq').text(s.no_requirements);
   $('#sNoKw').text(s.no_keywords);
-  $('#sCfields').text((s.cfields_filled || 0) + '/' + (s.cfields_total || 0));
+  $('#sCfields').text((s.cfields_filled || 0) + '/' + (s.total_cases || 0));
 }
 function renderTable(data) {
   var rows = '';

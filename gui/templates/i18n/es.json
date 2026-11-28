@@ -13820,7 +13820,7 @@
   "scx.kpiMissingExpected": "Steps without expected result",
   "scx.kpiNoRequirements": "Without requirement",
   "scx.kpiNoKeywords": "Without keyword",
-  "scx.kpiCfields": "Design custom fields",
+  "scx.kpiCfields": "Cases with design fields",
   "scx.tableCaption": "Design complexity of every test case in the project",
   "scx.colCase": "Test case",
   "scx.colExternalId": "ID",
