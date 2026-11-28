@@ -482,9 +482,11 @@ if ($action === 'case') {
     if ($e['version_id'] > 0) {
         $cfListRs = $db->get_recordset(
             "SELECT cf.label, cdv.value FROM {$tbl['cfield_design_values']} cdv " .
+            "JOIN {$tbl['cfield_testprojects']} ctp ON ctp.field_id = cdv.field_id " .
             "JOIN {$tbl['custom_fields']} cf ON cf.id = cdv.field_id " .
             "WHERE cdv.node_id = " . intval($e['version_id']) . " " .
-            "AND TRIM(COALESCE(cdv.value, '')) <> '' ORDER BY cf.label");
+            "AND ctp.testproject_id = " . intval($tprojectId) . " AND ctp.active = 1 " .
+            "AND cf.enable_on_design = 1 AND TRIM(COALESCE(cdv.value, '')) <> '' ORDER BY cf.label");
         if (is_array($cfListRs)) {
             foreach ($cfListRs as $r) {
                 $cfieldList[] = array('label' => scxDecode($r['label']), 'value' => scxDecode($r['value']));
