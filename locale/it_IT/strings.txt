@@ -2523,3 +2523,4 @@ $TLS_link_report_tpwc_gaps = "Lacune dei campi personalizzati del piano di test"
 $TLS_link_report_milestone_delivery = "Consegna per milestone del piano di test";
 $TLS_link_report_build_release_readiness = "Prontezza di rilascio dei build"; // Build release readiness report (Refs #2087)
 $TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)
+$TLS_link_report_assignment_ageing = "Invecchiamento delle assegnazioni del piano di test"

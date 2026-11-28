@@ -943,6 +943,15 @@ $tlCfg->reports_list['build_release_readiness'] = array(
 	'format' => 'format_html'
 );
 
+// Refs #2095: Test Plan Assignment Ageing (net-new). Classifies active tester
+// assignments by age / overdue deadline / latest execution evidence.
+$tlCfg->reports_list['assignment_ageing'] = array(
+	'title' => 'link_report_assignment_ageing',
+	'url' => 'gui/templates/results/assignmentAgeing.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
+
 // Add custom configuration
 clearstatcache();
 $f2inc = TL_ABS_PATH . 'cfg/custom_reports.cfg.php';

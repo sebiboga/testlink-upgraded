@@ -414,6 +414,10 @@ if ($tplan_id > 0) {
                 // Refs #2087: per-build release readiness of the addressed plan.
                 $hrefR = '/gui/templates/results/buildReleaseReadiness.html' .
                          "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
+            } else if ($rptItem['title'] == 'link_report_assignment_ageing') {
+                // Refs #2095: age and overdue evidence of active tester assignments.
+                $hrefR = '/gui/templates/results/assignmentAgeing.html' .
+                         "?tproject_id={$tproject_id}&tplan_id={$tplan_id}";
             } else if ($rptItem['title'] == 'link_report_exec_effort') {
                 // Refs #1984: Test Plan Estimated vs Actual Execution Effort
                 // (which tests run over budget, and how far off the estimate).
