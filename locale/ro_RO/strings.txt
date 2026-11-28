@@ -309,4 +309,4 @@ $TLS_link_report_tpwc_gaps = "Lacunele valorilor câmpurilor personalizate ale p
 $TLS_link_report_milestone_delivery = "Livrarea pe repere a planului de testare";
 $TLS_link_report_build_release_readiness = "Pregătirea lansării pe builduri"; // Build release readiness report (Refs #2087)
 $TLS_href_spec_complexity = "Profilul de complexitate al specificației de test"; // Test Specification Complexity Profile (Refs #2092)
-$TLS_link_report_assignment_ageing = "Îmbătrânirea atribuțiilor planului de testare"
+$TLS_link_report_assignment_ageing = "Îmbătrânirea atribuțiilor planului de testare";

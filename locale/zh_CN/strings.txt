@@ -4255,4 +4255,4 @@ $TLS_link_report_tpwc_gaps = "测试计划自定义字段值缺口";
 $TLS_link_report_milestone_delivery = "测试计划里程碑交付";
 $TLS_link_report_build_release_readiness = "构建发布就绪度"; // Build release readiness report (Refs #2087)
 $TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)
-$TLS_link_report_assignment_ageing = "测试计划分配老化"
+$TLS_link_report_assignment_ageing = "测试计划分配老化";

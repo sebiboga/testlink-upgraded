@@ -2547,4 +2547,4 @@ $TLS_link_report_tpwc_gaps = "테스트 계획 사용자 정의 필드 값 격�
 $TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";
 $TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)
 $TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)
-$TLS_link_report_assignment_ageing = "테스트 계획 할당 노후화"
+$TLS_link_report_assignment_ageing = "테스트 계획 할당 노후화";
