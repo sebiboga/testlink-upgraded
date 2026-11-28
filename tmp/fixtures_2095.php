@@ -122,10 +122,14 @@ $closedBuild = intval($buildMgr->create($planId, 'AAG-Build-Closed', '', 1, 0, '
 function aagUser($db, $tables, $login, $roleId)
 {
     $rs = $db->get_recordset("SELECT id FROM {$tables['users']} WHERE login = '" . $login . "'");
+    $hash = password_hash('aag123', PASSWORD_BCRYPT);
     if (is_array($rs) && count($rs) > 0) {
-        return intval($rs[0]['id']);
+        $uid = intval($rs[0]['id']);
+        $db->exec_query("UPDATE {$tables['users']} SET password = '" . $hash . "', " .
+            "active = 1, auth_method = 'DB', role_id = " . intval($roleId) .
+            " WHERE id = " . $uid);
+        return $uid;
     }
-    $hash = '$2y$10$lhIIG2jMq1neLBjPFLlV2uGiP8YPYClGLpO6n1YYWAXNlUCStFBoC';
     $db->exec_query("INSERT INTO {$tables['users']} " .
         "(login,password,email,first,last,role_id,locale,active,script_key,cookie_string,auth_method) " .
         "VALUES ('" . $login . "','" . $hash . "','" . $login . "@example.com','" .

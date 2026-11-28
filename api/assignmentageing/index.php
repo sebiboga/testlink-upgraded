@@ -12,6 +12,18 @@ require_once('testplan.class.php');
 require_once('testproject.class.php');
 
 doSessionStart();
+
+$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+if ($method !== 'GET' && $method !== 'HEAD') {
+    header('Allow: GET, HEAD');
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    http_response_code(405);
+    echo json_encode(array('status' => 'error', 'code' => 'method_not_allowed',
+        'message' => 'method_not_allowed'));
+    exit;
+}
+
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
@@ -80,12 +92,6 @@ function aagResult($letter)
         case 'b': return 'blocked';
     }
     return 'not_run';
-}
-
-$method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-if ($method !== 'GET' && $method !== 'HEAD') {
-    header('Allow: GET, HEAD');
-    aagFail(405, 'method_not_allowed');
 }
 
 $db = new database(DB_TYPE);
