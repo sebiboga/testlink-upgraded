@@ -403,6 +403,7 @@ $summary = array(
     'never_executed' => 0,
     'executed' => 0,
     'overdue' => 0,
+    'never' => 0,
     'fresh' => 0,
     'watch' => 0,
     'stale' => 0,
