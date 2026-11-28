@@ -2956,6 +2956,12 @@ function getActions(&$gui,$baseURL) {
   $actions->tcSpecHealth =
     "/gui/templates/testcases/tcSpecHealth.html?{$ctx}";
 
+  // Refs #2092: Test Specification Complexity Profile (net-new project
+  // report). Backed by api/speccomplexity, which enforces mgt_view_tc on the
+  // addressed project before resolving it.
+  $actions->specComplexity =
+    "/gui/templates/testcases/specComplexity.html?{$ctx}";
+
   // Refs #1568: Metrics & Reports launcher hub (legacy lib/results/resultsNavigator.php)
   $actions->resultsNav = "/gui/templates/results/resultsNavigator.html?{$ctx}";
 

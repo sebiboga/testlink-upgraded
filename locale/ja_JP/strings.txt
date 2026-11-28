@@ -4656,3 +4656,4 @@ $TLS_link_report_execution_bottleneck = "実行のボトルネック"; // Execut
 $TLS_link_report_tpwc_gaps = "テスト計画カスタムフィールド値の欠損";
 $TLS_link_report_milestone_delivery = "テスト計画のマイルストーン進捗";
 $TLS_link_report_build_release_readiness = "ビルドリリース準備状況"; // Build release readiness report (Refs #2087)
+$TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)

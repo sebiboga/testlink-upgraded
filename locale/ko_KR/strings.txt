@@ -2546,3 +2546,4 @@ $TLS_link_report_execution_bottleneck = "실행 병목 현상"; // Execution bot
 $TLS_link_report_tpwc_gaps = "테스트 계획 사용자 정의 필드 값 격차";
 $TLS_link_report_milestone_delivery = "Test Plan Milestone Delivery";
 $TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)
+$TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)

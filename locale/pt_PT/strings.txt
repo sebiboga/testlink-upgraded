@@ -4341,3 +4341,4 @@ $TLS_link_report_execution_bottleneck = "Gargalos de execução"; // Execution b
 $TLS_link_report_tpwc_gaps = "Lacunas dos campos personalizados do plano de testes";
 $TLS_link_report_milestone_delivery = "Entrega por marcos do plano de testes";
 $TLS_link_report_build_release_readiness = "Build Release Readiness"; // Build release readiness report (Refs #2087)
+$TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)

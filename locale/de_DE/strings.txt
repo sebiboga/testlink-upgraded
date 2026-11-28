@@ -3813,3 +3813,4 @@ $TLS_link_report_execution_bottleneck = "Engpass bei Testausführungen"; // Exec
 $TLS_link_report_tpwc_gaps = "Testplangaps bei benutzerdefinierten Feldern";
 $TLS_link_report_milestone_delivery = "Meilenstein-Auslieferung des Testplans";
 $TLS_link_report_build_release_readiness = "Build-Release-Bereitschaft"; // Build release readiness report (Refs #2087)
+$TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)

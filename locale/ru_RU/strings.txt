@@ -2918,3 +2918,4 @@ $TLS_link_report_execution_bottleneck = "Узкие места выполнен�
 $TLS_link_report_tpwc_gaps = "Пробелы значений полей плана тестирования";
 $TLS_link_report_milestone_delivery = "Поставка по контрольным точкам плана тестирования";
 $TLS_link_report_build_release_readiness = "Готовность сборок к выпуску"; // Build release readiness report (Refs #2087)
+$TLS_href_spec_complexity = "Test Specification Complexity Profile"; // Test Specification Complexity Profile (Refs #2092)

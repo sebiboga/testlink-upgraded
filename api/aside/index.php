@@ -833,6 +833,9 @@ if ($show('tests_design')) {
         // right the BFF enforces (mgt_view_tc).
         $items[] = array('label' => lang_get('href_tc_spec_health'),
                          'href' => (string)$u('tcSpecHealth'));
+        // Refs #2092: design-complexity profile of the test specification.
+        $items[] = array('label' => lang_get('href_spec_complexity'),
+                         'href' => (string)$u('specComplexity'));
     }
     if (count($items) > 0) {
         $sections[] = array('key' => 'tests_design', 'label' => lang_get('tests_design'),
